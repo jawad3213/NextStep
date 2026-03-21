@@ -1,0 +1,20 @@
+# Build and test output
+bin/
+obj/
+TestResults/
+
+# User-specific and project settings
+*.user
+*.suo
+*.sln.docstates
+*.userprefs
+
+# IDE and OS files
+.vscode/
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Version control
+.git/

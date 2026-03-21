@@ -1,0 +1,41 @@
+# ============================================================
+# NextStep — .gitignore
+# ============================================================
+
+# --- Variables d'environnement (SECRETS) ---
+.env
+!.env.example
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+
+# --- Angular ---
+frontend/dist/
+frontend/.angular/
+
+# --- .NET ---
+backend/**/bin/
+backend/**/obj/
+backend/**/*.user
+backend/**/*.suo
+
+# --- Python ---
+agents/__pycache__/
+agents/**/__pycache__/
+agents/*.pyc
+agents/.venv/
+agents/venv/
+
+# --- IDE ---
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+Thumbs.db
+.DS_Store
+
+# --- Docker ---
+docker-compose.override.yml

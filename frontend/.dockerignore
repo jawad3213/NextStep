@@ -1,0 +1,19 @@
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build output
+dist/
+tmp/
+out-tsc/
+.angular/
+coverage/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Version control
+.git/

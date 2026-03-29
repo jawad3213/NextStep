@@ -60,21 +60,24 @@ services:
       - nextstep-network
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: mcr.microsoft.com/dotnet/sdk:10.0
     container_name: nextstep-api
     restart: always
+    working_dir: /src
+    command: dotnet watch run --urls "http://0.0.0.0:5000"
     env_file:
       - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_USE_POLLING_FILE_WATCHER=1
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-nextstep_db};Username=${POSTGRES_USER:-admin};Password=${POSTGRES_PASSWORD:-password}
-      - Keycloak__Authority=http://keycloak:8080/realms/nextstep
+      - Keycloak__Authority=http://keycloak:8080/realms/Next-Step
       - Redis__Configuration=redis:6379
       - PythonAgents__Url=http://agents-python:8000
     ports:
       - "5000:5000"
+    volumes:
+      - ./backend:/src
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,11 +89,13 @@ services:
       - nextstep-network
 
   agents-python:
-    build:
-      context: ./agents
-      dockerfile: Dockerfile
+    image: python:3.12-slim
     container_name: nextstep-agents
     restart: always
+    working_dir: /app
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     env_file:
       - .env
     environment:
@@ -100,6 +105,8 @@ services:
       - BACKEND_URL=http://backend:5000
     ports:
       - "8000:8000"
+    volumes:
+      - ./agents:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,13 +114,18 @@ services:
       - nextstep-network
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:22-alpine
     container_name: nextstep-ui
     restart: always
+    working_dir: /app
+    command: >
+      sh -c "npm install &&
+             npx ng serve --host 0.0.0.0 --port 4200 --poll 2000"
     ports:
-      - "4200:80"
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
     depends_on:
       - backend
     networks:
@@ -123,6 +135,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  frontend_node_modules:
     driver: local
 
 networks:

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using backend.Modules.Identity.Models;
 
 namespace backend.data
 {
@@ -7,5 +8,7 @@ namespace backend.data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
+
+        public DbSet<UserEntity> Utilisateurs { get; set; }
     }
 }

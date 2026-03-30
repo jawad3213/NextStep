@@ -23,7 +23,7 @@ COPY --from=publish /app/publish .
 # The application will listen on port 5000 as defined by docker-compose
 EXPOSE 5000
 ENV ASPNETCORE_HTTP_PORTS=5000
-ENV ASPNETCORE_ENVIRONMENT=Development
+ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Start the application
 ENTRYPOINT ["dotnet", "backend.dll"]

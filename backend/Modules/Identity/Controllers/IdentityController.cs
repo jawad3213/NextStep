@@ -35,17 +35,15 @@ namespace backend.Modules.Identity.Controllers
             }
         }
 
-        /// <summary>
-        /// Récupère le profil utilisateur local. 
-        /// Si l'utilisateur n'existe pas encore en DB locale, il est créé automatiquement (JIT Provisioning).
-        /// </summary>
+
+
         [HttpGet("profile")]
         [Authorize]
         public async Task<IActionResult> GetUserProfile()
         {
             try
             {
-                // LE TEST EST ICI : Cette méthode crée l'utilisateur en base s'il n'existe pas.
+               
                 var userProfile = await _userService.EnsureUserCreatedAsync(User);
                 
                 return Ok(new 

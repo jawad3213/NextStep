@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn } from '@angular/router';
 import Keycloak from 'keycloak-js';
 
 export const authGuard: CanActivateFn = async (route, state) => {
@@ -18,7 +18,7 @@ export const authGuard: CanActivateFn = async (route, state) => {
 
   // Si l'utilisateur n'est pas connecté, on le redirige vers la mire de connexion
   await keycloak.login({
-    redirectUri: window.location.origin + state.url,
+    redirectUri: globalThis.location.origin + state.url,
   });
   
   return false;

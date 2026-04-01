@@ -9,7 +9,7 @@ service.py — Logique Métier
 from example_module.schemas import ExampleRequest, ExampleResponse
 
 class ExampleService:
-    async def do_something(self, payload: ExampleRequest) -> ExampleResponse:
+ def do_something(self, payload: ExampleRequest) -> ExampleResponse:
         """
         Traite la requête.
         Dans un vrai agent, on ferait des appels RAG, LLM, etc.
@@ -17,7 +17,7 @@ class ExampleService:
         # --- Logique métier ici ---
         processed = payload.message.upper() + " (TRAITÉ PAR PYTHON)"
         count = len(payload.message.split())
-        
+       
         # Retourne les résultats selon le format défini dans schemas.py
         return ExampleResponse(
             success=True,

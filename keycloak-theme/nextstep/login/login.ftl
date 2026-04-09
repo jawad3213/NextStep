@@ -24,6 +24,13 @@
                         <div class="social-divider">
                             <span>or sign in with email</span>
                         </div>
+
+                        <#if messagesPerField.existsError('username','password')>
+                            <div class="form-error-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}</span>
+                            </div>
+                        </#if>
                     </div>
                 </#if>
 
@@ -31,20 +38,15 @@
                     
                     <div class="form-group">
                         <label for="username"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
-                        <div class="input-wrapper">
+                        <div class="input-wrapper <#if messagesPerField.existsError('username','password')>input-error</#if>">
                             <i class="fa fa-envelope input-icon"></i>
                             <input tabindex="1" id="username" class="" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="username" placeholder="name@company.com" />
                         </div>
-                        <#if messagesPerField.existsError('username','password')>
-                            <span class="error-text" aria-live="polite">
-                                ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
-                            </span>
-                        </#if>
                     </div>
 
                     <div class="form-group">
                         <label for="password">${msg("password")}</label>
-                        <div class="input-wrapper">
+                        <div class="input-wrapper <#if messagesPerField.existsError('username','password')>input-error</#if>">
                             <i class="fa fa-lock input-icon"></i>
                             <input tabindex="2" id="password" class="" name="password" type="password" autocomplete="current-password" placeholder="••••••••" />
                             <button type="button" class="password-toggle" onclick="togglePassword()">

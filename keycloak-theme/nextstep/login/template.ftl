@@ -19,7 +19,7 @@
     </#if>
     <#if properties.styles?has_content>
         <#list properties.styles?split(' ') as style>
-            <link href="${url.resourcesPath}/${style}?v=6" rel="stylesheet" />
+            <link href="${url.resourcesPath}/${style}?v=10" rel="stylesheet" />
         </#list>
     </#if>
 </head>
@@ -78,12 +78,12 @@
                 </div>
 
                 <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
-                    <div class="alert alert-${message.type}">
-                        <#if message.type == 'success'><span class="fa fa-check-circle"></span></#if>
-                        <#if message.type == 'warning'><span class="fa fa-exclamation-triangle"></span></#if>
-                        <#if message.type == 'error'><span class="fa fa-exclamation-circle"></span></#if>
-                        <#if message.type == 'info'><span class="fa fa-info-circle"></span></#if>
-                        <span class="kc-feedback-text">${kcSanitize(message.summary)?no_esc}</span>
+                    <div class="alert alert-${message.type}" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 8px; font-size: 13px; line-height: 1.4; margin-bottom: 20px;">
+                        <#if message.type == 'success'><i class="fa-solid fa-circle-check" style="margin-top: 2px;"></i></#if>
+                        <#if message.type == 'warning'><i class="fa-solid fa-triangle-exclamation" style="margin-top: 2px;"></i></#if>
+                        <#if message.type == 'error'><i class="fa-solid fa-circle-exclamation" style="margin-top: 2px;"></i></#if>
+                        <#if message.type == 'info'><i class="fa-solid fa-circle-info" style="margin-top: 2px;"></i></#if>
+                        <span class="kc-feedback-text" style="flex: 1;">${kcSanitize(message.summary)?no_esc}</span>
                     </div>
                 </#if>
 

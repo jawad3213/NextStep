@@ -40,6 +40,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - ./keycloak-theme/nextstep:/opt/keycloak/themes/nextstep
     networks:
       - nextstep-network
 

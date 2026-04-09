@@ -39,3 +39,6 @@ Thumbs.db
 
 # --- Docker ---
 docker-compose.override.yml
+
+# --- Engineering Dashboard ---
+STATUS.md

@@ -42,3 +42,4 @@ docker-compose.override.yml
 
 # --- Engineering Dashboard ---
 STATUS.md
+.vscode/

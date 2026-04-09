@@ -27,7 +27,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: nextstep-auth
-    command: start-dev --db-schema=keycloak_schema
+    command: start-dev --db-schema=keycloak_schema --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-nextstep_db}
@@ -42,6 +42,7 @@ services:
         condition: service_healthy
     volumes:
       - ./keycloak-theme/nextstep:/opt/keycloak/themes/nextstep
+      - ./keycloak-config:/opt/keycloak/data/import
     networks:
       - nextstep-network
 

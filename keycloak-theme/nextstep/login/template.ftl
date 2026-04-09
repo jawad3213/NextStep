@@ -1,4 +1,4 @@
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false showBackToLogin=false>
 <!DOCTYPE html>
 <html lang="${properties.kcHtmlLanguage!}">
 
@@ -19,7 +19,7 @@
     </#if>
     <#if properties.styles?has_content>
         <#list properties.styles?split(' ') as style>
-            <link href="${url.resourcesPath}/${style}?v=2" rel="stylesheet" />
+            <link href="${url.resourcesPath}/${style}?v=6" rel="stylesheet" />
         </#list>
     </#if>
 </head>
@@ -43,12 +43,24 @@
                     <div class="stat-label">Hiring Partners</div>
                 </div>
             </div>
+
+            <div class="trust-badges">
+                <div class="trust-badge"><div class="trust-badge-dot"></div>SOC 2 certified</div>
+                <div class="trust-badge"><div class="trust-badge-dot"></div>GDPR compliant</div>
+                <div class="trust-badge"><div class="trust-badge-dot"></div>256-bit SSL</div>
+            </div>
         </div>
 
         <!-- Right Form Section -->
         <div class="form-section">
             <div class="form-wrapper">
                 <div class="form-header">
+                    <#if showBackToLogin>
+                        <a href="${url.loginUrl}" class="back-link">
+                            <i class="fa-solid fa-arrow-left"></i> Back to Sign In
+                        </a>
+                    </#if>
+
                     <h2 class="form-title">
                         <#if realm.displayNameHtml?has_content>
                             ${realm.displayNameHtml?no_esc}

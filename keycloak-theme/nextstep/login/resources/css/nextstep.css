@@ -10,21 +10,26 @@
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   font-family: var(--font-family);
-  background-color: #ffffff;
+  background-color: var(--bg-dark);
   color: var(--text-main);
-  height: 100vh;
-  display: flex;
+  overscroll-behavior: none;
 }
 
 /* Split Layout */
 .login-container {
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -40,6 +45,9 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .hero-badge {
@@ -103,24 +111,28 @@ body {
   font-weight: 600;
 }
 
-/* Right Form Section */
 .form-section {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  padding: 1.375rem; /* ~22px */
+  padding: 24px;
   background: #ffffff;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  box-sizing: border-box;
 }
 
 .form-wrapper {
   width: 100%;
   max-width: 400px;
+  margin: auto 0;
+  padding: 20px 0;
 }
 
 .form-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 16px;
 }
 
 .form-title {
@@ -133,44 +145,54 @@ body {
 .form-subtitle {
   color: var(--text-light);
   font-size: 0.95rem;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* Form Elements */
 .form-group {
-  margin-bottom: 0.75rem; /* ~12px gap */
+  margin-bottom: 10px;
 }
 
 label {
   display: block;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-light);
-  margin-bottom: 0.5rem;
+  color: #6b7280;
+  margin-bottom: 6px;
 }
 
 input[type="text"],
 input[type="email"],
 input[type="password"] {
   width: 100%;
-  padding: 1rem 1rem 1rem 2.5rem;
-  background-color: var(--input-bg);
-  border: 1px solid transparent;
-  border-radius: var(--border-radius);
-  font-size: 1rem;
-  color: var(--text-main);
+  height: 44px;
+  padding: 0 12px 0 40px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
   box-sizing: border-box;
-  transition: border-color 0.2s, background-color 0.2s;
+  box-shadow: none;
   font-family: var(--font-family);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus {
   outline: none;
-  border-color: var(--primary-color);
-  background-color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+input[type="text"]:hover:not(:focus),
+input[type="email"]:hover:not(:focus),
+input[type="password"]:hover:not(:focus) {
+  border-color: #9ca3af;
 }
 
 /* Icons in inputs */
@@ -181,22 +203,23 @@ input[type="password"]:focus {
 .input-icon {
   position: absolute;
   top: 50%;
-  left: 1rem;
+  left: 12px;
   transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 1.2rem;
+  color: #9ca3af;
+  font-size: 15px;
 }
 
 .password-toggle {
   position: absolute;
   top: 50%;
-  right: 1rem;
+  right: 12px;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: #9ca3af;
   cursor: pointer;
   background: none;
   border: none;
   padding: 0;
+  font-size: 14px;
 }
 
 /* Options row: remember me & forgot password */
@@ -241,16 +264,17 @@ input[type="password"]:focus {
   border: none;
   padding: 0.75rem;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   border-radius: var(--border-radius);
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
+  transition: background 0.15s, transform 0.1s;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  margin-bottom: 10px;
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-hover);
+  background: #1d4ed8;
 }
 
 .btn-primary:active {
@@ -262,7 +286,8 @@ input[type="password"]:focus {
   display: flex;
   align-items: center;
   text-align: center;
-  margin: 1rem 0;
+  margin-top: 12px;
+  margin-bottom: 12px;
   color: var(--text-light);
   font-size: 0.875rem;
 }
@@ -280,8 +305,9 @@ input[type="password"]:focus {
 
 .social-providers {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  flex-direction: row;
+  gap: 8px; /* Corrected to 8px between Google & GitHub */
+  margin-bottom: 0;
 }
 
 .btn-social {
@@ -289,26 +315,97 @@ input[type="password"]:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 10px;
-  border: 1px solid #e2e8f0;
-  background: white;
-  border-radius: var(--border-radius);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-main);
+  gap: 8px;
+  height: 42px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
   text-decoration: none;
+  box-sizing: border-box;
+  transition: opacity 0.2s;
 }
 
 .btn-social:hover {
-  background-color: var(--input-bg);
+  opacity: 0.9;
 }
 
-.btn-social img {
-  width: 20px;
-  height: 20px;
+#social-google {
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  color: #3c4043;
+}
+
+#social-github {
+  background: #24292e;
+  color: #ffffff;
+  border: none;
+}
+
+/* Premium Nudge */
+.premium-nudge {
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08));
+  border: 0.5px solid rgba(139,92,246,0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.premium-nudge-text {
+  font-size: 11px;
+  color: #555555;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Trust Badges */
+.trust-badges {
+  display: flex;
+  gap: 20px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.trust-badge {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255,255,255,0.45);
+  font-size: 11px;
+}
+
+.trust-badge-dot {
+  width: 6px;
+  height: 6px;
+  background: #22c55e;
+  border-radius: 50%;
+}
+
+
+/* Back to Sign In Link */
+.back-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 16px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.back-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.back-link i, .back-link svg {
+  font-size: 14px;
 }
 
 /* Footer Links */

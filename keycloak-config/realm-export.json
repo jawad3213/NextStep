@@ -607,28 +607,7 @@
         "_id" : "7331abb8-9e40-424d-9c9c-334b509b0e9c",
         "uris" : [ "/*" ]
       } ],
-      "policies" : [ {
-        "id" : "16c06ab6-32f5-4d23-9935-d3b662a9c1db",
-        "name" : "Default Policy",
-        "description" : "A policy that grants access only for users within this realm",
-        "type" : "js",
-        "logic" : "POSITIVE",
-        "decisionStrategy" : "AFFIRMATIVE",
-        "config" : {
-          "code" : "// by default, grants any permission associated with this policy\n$evaluation.grant();\n"
-        }
-      }, {
-        "id" : "7c384210-0593-4a00-8680-a61083b8fc75",
-        "name" : "Default Permission",
-        "description" : "A permission that applies to the default resource type",
-        "type" : "resource",
-        "logic" : "POSITIVE",
-        "decisionStrategy" : "UNANIMOUS",
-        "config" : {
-          "defaultResourceType" : "urn:nextstep-api:resources:default",
-          "applyPolicies" : "[\"Default Policy\"]"
-        }
-      } ],
+      "policies" : [ ],
       "scopes" : [ ],
       "decisionStrategy" : "UNANIMOUS"
     }

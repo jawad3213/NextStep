@@ -5,6 +5,11 @@ using backend.data;
 using Microsoft.EntityFrameworkCore;
 using backend.Modules.Identity.Repositories;
 using backend.Modules.Identity.Services;
+using backend.Infrastructure.Http;
+using backend.Modules.Candidature.Repositories;
+using backend.Modules.Candidature.Services;
+using backend.Modules.Email.Repositories;
+using backend.Modules.Email.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +32,22 @@ builder.Services.AddCors(options =>
 // Module Identity
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>(); 
+
+
+// Repositories
+builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
+builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
+
+// Services
+builder.Services.AddScoped<ICandidatureService, CandidatureService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+// HTTP client for Python agents
+builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Agents:BaseUrl"]!);
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
 
 // Configuration de l'authentification JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

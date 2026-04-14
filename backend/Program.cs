@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.Extensions.Options;
 using backend.data;
 using Microsoft.EntityFrameworkCore;
 using backend.Modules.Identity.Repositories;
@@ -14,10 +13,12 @@ using backend.Modules.Email.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddDbContext<AppDbContext>(options => 
-    options.UseNpgsql( 
-        builder.Configuration.GetConnectionString("DefaultConnection") 
-    )); 
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.")
+    ));
 
 builder.Services.AddCors(options =>
 {
@@ -29,10 +30,9 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Module Identity
+// Identity module
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserService, UserService>(); 
-
+builder.Services.AddScoped<IUserService, UserService>();
 
 // Repositories
 builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
@@ -43,26 +43,31 @@ builder.Services.AddScoped<ICandidatureService, CandidatureService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 // HTTP client for Python agents
+var pythonAgentsUrl = builder.Configuration["PythonAgents:Url"]
+    ?? throw new InvalidOperationException("Configuration 'PythonAgents:Url' is missing.");
+
 builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Agents:BaseUrl"]!);
+    client.BaseAddress = new Uri(pythonAgentsUrl);
     client.Timeout = TimeSpan.FromSeconds(20);
 });
 
-// Configuration de l'authentification JWT
+// JWT / Keycloak authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = builder.Configuration["Keycloak:Authority"];
         options.Audience = builder.Configuration["Keycloak:Audience"];
-        options.RequireHttpsMetadata = bool.Parse(builder.Configuration["Keycloak:RequireHttpsMetadata"] ?? "false");
+        options.RequireHttpsMetadata =
+            bool.Parse(builder.Configuration["Keycloak:RequireHttpsMetadata"] ?? "false");
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuers = new[] 
-            { 
+            ValidIssuers = new[]
+            {
                 "http://localhost:8080/realms/Next-Step",
-                "http://auth:8080/realms/Next-Step"
+                "http://keycloak:8080/realms/Next-Step"
             },
             ValidateAudience = true,
             ValidateLifetime = true,
@@ -71,7 +76,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = "roles"
         };
 
-        // Implémentation de la méthode Lazy Initialization (JIT Provisioning)
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = async context =>
@@ -79,19 +83,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var principal = context.Principal;
                 if (principal != null)
                 {
-                    // Récupérer le UserService de l'injection de dépendances pour ce scope
-                    var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                    
+                    var userService = context.HttpContext.RequestServices
+                        .GetRequiredService<IUserService>();
+
                     try
                     {
-                        // S'assurer que l'utilisateur est bien synchronisé/créé dans la DB locale
                         await userService.EnsureUserCreatedAsync(principal);
                     }
                     catch (Exception ex)
                     {
-                        // Logguer l'erreur ou gérer l'exception
-                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogError(ex, "Erreur lors de la synchronisation JIT de l'utilisateur Keycloak.");
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILogger<Program>>();
+
+                        logger.LogError(
+                            ex,
+                            "Erreur lors de la synchronisation JIT de l'utilisateur Keycloak.");
                     }
                 }
             }
@@ -100,18 +106,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// Add Swagger Gen
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Enable Swagger UI (Forced for testing current features)
 app.UseSwagger();
-app.UseSwaggerUI(c => 
+app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "NextStep API v1");
-    c.RoutePrefix = "swagger"; 
+    c.RoutePrefix = "swagger";
 });
 
 app.UseCors("allowAngular");

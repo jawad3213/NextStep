@@ -20,24 +20,23 @@ public class CandidatureService : ICandidatureService
     {
         var entity = new CandidatureEntity
         {
-            UserId = userId,
-            CompanyName = dto.CompanyName.Trim(),
-            JobTitle = dto.JobTitle.Trim(),
-            JobOfferText = dto.JobOfferText.Trim(),
-            Status = "DRAFT",
-            CreatedAtUtc = DateTime.UtcNow
+            IdUtilisateur = userId,
+            IdOffre = dto.IdOffre,
+            InclureLettreMotivation = dto.InclureLettreMotivation,
+            Statut = "EN_ATTENTE",
+            DateCreation = DateTime.UtcNow
         };
 
         await _candidatureRepository.AddAsync(entity, cancellationToken);
 
         return new CandidatureDto
         {
-            Id = entity.Id,
-            UserId = entity.UserId,
-            CompanyName = entity.CompanyName,
-            JobTitle = entity.JobTitle,
-            Status = entity.Status,
-            CreatedAtUtc = entity.CreatedAtUtc
+            IdCandidature = entity.IdCandidature,
+            IdUtilisateur = entity.IdUtilisateur,
+            IdOffre = entity.IdOffre,
+            DateCreation = entity.DateCreation,
+            InclureLettreMotivation = entity.InclureLettreMotivation,
+            Statut = entity.Statut
         };
     }
 
@@ -54,12 +53,12 @@ public class CandidatureService : ICandidatureService
 
         return new CandidatureDto
         {
-            Id = entity.Id,
-            UserId = entity.UserId,
-            CompanyName = entity.CompanyName,
-            JobTitle = entity.JobTitle,
-            Status = entity.Status,
-            CreatedAtUtc = entity.CreatedAtUtc
+            IdCandidature = entity.IdCandidature,
+            IdUtilisateur = entity.IdUtilisateur,
+            IdOffre = entity.IdOffre,
+            DateCreation = entity.DateCreation,
+            InclureLettreMotivation = entity.InclureLettreMotivation,
+            Statut = entity.Statut
         };
     }
 }

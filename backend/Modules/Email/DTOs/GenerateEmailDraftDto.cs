@@ -16,6 +16,15 @@ public class GenerateEmailDraftDto
     public List<string> Skills { get; set; } = new();
     public List<string> Highlights { get; set; } = new();
 
+    [Required]
+    public string CompanyName { get; set; } = string.Empty;
+
+    [Required]
+    public string JobTitle { get; set; } = string.Empty;
+
+    [Required]
+    public string JobSummary { get; set; } = string.Empty;
+
     public string Language { get; set; } = "fr";
     public string Tone { get; set; } = "professional";
     public string EmailType { get; set; } = "application";

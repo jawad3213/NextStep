@@ -17,9 +17,7 @@ public class EmailDraftRepository : IEmailDraftRepository
         CancellationToken cancellationToken = default)
     {
         _db.EmailDrafts.Add(draft);
-
         await _db.SaveChangesAsync(cancellationToken);
-
         return draft;
     }
 

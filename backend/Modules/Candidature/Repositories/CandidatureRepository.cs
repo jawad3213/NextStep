@@ -18,9 +18,7 @@ public class CandidatureRepository : ICandidatureRepository
         CancellationToken cancellationToken = default)
     {
         _db.Candidatures.Add(candidature);
-
         await _db.SaveChangesAsync(cancellationToken);
-
         return candidature;
     }
 
@@ -30,7 +28,7 @@ public class CandidatureRepository : ICandidatureRepository
     {
         return await _db.Candidatures
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x => x.IdCandidature == id, cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)

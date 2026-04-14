@@ -47,9 +47,9 @@ public class EmailService : IEmailService
             },
             job_offer = new
             {
-                company_name = candidature.CompanyName,
-                job_title = candidature.JobTitle,
-                summary = candidature.JobOfferText
+                company_name = dto.CompanyName,
+                job_title = dto.JobTitle,
+                summary = dto.JobSummary
             }
         };
 
@@ -60,7 +60,7 @@ public class EmailService : IEmailService
 
         var draft = new EmailDraft
         {
-            CandidatureId = candidature.Id,
+            CandidatureId = candidature.IdCandidature,
             EmailType = dto.EmailType,
             Subject = pythonResponse.Subject,
             Body = pythonResponse.Body,

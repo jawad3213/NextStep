@@ -5,11 +5,7 @@ namespace backend.Modules.Candidature.DTOs;
 public class CreateCandidatureDto
 {
     [Required]
-    public string CompanyName { get; set; } = string.Empty;
+    public Guid IdOffre { get; set; }
 
-    [Required]
-    public string JobTitle { get; set; } = string.Empty;
-
-    [Required]
-    public string JobOfferText { get; set; } = string.Empty;
+    public bool InclureLettreMotivation { get; set; } = false;
 }

@@ -2,10 +2,10 @@ namespace backend.Modules.Candidature.DTOs;
 
 public class CandidatureDto
 {
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; }
-    public string CompanyName { get; set; } = string.Empty;
-    public string JobTitle { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public DateTime CreatedAtUtc { get; set; }
+    public Guid IdCandidature { get; set; }
+    public Guid IdUtilisateur { get; set; }
+    public Guid IdOffre { get; set; }
+    public DateTime DateCreation { get; set; }
+    public bool InclureLettreMotivation { get; set; }
+    public string Statut { get; set; } = string.Empty;
 }

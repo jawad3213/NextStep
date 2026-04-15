@@ -1,0 +1,16 @@
+// ═══════════════════════════════════════════════════════════
+// NextStep — Global Styles Entrypoint
+// ═══════════════════════════════════════════════════════════
+
+// Base
+@use 'styles/base/reset';
+@use 'styles/base/typography';
+
+// Layout
+@use 'styles/layout/grid';
+
+// Components
+@use 'styles/components/buttons';
+@use 'styles/components/cards';
+@use 'styles/components/inputs';
+@use 'styles/components/banner';

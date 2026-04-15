@@ -45,7 +45,7 @@
                 <div class="form-group" style="flex: 1; margin-bottom: 0;">
                     <label for="firstName">${msg("firstName")}</label>
                     <div class="input-wrapper">
-                        <i class="fa fa-user input-icon"></i>
+                        <i data-feather="user" class="input-icon"></i>
                         <input type="text" id="firstName" name="firstName" value="${(register.formData.firstName!'')}" autocomplete="given-name" placeholder="John" />
                     </div>
                 </div>
@@ -53,7 +53,7 @@
                 <div class="form-group" style="flex: 1; margin-bottom: 0;">
                     <label for="lastName">${msg("lastName")}</label>
                     <div class="input-wrapper">
-                        <i class="fa fa-user input-icon"></i>
+                        <i data-feather="user" class="input-icon"></i>
                         <input type="text" id="lastName" name="lastName" value="${(register.formData.lastName!'')}" autocomplete="family-name" placeholder="Doe" />
                     </div>
                 </div>
@@ -62,7 +62,7 @@
             <div class="form-group">
                 <label for="email">${msg("email")}</label>
                 <div class="input-wrapper">
-                    <i class="fa fa-envelope input-icon"></i>
+                    <i data-feather="mail" class="input-icon"></i>
                     <input type="email" id="email" name="email" value="${(register.formData.email!'')}" autocomplete="email" placeholder="name@company.com" />
                 </div>
             </div>
@@ -71,7 +71,7 @@
                 <div class="form-group">
                     <label for="username">${msg("username")}</label>
                     <div class="input-wrapper">
-                        <i class="fa fa-user-circle input-icon"></i>
+                        <i data-feather="user" class="input-icon"></i>
                         <input type="text" id="username" name="username" value="${(register.formData.username!'')}" autocomplete="username" placeholder="johndoe" />
                     </div>
                 </div>
@@ -82,7 +82,7 @@
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label for="password">${msg("password")}</label>
                         <div class="input-wrapper">
-                            <i class="fa fa-lock input-icon"></i>
+                            <i data-feather="lock" class="input-icon"></i>
                             <input type="password" id="password" name="password" autocomplete="new-password" placeholder="••••••••" />
                         </div>
                     </div>
@@ -90,7 +90,7 @@
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label for="password-confirm">${msg("passwordConfirm")}</label>
                         <div class="input-wrapper">
-                            <i class="fa fa-lock input-icon"></i>
+                            <i data-feather="lock" class="input-icon"></i>
                             <input type="password" id="password-confirm" name="password-confirm" placeholder="••••••••" />
                         </div>
                     </div>

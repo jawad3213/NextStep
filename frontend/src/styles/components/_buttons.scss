@@ -1,0 +1,82 @@
+// ═══════════════════════════════════════════════════════════
+// NextStep — Button Components
+// ═══════════════════════════════════════════════════════════
+@use '../abstracts/variables' as *;
+@use '../abstracts/mixins' as *;
+
+.btn {
+  @include btn-base;
+  padding: 12px $space-8;
+  font-size: 16px;
+}
+
+.btn-primary {
+  background-color: $color-primary;
+  color: $color-text-inverse;
+
+  &:hover {
+    background-color: $color-primary-hover;
+    box-shadow: 0 4px 12px rgba($color-primary, 0.3);
+  }
+
+  &:active {
+    background-color: $color-primary-active;
+  }
+
+  &:disabled {
+    background-color: $color-text-disabled;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+.btn-gold {
+  background-color: $color-gold;
+  color: $color-text-inverse;
+
+  &:hover {
+    background-color: $color-gold-hover;
+    box-shadow: 0 4px 12px rgba($color-gold, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    background-color: $color-gold-active;
+    transform: translateY(0);
+  }
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: $color-text-secondary;
+  border: 1.5px solid $color-border-default;
+
+  &:hover {
+    background-color: $color-bg-surface;
+    border-color: $color-border-strong;
+  }
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: $color-primary;
+  border: 2px solid $color-primary;
+
+  &:hover {
+    background-color: $color-primary-tint;
+  }
+}
+
+.btn-sm {
+  padding: 8px $space-4;
+  font-size: 14px;
+}
+
+.btn-lg {
+  padding: 14px $space-10;
+  font-size: 16px;
+}
+
+.btn-block {
+  width: 100%;
+}

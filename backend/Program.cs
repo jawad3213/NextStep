@@ -12,6 +12,9 @@ using backend.Modules.Email.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Fix for Npgsql 6.0+ DateTime Kind=Unspecified issue
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 builder.Services.AddControllers();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -32,7 +35,10 @@ builder.Services.AddCors(options =>
 
 // Identity module
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IUserService, UserService>(); 
+
+// Module Profile
+builder.Services.AddScoped<backend.Modules.Profile.Services.IProfileService, backend.Modules.Profile.Services.ProfileService>();
 
 // Repositories
 builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
@@ -124,5 +130,29 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Auto-migration on start
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try {
+        Console.WriteLine("DEBUG: Checking for pending migrations...");
+        var pending = await context.Database.GetPendingMigrationsAsync();
+        Console.WriteLine($"DEBUG: Pending migrations: {string.Join(", ", pending)}");
+        // Fallback: Ensure columns exist manually
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;");
+        
+        await context.Database.MigrateAsync();
+        Console.WriteLine("DEBUG: Migrations/SQL applied successfully!");
+    } catch (Exception ex) {
+        Console.WriteLine($"DEBUG: Migration error: {ex.Message}");
+    }
+}
 
 await app.RunAsync();

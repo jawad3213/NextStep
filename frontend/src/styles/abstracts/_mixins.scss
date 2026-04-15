@@ -1,0 +1,82 @@
+// ═══════════════════════════════════════════════════════════
+// NextStep — Mixins
+// ═══════════════════════════════════════════════════════════
+@use 'variables' as *;
+
+// Responsive breakpoint
+@mixin respond-to($bp) {
+  @if $bp == sm { @media (max-width: $bp-sm)  { @content; } }
+  @if $bp == md { @media (max-width: $bp-md)  { @content; } }
+  @if $bp == lg { @media (max-width: $bp-lg)  { @content; } }
+  @if $bp == xl { @media (max-width: $bp-xl)  { @content; } }
+}
+
+// Flex center
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Flex column center
+@mixin flex-col-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+// Truncate text
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Card style
+@mixin card($radius: $radius-lg) {
+  background: $color-bg-elevated;
+  border: 1px solid $color-border-default;
+  border-radius: $radius;
+  box-shadow: $shadow-sm;
+}
+
+// Input base
+@mixin input-base {
+  width: 100%;
+  height: 44px;
+  padding: 10px $space-4;
+  background-color: $color-bg-input;
+  border: 1.5px solid $color-border-default;
+  border-radius: $radius-md;
+  font-size: 14px;
+  font-family: $font-family-primary;
+  color: $color-text-primary;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color $duration-default $ease-default,
+              box-shadow $duration-default $ease-default;
+
+  &:focus {
+    border-color: $color-border-focus;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+  }
+
+  &::placeholder {
+    color: $color-text-tertiary;
+  }
+}
+
+// Button base
+@mixin btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  font-family: $font-family-primary;
+  font-weight: 700;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all $duration-default $ease-default;
+  border: none;
+  text-decoration: none;
+}

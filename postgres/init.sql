@@ -1,12 +1,9 @@
 CREATE SCHEMA IF NOT EXISTS keycloak_schema;
 
--- Extension pour gérer les vecteurs (RAG / Matching IA)
-CREATE EXTENSION IF NOT EXISTS vector;
-
 -- MODULE IDENTITY & PROFILE
 CREATE TABLE IF NOT EXISTS utilisateur (
     id_utilisateur UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    keycloak_id VARCHAR(255) UNIQUE NOT NULL, -- Lien avec l'IAM Keycloak
+    keycloak_id VARCHAR(255) UNIQUE NOT NULL,
     nom VARCHAR(100),
     prenom VARCHAR(100),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -15,6 +12,8 @@ CREATE TABLE IF NOT EXISTS utilisateur (
     lien_portfolio VARCHAR(255),
     resume_professionnel TEXT,
     coordonnees VARCHAR(255),
+    onboarding_status VARCHAR(20) DEFAULT 'NEW',
+    profile_score INTEGER DEFAULT 0,
     date_inscription TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -26,7 +25,7 @@ CREATE TABLE IF NOT EXISTS experience (
     date_debut DATE,
     date_fin DATE,
     missions TEXT,
-    embedding vector(1536) -- Dimension standard pour OpenAI/LangChain
+    is_valid BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS formation (
@@ -45,7 +44,7 @@ CREATE TABLE IF NOT EXISTS projet (
     technologies_utilisees TEXT,
     lien_projet VARCHAR(255),
     date_realisation DATE,
-    embedding vector(1536)
+    is_valid BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS certification (
@@ -62,8 +61,8 @@ CREATE TABLE IF NOT EXISTS competence (
     id_utilisateur UUID REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
     nom VARCHAR(100),
     niveau INTEGER CHECK (niveau BETWEEN 1 AND 5),
-    type_competence VARCHAR(20), -- 'TECHNIQUE' ou 'SOFT'
-    embedding vector(1536)
+    type_competence VARCHAR(20),
+    is_valid BOOLEAN DEFAULT FALSE
 );
 
 -- MODULE OFFRES
@@ -74,8 +73,7 @@ CREATE TABLE IF NOT EXISTS offre (
     description_brute TEXT,
     localisation VARCHAR(150),
     url_source VARCHAR(255),
-    date_scraping TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    embedding vector(1536)
+    date_scraping TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS keyword (
@@ -92,7 +90,7 @@ CREATE TABLE IF NOT EXISTS candidature (
     id_offre UUID REFERENCES offre(id_offre),
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
-    statut VARCHAR(50) DEFAULT 'EN_ATTENTE' -- EN_ATTENTE, RETENU, REFUSE, ENTRETIEN
+    statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
 );
 
 CREATE TABLE IF NOT EXISTS document_genere (
@@ -120,8 +118,7 @@ CREATE TABLE IF NOT EXISTS question_entrainement (
     id_question UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_session UUID REFERENCES session_coaching(id_session) ON DELETE CASCADE,
     texte_question TEXT,
-    conseil_reponse TEXT,
-    embedding vector(1536)
+    conseil_reponse TEXT
 );
 CREATE TABLE IF NOT EXISTS email_draft (
     id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),

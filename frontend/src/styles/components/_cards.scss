@@ -1,0 +1,30 @@
+// ═══════════════════════════════════════════════════════════
+// NextStep — Card Component
+// ═══════════════════════════════════════════════════════════
+@use '../abstracts/variables' as *;
+
+.card {
+  background: $color-bg-elevated;
+  border: 1px solid $color-border-default;
+  border-radius: $radius-lg;
+  padding: $space-6;
+  box-shadow: $shadow-sm;
+  transition: box-shadow $duration-default $ease-default;
+}
+
+.card:hover {
+  box-shadow: $shadow-md;
+}
+
+.card__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: $color-text-primary;
+  margin-bottom: $space-3;
+}
+
+.card__body {
+  font-size: 14px;
+  color: $color-text-secondary;
+  line-height: 1.6;
+}

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using backend.Modules.Identity.Models;
 using backend.Modules.Email.Models;
 using CandidatureEntity = backend.Modules.Candidature.Models.Candidature;
+using backend.Modules.Profile.Models;
 
 namespace backend.data
 {
@@ -14,6 +15,10 @@ namespace backend.data
         public DbSet<UserEntity> Utilisateurs { get; set; }
         public DbSet<CandidatureEntity> Candidatures => Set<CandidatureEntity>();
         public DbSet<EmailDraft> EmailDrafts => Set<EmailDraft>();
+         public DbSet<Experience> Experiences { get; set; }
+        public DbSet<Formation> Formations { get; set; }
+        public DbSet<Projet> Projets { get; set; }
+        public DbSet<Competence> Competences { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -101,5 +106,6 @@ namespace backend.data
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }
+       
     }
 }

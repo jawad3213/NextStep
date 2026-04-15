@@ -1,7 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using backend.Modules.Identity.DTOs;
 using backend.Modules.Identity.Models;
 using backend.Modules.Identity.Repositories;
+using backend.data;
 
 namespace backend.Modules.Identity.Services
 {
@@ -9,16 +11,21 @@ namespace backend.Modules.Identity.Services
     {
         Task SyncUserFromKeycloakAsync(UserSyncDto syncDto);
         Task<UserEntity> EnsureUserCreatedAsync(ClaimsPrincipal userPrincipal);
+        Task<UserEntity> UpdateSoftOnboardingAsync(string keycloakId, SoftOnboardingDto dto);
+        Task<ProfileStatusDto> GetProfileStatusAsync(string keycloakId);
+        Task UpdateProfileScoreAsync(Guid userId);
     }
 
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
+        private readonly AppDbContext _context;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(IUserRepository userRepository, ILogger<UserService> logger)
+        public UserService(IUserRepository userRepository, AppDbContext context, ILogger<UserService> logger)
         {
             _userRepository = userRepository;
+            _context = context;
             _logger = logger;
         }
 
@@ -38,16 +45,16 @@ namespace backend.Modules.Identity.Services
                 Email = syncDto.Email,
                 Nom = syncDto.LastName,
                 Prenom = syncDto.FirstName,
+                OnboardingCompleted = false,
+                ProfileScore = 0,
                 DateInscription = DateTime.UtcNow
             };
 
             await _userRepository.CreateUserAsync(newUser);
-            _logger.LogInformation("Utilisateur {KeycloakId} créé avec succès via synchronisation.", syncDto.KeycloakId);
         }
 
         public async Task<UserEntity> EnsureUserCreatedAsync(ClaimsPrincipal userPrincipal)
         {
-            // Extraire le Keycloak ID (généralement le claim "sub" ou configuré via NameClaimType)
             var keycloakId = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value 
                           ?? userPrincipal.FindFirst("sub")?.Value;
 
@@ -59,7 +66,6 @@ namespace backend.Modules.Identity.Services
             var existingUser = await _userRepository.GetByKeycloakIdAsync(keycloakId);
             if (existingUser != null) return existingUser;
 
-            // Si l'utilisateur n'existe pas, on le crée à partir des infos du token (JIT Provisioning)
             var newUser = new UserEntity
             {
                 KeycloakId = keycloakId,
@@ -69,13 +75,89 @@ namespace backend.Modules.Identity.Services
                          userPrincipal.FindFirst("given_name")?.Value,
                 Nom = userPrincipal.FindFirst(ClaimTypes.Surname)?.Value ?? 
                       userPrincipal.FindFirst("family_name")?.Value,
+                OnboardingCompleted = false,
+                ProfileScore = 0,
                 DateInscription = DateTime.UtcNow
             };
 
             await _userRepository.CreateUserAsync(newUser);
-            _logger.LogInformation("Synchronisation JIT : Nouvel utilisateur créé pour KeycloakId {KeycloakId}", keycloakId);
-            
             return newUser;
+        }
+
+        public async Task<UserEntity> UpdateSoftOnboardingAsync(string keycloakId, SoftOnboardingDto dto)
+        {
+            var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
+            if (user == null) throw new KeyNotFoundException("Utilisateur non trouvé.");
+
+            user.Objectif = dto.Objectif.ToString();
+            user.Niveau = dto.Niveau.ToString();
+            user.Secteur = dto.Secteur.ToString();
+            user.OnboardingCompleted = true;
+
+            await _userRepository.UpdateUserAsync(user);
+            return user;
+        }
+
+        public async Task<ProfileStatusDto> GetProfileStatusAsync(string keycloakId)
+        {
+            var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
+            if (user == null) throw new KeyNotFoundException("Utilisateur non trouvé.");
+
+            var missingSections = new List<string>();
+            
+            bool hasExp = await _context.Experiences.AnyAsync(e => e.UserId == user.Id);
+            bool hasSkills = await _context.Competences.AnyAsync(c => c.UserId == user.Id);
+            bool hasProjects = await _context.Projets.AnyAsync(p => p.UserId == user.Id);
+            bool hasEdu = await _context.Formations.AnyAsync(f => f.UserId == user.Id);
+
+            if (!hasExp) missingSections.Add("Expériences");
+            if (!hasSkills) missingSections.Add("Compétences");
+            if (!hasProjects) missingSections.Add("Projets");
+            if (!hasEdu) missingSections.Add("Formations");
+
+            int score = await ComputeProfileScoreInternalAsync(user);
+            user.ProfileScore = score;
+            await _userRepository.UpdateUserAsync(user);
+
+            return new ProfileStatusDto
+            {
+                IsComplete = score >= 70,
+                OnboardingCompleted = user.OnboardingCompleted,
+                ProfileScore = score,
+                MissingSections = missingSections
+            };
+        }
+
+        public async Task UpdateProfileScoreAsync(Guid userId)
+        {
+            var user = await _context.Utilisateurs.FindAsync(userId);
+            if (user != null)
+            {
+                user.ProfileScore = await ComputeProfileScoreInternalAsync(user);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task<int> ComputeProfileScoreInternalAsync(UserEntity user)
+        {
+            int score = 0;
+            // Personal Info (20 pts)
+            if (!string.IsNullOrWhiteSpace(user.Nom)) score += 5;
+            if (!string.IsNullOrWhiteSpace(user.Prenom)) score += 5;
+            if (!string.IsNullOrWhiteSpace(user.Email)) score += 5;
+            if (!string.IsNullOrWhiteSpace(user.Coordonnees)) score += 5;
+
+            // Links (10 pts)
+            if (!string.IsNullOrWhiteSpace(user.LienLinkedin)) score += 5;
+            if (!string.IsNullOrWhiteSpace(user.ResumeProfessionnel)) score += 5;
+
+            // Sections (70 pts)
+            if (await _context.Experiences.AnyAsync(e => e.UserId == user.Id)) score += 20;
+            if (await _context.Competences.AnyAsync(c => c.UserId == user.Id)) score += 15;
+            if (await _context.Projets.AnyAsync(p => p.UserId == user.Id)) score += 20;
+            if (await _context.Formations.AnyAsync(f => f.UserId == user.Id)) score += 15;
+
+            return Math.Min(score, 100);
         }
     }
 }

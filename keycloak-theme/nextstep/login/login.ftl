@@ -8,7 +8,7 @@
                 <#if realm.password>
                     <div id="kc-social-providers">
                         <div class="premium-nudge">
-                            <span style="font-size: 14px;">⚡</span>
+                            <span class="premium-nudge-icon">⚡</span>
                             <p class="premium-nudge-text"><strong>Premium members</strong> get 3× more recruiter visibility — unlock after sign in.</p>
                         </div>
                         <#if social?? && social.providers??>
@@ -34,7 +34,7 @@
 
                         <#if messagesPerField.existsError('username','password')>
                             <div class="form-error-alert">
-                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <i data-feather="alert-circle"></i>
                                 <span>${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}</span>
                             </div>
                         </#if>
@@ -46,7 +46,7 @@
                     <div class="form-group">
                         <label for="username"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
                         <div class="input-wrapper <#if messagesPerField.existsError('username','password')>input-error</#if>">
-                            <i class="fa fa-envelope input-icon"></i>
+                            <i data-feather="mail" class="input-icon"></i>
                             <input tabindex="1" id="username" class="" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="username" placeholder="name@company.com" />
                         </div>
                     </div>
@@ -54,10 +54,10 @@
                     <div class="form-group">
                         <label for="password">${msg("password")}</label>
                         <div class="input-wrapper <#if messagesPerField.existsError('username','password')>input-error</#if>">
-                            <i class="fa fa-lock input-icon"></i>
+                            <i data-feather="lock" class="input-icon"></i>
                             <input tabindex="2" id="password" class="" name="password" type="password" autocomplete="current-password" placeholder="••••••••" />
                             <button type="button" class="password-toggle" onclick="togglePassword()">
-                                <i class="fa fa-eye" id="password-icon"></i>
+                                <i data-feather="eye" id="password-icon"></i>
                             </button>
                         </div>
                     </div>
@@ -78,7 +78,7 @@
                         </#if>
                     </div>
 
-                    <div class="form-group" style="margin-top: 1rem;">
+                    <div class="form-group mt-4">
                         <input type="hidden" id="id-hidden-input" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if>/>
                         <button tabindex="4" class="btn-primary" name="login" id="kc-login" type="submit">Sign In & Find My Match &rarr;</button>
                     </div>
@@ -91,12 +91,12 @@
                     const passwordIcon = document.getElementById('password-icon');
                     if (passwordInput.type === 'password') {
                         passwordInput.type = 'text';
-                        passwordIcon.classList.remove('fa-eye');
-                        passwordIcon.classList.add('fa-eye-slash');
+                        passwordIcon.outerHTML = '<i data-feather=\"eye-off\" id=\"password-icon\"></i>';
+                        if(typeof feather !== 'undefined') feather.replace();
                     } else {
                         passwordInput.type = 'password';
-                        passwordIcon.classList.remove('fa-eye-slash');
-                        passwordIcon.classList.add('fa-eye');
+                        passwordIcon.outerHTML = '<i data-feather=\"eye\" id=\"password-icon\"></i>';
+                        if(typeof feather !== 'undefined') feather.replace();
                     }
                 }
             </script>

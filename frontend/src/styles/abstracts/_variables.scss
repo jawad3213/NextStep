@@ -1,0 +1,93 @@
+// ═══════════════════════════════════════════════════════════
+// NextStep Design System — Variables
+// Source: DESIGN_SYSTEM.MD
+// ═══════════════════════════════════════════════════════════
+
+// Brand
+$color-primary:         #1A91F0;
+$color-primary-hover:   #0F6EBB;
+$color-primary-active:  #0A5A9C;
+$color-primary-tint:    #E8F4FD;
+$color-primary-pale:    #F0F8FF;
+$color-gold:            #C8901A;
+$color-gold-hover:      #B58217;
+$color-gold-active:     #A27415;
+
+// Feedback
+$color-success:         #34A853;
+$color-success-tint:    #E6F4EA;
+$color-warning:         #F59B00;
+$color-warning-tint:    #FFF8E6;
+$color-error:           #D93025;
+$color-error-tint:      #FCE8E6;
+$color-info:            #1A91F0;
+$color-info-tint:       #E8F4FD;
+
+// Text
+$color-text-primary:    #212121;
+$color-text-secondary:  #616161;
+$color-text-tertiary:   #9E9E9E;
+$color-text-disabled:   #BDBDBD;
+$color-text-inverse:    #FFFFFF;
+$color-text-link:       #1A91F0;
+$color-text-link-hover: #0F6EBB;
+
+// Backgrounds
+$color-bg-page:         #FFFFFF;
+$color-bg-surface:      #FAFAFA;
+$color-bg-elevated:     #FFFFFF;
+$color-bg-input:        #F5F5F5;
+$color-bg-overlay:      rgba(0, 0, 0, 0.5);
+
+// Borders
+$color-border-default:  #E0E0E0;
+$color-border-strong:   #BDBDBD;
+$color-border-focus:    #1A91F0;
+$color-border-error:    #D93025;
+
+// Typography
+$font-family-primary: 'Lato', 'Helvetica Neue', Arial, sans-serif;
+$font-family-mono:    'Courier New', Courier, monospace;
+
+// Spacing (8px base grid)
+$space-1:  4px;
+$space-2:  8px;
+$space-3:  12px;
+$space-4:  16px;
+$space-5:  20px;
+$space-6:  24px;
+$space-7:  28px;
+$space-8:  32px;
+$space-10: 40px;
+$space-12: 48px;
+$space-16: 64px;
+
+// Border Radius
+$radius-sm:   2px;
+$radius-md:   4px;
+$radius-lg:   8px;
+$radius-xl:   12px;
+$radius-2xl:  16px;
+$radius-full: 9999px;
+
+// Shadows
+$shadow-xs:   0 1px 2px rgba(0, 0, 0, 0.06);
+$shadow-sm:   0 1px 4px rgba(0, 0, 0, 0.08);
+$shadow-md:   0 4px 12px rgba(0, 0, 0, 0.08);
+$shadow-lg:   0 8px 24px rgba(0, 0, 0, 0.10);
+$shadow-xl:   0 16px 40px rgba(0, 0, 0, 0.12);
+
+// Motion
+$ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+$ease-out:     cubic-bezier(0, 0, 0.2, 1);
+$ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+$duration-fast:     100ms;
+$duration-default:  200ms;
+$duration-moderate: 300ms;
+$duration-slow:     400ms;
+
+// Breakpoints
+$bp-sm:  576px;
+$bp-md:  768px;
+$bp-lg:  992px;
+$bp-xl:  1200px;

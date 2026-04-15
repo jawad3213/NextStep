@@ -1,0 +1,42 @@
+// ═══════════════════════════════════════════════════════════
+// NextStep — Input Components
+// ═══════════════════════════════════════════════════════════
+@use '../abstracts/variables' as *;
+@use '../abstracts/mixins' as *;
+
+.form-group {
+  margin-bottom: $space-4;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: $color-text-secondary;
+  margin-bottom: $space-1;
+}
+
+.form-input {
+  @include input-base;
+}
+
+.form-textarea {
+  @include input-base;
+  height: auto;
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-input--error {
+  border-color: $color-border-error;
+
+  &:focus {
+    box-shadow: 0 0 0 3px rgba($color-error, 0.15);
+  }
+}
+
+.form-error-text {
+  font-size: 12px;
+  color: $color-error;
+  margin-top: $space-1;
+}

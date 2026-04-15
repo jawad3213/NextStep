@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using backend.Modules.Identity.Models;
+using backend.Modules.Profile.Models;
 
 namespace backend.data
 {
@@ -10,5 +11,9 @@ namespace backend.data
         }
 
         public DbSet<UserEntity> Utilisateurs { get; set; }
+        public DbSet<Experience> Experiences { get; set; }
+        public DbSet<Formation> Formations { get; set; }
+        public DbSet<Projet> Projets { get; set; }
+        public DbSet<Competence> Competences { get; set; }
     }
 }

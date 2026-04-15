@@ -1,0 +1,84 @@
+<div class="onboarding-container">
+  <div class="background-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="onboarding-card">
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="(currentStep() / 3) * 100"></div>
+    </div>
+
+    @if (isLoading()) {
+      <div class="skeleton-container">
+        <div class="skeleton-title"></div>
+        <div class="skeleton-subtitle"></div>
+        <div class="skeleton-grid">
+          <div class="skeleton-card" *ngFor="let i of [1,2,3,4,5,6]"></div>
+        </div>
+      </div>
+    } @else {
+      <!-- Step 1: Objectif -->
+      <div class="step-content" [class.active]="currentStep() === 1">
+        <div class="step-header">
+          <h1 class="heading-1">Bienvenue 👋</h1>
+          <p class="body-large">Pour mieux vous accompagner, quel est votre objectif actuel ?</p>
+        </div>
+        
+        <div class="options-grid">
+          @for (opt of objectifOptions; track opt[0]) {
+            <div class="option-card" (click)="selectObjectif(opt[0])" [class.selected]="onboardingData.objectif === opt[0]">
+              <span class="option-icon">{{ objectifIcons[opt[0]] }}</span>
+              <span class="option-label">{{ opt[1] }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Step 2: Niveau -->
+      <div class="step-content" [class.active]="currentStep() === 2">
+        <button class="btn-back" (click)="prevStep()">← Retour</button>
+        <div class="step-header">
+          <h1 class="heading-1">Votre parcours</h1>
+          <p class="body-large">Nous adapterons nos conseils en fonction de votre niveau d'expérience.</p>
+        </div>
+
+        <div class="options-grid">
+          @for (niv of niveauOptions; track niv[0]) {
+            <div class="option-card" (click)="selectNiveau(niv[0])" [class.selected]="onboardingData.niveau === niv[0]">
+              <span class="option-icon">{{ niveauIcons[niv[0]] }}</span>
+              <span class="option-label">{{ niv[1] }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Step 3: Secteur -->
+      <div class="step-content" [class.active]="currentStep() === 3">
+        <button class="btn-back" (click)="prevStep()">← Retour</button>
+        <div class="step-header">
+          <h1 class="heading-1">Dernière étape</h1>
+          <p class="body-large">Sélectionnez votre secteur d'activité privilégié pour personnaliser votre dashboard.</p>
+        </div>
+  
+        <div class="options-grid options-grid--sectors">
+          @for (sec of secteurOptions; track sec[0]) {
+            <div class="option-card option-card--compact" 
+                 (click)="selectSecteur(sec[0])" 
+                 [class.selected]="onboardingData.secteur === sec[0]">
+              <span class="option-icon-small">{{ secteurIcons[sec[0]] }}</span>
+              <span class="option-label-small">{{ sec[1] }}</span>
+            </div>
+          }
+        </div>
+
+        <button class="btn-primary mt-32" 
+                [disabled]="!onboardingData.secteur || isSubmitting()" 
+                [class.btn-pulse]="onboardingData.secteur && !isSubmitting()"
+                (click)="finish()">
+          {{ isSubmitting() ? 'Initialisation...' : 'Commencer l\'aventure ✨' }}
+        </button>
+      </div>
+    }
+  </div>
+</div>

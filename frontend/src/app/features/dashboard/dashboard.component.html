@@ -1,65 +1,97 @@
-<div class="dashboard-container">
+<div class="dashboard-page">
 
-  <!-- État de chargement -->
-  @if (isLoading()) {
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Synchronisation de votre profil...</p>
-    </div>
-  }
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- DASHBOARD CONTENT -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="dashboard-content">
 
-  <!-- État d'erreur -->
-  @if (errorMessage()) {
-    <div class="error-state">
-      <span class="error-icon">⚠️</span>
-      <p>{{ errorMessage() }}</p>
-      <button class="btn btn-retry" (click)="ngOnInit()">Réessayer</button>
-    </div>
-  }
-
-  <!-- Profil chargé -->
-  @if (userProfile(); as profile) {
-    <header class="dashboard-header">
-      <div class="avatar" [attr.data-initials]="getInitials()">
-        {{ getInitials() }}
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="loading-skeleton">
+        <div class="skeleton-bar skeleton-title"></div>
+        <div class="skeleton-bar skeleton-subtitle"></div>
+        <div class="skeleton-card"></div>
       </div>
-      <div class="welcome-text">
-        <h1>Bienvenue, {{ profile.prenom ?? 'Utilisateur' }} 👋</h1>
-        <p class="subtitle">Votre profil est synchronisé avec succès</p>
-      </div>
-    </header>
+    }
 
-    <section class="profile-card">
-      <h2 class="card-title">Informations du profil</h2>
-      <div class="info-grid">
-        <div class="info-item">
-          <span class="info-label">Prénom</span>
-          <span class="info-value">{{ profile.prenom ?? '—' }}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Nom</span>
-          <span class="info-value">{{ profile.nom ?? '—' }}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Email</span>
-          <span class="info-value">{{ profile.email }}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Keycloak ID</span>
-          <span class="info-value id-value">{{ profile.keycloakId }}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Date d'inscription</span>
-          <span class="info-value">{{ profile.dateInscription | date:'dd/MM/yyyy à HH:mm' }}</span>
-        </div>
-      </div>
-    </section>
+    @if (!isLoading() && userProfile(); as profile) {
 
-    <div class="actions">
-      <button class="btn btn-logout" (click)="logout()">
-        Se déconnecter
-      </button>
-    </div>
-  }
+      <!-- Welcome Header -->
+      <header class="welcome-header fade-in-up">
+        <div class="welcome-left">
+          <div class="avatar-circle">{{ getInitials() }}</div>
+          <div class="welcome-text">
+            <h1>{{ getGreeting() }}, <strong>{{ profile.prenom || 'candidat' }}</strong> 👋</h1>
+            <p>Prêt à booster votre carrière aujourd'hui ?</p>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" (click)="logout()">Se déconnecter</button>
+      </header>
 
+      <!-- Profile Completion Card -->
+      @if (profileStatus(); as ps) {
+        <section class="completion-card fade-in-up delay-1">
+          <div class="completion-top">
+            <div class="completion-info">
+              <h2>Complétion du profil</h2>
+              <p class="completion-hint" [class.complete]="ps.isComplete">
+                @if (ps.isComplete) {
+                  Votre profil est prêt pour la génération de CV !
+                } @else {
+                  Complétez au moins 70% pour débloquer la génération.
+                }
+              </p>
+            </div>
+            <div class="score-ring" [class.complete]="ps.isComplete">
+              <svg viewBox="0 0 80 80">
+                <circle class="ring-bg" cx="40" cy="40" r="34" />
+                <circle class="ring-fill" cx="40" cy="40" r="34"
+                  [style.stroke-dasharray]="'213.6'"
+                  [style.stroke-dashoffset]="213.6 - (213.6 * ps.profileScore / 100)" />
+              </svg>
+              <span class="score-value">{{ ps.profileScore }}%</span>
+            </div>
+          </div>
+
+          <!-- Missing sections -->
+          @if (ps.missingSections.length > 0) {
+            <div class="missing-list">
+              <span class="missing-label">Il manque :</span>
+              @for (section of ps.missingSections; track section) {
+                <span class="missing-tag">{{ section }}</span>
+              }
+            </div>
+          }
+
+          <button class="btn btn-primary" (click)="goToProfile()">
+            @if (ps.isComplete) {
+              Affiner mon profil
+            } @else {
+              Compléter mon profil →
+            }
+          </button>
+        </section>
+      }
+
+      <!-- Quick Actions -->
+      <section class="quick-actions fade-in-up delay-2">
+        <div class="action-card" (click)="goToProfile()">
+          <span class="action-icon">📝</span>
+          <h3>Mon Profil</h3>
+          <p>Gérer vos informations</p>
+        </div>
+        <div class="action-card disabled">
+          <span class="action-icon">📄</span>
+          <h3>Générer un CV</h3>
+          <p>Bientôt disponible</p>
+        </div>
+        <div class="action-card disabled">
+          <span class="action-icon">🎯</span>
+          <h3>Matching IA</h3>
+          <p>Bientôt disponible</p>
+        </div>
+      </section>
+
+    }
+  </div>
 </div>

@@ -7,12 +7,12 @@
             <div class="form-group" style="margin-bottom: 2rem;">
                 <label for="username"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
                 <div class="input-wrapper">
-                    <i class="fa fa-envelope input-icon"></i>
+                    <i data-feather="mail" class="input-icon"></i>
                     <input type="text" id="username" name="username" class="" autofocus value="${(auth.attemptedUsername!'')}" aria-invalid="<#if messagesPerField.existsError('username')>true</#if>" placeholder="name@company.com" />
                 </div>
                 <#if messagesPerField.existsError('username')>
                     <span id="input-error-username" class="error-text" aria-live="polite">
-                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <i data-feather="alert-circle"></i>
                         ${kcSanitize(messagesPerField.get('username'))?no_esc}
                     </span>
                 </#if>

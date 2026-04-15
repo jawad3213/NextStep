@@ -1,45 +1,56 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import Keycloak from 'keycloak-js';
 import { IdentityService } from '../../services/identity.service';
-import { UserProfile } from '../../core/auth/models/user-profile.model';
+import { OnboardingService } from '../../services/onboarding.service';
+import {
+  UserProfile,
+  ProfileStatus,
+} from '../../core/auth/models/user-profile.model';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.css',
+  styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
   private readonly keycloak = inject(Keycloak);
   private readonly identityService = inject(IdentityService);
-
+  private readonly onboardingService = inject(OnboardingService);
+  private readonly router = inject(Router);
 
   userProfile = signal<UserProfile | null>(null);
-  isLoading = signal<boolean>(true);
-  errorMessage = signal<string | null>(null);
+  profileStatus = signal<ProfileStatus | null>(null);
+  isLoading = signal(true);
 
   ngOnInit(): void {
     this.loadProfile();
+    this.loadProfileStatus();
   }
-
 
   private loadProfile(): void {
     this.isLoading.set(true);
-    this.errorMessage.set(null);
-
     this.identityService.getProfile().subscribe({
       next: (response) => {
         this.userProfile.set(response.data);
         this.isLoading.set(false);
       },
-      error: (err) => {
-        console.error('Erreur lors du chargement du profil :', err);
-        this.errorMessage.set('Impossible de charger votre profil. Veuillez réessayer.');
-        this.isLoading.set(false);
-      },
+      error: () => this.isLoading.set(false),
     });
+  }
+
+  private loadProfileStatus(): void {
+    this.onboardingService.getProfileStatus().subscribe({
+      next: (status) => this.profileStatus.set(status),
+    });
+  }
+
+  goToProfile(): void {
+    this.router.navigate(['/profile']);
   }
 
   getInitials(): string {
@@ -48,6 +59,13 @@ export class DashboardComponent implements OnInit {
     const first = profile.prenom?.charAt(0)?.toUpperCase() ?? '';
     const last = profile.nom?.charAt(0)?.toUpperCase() ?? '';
     return first + last || profile.email.charAt(0).toUpperCase();
+  }
+
+  getGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bonjour';
+    if (hour < 18) return 'Bon après-midi';
+    return 'Bonsoir';
   }
 
   async logout(): Promise<void> {

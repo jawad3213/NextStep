@@ -8,6 +8,7 @@ namespace backend.Modules.Identity.Repositories
     {
         Task<UserEntity?> GetByKeycloakIdAsync(string keycloakId);
         Task CreateUserAsync(UserEntity user);
+        Task UpdateUserAsync(UserEntity user);
     }
 
     public class UserRepository : IUserRepository
@@ -27,6 +28,12 @@ namespace backend.Modules.Identity.Repositories
         public async Task CreateUserAsync(UserEntity user)
         {
             await _context.Set<UserEntity>().AddAsync(user);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateUserAsync(UserEntity user)
+        {
+            _context.Set<UserEntity>().Update(user);
             await _context.SaveChangesAsync();
         }
     }

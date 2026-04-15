@@ -1,0 +1,492 @@
+// ═══════════════════════════════════════════════════════════
+// NextStep — Dashboard Page
+// ═══════════════════════════════════════════════════════════
+@use '../../../styles/abstracts/variables' as *;
+@use '../../../styles/abstracts/mixins' as *;
+
+// ─── Animations ──────────────────────────────────────────
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInScale {
+  from { opacity: 0; transform: scale(0.92) translateY(16px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes stepSlide {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes ringDraw {
+  from { stroke-dashoffset: 213.6; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.fade-in-up {
+  animation: fadeInUp $duration-slow $ease-out both;
+}
+.delay-1 { animation-delay: 120ms; }
+.delay-2 { animation-delay: 240ms; }
+
+.step-animate {
+  animation: stepSlide $duration-moderate $ease-out both;
+}
+
+// ─── Page Layout ─────────────────────────────────────────
+.dashboard-page {
+  min-height: 100vh;
+  background: $color-bg-surface;
+  font-family: $font-family-primary;
+
+  &.modal-active .dashboard-content {
+    filter: blur(6px);
+    pointer-events: none;
+    user-select: none;
+  }
+}
+
+.dashboard-content {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: $space-12 $space-6;
+  transition: filter $duration-moderate $ease-default;
+
+  @include respond-to(sm) {
+    padding: $space-6 $space-4;
+  }
+}
+
+// ─── Loading Skeleton ────────────────────────────────────
+.loading-skeleton {
+  .skeleton-bar,
+  .skeleton-card {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 800px 100%;
+    animation: shimmer 1.6s infinite linear;
+    border-radius: $radius-lg;
+  }
+  .skeleton-title {
+    height: 28px;
+    width: 340px;
+    margin-bottom: $space-3;
+  }
+  .skeleton-subtitle {
+    height: 16px;
+    width: 220px;
+    margin-bottom: $space-8;
+  }
+  .skeleton-card {
+    height: 200px;
+  }
+}
+
+// ─── Welcome Header ──────────────────────────────────────
+.welcome-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $space-8;
+
+  @include respond-to(sm) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $space-4;
+  }
+}
+
+.welcome-left {
+  display: flex;
+  align-items: center;
+  gap: $space-5;
+}
+
+.avatar-circle {
+  @include flex-center;
+  width: 52px;
+  height: 52px;
+  border-radius: $radius-full;
+  background: linear-gradient(135deg, $color-primary, $color-primary-hover);
+  color: $color-text-inverse;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba($color-primary, 0.25);
+}
+
+.welcome-text {
+  h1 {
+    font-size: 22px;
+    font-weight: 400;
+    color: $color-text-primary;
+    margin: 0;
+    strong { font-weight: 700; }
+  }
+  p {
+    font-size: 14px;
+    color: $color-text-secondary;
+    margin: $space-1 0 0;
+  }
+}
+
+// ─── Completion Card ─────────────────────────────────────
+.completion-card {
+  @include card;
+  padding: $space-8;
+  margin-bottom: $space-8;
+
+  .btn-primary {
+    margin-top: $space-6;
+  }
+}
+
+.completion-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $space-6;
+}
+
+.completion-info {
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: $color-text-primary;
+    margin: 0 0 $space-2;
+  }
+}
+
+.completion-hint {
+  font-size: 14px;
+  color: $color-text-secondary;
+  margin: 0;
+  &.complete { color: $color-success; font-weight: 600; }
+}
+
+// ─── Score Ring ──────────────────────────────────────────
+.score-ring {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+
+  svg {
+    transform: rotate(-90deg);
+    width: 80px;
+    height: 80px;
+  }
+
+  .ring-bg {
+    fill: none;
+    stroke: $color-bg-input;
+    stroke-width: 6;
+  }
+
+  .ring-fill {
+    fill: none;
+    stroke: $color-primary;
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s $ease-out;
+    animation: ringDraw 1.2s $ease-out both;
+  }
+
+  &.complete .ring-fill {
+    stroke: $color-success;
+  }
+
+  .score-value {
+    position: absolute;
+    inset: 0;
+    @include flex-center;
+    font-size: 18px;
+    font-weight: 700;
+    color: $color-text-primary;
+  }
+}
+
+// ─── Missing Sections ───────────────────────────────────
+.missing-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $space-2;
+  margin-top: $space-5;
+  padding-top: $space-5;
+  border-top: 1px solid $color-border-default;
+}
+
+.missing-label {
+  font-size: 13px;
+  color: $color-text-secondary;
+  font-weight: 600;
+}
+
+.missing-tag {
+  background: $color-warning-tint;
+  color: #92400E;
+  padding: 3px 10px;
+  border-radius: $radius-full;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+// ─── Quick Actions ───────────────────────────────────────
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $space-5;
+
+  @include respond-to(md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.action-card {
+  @include card;
+  padding: $space-6;
+  cursor: pointer;
+  transition: transform $duration-default $ease-default,
+              box-shadow $duration-default $ease-default;
+
+  &:hover:not(.disabled) {
+    transform: translateY(-3px);
+    box-shadow: $shadow-md;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .action-icon {
+    font-size: 28px;
+    display: block;
+    margin-bottom: $space-3;
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: $color-text-primary;
+    margin: 0 0 $space-1;
+  }
+
+  p {
+    font-size: 13px;
+    color: $color-text-secondary;
+    margin: 0;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ONBOARDING MODAL
+// ═══════════════════════════════════════════════════════════
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: $color-bg-overlay;
+  backdrop-filter: blur(8px);
+  @include flex-center;
+  animation: fadeIn $duration-moderate $ease-default both;
+}
+
+.onboarding-modal {
+  width: 520px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: $color-bg-elevated;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-xl;
+  animation: slideInScale $duration-slow $ease-spring both;
+  display: flex;
+  flex-direction: column;
+}
+
+// ─── Modal Header ────────────────────────────────────────
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-6 $space-8;
+  border-bottom: 1px solid $color-border-default;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+
+  .logo-icon {
+    font-size: 20px;
+  }
+
+  .logo-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: $color-text-primary;
+    letter-spacing: -0.3px;
+  }
+}
+
+.step-dots {
+  display: flex;
+  gap: $space-2;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: $radius-full;
+  background: $color-border-default;
+  transition: all $duration-moderate $ease-default;
+
+  &.active {
+    background: $color-primary;
+    width: 24px;
+  }
+
+  &.done {
+    background: $color-success;
+    width: 10px;
+  }
+}
+
+// ─── Modal Body ──────────────────────────────────────────
+.modal-body {
+  padding: $space-8;
+  flex: 1;
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: $color-text-primary;
+    margin: 0 0 $space-2;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: $color-text-secondary;
+    margin: 0 0 $space-6;
+  }
+}
+
+// ─── Option Cards (enum selectors) ──────────────────────
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $space-3;
+
+  &--list {
+    grid-template-columns: 1fr;
+  }
+
+  &--sectors {
+    grid-template-columns: repeat(3, 1fr);
+
+    @include respond-to(sm) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}
+
+.option-card {
+  @include card($radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-5 $space-4;
+  cursor: pointer;
+  background: $color-bg-surface;
+  border: 1.5px solid $color-border-default;
+  transition: all $duration-default $ease-default;
+
+  &:hover:not(.selected) {
+    border-color: $color-border-strong;
+    background: $color-bg-elevated;
+    box-shadow: $shadow-sm;
+  }
+
+  &.selected {
+    border-color: $color-primary;
+    background: $color-primary-pale;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.12);
+  }
+
+  &--wide {
+    flex-direction: row;
+    padding: $space-4 $space-5;
+    gap: $space-3;
+  }
+
+  &--compact {
+    padding: $space-3 $space-4;
+  }
+}
+
+.option-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.option-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: $color-text-primary;
+  text-align: center;
+}
+
+.option-check {
+  font-size: 16px;
+  font-weight: 700;
+  width: 24px;
+  height: 24px;
+  @include flex-center;
+  border-radius: $radius-full;
+  background: $color-bg-input;
+  flex-shrink: 0;
+
+  .selected & {
+    background: $color-primary;
+    color: $color-text-inverse;
+  }
+}
+
+// ─── Modal Footer ────────────────────────────────────────
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-5 $space-8;
+  border-top: 1px solid $color-border-default;
+}
+
+// ─── Spinner ─────────────────────────────────────────────
+.spinner-sm {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: $color-text-inverse;
+  border-radius: $radius-full;
+  animation: spin 0.6s linear infinite;
+}

@@ -1,0 +1,17 @@
+# Fichiers et dossiers générés par Vagrant
+.vagrant/
+
+# Fichiers et dossiers générés par Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+*.tfvars.json
+crash.log
+
+# Si terraform cree des plans
+*.tfplan
+
+# Ignorer les clés SSH générées (sécurité)
+*.pem
+*.key

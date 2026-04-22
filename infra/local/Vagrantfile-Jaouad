@@ -1,0 +1,36 @@
+Vagrant.configure("2") do |config|
+  # Lightweight Ubuntu Image
+  config.vm.box = "bento/ubuntu-24.04"
+
+  # ==========================================
+  # VM 1 : Minio + Grafana (Jaouad's PC)
+  # ==========================================
+  config.vm.define "minio-grafana" do |node|
+    node.vm.hostname = "minio-grafana"
+    
+    # Public Network (Bridged to Wi-Fi) on the 192.168.11.x Subnet
+    node.vm.network "public_network", ip: "192.168.11.210"
+    
+    node.vm.provider "vmware_desktop" do |v|
+      v.cpus = 2
+      v.memory = 2048
+      v.vmx["displayname"] = "Jaouad-Minio-Grafana"
+    end
+  end
+
+  # ==========================================
+  # VM 2 : Frontend (Jaouad's PC)
+  # ==========================================
+  config.vm.define "frontend-jaouad" do |node|
+    node.vm.hostname = "frontend-jaouad"
+    
+    # Public Network (Bridged to Wi-Fi) on the 192.168.11.x Subnet
+    node.vm.network "public_network", ip: "192.168.11.211"
+    
+    node.vm.provider "vmware_desktop" do |v|
+      v.cpus = 2
+      v.memory = 2048
+      v.vmx["displayname"] = "Jaouad-Frontend"
+    end
+  end
+end

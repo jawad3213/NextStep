@@ -31,4 +31,4 @@ namespace backend.Modules.Profile.Models
         [Column("is_valid")]
         public bool IsValid { get; set; } = false;
     }
-}
+}   

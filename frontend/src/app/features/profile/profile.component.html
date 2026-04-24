@@ -1,0 +1,360 @@
+<div class="profile-layout flex flex-col h-full w-full overflow-hidden bg-slate-100" [class.preview-active]="isPreviewOpen()">
+  
+  <!-- CENTER: FOCUS INPUT AREA -->
+  <main class="focus-area flex flex-col flex-1 h-full w-full overflow-hidden">
+    <!-- Header with progress -->
+    <header class="focus-header shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-8 h-20 flex items-center z-10">
+      <div class="w-full flex items-center justify-between">
+        <div class="flex flex-col">
+          <nav class="breadcrumb">
+            <span class="text-slate-400 text-xs font-medium">Profil</span>
+            <mat-icon class="text-slate-400 !text-[14px] !w-[14px] !h-[14px] mx-1">chevron_right</mat-icon>
+            <span class="text-indigo-600 text-xs font-medium">{{ 
+              currentStep() === 'coordonnees' ? 'Coordonnées' : 
+              currentStep() === 'formation' ? 'Formation' : 
+              currentStep() === 'experience' ? 'Expériences' :
+              currentStep() === 'competences' ? 'Compétences' :
+              currentStep() === 'resume' ? 'Résumé' :
+              currentStep() === 'projets' ? 'Projets' : 'Certifications'
+            }}</span>
+          </nav>
+          <div class="flex items-center gap-3 mt-1">
+            <h2 class="section-title text-2xl font-semibold text-slate-900">
+              {{ 
+                currentStep() === 'coordonnees' ? 'Coordonnées Personnelles' : 
+                currentStep() === 'formation' ? 'Votre Formation' : 
+                currentStep() === 'experience' ? 'Expériences Professionnelles' :
+                currentStep() === 'competences' ? 'Compétences & Langues' :
+                currentStep() === 'resume' ? 'Résumé de profil' :
+                currentStep() === 'projets' ? 'Projets Réalisés' : 'Certifications'
+              }}
+            </h2>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- HORIZONTAL STEPPER -->
+    <div class="stepper-wrapper shrink-0">
+      <app-profile-stepper></app-profile-stepper>
+    </div>
+
+    <!-- Scrollable Form Container -->
+    <div class="form-scroll-container flex-1 overflow-y-auto px-12 py-10 custom-scrollbar">
+      <div class="form-content max-w-5xl mx-auto w-full">
+        
+        @if (currentStep() === 'coordonnees') {
+          <div class="form-step-wrapper animate-fade-slide-up">
+            
+            <!-- THEME: Identité -->
+            <div class="theme-card">
+              <h3 class="theme-title">Identité</h3>
+              
+              <!-- PHOTO CIRCLE -->
+              <div class="photo-circle-upload">
+                <div class="photo-circle">
+                  @if (profile().personal.photoUrl) {
+                    <img [src]="profile().personal.photoUrl" alt="Profile">
+                  } @else {
+                    <mat-icon class="placeholder-icon">person</mat-icon>
+                  }
+                  <div class="hover-overlay">
+                    <mat-icon>photo_camera</mat-icon>
+                  </div>
+                </div>
+                <p class="photo-hint">JPG, PNG max 2Mo</p>
+              </div>
+
+              <div class="form-grid mt-6">
+                <div class="field-group">
+                  <label>Prénom</label>
+                  <div class="input-wrapper">
+                    <input type="text" [value]="profile().personal.firstName" (input)="updateField('firstName', $any($event.target).value)" placeholder="ex: Said" class="valid">
+                    <mat-icon class="validation-icon text-emerald-500">check_circle</mat-icon>
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label>Nom</label>
+                  <div class="input-wrapper">
+                    <input type="text" [value]="profile().personal.lastName" (input)="updateField('lastName', $any($event.target).value)" placeholder="ex: N." class="valid">
+                    <mat-icon class="validation-icon text-emerald-500">check_circle</mat-icon>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group mt-4">
+                <label>Poste recherché</label>
+                <div class="input-wrapper with-icon">
+                  <mat-icon class="inline-icon">work_outline</mat-icon>
+                  <input type="text" [value]="profile().personal.jobTitle" (input)="updateField('jobTitle', $any($event.target).value)" placeholder="ex: Développeur Full Stack">
+                  <button class="ai-enhance-btn" matTooltip="Optimiser avec l'IA">
+                    <mat-icon>auto_awesome</mat-icon>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- THEME: Contact -->
+            <div class="theme-card mt-6">
+              <h3 class="theme-title">Contact</h3>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label>Email professionnel</label>
+                  <div class="input-wrapper with-icon">
+                    <mat-icon class="inline-icon">mail_outline</mat-icon>
+                    <input type="email" [value]="profile().personal.email" (input)="updateField('email', $any($event.target).value)" placeholder="said@example.com">
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label>Numéro de téléphone</label>
+                  <div class="input-wrapper with-icon">
+                    <mat-icon class="inline-icon">phone</mat-icon>
+                    <input type="tel" [value]="profile().personal.phone" (input)="updateField('phone', $any($event.target).value)" placeholder="+212 6...">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- THEME: Localisation -->
+            <div class="theme-card mt-6">
+              <h3 class="theme-title">Localisation</h3>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label>Ville</label>
+                  <div class="input-wrapper with-icon">
+                    <mat-icon class="inline-icon">location_city</mat-icon>
+                    <input type="text" [value]="profile().personal.city" (input)="updateField('city', $any($event.target).value)" placeholder="Casablanca">
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label>Pays</label>
+                  <div class="input-wrapper with-icon">
+                    <mat-icon class="inline-icon">map</mat-icon>
+                    <input type="text" [value]="profile().personal.country" (input)="updateField('country', $any($event.target).value)" placeholder="Maroc">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        }
+
+        @if (currentStep() === 'formation') {
+          <div class="form-step-wrapper animate-fade-slide-up">
+            
+            <!-- Education summary Header -->
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-[24px] font-bold text-slate-900">Education summary</h2>
+              <button class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">
+                <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">lightbulb_outline</mat-icon> Tips
+              </button>
+            </div>
+
+            <!-- Surface Container -->
+            <div class="bg-[#F8FAFC] rounded-[16px] p-6 border border-slate-200">
+              
+              <div class="flex items-center gap-4 mb-5">
+                <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">FORMATION</h3>
+                <button class="text-[13px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">Rename</button>
+              </div>
+
+            <!-- DASHED ADD BUTTON -->
+            @if (!isAddingFormation()) {
+              <button class="btn-add-dashed" (click)="toggleAddFormation()">
+                <mat-icon class="!w-5 !h-5 !text-[20px]">add</mat-icon>
+                Add another degree
+              </button>
+            }
+
+            <!-- EDUCATION LIST (Existing degrees) -->
+            @if (!isAddingFormation() && profile().education.length > 0) {
+              <div class="space-y-4">
+                @for (edu of profile().education; track edu.id; let i = $index) {
+                  <div class="education-card cursor-pointer">
+                    <!-- Number Badge -->
+                    <div class="number-badge">
+                      <span>{{ i + 1 }}</span>
+                    </div>
+                    <!-- Content -->
+                    <div class="p-5 flex-1">
+                      <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-slate-900 text-[15px] pr-4">
+                          {{ edu.degree }} - {{ edu.institution }} <span class="font-normal text-slate-900">| {{ edu.specialization }}</span>
+                        </h4>
+                        <!-- Actions -->
+                        <div class="action-icons">
+                          <button><mat-icon>edit</mat-icon></button>
+                          <button><mat-icon>file_copy</mat-icon></button>
+                          <button><mat-icon>open_with</mat-icon></button>
+                          <button><mat-icon>more_horiz</mat-icon></button>
+                        </div>
+                      </div>
+                      <p class="text-[14px] text-slate-700 mb-2">
+                        {{ edu.city }} | January {{ edu.startYear }}
+                      </p>
+                      @if (edu.mention) {
+                        <p class="text-[14px] text-slate-700">{{ edu.mention }}</p>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- ADD FORM -->
+            @if (isAddingFormation()) {
+              <div class="theme-card animate-fade-slide-up relative mt-2 !mb-0">
+                <button class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-50 transition-colors" (click)="toggleAddFormation()">
+                  <mat-icon>close</mat-icon>
+                </button>
+
+                <p class="text-[12px] font-bold text-slate-700 mb-6">* indicates a required field</p>
+
+                <div class="form-grid">
+                  <div class="field-group">
+                    <label>Institution *</label>
+                    <div class="input-wrapper">
+                      <input type="text" placeholder="School Name">
+                    </div>
+                  </div>
+                  <div class="field-group">
+                    <label>Institution Location</label>
+                    <div class="input-wrapper">
+                      <input type="text" placeholder="Fes">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-grid mt-6">
+                  <div class="field-group">
+                    <label>Degree</label>
+                    <div class="input-wrapper relative">
+                      <select class="custom-select">
+                        <option value="">Select</option>
+                        <option value="licence">Licence</option>
+                        <option value="master">Master</option>
+                        <option value="ingenieur">Cycle d'Ingénieur</option>
+                        <option value="doctorat">Doctorat</option>
+                      </select>
+                      <mat-icon class="select-icon">arrow_drop_down</mat-icon>
+                    </div>
+                  </div>
+                  <div class="field-group">
+                    <!-- Empty grid cell to match the screenshot layout -->
+                  </div>
+                </div>
+
+                <div class="form-grid mt-6">
+                  <div class="field-group">
+                    <label>Field of Study</label>
+                    <div class="input-wrapper">
+                      <input type="text" placeholder="Accountant">
+                    </div>
+                  </div>
+                  <div class="field-group">
+                    <label>Graduation Date (or expected Graduation Date)</label>
+                    <div class="flex gap-4">
+                      <div class="input-wrapper relative flex-1">
+                        <select class="custom-select">
+                          <option value="">Month</option>
+                          <option value="01">Jan</option>
+                          <option value="02">Feb</option>
+                          <option value="06">Jun</option>
+                        </select>
+                        <mat-icon class="select-icon">arrow_drop_down</mat-icon>
+                      </div>
+                      <div class="input-wrapper relative flex-1">
+                        <select class="custom-select">
+                          <option value="">Year</option>
+                          <option value="2024">2024</option>
+                          <option value="2025">2025</option>
+                          <option value="2026">2026</option>
+                        </select>
+                        <mat-icon class="select-icon">arrow_drop_down</mat-icon>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Form specific actions -->
+                <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
+                  <button class="btn-text !text-slate-500 hover:!bg-slate-100" (click)="toggleAddFormation()">Annuler</button>
+                  <button class="btn-primary-next" (click)="saveFormation()">Enregistrer</button>
+                </div>
+              </div>
+            }
+
+            </div> <!-- End Surface Container -->
+          </div>
+        }
+
+        @if (currentStep() !== 'coordonnees' && currentStep() !== 'formation') {
+          <div class="form-step-wrapper animate-fade-slide-up h-full flex items-center justify-center min-h-[400px]">
+            <div class="w-full bg-white border-dashed border-2 border-slate-200 rounded-xl p-12 flex flex-col items-center justify-center text-center">
+              <mat-icon class="!w-12 !h-12 !text-[48px] text-slate-300 mb-6">build</mat-icon>
+              <h3 class="text-xl font-bold text-slate-800 mb-2">Section en cours de design</h3>
+              <p class="text-slate-500 max-w-sm">Nous peaufinons l'interface IA pour cette section spécifique.</p>
+            </div>
+          </div>
+        }
+
+        </div> <!-- End of form-content -->
+    </div> <!-- End of form-scroll-container -->
+
+    <!-- STICKY FOOTER -->
+    <div class="bg-white border-t border-slate-200 shrink-0 px-12 py-6 flex items-center justify-between z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+      <button class="font-semibold text-slate-500 hover:text-slate-800 transition-colors">Réinitialiser</button>
+
+      <div class="flex items-center gap-4">
+       
+        <button (click)="next()" class="btn-primary-next">
+          {{ currentIndex() === steps.length - 1 ? 'Terminer' : 'Next: ' + nextStepName() }}
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </div>
+    
+    <!-- TOAST NOTIFICATION -->
+    @if (showToast()) {
+      <div class="toast-notification animate-fade-slide-up">
+        <mat-icon class="text-emerald-500">check_circle</mat-icon>
+        <span>Modifications sauvegardées</span>
+      </div>
+    }
+
+  </main>
+
+  <!-- OVERLAY PREVIEW MODAL -->
+  @if (isPreviewOpen()) {
+    <div class="preview-modal-overlay animate-fade-in" (click)="togglePreview()">
+      <div class="preview-modal-content" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <div class="flex items-center gap-4">
+            <h3 class="text-lg font-bold">Aperçu en temps réel</h3>
+            <div class="template-switcher">
+              <button class="active">Moderne</button>
+              <button>Classique</button>
+              <button>Minimalist</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="btn-download">
+              <mat-icon>download</mat-icon> PDF
+            </button>
+            <button (click)="togglePreview()" class="btn-close-modal">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </header>
+        
+        <div class="modal-body custom-scrollbar">
+          <div class="preview-zoom-container">
+            <app-profile-preview></app-profile-preview>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>
+

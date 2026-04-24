@@ -1,6 +1,6 @@
 # Docker Compose configuration for NextStep
 services:
-  postgres:
+  db:
     image: pgvector/pgvector:pg15
     container_name: nextstep-db
     restart: always
@@ -10,11 +10,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-nextstep_db}
+      POSTGRES_MULTIPLE_DATABASES: ${KEYCLOAK_DB}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql
+      - ./postgres/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/00-create-multiple-postgresql-databases.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-nextstep_db}"]
       interval: 5s
@@ -29,7 +31,7 @@ services:
     command: start-dev --db-schema=keycloak_schema --import-realm
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-nextstep_db}
+      KC_DB_URL: jdbc:postgresql://db:5432/${KEYCLOAK_DB:-keycloak_db}
       KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
@@ -37,7 +39,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     volumes:
       - ./keycloak-theme/nextstep:/opt/keycloak/themes/nextstep
@@ -72,7 +74,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - DOTNET_USE_POLLING_FILE_WATCHER=1
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-nextstep_db};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__DefaultConnection=Host=db;Database=${POSTGRES_DB:-nextstep_db};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       - Keycloak__Authority=http://keycloak:8080/realms/Next-Step
       - Redis__Configuration=redis:6379
       - PythonAgents__Url=http://agents-python:8000
@@ -81,7 +83,7 @@ services:
     volumes:
       - ./backend:/src
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
       keycloak:
         condition: service_started
@@ -101,7 +103,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nextstep_db}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nextstep_db}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - KEYCLOAK_URL=http://keycloak:8080
       - BACKEND_URL=http://backend:5000
@@ -110,7 +112,7 @@ services:
     volumes:
       - ./agents:/app
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     networks:
       - nextstep-network

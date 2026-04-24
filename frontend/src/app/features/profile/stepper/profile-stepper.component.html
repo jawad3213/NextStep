@@ -1,0 +1,47 @@
+<div class="horizontal-stepper-container">
+  <div class="w-full px-8 flex items-center justify-between gap-6">
+    
+    <nav class="steps-tabs flex-1">
+      @for (step of steps; track step.id; let i = $index) {
+        <div class="step-wrapper">
+          <button 
+            class="tab-btn" 
+            [class.active]="currentStep() === step.id"
+            [class.completed]="isComplete(step.id)"
+            (click)="setStep(step.id)"
+            [attr.aria-label]="step.label"
+          >
+            @if (isComplete(step.id) && currentStep() !== step.id) {
+              <mat-icon class="icon-completed">check</mat-icon>
+            } @else {
+              <span class="step-index">{{ i + 1 }}</span>
+            }
+            <span class="tab-label">{{ step.label }}</span>
+
+          </button>
+          
+          <!-- Connector line between tabs -->
+          @if (i < steps.length - 1) {
+            <div class="connector-line">
+              <div class="line-fill" [class.filled]="isComplete(step.id)"></div>
+            </div>
+          }
+        </div>
+      }
+    </nav>
+
+    <!-- Global Progress Indicator -->
+    <div class="progress-mini flex items-center gap-3">
+      <span class="text-xs font-bold text-slate-500">Profil complété</span>
+      <div class="progress-ring">
+        <svg viewBox="0 0 36 36" class="circular-chart">
+          <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          <path class="circle" [attr.stroke-dasharray]="completionPercentage() + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+        </svg>
+        <span class="percentage-text">{{ completionPercentage() }}%</span>
+      </div>
+    </div>
+
+  </div>
+
+</div>

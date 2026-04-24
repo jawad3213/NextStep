@@ -1,56 +1,134 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ProfileService, FullProfile } from '../../services/profile.service';
-import { OnboardingService } from '../../services/onboarding.service';
-import { OBJECTIF_LABELS, NIVEAU_LABELS, SECTEUR_LABELS } from '../../core/auth/models/user-profile.model';
-import { Router } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { ProfileService } from './profile.service';
+import { ProfileStepId } from './profile.types';
+
+// Sub-components
+import { ProfileStepperComponent } from './stepper/profile-stepper.component';
+import { ProfilePreviewComponent } from './cv-preview/profile-preview.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    MatIconModule,
+    MatTooltipModule,
+    ProfileStepperComponent,
+    ProfilePreviewComponent
+  ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss'
 })
-export class ProfileComponent implements OnInit {
-  private readonly profileService = inject(ProfileService);
-  private readonly onboardingService = inject(OnboardingService);
-  private readonly router = inject(Router);
+export class ProfileComponent {
+  profileService = inject(ProfileService);
+  
+  // UI State
+  isPreviewOpen = signal(false);
+  isSaving = signal(false);
+  lastSaved = signal<Date | null>(new Date());
+  showToast = signal(false);
+  
+  // Section States
+  isAddingFormation = signal(false);
+  
+  profile = this.profileService.profile;
+  currentStep = this.profileService.currentStep;
+  
+  steps: { id: ProfileStepId, label: string }[] = [
+    { id: 'coordonnees', label: 'Coordonnées' },
+    { id: 'formation', label: 'Formation' },
+    { id: 'experience', label: 'Expérience' },
+    { id: 'competences', label: 'Compétences' },
+    { id: 'resume', label: 'Résumé' },
+    { id: 'projets', label: 'Projets' },
+    { id: 'certifications', label: 'Certifications' }
+  ];
 
-  profile = signal<FullProfile | null>(null);
-  profileScore = signal(0);
-  isLoaded = signal(false);
+  currentIndex = computed(() => this.steps.findIndex(s => s.id === this.currentStep()));
+  
+  nextStepName = computed(() => {
+    const nextIdx = this.currentIndex() + 1;
+    return nextIdx < this.steps.length ? this.steps[nextIdx].label : 'Terminer';
+  });
 
-  // Labels for display (cast to any Record to allow string indexing in template)
-  objectifLabels: Record<string, string> = OBJECTIF_LABELS;
-  niveauLabels: Record<string, string> = NIVEAU_LABELS;
-  secteurLabels: Record<string, string> = SECTEUR_LABELS;
+  // Section Avancement (Progress in active section)
+  sectionProgress = signal(45); // Mock 45% progress in current section
 
-  ngOnInit(): void {
-    this.refreshProfile();
+  // Step Logic
+  goToStep(id: ProfileStepId) {
+    this.profileService.setStep(id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  refreshProfile(): void {
-    this.profileService.getFullProfile().subscribe(data => {
-      this.profile.set(data);
-      this.isLoaded.set(true);
+  next() {
+    const nextIdx = this.currentIndex() + 1;
+    if (nextIdx < this.steps.length) {
+      this.goToStep(this.steps[nextIdx].id);
+    }
+  }
+
+  previous() {
+    const prevIdx = this.currentIndex() - 1;
+    if (prevIdx >= 0) {
+      this.goToStep(this.steps[prevIdx].id);
+    }
+  }
+
+  updateField(field: string, value: any) {
+    this.isSaving.set(true);
+    this.profileService.updateProfile({ 
+      personal: { ...this.profile().personal, [field]: value } 
     });
-    this.onboardingService.getStatus().subscribe(status => {
-      this.profileScore.set(status.profileScore);
-    });
+    
+    // Simulate auto-save feedback
+    setTimeout(() => {
+      this.isSaving.set(false);
+      this.lastSaved.set(new Date());
+    }, 1000);
   }
 
-  goBack(): void {
-    this.router.navigate(['/dashboard']);
+  togglePreview() {
+    this.isPreviewOpen.update(v => !v);
   }
 
-  updatePersonalInfo(data: any): void {
-    this.profileService.updatePersonalInfo(data).subscribe(() => this.refreshProfile());
+  save() {
+    this.isSaving.set(true);
+    // Simulate backend save
+    setTimeout(() => {
+      this.isSaving.set(false);
+      this.lastSaved.set(new Date());
+      this.showToast.set(true);
+      
+      // Hide toast after 3s
+      setTimeout(() => {
+        this.showToast.set(false);
+      }, 3000);
+    }, 600);
   }
 
-  addExperience(): void { console.log('Add Experience'); }
-  addProject(): void { console.log('Add Project'); }
-  addSkill(): void { console.log('Add Skill'); }
-  addEducation(): void { console.log('Add Education'); }
+
+  // LinkedIn Import State
+  showImportBlock = signal(true);
+  importLinkedIn() {
+    // Simulate import
+    setTimeout(() => this.showImportBlock.set(false), 800);
+  }
+
+  // Formation Methods
+  toggleAddFormation() {
+    this.isAddingFormation.update(v => !v);
+  }
+
+  saveFormation() {
+    this.isSaving.set(true);
+    setTimeout(() => {
+      this.isSaving.set(false);
+      this.isAddingFormation.set(false);
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    }, 600);
+  }
 }

@@ -1,25 +1,65 @@
 import { Routes } from '@angular/router';
-import { DashboardComponent } from './features/dashboard/dashboard.component';
-import { ProfileComponent } from './features/profile/profile.component';
 import { authGuard } from './core/guards/auth.guard';
-import { OnboardingComponent } from './features/onboarding/onboarding.component';
 import { onboardingGuard, alreadyOnboardedGuard } from './core/guards/onboarding.guard';
+import { MainLayoutComponent } from './core/layout/main-layout/main-layout.component';
+
+// Features (Shells)
+import { DashboardComponent } from './features/dashboard/dashboard.component';
+import { OnboardingComponent } from './features/onboarding/onboarding.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-  { 
-    path: 'dashboard', 
-    component: DashboardComponent,
-    canActivate: [authGuard, onboardingGuard],
-  },
-  {
-    path: 'profile',
-    component: ProfileComponent,
-    canActivate: [authGuard, onboardingGuard],
-  },
   {
     path: 'onboarding',
     component: OnboardingComponent,
     canActivate: [authGuard, alreadyOnboardedGuard],
+  },
+  {
+    path: '',
+    component: MainLayoutComponent,
+    canActivate: [authGuard, onboardingGuard],
+    children: [
+      { path: 'dashboard', component: DashboardComponent },
+      {
+        path: 'profile',
+        loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent)
+      },
+      { 
+        path: 'offers', 
+        loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
+      },
+      { 
+        path: 'cv', 
+        loadComponent: () => import('./features/cv-builder/cv-builder.component').then(m => m.CvBuilderComponent) 
+      },
+      { 
+        path: 'letters', 
+        loadComponent: () => import('./features/letters/letters.component').then(m => m.LettersComponent) 
+      },
+      { 
+        path: 'applications', 
+        loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
+      },
+      { 
+        path: 'company-intel', 
+        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent) 
+      },
+      { 
+        path: 'skill-gap', 
+        loadComponent: () => import('./features/skill-gap/skill-gap.component').then(m => m.SkillGapComponent) 
+      },
+      { 
+        path: 'chatbot', 
+        loadComponent: () => import('./features/chatbot/chatbot.component').then(m => m.ChatbotComponent) 
+      },
+      { 
+        path: 'notifications', 
+        loadComponent: () => import('./features/notifications/notifications.component').then(m => m.NotificationsComponent) 
+      },
+      { 
+        path: 'settings', 
+        loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
+      },
+    ]
   },
 ];

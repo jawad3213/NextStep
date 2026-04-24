@@ -8,6 +8,15 @@
   align-items: center;
 }
 
+/* Hide scrollbar for mobile overflow */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}
+
 .step-wrapper {
   display: flex;
   align-items: center;

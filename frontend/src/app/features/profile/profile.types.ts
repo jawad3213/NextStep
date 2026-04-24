@@ -42,7 +42,7 @@ export interface Experience {
 export interface Skill {
   id: string;
   name: string;
-  level: 1 | 2 | 3 | 4 | 5;
+  category?: string;
 }
 
 export interface Language {

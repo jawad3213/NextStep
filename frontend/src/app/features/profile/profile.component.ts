@@ -2,12 +2,13 @@ import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ProfileService } from './profile.service';
-import { ProfileStepId } from './profile.types';
+import { ProfileStepId, Education } from './profile.types';
 
 // Sub-components
 import { ProfileStepperComponent } from './stepper/profile-stepper.component';
-import { ProfilePreviewComponent } from './cv-preview/profile-preview.component';
+
 
 @Component({
   selector: 'app-profile',
@@ -16,8 +17,8 @@ import { ProfilePreviewComponent } from './cv-preview/profile-preview.component'
     CommonModule,
     MatIconModule,
     MatTooltipModule,
+    DragDropModule,
     ProfileStepperComponent,
-    ProfilePreviewComponent
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss'
@@ -33,6 +34,8 @@ export class ProfileComponent {
   
   // Section States
   isAddingFormation = signal(false);
+  isAddingExperience = signal(false);
+  isAddingProject = signal(false);
   
   profile = this.profileService.profile;
   currentStep = this.profileService.currentStep;
@@ -130,5 +133,75 @@ export class ProfileComponent {
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     }, 600);
+  }
+
+  // Experience Methods
+  toggleAddExperience() {
+    this.isAddingExperience.update(v => !v);
+  }
+
+  saveExperience() {
+    this.isSaving.set(true);
+    setTimeout(() => {
+      this.isSaving.set(false);
+      this.isAddingExperience.set(false);
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    }, 600);
+  }
+
+  // Project Methods
+  toggleAddProject() {
+    this.isAddingProject.update(v => !v);
+  }
+
+  saveProject() {
+    this.isSaving.set(true);
+    setTimeout(() => {
+      this.isSaving.set(false);
+      this.isAddingProject.set(false);
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    }, 600);
+  }
+
+  // Skills Methods
+  predefinedSkills = [
+    { category: 'Frontend', items: ['Angular', 'React', 'Vue.js', 'TypeScript', 'HTML/CSS', 'Tailwind'] },
+    { category: 'Backend', items: ['Node.js', 'Spring Boot', 'Python', 'Java', 'C#', 'PHP'] },
+    { category: 'DevOps & Cloud', items: ['Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'CI/CD'] },
+    { category: 'Outils', items: ['Git', 'Figma', 'Jira', 'Postman', 'Linux'] }
+  ];
+
+  addSkill(skillName: string, category: string = 'Autre') {
+    const currentSkills = this.profile().skills;
+    if (!currentSkills.find(s => s.name === skillName)) {
+      const newSkill = { id: Date.now().toString(), name: skillName, category };
+      this.profileService.updateProfile({ skills: [...currentSkills, newSkill] });
+      this.save();
+    }
+  }
+
+  addCustomSkill(name: string, category: string, nameInput: HTMLInputElement) {
+    if (name.trim()) {
+      this.addSkill(name.trim(), category);
+      nameInput.value = ''; // Reset input after adding
+    }
+  }
+
+  removeSkill(skillId: string) {
+    const currentSkills = this.profile().skills.filter(s => s.id !== skillId);
+    this.profileService.updateProfile({ skills: currentSkills });
+    this.save();
+  }
+
+  // Drag & Drop
+  drop(event: CdkDragDrop<any[]>, type: 'education' | 'experience' | 'projets' | 'skills') {
+    if (event.previousIndex !== event.currentIndex) {
+      const currentArray = [...this.profile()[type]];
+      moveItemInArray(currentArray, event.previousIndex, event.currentIndex);
+      this.profileService.updateProfile({ [type]: currentArray });
+      this.save();
+    }
   }
 }

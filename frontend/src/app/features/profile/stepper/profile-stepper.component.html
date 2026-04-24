@@ -1,9 +1,9 @@
 <div class="horizontal-stepper-container">
-  <div class="w-full px-8 flex items-center justify-between gap-6">
+  <div class="w-full px-4 md:px-8 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
     
-    <nav class="steps-tabs flex-1">
+    <nav class="steps-tabs w-full md:flex-1 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
       @for (step of steps; track step.id; let i = $index) {
-        <div class="step-wrapper">
+        <div class="step-wrapper shrink-0">
           <button 
             class="tab-btn" 
             [class.active]="currentStep() === step.id"
@@ -30,8 +30,8 @@
       }
     </nav>
 
-    <!-- Global Progress Indicator -->
-    <div class="progress-mini flex items-center gap-3">
+    <!-- Global Progress Indicator (Hidden on very small screens to save space) -->
+    <div class="progress-mini hidden sm:flex items-center gap-3 shrink-0">
       <span class="text-xs font-bold text-slate-500">Profil complété</span>
       <div class="progress-ring">
         <svg viewBox="0 0 36 36" class="circular-chart">

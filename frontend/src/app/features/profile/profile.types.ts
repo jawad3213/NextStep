@@ -79,4 +79,11 @@ export interface Profile {
   resume: string;
   projets: Project[];
   certifications: Certification[];
+  sectionTitles?: {
+    formation?: string;
+    experience?: string;
+    competences?: string;
+    projets?: string;
+    certifications?: string;
+  };
 }

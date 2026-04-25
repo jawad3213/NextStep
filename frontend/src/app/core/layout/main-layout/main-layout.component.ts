@@ -16,6 +16,7 @@ export class MainLayoutComponent {
   private readonly authService = inject(AuthService);
 
   isSidebarOpen = signal(false);
+  isSidebarCollapsed = signal(false);
 
   constructor() {
     // Close sidebar on route change (for mobile)
@@ -66,6 +67,10 @@ export class MainLayoutComponent {
 
   toggleSidebar() {
     this.isSidebarOpen.update(v => !v);
+  }
+
+  toggleDesktopSidebar() {
+    this.isSidebarCollapsed.update(v => !v);
   }
 
   logout() {

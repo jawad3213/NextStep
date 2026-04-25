@@ -96,7 +96,22 @@ export class ProfileService {
         isUniversity: true
       }
     ],
-    certifications: []
+    certifications: [
+      {
+        id: '1',
+        name: 'AWS Certified Solutions Architect - Associate',
+        issuer: 'Amazon Web Services (AWS)',
+        date: '2024-01-15',
+        verificationUrl: 'https://aws.amazon.com/verification'
+      },
+      {
+        id: '2',
+        name: 'Microsoft Certified: Azure Developer Associate',
+        issuer: 'Microsoft',
+        date: '2023-11-20',
+        verificationUrl: 'https://learn.microsoft.com/en-us/users/verify'
+      }
+    ]
   });
 
   currentStep = signal<ProfileStepId>('coordonnees');

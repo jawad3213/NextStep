@@ -31,12 +31,6 @@
                     </#if>
                 </div>
 
-                <#if !realm.registrationEmailAsUsername>
-                    <div class="auth-field">
-                        <label for="username">${msg("username")}</label>
-                        <input type="text" id="username" name="username" value="${(register.formData.username!'')}" autocomplete="username" placeholder="johndoe" />
-                    </div>
-                </#if>
 
                 <#if passwordRequired??>
                     <div class="auth-field">

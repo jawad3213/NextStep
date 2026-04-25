@@ -51,7 +51,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 16px;
 }
 
 .auth-container {
@@ -69,11 +69,11 @@ body {
 .auth-logo {
   display: flex;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .auth-logo-img {
-  height: 80px;
+  height: 60px;
   width: auto;
   object-fit: contain;
 }
@@ -103,10 +103,10 @@ body {
    ============================================================ */
 
 .auth-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--color-text-primary);
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   text-align: center;
   letter-spacing: -0.02em;
 }
@@ -120,28 +120,28 @@ body {
 }
 
 .auth-field {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   width: 100%;
 }
 
 .auth-field label {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #333333;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-align: left;
 }
 
 .auth-field input {
   width: 100%;
-  height: 48px;
+  height: 40px;
   padding: 0 16px;
   background-color: var(--color-bg-input);
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   font-family: var(--font-main);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text-primary);
   transition: all 0.2s ease;
 }
@@ -219,10 +219,10 @@ body {
 #kc-login {
     background-color: #0C1986 !important;
     border: none;
-    border-radius: 12px;
-    height: 48px;
+    border-radius: 10px;
+    height: 40px;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 14px;
     transition: all 0.2s ease;
     box-shadow: 0 4px 6px rgba(12, 25, 134, 0.1);
 }
@@ -235,16 +235,16 @@ body {
 
 .auth-btn-primary {
   width: 100%;
-  height: 48px;
+  height: 40px;
   background-color: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: 10px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s ease;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .auth-btn-primary:hover {
@@ -258,9 +258,9 @@ body {
 .auth-divider {
   display: flex;
   align-items: center;
-  margin: 32px 0;
+  margin: 24px 0;
   color: #999;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -292,16 +292,16 @@ body {
 .auth-btn-google,
 .auth-btn-apple {
   width: 100%;
-  height: 48px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   background: white;
   border: 1px solid var(--color-border-default);
-  border-radius: 12px;
+  border-radius: 10px;
   font-family: var(--font-main);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #111111;
   text-decoration: none;
@@ -317,8 +317,8 @@ body {
    ============================================================ */
 
 .auth-switch {
-  margin-top: 32px;
-  font-size: 14px;
+  margin-top: 24px;
+  font-size: 13px;
   color: #666;
   text-align: center;
 }
@@ -339,7 +339,7 @@ body {
 
 .footer-legal {
   width: 100%;
-  padding: 24px;
+  padding: 16px 24px;
   display: flex;
   justify-content: space-between;
   font-size: 11px;

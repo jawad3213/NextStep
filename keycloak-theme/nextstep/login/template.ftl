@@ -20,7 +20,6 @@
                 <img src="${url.resourcesPath}/img/logo2.png" alt="NextStep Logo" class="auth-logo-img" />
             </div>
 
-
             <#nested "form">
 
             <#if displayInfo>

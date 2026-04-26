@@ -1,135 +1,60 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using backend.data;
-using Microsoft.EntityFrameworkCore;
-using backend.Modules.Identity.Repositories;
-using backend.Modules.Identity.Services;
-using backend.Infrastructure.Http;
-using backend.Modules.Candidature.Repositories;
-using backend.Modules.Candidature.Services;
-using backend.Modules.Email.Repositories;
-using backend.Modules.Email.Services;
-
 var builder = WebApplication.CreateBuilder(args);
 
-// Fix for Npgsql 6.0+ DateTime Kind=Unspecified issue
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+// Add services to the container.
 
 builder.Services.AddControllers();
+// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "NextStep API", Version = "v1" });
+});
+builder.Services.AddOpenApi();
 
+// ─── Base de données (PostgreSQL + EF Core) ───
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.")
-    ));
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npg => npg.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)
+    )
+);
 
+// ─── HTTP Client vers les agents Python ───
+builder.Services.Configure<AgentPythonOptions>(
+    builder.Configuration.GetSection("AgentPython")
+);
+builder.Services.AddHttpClient<AgentHttpClient>();
+
+// ─── Module Offer (M2) ───
+builder.Services.AddScoped<IOfferRepository, OfferRepository>();
+builder.Services.AddScoped<IOfferService, OfferService>();
+
+// ─── CORS (Angular dev) ───
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("allowAngular", policy =>
-    {
+    options.AddPolicy("Angular", policy =>
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+              .AllowAnyMethod()
+    );
 });
-
-// Identity module
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserService, UserService>(); 
-
-// Module Profile
-builder.Services.AddScoped<backend.Modules.Profile.Services.IProfileService, backend.Modules.Profile.Services.ProfileService>();
-
-// Repositories
-builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
-builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
-
-// Services
-builder.Services.AddScoped<ICandidatureService, CandidatureService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-
-// HTTP client for Python agents
-var pythonAgentsUrl = builder.Configuration["PythonAgents:Url"]
-    ?? throw new InvalidOperationException("Configuration 'PythonAgents:Url' is missing.");
-
-builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>(client =>
-{
-    client.BaseAddress = new Uri(pythonAgentsUrl);
-    client.Timeout = TimeSpan.FromSeconds(20);
-});
-
-// JWT / Keycloak authentication
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = builder.Configuration["Keycloak:Authority"];
-        options.Audience = builder.Configuration["Keycloak:Audience"];
-        options.RequireHttpsMetadata =
-            bool.Parse(builder.Configuration["Keycloak:RequireHttpsMetadata"] ?? "false");
-
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuers = new[]
-            {
-                "http://localhost:8080/realms/Next-Step",
-                "http://keycloak:8080/realms/Next-Step"
-            },
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            NameClaimType = "preferred_username",
-            RoleClaimType = "roles"
-        };
-
-        options.Events = new JwtBearerEvents
-        {
-            OnTokenValidated = async context =>
-            {
-                var principal = context.Principal;
-                if (principal != null)
-                {
-                    var userService = context.HttpContext.RequestServices
-                        .GetRequiredService<IUserService>();
-
-                    try
-                    {
-                        await userService.EnsureUserCreatedAsync(principal);
-                    }
-                    catch (Exception ex)
-                    {
-                        var logger = context.HttpContext.RequestServices
-                            .GetRequiredService<ILogger<Program>>();
-
-                        logger.LogError(
-                            ex,
-                            "Erreur lors de la synchronisation JIT de l'utilisateur Keycloak.");
-                    }
-                }
-            }
-        };
-    });
-
-builder.Services.AddAuthorization();
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "NextStep API v1");
-    c.RoutePrefix = "swagger";
-});
+    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
-app.UseCors("allowAngular");
-
-app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
+
+// ─── Health check rapide ───
+app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "nextstep-backend" }));
 
 // Auto-migration on start
 using (var scope = app.Services.CreateScope())

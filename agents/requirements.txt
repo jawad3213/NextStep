@@ -1,5 +1,6 @@
 # ============================================================
 # NextStep Agents — Dépendances Python
+# Versions compatibles (pip résout langchain-core automatiquement)
 # ============================================================
 
 # --- Framework Web ---
@@ -7,10 +8,11 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 
 # --- IA / LLM ---
-langchain>=0.3.0
-langchain-openai>=0.3.0
-langchain-groq>=0.2.0
-langgraph>=0.2.0
+langchain==0.3.14
+langchain-openai==0.3.0
+langchain-groq==0.2.4
+langgraph==0.2.60
+# langchain-core est résolu automatiquement par pip (ne pas fixer)
 
 # --- Validation & Config ---
 pydantic==2.10.4
@@ -26,8 +28,5 @@ pgvector==0.3.6
 # --- HTTP Client (appels vers .NET) ---
 httpx==0.28.1
 
-# --- Normalisation texte ---
+# --- Normalisation texte (Agent 3) ---
 unidecode==1.3.8
-
-# --- Email Monitoring ---
-# imaplib est dans la stdlib Python (pas besoin d'installer)

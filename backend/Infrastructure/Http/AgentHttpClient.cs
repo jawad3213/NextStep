@@ -24,8 +24,8 @@ public class AgentHttpClient : IAgentHttpClient
         _logger = logger;
 
         var baseUrl = string.IsNullOrWhiteSpace(options.Value.BaseUrl)
-            ? "http://localhost:8000"
-            : options.Value.BaseUrl;
+    ? "http://localhost:8000"
+    : options.Value.BaseUrl;
 
         _client.BaseAddress = new Uri(baseUrl);
         _client.Timeout = TimeSpan.FromSeconds(120);

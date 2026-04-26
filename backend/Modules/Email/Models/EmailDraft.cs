@@ -30,5 +30,5 @@ public class EmailDraft
 
     public string? ErrorMessage { get; set; }
 
-    public Candidature? Candidature { get; set; }
+    public CandidatureEntity? Candidature { get; set; }
 }

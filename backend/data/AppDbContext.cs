@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using backend.Modules.Identity.Models;
-using backend.Modules.Email.Models;
-using CandidatureEntity = backend.Modules.Candidature.Models.Candidature;
+using NextStep.Modules.Email.Models;
+using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
 using backend.Modules.Profile.Models;
 
 namespace backend.data

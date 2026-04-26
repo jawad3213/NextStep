@@ -1,6 +1,6 @@
-using backend.Modules.Email.DTOs;
+using NextStep.Modules.Email.DTOs;
 
-namespace backend.Modules.Email.Services;
+namespace NextStep.Modules.Email.Services;
 
 public interface IEmailService
 {

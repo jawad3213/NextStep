@@ -1,8 +1,8 @@
-using backend.data;
+using NextStep.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using CandidatureEntity = backend.Modules.Candidature.Models.Candidature;
+using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
 
-namespace backend.Modules.Candidature.Repositories;
+namespace NextStep.Modules.Candidature.Repositories;
 
 public class CandidatureRepository : ICandidatureRepository
 {

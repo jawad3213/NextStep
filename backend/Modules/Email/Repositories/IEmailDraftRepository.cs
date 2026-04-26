@@ -1,6 +1,6 @@
-using backend.Modules.Email.Models;
+using NextStep.Modules.Email.Models;
 
-namespace backend.Modules.Email.Repositories;
+namespace NextStep.Modules.Email.Repositories;
 
 public interface IEmailDraftRepository
 {

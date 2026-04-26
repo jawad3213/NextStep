@@ -1,11 +1,11 @@
 using System.Security.Claims;
-using backend.Modules.Candidature.DTOs;
-using backend.Modules.Candidature.Services;
-using backend.Modules.Identity.Repositories;
+using NextStep.Modules.Candidature.DTOs;
+using NextStep.Modules.Candidature.Services;
+using NextStep.Modules.Identity.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Modules.Candidature.Controllers;
+namespace NextStep.Modules.Candidature.Controllers;
 
 [ApiController]
 [Route("api/candidatures")]

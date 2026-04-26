@@ -1,4 +1,4 @@
-namespace backend.Modules.Email.DTOs;
+namespace NextStep.Modules.Email.DTOs;
 
 public class EmailDraftDto
 {

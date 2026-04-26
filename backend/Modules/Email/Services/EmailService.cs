@@ -1,10 +1,10 @@
-using backend.Infrastructure.Http;
-using backend.Modules.Candidature.Repositories;
-using backend.Modules.Email.DTOs;
-using backend.Modules.Email.Models;
-using backend.Modules.Email.Repositories;
+using NextStep.Infrastructure.Http;
+using NextStep.Modules.Candidature.Repositories;
+using NextStep.Modules.Email.DTOs;
+using NextStep.Modules.Email.Models;
+using NextStep.Modules.Email.Repositories;
 
-namespace backend.Modules.Email.Services;
+namespace NextStep.Modules.Email.Services;
 
 public class EmailService : IEmailService
 {

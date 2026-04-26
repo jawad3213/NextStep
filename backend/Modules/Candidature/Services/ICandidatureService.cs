@@ -1,6 +1,6 @@
-using backend.Modules.Candidature.DTOs;
+using NextStep.Modules.Candidature.DTOs;
 
-namespace backend.Modules.Candidature.Services;
+namespace NextStep.Modules.Candidature.Services;
 
 public interface ICandidatureService
 {

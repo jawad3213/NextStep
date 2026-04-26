@@ -1,9 +1,9 @@
-using backend.Modules.Email.DTOs;
-using backend.Modules.Email.Services;
+using NextStep.Modules.Email.DTOs;
+using NextStep.Modules.Email.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Modules.Email.Controllers;
+namespace NextStep.Modules.Email.Controllers;
 
 [ApiController]
 [Route("api/emails")]

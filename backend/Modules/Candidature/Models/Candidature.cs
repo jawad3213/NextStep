@@ -1,6 +1,6 @@
-using backend.Modules.Email.Models;
+using NextStep.Modules.Email.Models;
 
-namespace backend.Modules.Candidature.Models;
+namespace NextStep.Modules.Candidature.Models;
 
 public class Candidature
 {

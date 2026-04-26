@@ -1,8 +1,8 @@
-using backend.Modules.Candidature.DTOs;
-using backend.Modules.Candidature.Repositories;
-using CandidatureEntity = backend.Modules.Candidature.Models.Candidature;
+using NextStep.Modules.Candidature.DTOs;
+using NextStep.Modules.Candidature.Repositories;
+using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
 
-namespace backend.Modules.Candidature.Services;
+namespace NextStep.Modules.Candidature.Services;
 
 public class CandidatureService : ICandidatureService
 {

@@ -1,6 +1,6 @@
-using CandidatureEntity = backend.Modules.Candidature.Models.Candidature;
+using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
 
-namespace backend.Modules.Email.Models;
+namespace NextStep.Modules.Email.Models;
 
 public class EmailDraft
 {

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace backend.Modules.Candidature.DTOs;
+namespace NextStep.Modules.Candidature.DTOs;
 
 public class CreateCandidatureDto
 {

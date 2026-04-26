@@ -28,6 +28,10 @@ namespace backend.Modules.Profile.Services
         Task UpdateCompetenceAsync(Guid userId, CompetenceDto dto);
         Task DeleteCompetenceAsync(Guid userId, Guid id);
 
+        Task AddCertificationAsync(Guid userId, CertificationDto dto);
+        Task UpdateCertificationAsync(Guid userId, CertificationDto dto);
+        Task DeleteCertificationAsync(Guid userId, Guid id);
+
         Task CompleteOnboardingAsync(Guid userId, OnboardingDto dto);
     }
 
@@ -54,27 +58,54 @@ namespace backend.Modules.Profile.Services
                     Nom = user.Nom,
                     Prenom = user.Prenom,
                     Email = user.Email,
-                    Coordonnees = user.Coordonnees,
+                    Telephone = user.Telephone,
+                    Ville = user.Ville,
+                    Pays = user.Pays,
+                    TitrePoste = user.TitrePoste,
+                    PhotoUrl = user.PhotoUrl,
                     LienLinkedin = user.LienLinkedin,
                     LienGithub = user.LienGithub,
                     LienPortfolio = user.LienPortfolio,
-                    ResumeProfessionnel = user.ResumeProfessionnel
+                    ResumeProfessionnel = user.ResumeProfessionnel,
+                    TitresSections = user.TitresSections
                 },
                 Objectif = user.Objectif,
                 Niveau = user.Niveau,
                 Secteur = user.Secteur,
                 OnboardingCompleted = user.OnboardingCompleted,
                 Experiences = await _context.Experiences.Where(e => e.UserId == userId)
-                    .Select(e => new ExperienceDto { Id = e.Id, Entreprise = e.Entreprise, Poste = e.Poste, DateDebut = e.DateDebut, DateFin = e.DateFin, Missions = e.Missions })
+                    .Select(e => new ExperienceDto { 
+                        Id = e.Id, 
+                        Entreprise = e.Entreprise, 
+                        Poste = e.Poste, 
+                        DateDebut = e.DateDebut, 
+                        DateFin = e.DateFin, 
+                        Missions = e.Missions,
+                        Ville = e.Ville,
+                        Type = e.TypeContrat
+                    })
                     .ToListAsync(),
                 Formations = await _context.Formations.Where(f => f.UserId == userId)
-                    .Select(f => new FormationDto { Id = f.Id, Etablissement = f.Etablissement, Diplome = f.Diplome, Annee = f.Annee })
+                    .Select(f => new FormationDto { Id = f.Id, Etablissement = f.Etablissement, Diplome = f.Diplome, Annee = f.Annee, Ville = f.Ville, Specialisation = f.Specialisation, Mention = f.Mention, AnneeFin = f.AnneeFin })
                     .ToListAsync(),
                 Projets = await _context.Projets.Where(p => p.UserId == userId)
-                    .Select(p => new ProjetDto { Id = p.Id, TitreProjet = p.TitreProjet, Description = p.Description, TechnologiesUtilisees = p.TechnologiesUtilisees, LienProjet = p.LienProjet, DateRealisation = p.DateRealisation })
+                    .Select(p => new ProjetDto { 
+                        Id = p.Id, 
+                        TitreProjet = p.TitreProjet, 
+                        Description = p.Description, 
+                        TechnologiesUtilisees = p.TechnologiesUtilisees, 
+                        LienProjet = p.LienProjet, 
+                        DateRealisation = p.DateRealisation,
+                        DemoUrl = p.DemoUrl,
+                        ImageUrl = p.ImageUrl,
+                        IsUniversity = p.IsUniversity
+                    })
                     .ToListAsync(),
                 Competences = await _context.Competences.Where(c => c.UserId == userId)
                     .Select(c => new CompetenceDto { Id = c.Id, Nom = c.Nom, Niveau = c.Niveau, TypeCompetence = c.TypeCompetence })
+                    .ToListAsync(),
+                Certifications = await _context.Certifications.Where(c => c.UserId == userId)
+                    .Select(c => new CertificationDto { Id = c.Id, Titre = c.Titre, Organisation = c.Organisation, DateObtention = c.DateObtention, IdCredential = c.IdCredential, UrlCredential = c.UrlCredential })
                     .ToListAsync()
             };
         }
@@ -86,11 +117,16 @@ namespace backend.Modules.Profile.Services
 
             user.Nom = dto.Nom;
             user.Prenom = dto.Prenom;
-            user.Coordonnees = dto.Coordonnees;
+            user.Telephone = dto.Telephone;
+            user.Ville = dto.Ville;
+            user.Pays = dto.Pays;
+            user.TitrePoste = dto.TitrePoste;
+            user.PhotoUrl = dto.PhotoUrl;
             user.LienLinkedin = dto.LienLinkedin;
             user.LienGithub = dto.LienGithub;
             user.LienPortfolio = dto.LienPortfolio;
             user.ResumeProfessionnel = dto.ResumeProfessionnel;
+            user.TitresSections = dto.TitresSections;
 
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
@@ -99,7 +135,16 @@ namespace backend.Modules.Profile.Services
         // Experiences
         public async Task AddExperienceAsync(Guid userId, ExperienceDto dto)
         {
-            var exp = new Experience { UserId = userId, Entreprise = dto.Entreprise, Poste = dto.Poste, DateDebut = dto.DateDebut, DateFin = dto.DateFin, Missions = dto.Missions };
+            var exp = new Experience { 
+                UserId = userId, 
+                Entreprise = dto.Entreprise, 
+                Poste = dto.Poste, 
+                DateDebut = dto.DateDebut, 
+                DateFin = dto.DateFin, 
+                Missions = dto.Missions,
+                Ville = dto.Ville,
+                TypeContrat = dto.Type
+            };
             _context.Experiences.Add(exp);
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
@@ -110,6 +155,7 @@ namespace backend.Modules.Profile.Services
             var exp = await _context.Experiences.FirstOrDefaultAsync(e => e.Id == dto.Id && e.UserId == userId);
             if (exp == null) throw new KeyNotFoundException("Expérience non trouvée.");
             exp.Entreprise = dto.Entreprise; exp.Poste = dto.Poste; exp.DateDebut = dto.DateDebut; exp.DateFin = dto.DateFin; exp.Missions = dto.Missions;
+            exp.Ville = dto.Ville; exp.TypeContrat = dto.Type;
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
         }
@@ -123,7 +169,17 @@ namespace backend.Modules.Profile.Services
         // Projets
         public async Task AddProjetAsync(Guid userId, ProjetDto dto)
         {
-            var p = new Projet { UserId = userId, TitreProjet = dto.TitreProjet, Description = dto.Description, TechnologiesUtilisees = dto.TechnologiesUtilisees, LienProjet = dto.LienProjet, DateRealisation = dto.DateRealisation };
+            var p = new Projet { 
+                UserId = userId, 
+                TitreProjet = dto.TitreProjet, 
+                Description = dto.Description, 
+                TechnologiesUtilisees = dto.TechnologiesUtilisees, 
+                LienProjet = dto.LienProjet, 
+                DateRealisation = dto.DateRealisation,
+                DemoUrl = dto.DemoUrl,
+                ImageUrl = dto.ImageUrl,
+                IsUniversity = dto.IsUniversity
+            };
             _context.Projets.Add(p);
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
@@ -134,6 +190,7 @@ namespace backend.Modules.Profile.Services
             var p = await _context.Projets.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
             if (p == null) throw new KeyNotFoundException("Projet non trouvé.");
             p.TitreProjet = dto.TitreProjet; p.Description = dto.Description; p.TechnologiesUtilisees = dto.TechnologiesUtilisees; p.LienProjet = dto.LienProjet; p.DateRealisation = dto.DateRealisation;
+            p.DemoUrl = dto.DemoUrl; p.ImageUrl = dto.ImageUrl; p.IsUniversity = dto.IsUniversity;
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
         }
@@ -168,10 +225,53 @@ namespace backend.Modules.Profile.Services
             if (c != null) { _context.Competences.Remove(c); await _context.SaveChangesAsync(); await _userService.UpdateProfileScoreAsync(userId); }
         }
 
+        // Certifications
+        public async Task AddCertificationAsync(Guid userId, CertificationDto dto)
+        {
+            var cert = new Certification 
+            { 
+                UserId = userId, 
+                Titre = dto.Titre, 
+                Organisation = dto.Organisation, 
+                DateObtention = dto.DateObtention, 
+                IdCredential = dto.IdCredential, 
+                UrlCredential = dto.UrlCredential 
+            };
+            _context.Certifications.Add(cert);
+            await _context.SaveChangesAsync();
+            await _userService.UpdateProfileScoreAsync(userId);
+        }
+
+        public async Task UpdateCertificationAsync(Guid userId, CertificationDto dto)
+        {
+            var cert = await _context.Certifications.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
+            if (cert == null) throw new KeyNotFoundException("Certification non trouvée.");
+            
+            cert.Titre = dto.Titre;
+            cert.Organisation = dto.Organisation;
+            cert.DateObtention = dto.DateObtention;
+            cert.IdCredential = dto.IdCredential;
+            cert.UrlCredential = dto.UrlCredential;
+
+            await _context.SaveChangesAsync();
+            await _userService.UpdateProfileScoreAsync(userId);
+        }
+
+        public async Task DeleteCertificationAsync(Guid userId, Guid id)
+        {
+            var cert = await _context.Certifications.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+            if (cert != null) 
+            { 
+                _context.Certifications.Remove(cert); 
+                await _context.SaveChangesAsync(); 
+                await _userService.UpdateProfileScoreAsync(userId); 
+            }
+        }
+
         // Formations
         public async Task AddFormationAsync(Guid userId, FormationDto dto)
         {
-            var f = new Formation { UserId = userId, Etablissement = dto.Etablissement, Diplome = dto.Diplome, Annee = dto.Annee };
+            var f = new Formation { UserId = userId, Etablissement = dto.Etablissement, Diplome = dto.Diplome, Annee = dto.Annee, Ville = dto.Ville, Specialisation = dto.Specialisation, Mention = dto.Mention, AnneeFin = dto.AnneeFin };
             _context.Formations.Add(f);
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
@@ -181,7 +281,7 @@ namespace backend.Modules.Profile.Services
         {
             var f = await _context.Formations.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
             if (f == null) throw new KeyNotFoundException("Formation non trouvée.");
-            f.Etablissement = dto.Etablissement; f.Diplome = dto.Diplome; f.Annee = dto.Annee;
+            f.Etablissement = dto.Etablissement; f.Diplome = dto.Diplome; f.Annee = dto.Annee; f.Ville = dto.Ville; f.Specialisation = dto.Specialisation; f.Mention = dto.Mention; f.AnneeFin = dto.AnneeFin;
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
         }

@@ -28,6 +28,12 @@ namespace backend.Modules.Profile.Models
         [Column("missions")]
         public string? Missions { get; set; }
 
+        [Column("ville")]
+        public string? Ville { get; set; }
+
+        [Column("type_contrat")]
+        public string? TypeContrat { get; set; }
+
         [Column("is_valid")]
         public bool IsValid { get; set; } = false;
     }

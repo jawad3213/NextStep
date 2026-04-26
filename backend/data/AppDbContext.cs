@@ -15,5 +15,7 @@ namespace backend.data
         public DbSet<Formation> Formations { get; set; }
         public DbSet<Projet> Projets { get; set; }
         public DbSet<Competence> Competences { get; set; }
+        public DbSet<Certification> Certifications { get; set; }
+        public DbSet<Keyword> Keywords { get; set; }
     }
 }

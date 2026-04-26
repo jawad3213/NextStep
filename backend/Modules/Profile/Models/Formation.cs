@@ -21,5 +21,17 @@ namespace backend.Modules.Profile.Models
 
         [Column("annee")]
         public int Annee { get; set; }
+
+        [Column("ville")]
+        public string? Ville { get; set; }
+
+        [Column("specialisation")]
+        public string? Specialisation { get; set; }
+
+        [Column("mention")]
+        public string? Mention { get; set; }
+
+        [Column("annee_fin")]
+        public int? AnneeFin { get; set; }
     }
 }

@@ -33,11 +33,29 @@ namespace backend.Modules.Identity.Models
         [Column("lien_portfolio")]
         public string? LienPortfolio { get; set; }
 
+        [Column("titre_poste")]
+        public string? TitrePoste { get; set; }
+
+        [Column("photo_url")]
+        public string? PhotoUrl { get; set; }
+
+        [Column("ville")]
+        public string? Ville { get; set; }
+
+        [Column("pays")]
+        public string? Pays { get; set; }
+
+        [Column("telephone")]
+        public string? Telephone { get; set; }
+
         [Column("resume_professionnel")]
         public string? ResumeProfessionnel { get; set; }
 
         [Column("coordonnees")]
         public string? Coordonnees { get; set; }
+
+        [Column("titres_sections", TypeName = "jsonb")]
+        public string? TitresSections { get; set; }
 
         [Column("objectif")]
         public string? Objectif { get; set; }

@@ -1,135 +1,372 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { Profile, ProfileStepId } from './profile.types';
+import { Injectable, signal, computed, inject, effect } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Profile, ProfileStepId, PersonalInfo, Experience, Education, Skill, Project, Certification } from './profile.types';
+import { environment } from '../../../environments/environment';
+import { firstValueFrom } from 'rxjs';
+import { AuthService } from '../../core/auth/services/auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProfileService {
-  // Main Profile State
-  profile = signal<Profile>({
+  private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
+  private readonly apiUrl = `${environment.apiBaseUrl}/profile`;
+
+  // Initial Empty State
+  private readonly emptyProfile: Profile = {
     personal: {
-      firstName: 'Said',
-      lastName: 'N.',
-      email: 'said.n@example.com',
-      phone: '+212 600 000 000',
-      jobTitle: 'Senior Fullstack Developer',
-      address: 'Casablanca, Maroc',
-      city: 'Casablanca',
-      country: 'Maroc',
-      linkedinUrl: '',
-      githubUrl: '',
-      photoUrl: null,
+      firstName: '', lastName: '', email: '', phone: '',
+      jobTitle: '', address: '', city: '', country: '',
+      linkedinUrl: '', githubUrl: '', photoUrl: null,
       useAsHeadline: true
     },
-    education: [
-      {
-        id: '1',
-        degree: "Cycle d'Ingénieur",
-        institution: 'École Nationale des Sciences Appliquées (ENSA)',
-        city: 'Tanger, Maroc',
-        startYear: '2024',
-        endYear: '2024',
-        current: false,
-        specialization: 'Génie Informatique',
-        mention: 'Très bien'
-      },
-      {
-        id: '2',
-        degree: "Classes Préparatoires Intégrées",
-        institution: 'École Nationale des Sciences Appliquées (ENSA)',
-        city: 'Tanger, Maroc',
-        startYear: '2022',
-        endYear: '2024',
-        current: false,
-        specialization: 'Mathématiques et Physique',
-        mention: 'Bien'
-      }
-    ],
-    experience: [
-      {
-        id: '1',
-        title: 'Fullstack Software Engineer',
-        company: 'Tech Innovators',
-        city: 'Casablanca, Maroc',
-        startDate: '2023-09',
-        endDate: '',
-        current: true,
-        type: 'CDI',
-        description: 'Développement complet d\'une plateforme SaaS B2B. Mise en place de l\'architecture microservices, optimisation des requêtes de base de données et création d\'interfaces dynamiques avec Angular.'
-      },
-      {
-        id: '2',
-        title: 'Développeur Front-End (Stage)',
-        company: 'Digital Solutions',
-        city: 'Rabat, Maroc',
-        startDate: '2023-04',
-        endDate: '2023-08',
-        current: false,
-        type: 'Stage',
-        description: 'Conception et développement de dashboards interactifs. Refonte de l\'interface utilisateur pour améliorer l\'UX.'
-      }
-    ],
-    skills: [
-      { id: '1', name: 'Angular', category: 'Frontend' },
-      { id: '2', name: 'TypeScript', category: 'Frontend' },
-      { id: '3', name: 'Node.js', category: 'Backend' }
-    ],
-    languages: [],
-    resume: '',
-    projets: [
-      {
-        id: '1',
-        title: 'Vimo Platform - Netflix Clone',
-        description: 'Plateforme de streaming vidéo cloud-native avec architecture de transcodage, lecteur HTML5 personnalisé et back-office d\'administration complet.',
-        stack: ['Angular', 'Node.js', 'MinIO', 'Docker'],
-        githubUrl: 'https://github.com/said/vimo-platform',
-        demoUrl: 'https://vimo.app',
-        isUniversity: false
-      },
-      {
-        id: '2',
-        title: 'MediConnect',
-        description: 'Système de gestion hospitalière et portail patient permettant la prise de rendez-vous sécurisée et le suivi du dossier médical.',
-        stack: ['Spring Boot', 'PostgreSQL', 'Angular', 'Hibernate'],
-        githubUrl: 'https://github.com/said/mediconnect',
-        demoUrl: '',
-        isUniversity: true
-      }
-    ],
-    certifications: [
-      {
-        id: '1',
-        name: 'AWS Certified Solutions Architect - Associate',
-        issuer: 'Amazon Web Services (AWS)',
-        date: '2024-01-15',
-        verificationUrl: 'https://aws.amazon.com/verification'
-      },
-      {
-        id: '2',
-        name: 'Microsoft Certified: Azure Developer Associate',
-        issuer: 'Microsoft',
-        date: '2023-11-20',
-        verificationUrl: 'https://learn.microsoft.com/en-us/users/verify'
-      }
-    ]
-  });
+    education: [], experience: [], skills: [], languages: [],
+    resume: '', projets: [], certifications: [],
+    sectionTitles: {
+      formation: 'Formation',
+      experience: 'Expérience Professionnelle',
+      competences: 'Compétences',
+      projets: 'Projets Personnels',
+      certifications: 'Certifications'
+    }
+  };
 
+  profile = signal<Profile>(this.emptyProfile);
   currentStep = signal<ProfileStepId>('coordonnees');
 
-  // Computed Progress
-  completionPercentage = computed(() => {
-    let filledSections = 0;
-    const p = this.profile();
-    
-    if (p.personal.firstName && p.personal.lastName && p.personal.email) filledSections++;
-    if (p.education.length > 0) filledSections++;
-    if (p.experience.length > 0) filledSections++;
-    if (p.skills.length > 0) filledSections++;
-    if (p.resume.length > 50) filledSections++;
-    if (p.projets.length > 0) filledSections++;
-    if (p.certifications.length > 0) filledSections++;
+  constructor() {
+    // Auto-reload profile when auth user changes (Keycloak finished loading)
+    effect(() => {
+      const user = this.authService.user();
+      if (user) {
+        console.log('Utilisateur authentifié détecté, rechargement du profil...');
+        this.refreshProfile();
+      }
+    });
+  }
 
-    return Math.round((filledSections / 7) * 100);
+  // Méthode publique pour forcer le rechargement
+  async refreshProfile() {
+    return this.loadProfile();
+  }
+
+  async loadProfile() {
+    try {
+      console.log('Chargement du profil depuis:', this.apiUrl);
+      const data: any = await firstValueFrom(this.http.get<any>(this.apiUrl));
+      
+      if (!data || !data.personalInfo) {
+        console.warn('Données de profil incomplètes reçues du serveur');
+        return;
+      }
+
+      const authUser = this.authService.user();
+      
+      // Determine section titles safely
+      let sectionTitles = this.emptyProfile.sectionTitles;
+      if (data.personalInfo.titresSections) {
+        try {
+          sectionTitles = JSON.parse(data.personalInfo.titresSections);
+        } catch (e) {
+          console.warn('Erreur lors du parsing des titres de sections, utilisation des titres par défaut');
+        }
+      }
+
+      const mappedProfile: Profile = {
+        personal: {
+          firstName: data.personalInfo.prenom || authUser?.firstName || '',
+          lastName: data.personalInfo.nom || authUser?.lastName || '',
+          email: data.personalInfo.email || authUser?.email || '',
+          phone: data.personalInfo.telephone || '',
+          city: data.personalInfo.ville || '',
+          country: data.personalInfo.pays || '',
+          jobTitle: data.personalInfo.titrePoste || '',
+          photoUrl: data.personalInfo.photoUrl || null,
+          linkedinUrl: data.personalInfo.lienLinkedin || '',
+          githubUrl: data.personalInfo.lienGithub || '',
+          address: (data.personalInfo.ville || data.personalInfo.pays) 
+            ? `${data.personalInfo.ville || ''}, ${data.personalInfo.pays || ''}`.trim().replace(/^,|,$/g, '')
+            : '',
+          useAsHeadline: true
+        },
+        education: (data.formations || []).map((f: any) => ({
+          id: f.id,
+          degree: f.diplome,
+          institution: f.etablissement,
+          startYear: f.annee?.toString() || '2024',
+          endYear: f.anneeFin?.toString() || '2024',
+          current: !f.anneeFin,
+          specialization: f.specialisation || '',
+          mention: f.mention || 'Passable',
+          city: f.ville || ''
+        })),
+        experience: (data.experiences || []).map((e: any) => ({
+          id: e.id,
+          title: e.poste,
+          company: e.entreprise,
+          startDate: e.dateDebut ? e.dateDebut.substring(0, 7) : '',
+          endDate: e.dateFin ? e.dateFin.substring(0, 7) : '',
+          current: !e.dateFin,
+          description: e.missions || '',
+          city: e.ville || '',
+          type: e.type || 'Stage'
+        })),
+        skills: (data.competences || []).map((c: any) => ({
+          id: c.id,
+          name: c.nom,
+          category: c.typeCompetence || 'Technique'
+        })),
+        languages: [],
+        resume: data.personalInfo.resumeProfessionnel || '',
+        projets: (data.projets || []).map((p: any) => ({
+          id: p.id,
+          title: p.titreProjet,
+          description: p.description,
+          stack: p.technologiesUtilisees?.split(',') || [],
+          githubUrl: p.lienProjet || '',
+          demoUrl: p.demoUrl || '',
+          imageUrl: p.imageUrl || '',
+          isUniversity: p.isUniversity || false
+        })),
+        certifications: (data.certifications || []).map((c: any) => ({
+          id: c.id,
+          name: c.titre,
+          issuer: c.organisation,
+          date: c.dateObtention,
+          verificationUrl: c.urlCredential
+        })),
+        sectionTitles: sectionTitles
+      };
+      
+      this.profile.set(mappedProfile);
+    } catch (error) {
+      console.error('Erreur chargement profil:', error);
+    }
+  }
+
+  async savePersonalInfo(info: PersonalInfo) {
+    const dto = {
+      nom: info.lastName,
+      prenom: info.firstName,
+      email: info.email,
+      telephone: info.phone,
+      ville: info.city,
+      pays: info.country,
+      titrePoste: info.jobTitle,
+      photoUrl: info.photoUrl,
+      lienLinkedin: info.linkedinUrl,
+      lienGithub: info.githubUrl,
+      resumeProfessionnel: this.profile().resume,
+      titresSections: JSON.stringify(this.profile().sectionTitles)
+    };
+    return firstValueFrom(this.http.put(`${this.apiUrl}/personal-info`, dto));
+  }
+
+  async addExperience(exp: Experience) {
+    const dto = {
+      entreprise: exp.company,
+      poste: exp.title,
+      dateDebut: exp.startDate ? new Date(exp.startDate + '-01').toISOString() : null,
+      dateFin: exp.endDate ? new Date(exp.endDate + '-01').toISOString() : null,
+      missions: exp.description,
+      ville: exp.city,
+      type: exp.type
+    };
+    await firstValueFrom(this.http.post(`${this.apiUrl}/experiences`, dto));
+    await this.loadProfile();
+  }
+
+  async updateExperience(exp: Experience) {
+    const dto = {
+      id: exp.id,
+      entreprise: exp.company,
+      poste: exp.title,
+      dateDebut: exp.startDate ? new Date(exp.startDate + '-01').toISOString() : null,
+      dateFin: exp.endDate ? new Date(exp.endDate + '-01').toISOString() : null,
+      missions: exp.description,
+      ville: exp.city,
+      type: exp.type
+    };
+    await firstValueFrom(this.http.put(`${this.apiUrl}/experiences`, dto));
+    await this.loadProfile();
+  }
+
+
+  async deleteExperience(id: string) {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/experiences/${id}`));
+    await this.loadProfile();
+  }
+
+  async addEducation(edu: Education) {
+    const dto = {
+      etablissement: edu.institution,
+      diplome: edu.degree,
+      annee: parseInt(edu.startYear) || 2024,
+      ville: edu.city,
+      specialisation: edu.specialization,
+      mention: edu.mention,
+      anneeFin: parseInt(edu.endYear) || null
+    };
+    await firstValueFrom(this.http.post(`${this.apiUrl}/formations`, dto));
+    await this.loadProfile();
+  }
+
+  async updateEducation(edu: Education) {
+    const dto = {
+      id: edu.id,
+      etablissement: edu.institution,
+      diplome: edu.degree,
+      annee: parseInt(edu.startYear) || 2024,
+      ville: edu.city,
+      specialisation: edu.specialization,
+      mention: edu.mention,
+      anneeFin: parseInt(edu.endYear) || null
+    };
+    await firstValueFrom(this.http.put(`${this.apiUrl}/formations`, dto));
+    await this.loadProfile();
+  }
+
+
+  async deleteEducation(id: string) {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/formations/${id}`));
+    await this.loadProfile();
+  }
+
+  async addSkill(skill: Skill) {
+    const dto = {
+      nom: skill.name,
+      niveau: 3,
+      typeCompetence: skill.category
+    };
+    await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, dto));
+    await this.loadProfile();
+  }
+
+  async updateSkill(skill: Skill) {
+    const dto = {
+      id: skill.id,
+      nom: skill.name,
+      niveau: 3,
+      typeCompetence: skill.category
+    };
+    await firstValueFrom(this.http.put(`${this.apiUrl}/competences`, dto));
+    await this.loadProfile();
+  }
+
+
+  async deleteSkill(id: string) {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/competences/${id}`));
+    await this.loadProfile();
+  }
+
+  async addProject(p: Project) {
+    const dto = {
+      titreProjet: p.title,
+      description: p.description,
+      technologiesUtilisees: p.stack.join(','),
+      lienProjet: p.githubUrl,
+      demoUrl: p.demoUrl,
+      imageUrl: p.imageUrl,
+      isUniversity: p.isUniversity
+    };
+    await firstValueFrom(this.http.post(`${this.apiUrl}/projets`, dto));
+    await this.loadProfile();
+  }
+
+  async updateProject(p: Project) {
+    const dto = {
+      id: p.id,
+      titreProjet: p.title,
+      description: p.description,
+      technologiesUtilisees: p.stack.join(','),
+      lienProjet: p.githubUrl,
+      demoUrl: p.demoUrl,
+      imageUrl: p.imageUrl,
+      isUniversity: p.isUniversity
+    };
+    await firstValueFrom(this.http.put(`${this.apiUrl}/projets`, dto));
+    await this.loadProfile();
+  }
+
+
+  async deleteProject(id: string) {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/projets/${id}`));
+    await this.loadProfile();
+  }
+
+  async addCertification(c: Certification) {
+    const dto = {
+      titre: c.name,
+      organisation: c.issuer,
+      dateObtention: c.date,
+      urlCredential: c.verificationUrl
+    };
+    await firstValueFrom(this.http.post(`${this.apiUrl}/certifications`, dto));
+    await this.loadProfile();
+  }
+
+  async updateCertification(c: Certification) {
+    const dto = {
+      id: c.id,
+      titre: c.name,
+      organisation: c.issuer,
+      dateObtention: c.date,
+      urlCredential: c.verificationUrl
+    };
+    await firstValueFrom(this.http.put(`${this.apiUrl}/certifications`, dto));
+    await this.loadProfile();
+  }
+
+
+  async deleteCertification(id: string) {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/certifications/${id}`));
+    await this.loadProfile();
+  }
+
+  // --- Nouveaux appels backend ---
+
+  async getKeywords(): Promise<{mot: string, categorie: string}[]> {
+    try {
+      return await firstValueFrom(this.http.get<{mot: string, categorie: string}[]>(`${this.apiUrl}/keywords`));
+    } catch (e) {
+      console.error('Erreur chargement keywords', e);
+      return [];
+    }
+  }
+
+  async generateResume(profileData: any): Promise<string> {
+    try {
+      const res = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/generate-resume`, profileData));
+      return res.resume || '';
+    } catch (e) {
+      console.error('Erreur génération CV IA', e);
+      return 'Erreur de génération.';
+    }
+  }
+
+  /**
+   * Calcul du pourcentage de complétion du profil (Granulaire)
+   */
+  completionPercentage = computed(() => {
+    const p = this.profile();
+    let score = 0;
+    
+    // 1. Infos Personnelles (Total: 25%)
+    if (p.personal.firstName) score += 5;
+    if (p.personal.lastName) score += 5;
+    if (p.personal.email) score += 5;
+    if (p.personal.phone) score += 5;
+    if (p.personal.jobTitle) score += 5;
+    
+    // 2. Sections (Total: 75%)
+    if (p.education.length > 0) score += 15;
+    if (p.experience.length > 0) score += 15;
+    if (p.skills.length > 0) score += 15;
+    if (p.resume && p.resume.length > 50) score += 15;
+    if (p.projets.length > 0) score += 15;
+
+    return Math.min(score, 100);
   });
 
   isSectionComplete(stepId: ProfileStepId): boolean {
@@ -148,7 +385,6 @@ export class ProfileService {
 
   updateProfile(newData: Partial<Profile>) {
     this.profile.update(current => ({ ...current, ...newData }));
-    // In a real app: debounce then PUT to /api/profile
   }
 
   setStep(stepId: ProfileStepId) {

@@ -70,11 +70,14 @@ namespace backend.Modules.Identity.Services
             {
                 KeycloakId = keycloakId,
                 Email = userPrincipal.FindFirst(ClaimTypes.Email)?.Value ?? 
-                        userPrincipal.FindFirst("email")?.Value ?? "unknown@email.com",
+                        userPrincipal.FindFirst("email")?.Value ?? 
+                        userPrincipal.FindFirst("preferred_username")?.Value ?? "unknown@email.com",
                 Prenom = userPrincipal.FindFirst(ClaimTypes.GivenName)?.Value ?? 
-                         userPrincipal.FindFirst("given_name")?.Value,
+                         userPrincipal.FindFirst("given_name")?.Value ??
+                         userPrincipal.FindFirst("name")?.Value?.Split(' ').FirstOrDefault(),
                 Nom = userPrincipal.FindFirst(ClaimTypes.Surname)?.Value ?? 
-                      userPrincipal.FindFirst("family_name")?.Value,
+                      userPrincipal.FindFirst("family_name")?.Value ??
+                      userPrincipal.FindFirst("name")?.Value?.Split(' ').LastOrDefault(),
                 OnboardingCompleted = false,
                 ProfileScore = 0,
                 DateInscription = DateTime.UtcNow

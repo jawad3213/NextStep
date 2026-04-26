@@ -1,15 +1,24 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { ProfileService } from './profile.service';
-import { ProfileStepId, Profile } from './profile.types';
+import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
 
 type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 
 // Sub-components
 import { ProfileStepperComponent } from './stepper/profile-stepper.component';
+import { PersonalInfoComponent } from './components/personal-info/personal-info.component';
+import { ProjectsComponent } from './components/projects/projects.component';
+import { CertificationsComponent } from './components/certifications/certifications.component';
+import { ExperienceComponent } from './components/experience/experience.component';
+import { FormationComponent } from './components/formation/formation.component';
+import { SkillsComponent } from './components/skills/skills.component';
+import { ResumeComponent } from './components/resume/resume.component';
 
 
 @Component({
@@ -21,12 +30,42 @@ import { ProfileStepperComponent } from './stepper/profile-stepper.component';
     MatTooltipModule,
     DragDropModule,
     ProfileStepperComponent,
+    PersonalInfoComponent,
+    ProjectsComponent,
+    CertificationsComponent,
+    ExperienceComponent,
+    FormationComponent,
+    SkillsComponent,
+    ResumeComponent,
+    FormsModule,
+    ReactiveFormsModule
   ],
   templateUrl: './profile.component.html',
-  styleUrl: './profile.component.scss'
+  styleUrl: './profile.component.scss',
+  encapsulation: ViewEncapsulation.None
 })
-export class ProfileComponent {
+export class UserProfileComponent implements OnInit, OnDestroy {
   profileService = inject(ProfileService);
+  
+  private readonly destroy$ = new Subject<void>();
+  private readonly autoSave$ = new Subject<void>();
+  
+  ngOnInit() {
+    this.profileService.refreshProfile();
+
+    // Professional Debounced Auto-save logic
+    this.autoSave$.pipe(
+      debounceTime(1500),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.save();
+    });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
   
   // UI State
   isPreviewOpen = signal(false);
@@ -42,7 +81,29 @@ export class ProfileComponent {
   isGeneratingAI = signal(false);
   editingSection = signal<SectionTitleKey | null>(null);
   skillSearchQuery = signal('');
-  filteredSuggestions = signal<string[]>([]);
+  filteredSuggestions = signal<{name: string, category: string}[]>([]);
+
+  // Form Signals for adding new items
+  newFormation = signal<Education>({
+    id: '', degree: '', institution: '', city: '', 
+    startYear: '2024', endYear: '2024', current: false, 
+    specialization: '', mention: 'Passable'
+  });
+
+  newExperience = signal<Experience>({
+    id: '', title: '', company: '', city: '', 
+    startDate: '', endDate: '', current: false, 
+    type: 'Stage', description: ''
+  });
+
+  newProject = signal<Project>({
+    id: '', title: '', description: '', stack: [], 
+    githubUrl: '', demoUrl: '', isUniversity: false
+  });
+
+  newCertification = signal<Certification>({
+    id: '', name: '', issuer: '', date: '', verificationUrl: ''
+  });
   
   profile = this.profileService.profile;
   currentStep = this.profileService.currentStep;
@@ -65,7 +126,7 @@ export class ProfileComponent {
   });
 
   // Section Avancement (Progress in active section)
-  sectionProgress = signal(45); // Mock 45% progress in current section
+  // sectionProgress supprimé car non utilisé
 
   // Step Logic
   goToStep(id: ProfileStepId) {
@@ -73,58 +134,79 @@ export class ProfileComponent {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  next() {
+  async next() {
     const nextIdx = this.currentIndex() + 1;
     if (nextIdx < this.steps.length) {
+      await this.save(); // Sauvegarder avant de changer d'étape
       this.goToStep(this.steps[nextIdx].id);
     }
   }
 
-  previous() {
+  async prev() {
     const prevIdx = this.currentIndex() - 1;
     if (prevIdx >= 0) {
+      await this.save(); // Sauvegarder avant de changer d'étape
       this.goToStep(this.steps[prevIdx].id);
     }
   }
 
   updateField(field: string, value: any) {
-    this.isSaving.set(true);
-    this.profileService.updateProfile({ 
-      personal: { ...this.profile().personal, [field]: value } 
-    });
-    
-    // Simulate auto-save feedback
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.lastSaved.set(new Date());
-    }, 1000);
+    const currentPersonal = { ...this.profile().personal };
+    (currentPersonal as any)[field] = value;
+    this.profileService.updateProfile({ personal: currentPersonal });
+    this.autoSave$.next();
   }
 
   togglePreview() {
     this.isPreviewOpen.update(v => !v);
   }
 
-  save() {
+  async save() {
     this.isSaving.set(true);
-    // Simulate backend save
-    setTimeout(() => {
-      this.isSaving.set(false);
+    try {
+      await this.profileService.savePersonalInfo(this.profile().personal);
       this.lastSaved.set(new Date());
       this.showToast.set(true);
-      
-      // Hide toast after 3s
-      setTimeout(() => {
-        this.showToast.set(false);
-      }, 3000);
-    }, 600);
+      setTimeout(() => this.showToast.set(false), 3000);
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  updateNewItem(type: 'formation' | 'experience' | 'project' | 'certification', field: string, value: any) {
+    switch(type) {
+      case 'formation': 
+        this.newFormation.update(v => ({ ...v, [field]: value }));
+        break;
+      case 'experience':
+        this.newExperience.update(v => ({ ...v, [field]: value }));
+        break;
+      case 'project':
+        if (field === 'stack' && typeof value === 'string') {
+          value = value.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+        this.newProject.update(v => ({ ...v, [field]: value }));
+        break;
+      case 'certification':
+        this.newCertification.update(v => ({ ...v, [field]: value }));
+        break;
+    }
   }
 
 
   // LinkedIn Import State
   showImportBlock = signal(true);
+  isImporting = signal(false);
+
   importLinkedIn() {
-    // Simulate import
-    setTimeout(() => this.showImportBlock.set(false), 800);
+    this.isImporting.set(true);
+    // : Connecter à un vrai endpoint d'import LinkedIn backend
+    console.warn("L'import LinkedIn n'est pas encore implémenté côté backend.");
+    setTimeout(() => {
+      this.isImporting.set(false);
+    }, 1000);
   }
 
   // Formation Methods
@@ -132,14 +214,27 @@ export class ProfileComponent {
     this.isAddingFormation.update(v => !v);
   }
 
-  saveFormation() {
+  async saveFormation() {
     this.isSaving.set(true);
-    setTimeout(() => {
-      this.isSaving.set(false);
+    try {
+      if (this.newFormation().id) {
+        await this.profileService.updateEducation(this.newFormation());
+      } else {
+        await this.profileService.addEducation(this.newFormation());
+      }
       this.isAddingFormation.set(false);
+      this.newFormation.set({
+        id: '', degree: '', institution: '', city: '', 
+        startYear: '2024', endYear: '2024', current: false, 
+        specialization: '', mention: 'Passable'
+      });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
-    }, 600);
+    } catch (error) {
+      console.error('Erreur formation:', error);
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   // Experience Methods
@@ -147,14 +242,27 @@ export class ProfileComponent {
     this.isAddingExperience.update(v => !v);
   }
 
-  saveExperience() {
+  async saveExperience() {
     this.isSaving.set(true);
-    setTimeout(() => {
-      this.isSaving.set(false);
+    try {
+      if (this.newExperience().id) {
+        await this.profileService.updateExperience(this.newExperience());
+      } else {
+        await this.profileService.addExperience(this.newExperience());
+      }
       this.isAddingExperience.set(false);
+      this.newExperience.set({
+        id: '', title: '', company: '', city: '', 
+        startDate: '', endDate: '', current: false, 
+        type: 'Stage', description: ''
+      });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
-    }, 600);
+    } catch (error) {
+      console.error('Erreur expérience:', error);
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   // Project Methods
@@ -162,14 +270,26 @@ export class ProfileComponent {
     this.isAddingProject.update(v => !v);
   }
 
-  saveProject() {
+  async saveProject() {
     this.isSaving.set(true);
-    setTimeout(() => {
-      this.isSaving.set(false);
+    try {
+      if (this.newProject().id) {
+        await this.profileService.updateProject(this.newProject());
+      } else {
+        await this.profileService.addProject(this.newProject());
+      }
       this.isAddingProject.set(false);
+      this.newProject.set({
+        id: '', title: '', description: '', stack: [], 
+        githubUrl: '', demoUrl: '', isUniversity: false
+      });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
-    }, 600);
+    } catch (error) {
+      console.error('Erreur projet:', error);
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   // Certification Methods
@@ -177,63 +297,154 @@ export class ProfileComponent {
     this.isAddingCertification.update(v => !v);
   }
 
-  saveCertification() {
+  async saveCertification() {
     this.isSaving.set(true);
-    setTimeout(() => {
-      this.isSaving.set(false);
+    try {
+      if (this.newCertification().id) {
+        await this.profileService.updateCertification(this.newCertification());
+      } else {
+        await this.profileService.addCertification(this.newCertification());
+      }
       this.isAddingCertification.set(false);
+      this.newCertification.set({
+        id: '', name: '', issuer: '', date: '', verificationUrl: ''
+      });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
-    }, 600);
+    } catch (error) {
+      console.error('Erreur certification:', error);
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
-  removeCertification(id: string) {
-    const current = this.profile().certifications.filter(c => c.id !== id);
-    this.profileService.updateProfile({ certifications: current });
-    this.save();
+  editItem(item: any, type: 'formation' | 'experience' | 'project' | 'certification') {
+    switch(type) {
+      case 'formation':
+        this.newFormation.set({ ...item });
+        this.isAddingFormation.set(true);
+        break;
+      case 'experience':
+        this.newExperience.set({ ...item });
+        this.isAddingExperience.set(true);
+        break;
+      case 'project':
+        this.newProject.set({ ...item });
+        this.isAddingProject.set(true);
+        break;
+      case 'certification':
+        this.newCertification.set({ ...item });
+        this.isAddingCertification.set(true);
+        break;
+    }
+  }
+
+  async duplicateItem(item: any, type: 'formation' | 'experience' | 'project' | 'certification') {
+    this.isSaving.set(true);
+    try {
+      const clonedItem = { ...item, id: undefined }; // Retirer l'ID pour forcer la création
+      switch(type) {
+        case 'formation':
+          await this.profileService.addEducation(clonedItem);
+          break;
+        case 'experience':
+          await this.profileService.addExperience(clonedItem);
+          break;
+        case 'project':
+          await this.profileService.addProject(clonedItem);
+          break;
+        case 'certification':
+          await this.profileService.addCertification(clonedItem);
+          break;
+      }
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    } catch(err) {
+      console.error('Erreur lors de la duplication', err);
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  async removeCertification(id: string) {
+    await this.deleteItem(id, 'certifications');
+  }
+
+  async removeSkill(id: string) {
+    await this.deleteItem(id, 'skills');
+  }
+
+  async deleteItem(id: string, type: 'education' | 'experience' | 'projets' | 'skills' | 'certifications') {
+    try {
+      switch(type) {
+        case 'education': await this.profileService.deleteEducation(id); break;
+        case 'experience': await this.profileService.deleteExperience(id); break;
+        case 'projets': await this.profileService.deleteProject(id); break;
+        case 'skills': await this.profileService.deleteSkill(id); break;
+        case 'certifications': await this.profileService.deleteCertification(id); break;
+      }
+    } catch (error) {
+      console.error(`Erreur suppression ${type}:`, error);
+    }
   }
 
   // Resume Methods
   updateResume(text: string) {
     this.profileService.updateProfile({ resume: text });
-    this.save();
+    this.autoSave$.next();
   }
 
-  generateAIResume() {
+  async generateAIResume() {
     this.isGeneratingAI.set(true);
     
-    // Simulation d'appel IA
-    setTimeout(() => {
-      const personal = this.profile().personal;
-      const experience = this.profile().experience[0];
-      const skills = this.profile().skills.slice(0, 3).map(s => s.name).join(', ');
-      
-      const generatedText = `Passionné par le développement logiciel avec une expertise en ${skills}. Actuellement ${personal.jobTitle} chez ${experience?.company || 'Freelance'}, j'ai développé une solide expérience dans la conception d'architectures robustes et d'interfaces utilisateur intuitives. Mon parcours m'a permis de maîtriser les cycles complets de développement et de contribuer à des projets innovants à fort impact technique.`;
-      
+    try {
+      // Appel au vrai endpoint backend qui proxifie vers l'agent Python
+      const generatedText = await this.profileService.generateResume(this.profile());
       this.updateResume(generatedText);
-      this.isGeneratingAI.set(false);
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
-    }, 2000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.isGeneratingAI.set(false);
+    }
   }
 
   // Skills Methods
-  predefinedSkills = [
-    { category: 'Frontend', items: ['Angular', 'React', 'Vue.js', 'TypeScript', 'HTML/CSS', 'Tailwind'] },
-    { category: 'Backend', items: ['Node.js', 'Spring Boot', 'Python', 'Java', 'C#', 'PHP'] },
-    { category: 'DevOps & Cloud', items: ['Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'CI/CD'] },
-    { category: 'Outils', items: ['Git', 'Figma', 'Jira', 'Postman', 'Linux'] }
-  ];
+  predefinedSkills: { category: string, items: string[] }[] = [];
 
-  addSkill(skillName: string, category: string = 'Technique') {
-    const currentSkills = this.profile().skills;
-    if (!currentSkills.find(s => s.name.toLowerCase() === skillName.toLowerCase())) {
-      const newSkill = { id: Date.now().toString(), name: skillName, category };
-      this.profileService.updateProfile({ skills: [...currentSkills, newSkill] });
-      this.save();
+  constructor() {
+    // Initialisation
+    this.loadKeywords();
+  }
+
+  async loadKeywords() {
+    const keywords = await this.profileService.getKeywords();
+    // Grouper les mots clés par catégorie
+    const groups: { [key: string]: string[] } = {};
+    for (const kw of keywords) {
+      if (!groups[kw.categorie]) groups[kw.categorie] = [];
+      groups[kw.categorie].push(kw.mot);
     }
+    
+    this.predefinedSkills = Object.keys(groups).map(k => ({
+      category: k,
+      items: groups[k]
+    }));
+  }
+
+  async addSkill(skillName: string, category: string = 'Technique') {
+    // Clear suggestions immediately for responsive UI
     this.filteredSuggestions.set([]);
     this.skillSearchQuery.set('');
+    
+    try {
+      await this.profileService.addSkill({ id: '', name: skillName, category });
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    } catch (error) {
+      console.error('Erreur compétence:', error);
+    }
   }
 
   onSkillInput(event: Event) {
@@ -245,18 +456,26 @@ export class ProfileComponent {
       return;
     }
 
-    const allSkills = this.predefinedSkills.flatMap(s => s.items);
-    const filtered = allSkills.filter(skill => 
-      skill.toLowerCase().includes(query) && 
-      !this.profile().skills.find(s => s.name.toLowerCase() === skill.toLowerCase())
-    ).slice(0, 5); // Limit to 5 suggestions
-    
-    this.filteredSuggestions.set(filtered);
+    const suggestions: {name: string, category: string}[] = [];
+    this.predefinedSkills.forEach(cat => {
+      cat.items.forEach(item => {
+        if (item.toLowerCase().includes(query) && !this.isSkillSelected(item)) {
+          suggestions.push({ name: item, category: cat.category });
+        }
+      });
+    });
+
+    this.filteredSuggestions.set(suggestions);
   }
 
-  selectSuggestion(skill: string, inputElement: HTMLInputElement) {
-    this.addSkill(skill);
+  async selectSuggestion(suggestion: {name: string, category: string}, inputElement: HTMLInputElement) {
+    // Clear input and dropdown immediately
     inputElement.value = '';
+    this.filteredSuggestions.set([]);
+    this.skillSearchQuery.set('');
+    
+    // Then add the skill (async)
+    await this.addSkill(suggestion.name, suggestion.category);
   }
 
   isSkillSelected(name: string): boolean {
@@ -280,7 +499,7 @@ export class ProfileComponent {
           [section]: newTitle.trim()
         }
       });
-      this.save();
+      this.autoSave$.next();
     }
     this.editingSection.set(null);
   }
@@ -296,7 +515,7 @@ export class ProfileComponent {
       reader.onload = (e) => {
         const photoUrl = e.target?.result as string;
         this.updateField('photoUrl', photoUrl);
-        this.save();
+        this.autoSave$.next();
       };
       reader.readAsDataURL(file);
     }
@@ -309,11 +528,7 @@ export class ProfileComponent {
     }
   }
 
-  removeSkill(skillId: string) {
-    const currentSkills = this.profile().skills.filter(s => s.id !== skillId);
-    this.profileService.updateProfile({ skills: currentSkills });
-    this.save();
-  }
+  // Logic moved to deleteItem
 
   // Drag & Drop
   drop(event: CdkDragDrop<any[]>, type: 'education' | 'experience' | 'projets' | 'skills' | 'certifications') {
@@ -321,7 +536,7 @@ export class ProfileComponent {
       const currentArray = [...this.profile()[type]];
       moveItemInArray(currentArray, event.previousIndex, event.currentIndex);
       this.profileService.updateProfile({ [type]: currentArray });
-      this.save();
+      this.autoSave$.next();
     }
   }
 }

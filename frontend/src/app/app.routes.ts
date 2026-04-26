@@ -17,13 +17,13 @@ export const routes: Routes = [
   {
     path: '',
     component: MainLayoutComponent,
-    canActivate: [authGuard, onboardingGuard],
+    canActivate: [authGuard],
     children: [
-      { path: 'dashboard', component: DashboardComponent },
       {
         path: 'profile',
-        loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent)
+        loadComponent: () => import('./features/profile/profile.component').then(m => m.UserProfileComponent)
       },
+      { path: 'dashboard', component: DashboardComponent, canActivate: [onboardingGuard] },
       { 
         path: 'offers', 
         loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 

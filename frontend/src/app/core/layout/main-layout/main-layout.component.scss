@@ -1,12 +1,23 @@
 @use '../../../../styles/abstracts/variables' as vars;
 
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .layout-container {
   display: flex;
   height: 100vh;
-  width: 100%;
+  width: 100vw;
   background-color: #FFFFFF;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
 
   /* State for mobile sidebar */
   &.sidebar-open {
@@ -229,6 +240,8 @@
   flex-direction: column;
   background-color: #F9FAFF;
   width: 100%;
+  min-height: 0;
+  height: 100%;
 }
 
 .top-navbar {
@@ -304,5 +317,7 @@
   display: flex;
   flex-direction: column;
   padding: 0;
-  overflow: hidden; // Children handle their own padding and scrolling
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
 }

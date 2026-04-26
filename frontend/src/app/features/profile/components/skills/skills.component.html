@@ -1,0 +1,97 @@
+<div class="form-step-wrapper animate-fade-slide-up">
+  <div class="mb-10">
+    <h2 class="text-[28px] font-black text-[#212121] leading-tight mb-2">Compétences & Langues</h2>
+    <p class="text-[15px] text-[#757575] font-medium">Ajoutez les technologies et outils que vous maîtrisez pour renforcer votre profil.</p>
+  </div>
+
+  <!-- SKILL INPUT WITH AUTOCOMPLETE -->
+  <div class="relative mb-10">
+    <div class="bg-white border border-[#EEEEEE] rounded-2xl p-2 pl-5 flex items-center gap-3 shadow-sm focus-within:border-[#1A91F0] focus-within:shadow-lg focus-within:shadow-blue-50/50 transition-all">
+      <mat-icon class="text-slate-400">search</mat-icon>
+      <input 
+        #skillInput
+        type="text" 
+        (input)="onSkillInput.emit($event)"
+        (keydown.enter)="addCustomSkill.emit({name: skillInput.value, category: 'Technique', inputElement: skillInput})"
+        placeholder="Saisir une compétence (ex: Java, React, Figma...)" 
+        class="flex-1 h-[52px] border-none outline-none text-[16px] font-medium text-[#424242] placeholder:text-[#BDBDBD]">
+      
+      <button (click)="addCustomSkill.emit({name: skillInput.value, category: 'Technique', inputElement: skillInput})"
+              class="bg-[#1A91F0] hover:bg-[#0F6EBB] text-white px-8 h-[52px] rounded-xl font-bold transition-all shrink-0">
+        Ajouter
+      </button>
+    </div>
+
+    <!-- AUTOCOMPLETE DROPDOWN -->
+    @if (filteredSuggestions.length > 0) {
+      <div class="absolute top-[110%] left-0 w-full bg-white border border-[#EEEEEE] rounded-2xl shadow-2xl z-50 overflow-hidden animate-scale-up">
+        <div class="p-2 border-b border-[#F5F5F5] bg-slate-50">
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-3">Suggestions</span>
+        </div>
+        <div class="max-h-[300px] overflow-y-auto">
+          @for (suggestion of filteredSuggestions; track suggestion.name) {
+            <div (click)="selectSuggestion.emit({suggestion: suggestion, inputElement: skillInput})"
+                 class="px-5 py-4 hover:bg-[#E8F4FD] hover:text-[#1A91F0] cursor-pointer flex items-center justify-between group transition-colors border-b border-[#F5F5F5] last:border-none">
+              <div class="flex items-center gap-3">
+                <span class="font-bold text-[15px]">{{ suggestion.name }}</span>
+                <span class="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ suggestion.category }}</span>
+              </div>
+              <mat-icon class="!text-[18px] !w-4 !h-4 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all">add_circle</mat-icon>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- MY SKILLS GRID -->
+  @if (skills.length > 0) {
+    <div class="mb-10">
+      <div class="flex items-center gap-2 mb-4 text-[#212121]">
+        <mat-icon class="!text-[20px] !w-5 !h-5 text-[#1A91F0]">verified</mat-icon>
+        <h3 class="text-[15px] font-black uppercase tracking-wider">Mes Compétences</h3>
+      </div>
+      
+      <div class="flex flex-wrap gap-3" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="reorder.emit($event)">
+        @for (skill of skills; track skill.id) {
+          <div class="group bg-white border border-[#EEEEEE] rounded-xl px-4 py-3 flex items-center gap-3 hover:border-[#1A91F0] hover:shadow-sm transition-all cursor-move" cdkDrag>
+            <div *cdkDragPlaceholder class="drag-placeholder !w-[100px] !h-[44px]"></div>
+            <span class="text-[14px] font-bold text-[#424242]">{{ skill.name }}</span>
+            <button (click)="removeSkill.emit(skill.id)" class="text-slate-300 hover:text-red-500 transition-colors">
+              <mat-icon class="!text-[16px] !w-4 !h-4">close</mat-icon>
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- RECOMMENDED SKILLS -->
+  <div class="bg-[#F8FAFC] border border-[#EEEEEE] rounded-3xl p-8">
+    <div class="flex items-center gap-2 mb-8">
+      <mat-icon class="text-amber-500">lightbulb</mat-icon>
+      <h3 class="text-[15px] font-black text-[#212121] uppercase tracking-wider">Recommandations par catégorie</h3>
+    </div>
+    
+    <div class="space-y-8">
+      @for (cat of predefinedSkills; track cat.category) {
+        <div>
+          <h4 class="text-[12px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            {{ cat.category }}
+            <span class="flex-1 h-px bg-slate-200"></span>
+          </h4>
+          <div class="flex flex-wrap gap-2">
+            @for (item of cat.items; track item) {
+              @if (!isSkillSelected(item)) {
+                <button (click)="addSkill.emit({name: item, category: cat.category})"
+                        class="bg-white border border-slate-200 hover:border-[#1A91F0] hover:text-[#1A91F0] px-4 py-2 rounded-full text-[13px] font-bold text-slate-600 transition-all hover:shadow-sm">
+                  + {{ item }}
+                </button>
+              }
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

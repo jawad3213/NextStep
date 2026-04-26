@@ -12,7 +12,7 @@ import { ProfileStepId } from '../profile.types';
   styleUrl: './profile-stepper.component.scss'
 })
 export class ProfileStepperComponent {
-  private profileService = inject(ProfileService);
+  private readonly profileService = inject(ProfileService);
   
   steps: { id: ProfileStepId, label: string, icon: string }[] = [
     { id: 'coordonnees', label: 'Coordonnées', icon: 'person' },

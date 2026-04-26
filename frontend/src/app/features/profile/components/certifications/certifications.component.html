@@ -1,0 +1,139 @@
+<div class="form-step-wrapper animate-fade-slide-up">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h2 class="text-[28px] font-black text-[#212121] leading-tight mb-2">Certifications</h2>
+      <p class="text-[15px] text-[#757575] font-medium">Valorisez votre expertise avec vos diplômes et certifications professionnelles.</p>
+    </div>
+    
+    @if (!isAddingCertification) {
+      <button (click)="addToggle.emit()" 
+              class="bg-[#1A91F0] hover:bg-[#0F6EBB] text-white rounded-xl h-[44px] px-6 text-[15px] font-bold transition-all flex items-center gap-2 shadow-sm">
+        <mat-icon class="!w-5 !h-5 !text-[20px]">add_circle</mat-icon>
+        Ajouter une certification
+      </button>
+    }
+  </div>
+
+  <!-- ADD CERTIFICATION FORM -->
+  @if (isAddingCertification) {
+    <div class="bg-white border-2 border-[#1A91F0] rounded-2xl p-8 mb-10 shadow-lg animate-scale-up">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-full bg-[#E8F4FD] flex items-center justify-center">
+          <mat-icon class="text-[#1A91F0]">verified</mat-icon>
+        </div>
+        <h3 class="text-lg font-bold text-[#212121]">Nouvelle Certification</h3>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6 mb-8">
+        <div class="field-group col-span-2">
+          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nom de la certification</label>
+          <div class="relative">
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">verified</mat-icon>
+            <input type="text" placeholder="Ex: AWS Certified Solutions Architect" [ngModel]="newCertification.name" (ngModelChange)="onUpdateNewItem('name', $event)"
+                   class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+          </div>
+        </div>
+         <div class="field-group">
+          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Organisme délivreur</label>
+          <div class="relative">
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">account_balance</mat-icon>
+            <input type="text" placeholder="Ex: Amazon Web Services" [ngModel]="newCertification.issuer" (ngModelChange)="onUpdateNewItem('issuer', $event)"
+                   class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Date d'obtention</label>
+          <div class="relative">
+            <input type="date" [ngModel]="newCertification.date" (ngModelChange)="onUpdateNewItem('date', $event)"
+                   class="w-full h-[52px] px-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+          </div>
+        </div>
+         <div class="field-group col-span-2">
+          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">URL de vérification (Optionnel)</label>
+          <div class="relative">
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">link</mat-icon>
+            <input type="url" placeholder="https://..." [ngModel]="newCertification.verificationUrl" (ngModelChange)="onUpdateNewItem('verificationUrl', $event)"
+                   class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-[#EEEEEE]">
+        <button (click)="addToggle.emit()" class="h-[40px] px-4 rounded-xl font-bold text-[#757575] hover:bg-slate-50 transition-colors">Annuler</button>
+        <button (click)="save.emit()" class="h-[40px] px-6 rounded-xl font-bold bg-[#1A91F0] text-white hover:bg-[#0F6EBB] transition-all">
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- LIST OF CERTIFICATIONS -->
+  @if (certifications.length > 0) {
+    <div class="space-y-4" cdkDropList (cdkDropListDropped)="reorder.emit($event)">
+      @for (cert of certifications; track cert.id) {
+        <div class="group bg-white border border-[#EEEEEE] rounded-2xl p-5 flex items-center gap-6 hover:border-[#1A91F0] hover:shadow-md transition-all cursor-pointer relative" cdkDrag>
+          <div *cdkDragPlaceholder class="drag-placeholder !min-h-[90px]"></div>
+          
+          <div cdkDragHandle class="text-slate-300 group-hover:text-slate-400 cursor-grab">
+            <mat-icon>drag_indicator</mat-icon>
+          </div>
+
+          <div class="w-14 h-14 rounded-xl bg-[#FAFAFA] flex items-center justify-center shrink-0 border border-[#EEEEEE] group-hover:bg-[#E8F4FD] group-hover:border-[#1A91F0]/20 transition-colors">
+            <mat-icon class="!w-7 !h-7 !text-[28px] text-slate-400 group-hover:text-[#1A91F0]">workspace_premium</mat-icon>
+          </div>
+
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-1">
+              <h4 class="text-[17px] font-bold text-[#212121] group-hover:text-[#1A91F0] transition-colors">{{ cert.name }}</h4>
+              <span class="px-2 py-0.5 rounded-full bg-[#E6F4EA] text-[#34A853] text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                <mat-icon class="!w-3 !h-3 !text-[12px]">check_circle</mat-icon> Vérifié
+              </span>
+            </div>
+            <div class="flex items-center gap-4 text-[#757575] text-[14px] font-medium">
+              <span class="flex items-center gap-1.5">
+                <mat-icon class="!w-4 !h-4 !text-[16px] text-slate-400">business</mat-icon> {{ cert.issuer }}
+              </span>
+              <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+              <span class="flex items-center gap-1.5">
+                <mat-icon class="!w-4 !h-4 !text-[16px] text-slate-400">calendar_today</mat-icon> {{ cert.date | date:'MMMM yyyy' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            @if (cert.verificationUrl) {
+              <a [href]="cert.verificationUrl" target="_blank" 
+                 class="w-10 h-10 rounded-xl bg-[#FAFAFA] flex items-center justify-center text-slate-400 hover:bg-[#1A91F0] hover:text-white transition-all shadow-sm">
+                <mat-icon class="!w-5 !h-5 !text-[20px]">link</mat-icon>
+              </a>
+            }
+            <button (click)="edit.emit(cert)" 
+                    class="w-10 h-10 rounded-xl bg-[#FAFAFA] flex items-center justify-center text-slate-400 hover:bg-[#1A91F0] hover:text-white transition-all shadow-sm">
+              <mat-icon class="!w-5 !h-5 !text-[20px]">edit</mat-icon>
+            </button>
+            <button (click)="duplicate.emit(cert)" 
+                    class="w-10 h-10 rounded-xl bg-[#FAFAFA] flex items-center justify-center text-slate-400 hover:bg-[#1A91F0] hover:text-white transition-all shadow-sm">
+              <mat-icon class="!w-5 !h-5 !text-[20px]">file_copy</mat-icon>
+            </button>
+            <button (click)="delete.emit(cert.id)" 
+                    class="w-10 h-10 rounded-xl bg-[#FAFAFA] flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+              <mat-icon class="!w-5 !h-5 !text-[20px]">delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="flex flex-col items-center justify-center py-16 border-2 border-dashed border-[#EEEEEE] rounded-3xl bg-[#FAFAFA]/50">
+      <div class="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-sm mb-4 border border-[#EEEEEE]">
+        <mat-icon class="!w-8 !h-8 !text-[32px] text-slate-300">workspace_premium</mat-icon>
+      </div>
+      <h3 class="text-lg font-bold text-[#212121] mb-1">Aucune certification</h3>
+      <p class="text-[#757575] text-center max-w-xs mb-6 font-medium">Ajoutez vos certifications pour valoriser votre profil.</p>
+      <button (click)="addToggle.emit()" 
+              class="text-[#1A91F0] font-bold hover:underline flex items-center gap-2">
+        <mat-icon>add</mat-icon> Ajouter ma première certification
+      </button>
+    </div>
+  }
+</div>

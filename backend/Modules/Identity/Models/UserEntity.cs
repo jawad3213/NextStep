@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace backend.Modules.Identity.Models
+namespace NextStep.Modules.Identity.Models
 {
     [Table("utilisateur")]
     public class UserEntity

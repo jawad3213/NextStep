@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using NextStep.Modules.Candidature.Models;
 using NextStep.Modules.Email.Models;
 using NextStep.Modules.Offer.Models;
+using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Profile.Models;
 
 namespace NextStep.Infrastructure.Data;
 
@@ -10,6 +12,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<OffreEmploi> OffresEmploi => Set<OffreEmploi>();
     public DbSet<Candidature> Candidatures => Set<Candidature>();
     public DbSet<EmailDraft> EmailDrafts => Set<EmailDraft>();
+    public DbSet<UserEntity> Utilisateurs => Set<UserEntity>();
+    public DbSet<Experience> Experiences => Set<Experience>();
+    public DbSet<Formation> Formations => Set<Formation>();
+    public DbSet<Projet> Projets => Set<Projet>();
+    public DbSet<Competence> Competences => Set<Competence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +82,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasMany(e => e.EmailDrafts)
                 .WithOne(e => e.Candidature)
                 .HasForeignKey(e => e.CandidatureId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Offre)
+                .WithMany()
+                .HasForeignKey(e => e.IdOffre)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

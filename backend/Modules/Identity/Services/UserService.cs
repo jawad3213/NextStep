@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using backend.Modules.Identity.DTOs;
-using backend.Modules.Identity.Models;
-using backend.Modules.Identity.Repositories;
-using backend.data;
+using NextStep.Modules.Identity.DTOs;
+using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Identity.Repositories;
+using NextStep.Infrastructure.Data;
 
-namespace backend.Modules.Identity.Services
+namespace NextStep.Modules.Identity.Services
 {
     public interface IUserService
     {

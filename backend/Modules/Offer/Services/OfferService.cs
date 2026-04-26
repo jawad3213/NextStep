@@ -23,7 +23,7 @@ public interface IOfferService
 
 public class OfferService(
     IOfferRepository repository,
-    AgentHttpClient agentClient,
+    IAgentHttpClient agentClient,
     ILogger<OfferService> logger) : IOfferService
 {
     /// <summary>

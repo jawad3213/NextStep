@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using backend.Modules.Identity.DTOs;
-using backend.Modules.Identity.Services;
+using NextStep.Modules.Identity.DTOs;
+using NextStep.Modules.Identity.Services;
 
-namespace backend.Modules.Identity.Controllers
+namespace NextStep.Modules.Identity.Controllers
 {
     [ApiController]
     [Route("api/identity")]

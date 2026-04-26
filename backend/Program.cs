@@ -7,6 +7,11 @@ using NextStep.Modules.Email.Repositories;
 using NextStep.Modules.Email.Services;
 using NextStep.Modules.Offer.Repositories;
 using NextStep.Modules.Offer.Services;
+using NextStep.Modules.Identity.Repositories;
+using NextStep.Modules.Identity.Services;
+using NextStep.Modules.Profile.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +20,24 @@ var builder = WebApplication.CreateBuilder(args);
 //
 
 builder.Services.AddControllers();
+
+//
+// ─── Authentication (Keycloak) ──────────────────────────────────
+//
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = builder.Configuration["Keycloak:Authority"];
+        options.Audience = builder.Configuration["Keycloak:Audience"];
+        options.RequireHttpsMetadata = builder.Configuration.GetValue<bool>("Keycloak:RequireHttpsMetadata");
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = true,
+            ValidateIssuer = true,
+            ValidateLifetime = true
+        };
+    });
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -32,18 +55,21 @@ builder.Services.AddSwaggerGen(c =>
 //
 
 builder.Services.AddDbContext<AppDbContext>(options =>
+{
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         npg => npg.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)
-    )
-);
+    );
+    // Suppress EF Core 10 warning about pending model changes in dev
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+});
 
 //
 // ─── Python Agents HTTP Client ─────────────────────────────────
 //
 
 builder.Services.Configure<AgentPythonOptions>(
-    builder.Configuration.GetSection("AgentPython")
+    builder.Configuration.GetSection("PythonAgents")
 );
 
 builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
@@ -68,6 +94,19 @@ builder.Services.AddScoped<ICandidatureService, CandidatureService>();
 
 builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+//
+// ─── Module Identity ───────────────────────────────────────────
+//
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+
+//
+// ─── Module Profile ────────────────────────────────────────────
+//
+
+builder.Services.AddScoped<IProfileService, ProfileService>();
 
 //
 // ─── CORS Angular Dev Environment ──────────────────────────────
@@ -129,20 +168,13 @@ using (var scope = app.Services.CreateScope())
 
         var pending = await context.Database.GetPendingMigrationsAsync();
 
-        Console.WriteLine($"DEBUG: Pending migrations: {string.Join(", ", pending)}");
+        if (pending.Any())
+        {
+            Console.WriteLine($"DEBUG: Applying pending migrations: {string.Join(", ", pending)}");
+            await context.Database.MigrateAsync();
+        }
 
-        // Temporary fallback SQL required by Identity/Profile module
-        await context.Database.ExecuteSqlRawAsync("""
-            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;
-            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;
-            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;
-            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;
-            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;
-            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;
-            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;
-        """);
-
-        await context.Database.MigrateAsync();
+        Console.WriteLine("DEBUG: Database is up to date.");
 
         Console.WriteLine("DEBUG: Startup SQL + migrations applied successfully.");
     }

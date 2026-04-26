@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace backend.Modules.Profile.Models
+namespace NextStep.Modules.Profile.Models
 {
     [Table("competence")]
     public class Competence

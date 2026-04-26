@@ -1,11 +1,11 @@
-using backend.data;
-using backend.Modules.Profile.Models;
-using backend.Modules.Profile.DTOs;
-using backend.Modules.Identity.Models;
-using backend.Modules.Identity.Services;
+using NextStep.Infrastructure.Data;
+using NextStep.Modules.Profile.Models;
+using NextStep.Modules.Profile.DTOs;
+using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Identity.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Modules.Profile.Services
+namespace NextStep.Modules.Profile.Services
 {
     public interface IProfileService
     {

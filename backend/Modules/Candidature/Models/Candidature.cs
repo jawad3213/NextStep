@@ -1,4 +1,5 @@
 using NextStep.Modules.Email.Models;
+using NextStep.Modules.Offer.Models;
 
 namespace NextStep.Modules.Candidature.Models;
 
@@ -9,6 +10,8 @@ public class Candidature
     public Guid IdUtilisateur { get; set; }
 
     public Guid IdOffre { get; set; }
+
+    public OffreEmploi? Offre { get; set; }
 
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 

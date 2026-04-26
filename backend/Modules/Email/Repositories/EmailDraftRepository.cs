@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using NextStep.Infrastructure.Data;
 using NextStep.Modules.Email.Models;
 
@@ -19,6 +20,25 @@ public class EmailDraftRepository : IEmailDraftRepository
         _db.EmailDrafts.Add(draft);
         await _db.SaveChangesAsync(cancellationToken);
         return draft;
+    }
+
+    public async Task<EmailDraft?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.EmailDrafts
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public async Task<List<EmailDraft>> GetByCandidatureIdAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.EmailDrafts
+            .AsNoTracking()
+            .Where(x => x.CandidatureId == candidatureId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
     }
 
     public Task SaveChangesAsync(

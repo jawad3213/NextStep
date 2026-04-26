@@ -1,5 +1,5 @@
-using NextStep.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using NextStep.Infrastructure.Data;
 using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
 
 namespace NextStep.Modules.Candidature.Repositories;
@@ -29,6 +29,18 @@ public class CandidatureRepository : ICandidatureRepository
         return await _db.Candidatures
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.IdCandidature == id, cancellationToken);
+    }
+
+    public async Task<CandidatureEntity?> GetByUserAndOfferAsync(
+        Guid userId,
+        Guid offerId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Candidatures
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.IdUtilisateur == userId && x.IdOffre == offerId,
+                cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)

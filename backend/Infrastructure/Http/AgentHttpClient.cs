@@ -1,20 +1,10 @@
-// ============================================================
-// Infrastructure/Http/AgentHttpClient.cs
-// Client HTTP vers les Agents Python FastAPI
-// ============================================================
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using NextStep.Modules.Offer.DTOs;
 
 namespace NextStep.Infrastructure.Http;
 
-public class AgentPythonOptions
-{
-    public string BaseUrl { get; set; } = "http://agents-python:8000";
-}
-
-public class AgentHttpClient
+public class AgentHttpClient : IAgentHttpClient
 {
     private readonly HttpClient _client;
     private readonly ILogger<AgentHttpClient> _logger;
@@ -22,7 +12,7 @@ public class AgentHttpClient
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        PropertyNameCaseInsensitive = true,
+        PropertyNameCaseInsensitive = true
     };
 
     public AgentHttpClient(
@@ -31,84 +21,130 @@ public class AgentHttpClient
         ILogger<AgentHttpClient> logger)
     {
         _client = client;
-        _client.BaseAddress = new Uri(options.Value.BaseUrl);
-        _client.Timeout = TimeSpan.FromSeconds(120); // pipeline IA peut prendre du temps
         _logger = logger;
+
+        var baseUrl = string.IsNullOrWhiteSpace(options.Value.BaseUrl)
+            ? "http://localhost:8000"
+            : options.Value.BaseUrl;
+
+        _client.BaseAddress = new Uri(baseUrl);
+        _client.Timeout = TimeSpan.FromSeconds(120);
     }
 
-    /// <summary>
-    /// Appelle POST /run-pipeline sur les agents Python.
-    /// Lance le pipeline complet (6 agents) et retourne le résultat.
-    /// </summary>
     public async Task<JsonDocument> RunPipelineAsync(
         string rawText,
         string userId,
         int templateId,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         var payload = new
         {
             raw_text = rawText,
             user_id = userId,
-            template_id = templateId,
+            template_id = templateId
         };
 
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        _logger.LogInformation("AgentHttpClient — POST /run-pipeline pour user_id={UserId}", userId);
-
-        var response = await _client.PostAsync("/run-pipeline", content, ct);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogError("AgentHttpClient — Erreur pipeline : {Status} — {Error}",
-                response.StatusCode, error);
-            throw new HttpRequestException(
-                $"Erreur pipeline IA : {response.StatusCode} — {error}");
-        }
-
-        var responseJson = await response.Content.ReadAsStringAsync(ct);
-        return JsonDocument.Parse(responseJson);
+        return await PostJsonDocumentAsync(
+            "/run-pipeline",
+            payload,
+            cancellationToken);
     }
 
-    /// <summary>
-    /// Appelle POST /analyze-offer — Agent 1 uniquement (analyse LLM).
-    /// </summary>
     public async Task<JsonDocument> AnalyzeOfferAsync(
         string rawText,
         string userId,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         var payload = new
         {
             raw_text = rawText,
             user_id = userId,
-            template_id = 1,
+            template_id = 1
         };
 
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var response = await _client.PostAsync("/analyze-offer", content, ct);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(ct);
-        return JsonDocument.Parse(responseJson);
+        return await PostJsonDocumentAsync(
+            "/analyze-offer",
+            payload,
+            cancellationToken);
     }
 
-    /// <summary>Health check des agents Python.</summary>
-    public async Task<bool> IsHealthyAsync(CancellationToken ct = default)
+    public async Task<bool> IsHealthyAsync(
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var response = await _client.GetAsync("/health", ct);
+            var response = await _client.GetAsync("/health", cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch
         {
             return false;
         }
+    }
+
+    public async Task<TResponse> PostAsync<TRequest, TResponse>(
+        string relativeUrl,
+        TRequest payload,
+        CancellationToken cancellationToken = default)
+    {
+        var json = JsonSerializer.Serialize(payload, JsonOptions);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync(relativeUrl, content, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            _logger.LogError(
+                "AgentHttpClient error: {RelativeUrl} — {StatusCode} — {Error}",
+                relativeUrl,
+                response.StatusCode,
+                error);
+
+            throw new HttpRequestException(
+                $"Agent request failed: {response.StatusCode} — {error}");
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        var result = JsonSerializer.Deserialize<TResponse>(
+            responseJson,
+            JsonOptions);
+
+        if (result is null)
+            throw new InvalidOperationException("Agent returned empty or invalid response.");
+
+        return result;
+    }
+
+    private async Task<JsonDocument> PostJsonDocumentAsync(
+        string relativeUrl,
+        object payload,
+        CancellationToken cancellationToken = default)
+    {
+        var json = JsonSerializer.Serialize(payload, JsonOptions);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        _logger.LogInformation("AgentHttpClient — POST {RelativeUrl}", relativeUrl);
+
+        var response = await _client.PostAsync(relativeUrl, content, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            _logger.LogError(
+                "AgentHttpClient pipeline error: {RelativeUrl} — {StatusCode} — {Error}",
+                relativeUrl,
+                response.StatusCode,
+                error);
+
+            throw new HttpRequestException(
+                $"Agent pipeline failed: {response.StatusCode} — {error}");
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonDocument.Parse(responseJson);
     }
 }

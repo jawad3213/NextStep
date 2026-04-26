@@ -7,4 +7,8 @@ public interface IEmailService
     Task<EmailDraftDto> GenerateDraftAsync(
         GenerateEmailDraftDto dto,
         CancellationToken cancellationToken = default);
+
+    Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default);
 }

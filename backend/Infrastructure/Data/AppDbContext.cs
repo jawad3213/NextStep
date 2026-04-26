@@ -79,6 +79,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         });
 
         // ─── EmailDraft ───
+        // ─── EmailDraft ───
         modelBuilder.Entity<EmailDraft>(entity =>
         {
             entity.ToTable("email_draft");
@@ -90,29 +91,58 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasDefaultValueSql("gen_random_uuid()");
 
             entity.Property(e => e.CandidatureId)
-                .HasColumnName("id_candidature");
+                .HasColumnName("id_candidature")
+                .IsRequired();
 
             entity.Property(e => e.EmailType)
-                .HasColumnName("type_email");
+                .HasColumnName("type_email")
+                .HasMaxLength(50)
+                .HasDefaultValue("application")
+                .IsRequired();
+
+            entity.Property(e => e.RecipientEmail)
+                .HasColumnName("recipient_email")
+                .HasMaxLength(255);
 
             entity.Property(e => e.Subject)
-                .HasColumnName("objet");
+                .HasColumnName("objet")
+                .HasMaxLength(255)
+                .IsRequired();
 
             entity.Property(e => e.Body)
-                .HasColumnName("corps");
+                .HasColumnName("corps")
+                .IsRequired();
 
             entity.Property(e => e.Language)
-                .HasColumnName("langue");
+                .HasColumnName("langue")
+                .HasMaxLength(10)
+                .HasDefaultValue("fr");
 
             entity.Property(e => e.IsApproved)
-                .HasColumnName("est_approuve");
+                .HasColumnName("est_approuve")
+                .HasDefaultValue(false);
 
             entity.Property(e => e.IsSent)
-                .HasColumnName("est_envoye");
+                .HasColumnName("est_envoye")
+                .HasDefaultValue(false);
 
             entity.Property(e => e.CreatedAtUtc)
                 .HasColumnName("date_creation")
                 .HasDefaultValueSql("now()");
+
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasColumnName("date_modification");
+
+            entity.Property(e => e.SentAtUtc)
+                .HasColumnName("date_envoi");
+
+            entity.Property(e => e.ErrorMessage)
+                .HasColumnName("error_message");
+
+            entity.HasOne(e => e.Candidature)
+                .WithMany(c => c.EmailDrafts)
+                .HasForeignKey(e => e.CandidatureId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

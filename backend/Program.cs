@@ -1,18 +1,36 @@
+using Microsoft.EntityFrameworkCore;
+using NextStep.Infrastructure.Data;
+using NextStep.Infrastructure.Http;
+using NextStep.Modules.Candidature.Repositories;
+using NextStep.Modules.Candidature.Services;
+using NextStep.Modules.Email.Repositories;
+using NextStep.Modules.Email.Services;
+using NextStep.Modules.Offer.Repositories;
+using NextStep.Modules.Offer.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+//
+// ─── Controllers + Swagger ─────────────────────────────────────
+//
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "NextStep API", Version = "v1" });
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "NextStep API",
+        Version = "v1"
+    });
 });
-builder.Services.AddOpenApi();
 
-// ─── Base de données (PostgreSQL + EF Core) ───
+//
+// ─── PostgreSQL + EF Core ─────────────────────────────────────
+//
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -20,63 +38,117 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
-// ─── HTTP Client vers les agents Python ───
+//
+// ─── Python Agents HTTP Client ─────────────────────────────────
+//
+
 builder.Services.Configure<AgentPythonOptions>(
     builder.Configuration.GetSection("AgentPython")
 );
-builder.Services.AddHttpClient<AgentHttpClient>();
 
-// ─── Module Offer (M2) ───
+builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
+
+//
+// ─── Module Offer (M2) ─────────────────────────────────────────
+//
+
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IOfferService, OfferService>();
 
-// ─── CORS (Angular dev) ───
+//
+// ─── Module Candidature ────────────────────────────────────────
+//
+
+builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
+builder.Services.AddScoped<ICandidatureService, CandidatureService>();
+
+//
+// ─── Module Email ──────────────────────────────────────────────
+//
+
+builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+//
+// ─── CORS Angular Dev Environment ──────────────────────────────
+//
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Angular", policy =>
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
               .AllowAnyMethod()
+              .AllowCredentials()
     );
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+//
+// ─── Middleware Pipeline ───────────────────────────────────────
+//
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseCors("Angular");
+
+// Required because controllers use [Authorize]
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
-// ─── Health check rapide ───
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "nextstep-backend" }));
+//
+// ─── Health Check Endpoint ─────────────────────────────────────
+//
 
-// Auto-migration on start
+app.MapGet("/health", () =>
+    Results.Ok(new
+    {
+        status = "ok",
+        service = "nextstep-backend"
+    })
+);
+
+//
+// ─── Startup SQL + Auto Migrations (TEAM SAFE MODE) ─────────────
+//
+
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    try {
-        Console.WriteLine("DEBUG: Checking for pending migrations...");
+
+    try
+    {
+        Console.WriteLine("DEBUG: Checking pending migrations...");
+
         var pending = await context.Database.GetPendingMigrationsAsync();
+
         Console.WriteLine($"DEBUG: Pending migrations: {string.Join(", ", pending)}");
-        // Fallback: Ensure columns exist manually
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;");
-        
+
+        // Temporary fallback SQL required by Identity/Profile module
+        await context.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;
+            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;
+            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;
+            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;
+            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;
+            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;
+            ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;
+        """);
+
         await context.Database.MigrateAsync();
-        Console.WriteLine("DEBUG: Migrations/SQL applied successfully!");
-    } catch (Exception ex) {
-        Console.WriteLine($"DEBUG: Migration error: {ex.Message}");
+
+        Console.WriteLine("DEBUG: Startup SQL + migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"DEBUG: Migration/startup SQL error: {ex.Message}");
     }
 }
 

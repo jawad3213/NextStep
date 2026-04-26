@@ -123,11 +123,15 @@ CREATE TABLE IF NOT EXISTS question_entrainement (
 CREATE TABLE IF NOT EXISTS email_draft (
     id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_candidature UUID NOT NULL REFERENCES candidature(id_candidature) ON DELETE CASCADE,
-    type_email VARCHAR(50) NOT NULL,
+    type_email VARCHAR(50) NOT NULL DEFAULT 'application',
+    recipient_email VARCHAR(255),
     objet VARCHAR(255) NOT NULL,
     corps TEXT NOT NULL,
     langue VARCHAR(10) DEFAULT 'fr',
     est_approuve BOOLEAN DEFAULT FALSE,
     est_envoye BOOLEAN DEFAULT FALSE,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    error_message TEXT,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_modification TIMESTAMP NULL,
+    date_envoi TIMESTAMP NULL
 );

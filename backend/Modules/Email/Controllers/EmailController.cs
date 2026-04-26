@@ -1,7 +1,7 @@
-using NextStep.Modules.Email.DTOs;
-using NextStep.Modules.Email.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NextStep.Modules.Email.DTOs;
+using NextStep.Modules.Email.Services;
 
 namespace NextStep.Modules.Email.Controllers;
 
@@ -23,6 +23,18 @@ public class EmailController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _emailService.GenerateDraftAsync(dto, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("candidature/{candidatureId:guid}")]
+    public async Task<ActionResult<List<EmailDraftDto>>> GetByCandidature(
+        Guid candidatureId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _emailService.GetDraftsByCandidatureAsync(
+            candidatureId,
+            cancellationToken);
+
         return Ok(result);
     }
 }

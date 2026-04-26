@@ -18,6 +18,16 @@ public class CandidatureService : ICandidatureService
         CreateCandidatureDto dto,
         CancellationToken cancellationToken = default)
     {
+        var existing = await _candidatureRepository.GetByUserAndOfferAsync(
+            userId,
+            dto.IdOffre,
+            cancellationToken);
+
+        if (existing is not null)
+        {
+            return MapToDto(existing);
+        }
+
         var entity = new CandidatureEntity
         {
             IdUtilisateur = userId,
@@ -29,28 +39,22 @@ public class CandidatureService : ICandidatureService
 
         await _candidatureRepository.AddAsync(entity, cancellationToken);
 
-        return new CandidatureDto
-        {
-            IdCandidature = entity.IdCandidature,
-            IdUtilisateur = entity.IdUtilisateur,
-            IdOffre = entity.IdOffre,
-            DateCreation = entity.DateCreation,
-            InclureLettreMotivation = entity.InclureLettreMotivation,
-            Statut = entity.Statut
-        };
+        return MapToDto(entity);
     }
 
     public async Task<CandidatureDto?> GetByIdAsync(
         Guid candidatureId,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _candidatureRepository.GetByIdAsync(candidatureId, cancellationToken);
+        var entity = await _candidatureRepository.GetByIdAsync(
+            candidatureId,
+            cancellationToken);
 
-        if (entity is null)
-        {
-            return null;
-        }
+        return entity is null ? null : MapToDto(entity);
+    }
 
+    private static CandidatureDto MapToDto(CandidatureEntity entity)
+    {
         return new CandidatureDto
         {
             IdCandidature = entity.IdCandidature,

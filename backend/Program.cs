@@ -54,7 +54,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            NameClaimType = "preferred_username",
+            NameClaimType = "email",
             RoleClaimType = "roles"
         };
 

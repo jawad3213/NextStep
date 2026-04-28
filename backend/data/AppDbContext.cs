@@ -107,5 +107,7 @@ namespace backend.data
             });
         }
        
+        public DbSet<Certification> Certifications { get; set; }
+        public DbSet<Keyword> Keywords { get; set; }
     }
 }

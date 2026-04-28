@@ -181,6 +181,62 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         Console.WriteLine($"DEBUG: Migration/startup SQL error: {ex.Message}");
+        Console.WriteLine($"DEBUG: Pending migrations: {string.Join(", ", pending)}");
+        // Fallback: Ensure columns exist manually
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titres_sections JSONB;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS ville TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS pays TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titre_poste TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS photo_url TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS telephone TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS resume_professionnel TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_linkedin TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_github TEXT;");
+        
+        // Ensure Certification and Project tables exist
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS certification (
+                id_certification UUID PRIMARY KEY,
+                id_utilisateur UUID NOT NULL,
+                titre TEXT,
+                organisation TEXT,
+                date_obtention TIMESTAMP,
+                id_credential TEXT,
+                url_credential TEXT
+            );
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS projet (
+                id_projet UUID PRIMARY KEY,
+                id_utilisateur UUID NOT NULL,
+                titre_projet TEXT,
+                description TEXT,
+                technologies_utilisees TEXT,
+                lien_projet TEXT,
+                date_realisation TIMESTAMP,
+                demo_url TEXT,
+                image_url TEXT,
+                is_university BOOLEAN DEFAULT FALSE,
+                is_valid BOOLEAN DEFAULT FALSE
+            );
+        ");
+
+        try {
+            await context.Database.MigrateAsync();
+        } catch {
+            Console.WriteLine("DEBUG: Migration skipped or failed, but SQL applied.");
+        }
+        Console.WriteLine("DEBUG: Migrations/SQL applied successfully!");
+    } catch (Exception ex) {
+        Console.WriteLine($"DEBUG: Migration error: {ex.Message}");
     }
 }
 

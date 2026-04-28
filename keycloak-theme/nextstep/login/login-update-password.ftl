@@ -1,72 +1,68 @@
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('password','password-confirm'); section>
+<@layout.registrationLayout displayMessage=true; section>
     <#if section = "header">
         ${msg("updatePasswordTitle")}
     <#elseif section = "form">
-        <form id="kc-passwd-update-form" class="form" action="${url.loginAction}" method="post">
-            
-            <div class="form-group">
-                <label for="password-new">${msg("passwordNew")}</label>
-                <div class="input-wrapper">
-                    <i data-feather="lock" class="input-icon"></i>
-                    <input type="password" id="password-new" name="password-new" class="" autofocus autocomplete="new-password" placeholder="••••••••" />
-                    <button type="button" class="password-toggle" onclick="togglePassword('password-new', 'password-new-icon')">
-                        <i data-feather="eye" id="password-new-icon"></i>
-                    </button>
-                </div>
-                <#if messagesPerField.existsError('password')>
-                    <span id="input-error-password" class="error-text" aria-live="polite">
-                        <i data-feather="alert-circle"></i>
-                        ${kcSanitize(messagesPerField.get('password'))?no_esc}
-                    </span>
-                </#if>
-            </div>
+        <div class="auth-form-section">
+            <h1 class="auth-title">Reset your password</h1>
+            <p class="auth-subtitle">Choose a new password for your account.</p>
 
-            <div class="form-group">
-                <label for="password-confirm">${msg("passwordConfirm")}</label>
-                <div class="input-wrapper">
-                    <i data-feather="lock" class="input-icon"></i>
-                    <input type="password" id="password-confirm" name="password-confirm" class="" autocomplete="new-password" placeholder="••••••••" />
-                    <button type="button" class="password-toggle" onclick="togglePassword('password-confirm', 'password-confirm-icon')">
-                        <i data-feather="eye" id="password-confirm-icon"></i>
-                    </button>
-                </div>
-                <#if messagesPerField.existsError('password-confirm')>
-                    <span id="input-error-password-confirm" class="error-text" aria-live="polite">
-                        <i data-feather="alert-circle"></i>
-                        ${kcSanitize(messagesPerField.get('password-confirm'))?no_esc}
-                    </span>
-                </#if>
-            </div>
-
-            <div class="form-options">
-                <div class="remember-me">
-                    <#if logoutSessions??>
-                        <label><input type="checkbox" id="logout-sessions" name="logout-sessions" value="on" checked> ${msg("logoutOtherSessions")}</label>
-                    <#else>
-                        <label><input type="checkbox" id="logout-sessions" name="logout-sessions" value="on" checked> ${msg("logoutOtherSessions")}</label>
+            <form id="kc-passwd-update-form" action="${url.loginAction}" method="post">
+                <div class="auth-field">
+                    <label for="password-new">${msg("passwordNew")}</label>
+                    <div class="auth-input-wrapper">
+                        <input type="password" id="password-new" name="password-new" autofocus autocomplete="new-password" placeholder="New password" />
+                        <button type="button" class="auth-password-toggle" onclick="togglePwd('password-new','pn-icon')" tabindex="-1">
+                            <i data-feather="eye" id="pn-icon"></i>
+                        </button>
+                    </div>
+                    <#if messagesPerField.existsError('password')>
+                        <span class="auth-error-text">
+                            ${kcSanitize(messagesPerField.get('password'))?no_esc}
+                        </span>
                     </#if>
                 </div>
-            </div>
 
-            <div class="form-group" style="margin-top: 1.5rem;">
-                <button class="btn-primary" type="submit">Update Password & Finish &rarr;</button>
-            </div>
-        </form>
+                <div class="auth-field">
+                    <label for="password-confirm">${msg("passwordConfirm")}</label>
+                    <div class="auth-input-wrapper">
+                        <input type="password" id="password-confirm" name="password-confirm" autocomplete="new-password" placeholder="Confirm new password" />
+                        <button type="button" class="auth-password-toggle" onclick="togglePwd('password-confirm','pc-icon')" tabindex="-1">
+                            <i data-feather="eye" id="pc-icon"></i>
+                        </button>
+                    </div>
+                    <#if messagesPerField.existsError('password-confirm')>
+                        <span class="auth-error-text">
+                            ${kcSanitize(messagesPerField.get('password-confirm'))?no_esc}
+                        </span>
+                    </#if>
+                </div>
+
+                <#if logoutSessions??>
+                    <div class="auth-remember">
+                        <label class="auth-checkbox-label">
+                            <input type="checkbox" id="logout-sessions" name="logout-sessions" value="on" checked>
+                            <span>${msg("logoutOtherSessions")}</span>
+                        </label>
+                    </div>
+                </#if>
+
+                <button class="auth-btn-primary" type="submit">Reset password</button>
+            </form>
+        </div>
 
         <script>
-            function togglePassword(inputId, iconId) {
-                const passwordInput = document.getElementById(inputId);
-                const passwordIcon = document.getElementById(iconId);
-                if (passwordInput.type === 'password') {
-                    passwordInput.type = 'text';
-                    passwordIcon.outerHTML = `<i data-feather=\"eye-off\" id=\"${iconId}\"></i>`;
-                        if(typeof feather !== 'undefined') feather.replace();
+            function togglePwd(iId, icId) {
+                var i = document.getElementById(iId);
+                var ic = document.getElementById(icId);
+                if (i.type === 'password') {
+                    i.type = 'text';
+                    ic.outerHTML = '<i data-feather="eye-off" id="' + icId + '"></i>';
                 } else {
-                    passwordInput.type = 'password';
-                    passwordIcon.outerHTML = `<i data-feather=\"eye\" id=\"${iconId}\"></i>`;
-                        if(typeof feather !== 'undefined') feather.replace();
+                    i.type = 'password';
+                    ic.outerHTML = '<i data-feather="eye" id="' + icId + '"></i>';
                 }
+                if (typeof feather !== 'undefined') feather.replace({ width: 16, height: 16 });
             }
         </script>
     </#if>

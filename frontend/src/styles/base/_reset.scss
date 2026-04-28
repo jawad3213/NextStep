@@ -8,15 +8,14 @@
   box-sizing: border-box;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+html, body {
+  height: 100vh;
+  overflow: hidden;
 }
 
 body {
-  min-height: 100vh;
   line-height: 1.5;
+  background-color: #F9FAFF;
 }
 
 img, picture, video, canvas, svg {

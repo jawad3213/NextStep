@@ -1,7 +1,3 @@
-// ═══════════════════════════════════════════════════════════
-// NextStep — Global Styles Entrypoint
-// ═══════════════════════════════════════════════════════════
-
 // Base
 @use 'styles/base/reset';
 @use 'styles/base/typography';
@@ -14,3 +10,22 @@
 @use 'styles/components/cards';
 @use 'styles/components/inputs';
 @use 'styles/components/banner';
+@use 'styles/components/profile-cards';
+
+// ═══════════════════════════════════════════════════════════
+// NextStep — Global Styles Entrypoint
+// ═══════════════════════════════════════════════════════════
+
+// Angular Material Theme
+@import "@angular/material/prebuilt-themes/indigo-pink.css";
+
+// MASTER LOCK: Force application to stay within viewport
+html, body, app-root {
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}

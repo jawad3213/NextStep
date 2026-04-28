@@ -1,84 +1,95 @@
-<div class="onboarding-container">
-  <div class="background-blobs">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-  </div>
-
-  <div class="onboarding-card">
-    <div class="progress-bar">
-      <div class="progress-fill" [style.width.%]="(currentStep() / 3) * 100"></div>
+<div class="onboarding-page">
+  <!-- Navbar inspired by Zety -->
+  <nav class="onboarding-nav">
+    <div class="nav-content">
+      <img src="/N-removebg-preview.png" alt="NextStep Logo" class="nav-logo" />
     </div>
+  </nav>
 
-    @if (isLoading()) {
-      <div class="skeleton-container">
-        <div class="skeleton-title"></div>
-        <div class="skeleton-subtitle"></div>
-        <div class="skeleton-grid">
-          <div class="skeleton-card" *ngFor="let i of [1,2,3,4,5,6]"></div>
+  <main class="onboarding-main">
+    <div class="onboarding-content">
+      
+      <!-- Section 1: Objectif -->
+      <section class="onboarding-section reveal">
+        <div class="section-header">
+          <h1 class="zety-title">Quel est votre objectif actuel ?</h1>
+          <p class="zety-subtitle">Nous adapterons l'expérience en fonction de votre choix.</p>
         </div>
-      </div>
-    } @else {
-      <!-- Step 1: Objectif -->
-      <div class="step-content" [class.active]="currentStep() === 1">
-        <div class="step-header">
-          <h1 class="heading-1">Bienvenue 👋</h1>
-          <p class="body-large">Pour mieux vous accompagner, quel est votre objectif actuel ?</p>
-        </div>
-        
-        <div class="options-grid">
+
+        <div class="zety-grid">
           @for (opt of objectifOptions; track opt[0]) {
-            <div class="option-card" (click)="selectObjectif(opt[0])" [class.selected]="onboardingData.objectif === opt[0]">
-              <span class="option-icon">{{ objectifIcons[opt[0]] }}</span>
-              <span class="option-label">{{ opt[1] }}</span>
-            </div>
+            <button class="zety-button" 
+                    (click)="selectObjectif(opt[0])" 
+                    [class.selected]="onboardingData.objectif === opt[0]">
+              {{ opt[1] }}
+            </button>
           }
         </div>
+      </section>
+
+      <!-- Section 2: Niveau (Apparaît après choix 1) -->
+      @if (showSection2()) {
+        <section class="onboarding-section reveal">
+          <div class="section-header">
+            <h2 class="zety-title">Votre niveau d'expérience ?</h2>
+            <p class="zety-subtitle">Cela nous aide à personnaliser vos recommandations.</p>
+          </div>
+
+          <div class="zety-grid">
+            @for (niv of niveauOptions; track niv[0]) {
+              <button class="zety-button" 
+                      (click)="selectNiveau(niv[0])" 
+                      [class.selected]="onboardingData.niveau === niv[0]">
+                {{ niv[1] }}
+              </button>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Section 3: Secteur (Apparaît après choix 2) -->
+      @if (showSection3()) {
+        <section class="onboarding-section reveal">
+          <div class="section-header">
+            <h2 class="zety-title">Quel secteur vous intéresse ?</h2>
+            <p class="zety-subtitle">Dernière étape pour configurer votre dashboard.</p>
+          </div>
+
+          <div class="zety-grid zety-grid--sectors">
+            @for (sec of secteurOptions; track sec[0]) {
+              <button class="zety-button zety-button--small" 
+                      (click)="selectSecteur(sec[0])" 
+                      [class.selected]="onboardingData.secteur === sec[0]">
+                {{ sec[1] }}
+              </button>
+            }
+          </div>
+
+          <div class="action-container">
+            <button class="zety-btn-finish" 
+                    [disabled]="!onboardingData.secteur || isSubmitting()" 
+                    (click)="finish()">
+              {{ isSubmitting() ? 'Initialisation...' : 'Terminer' }}
+            </button>
+          </div>
+        </section>
+      }
+
+    </div>
+  </main>
+
+  <!-- Footer inspired by Zety -->
+  <footer class="onboarding-footer">
+    <div class="footer-content">
+      <div class="footer-links">
+        <a href="#">Terms and Conditions</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Accessibility</a>
+        <a href="#">Contact Us</a>
       </div>
-
-      <!-- Step 2: Niveau -->
-      <div class="step-content" [class.active]="currentStep() === 2">
-        <button class="btn-back" (click)="prevStep()">← Retour</button>
-        <div class="step-header">
-          <h1 class="heading-1">Votre parcours</h1>
-          <p class="body-large">Nous adapterons nos conseils en fonction de votre niveau d'expérience.</p>
-        </div>
-
-        <div class="options-grid">
-          @for (niv of niveauOptions; track niv[0]) {
-            <div class="option-card" (click)="selectNiveau(niv[0])" [class.selected]="onboardingData.niveau === niv[0]">
-              <span class="option-icon">{{ niveauIcons[niv[0]] }}</span>
-              <span class="option-label">{{ niv[1] }}</span>
-            </div>
-          }
-        </div>
+      <div class="footer-copy">
+        &copy; {{ currentYear }} NextStep. All rights reserved.
       </div>
-
-      <!-- Step 3: Secteur -->
-      <div class="step-content" [class.active]="currentStep() === 3">
-        <button class="btn-back" (click)="prevStep()">← Retour</button>
-        <div class="step-header">
-          <h1 class="heading-1">Dernière étape</h1>
-          <p class="body-large">Sélectionnez votre secteur d'activité privilégié pour personnaliser votre dashboard.</p>
-        </div>
-  
-        <div class="options-grid options-grid--sectors">
-          @for (sec of secteurOptions; track sec[0]) {
-            <div class="option-card option-card--compact" 
-                 (click)="selectSecteur(sec[0])" 
-                 [class.selected]="onboardingData.secteur === sec[0]">
-              <span class="option-icon-small">{{ secteurIcons[sec[0]] }}</span>
-              <span class="option-label-small">{{ sec[1] }}</span>
-            </div>
-          }
-        </div>
-
-        <button class="btn-primary mt-32" 
-                [disabled]="!onboardingData.secteur || isSubmitting()" 
-                [class.btn-pulse]="onboardingData.secteur && !isSubmitting()"
-                (click)="finish()">
-          {{ isSubmitting() ? 'Initialisation...' : 'Commencer l\'aventure ✨' }}
-        </button>
-      </div>
-    }
-  </div>
+    </div>
+  </footer>
 </div>

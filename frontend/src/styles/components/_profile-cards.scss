@@ -1,0 +1,110 @@
+@use '../abstracts/variables' as vars;
+
+// FORMATION / EXPERIENCE / PROJECTS SECTION CLASSES (Design System Compliant)
+.btn-add-dashed {
+  width: 100%;
+  border: 1.5px dashed vars.$color-info;
+  border-radius: vars.$radius-xl;
+  padding: 16px;
+  margin-bottom: 24px;
+  color: vars.$color-info;
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: vars.$color-bg-elevated;
+  transition: all vars.$duration-default vars.$ease-default;
+
+  &:hover {
+    background: vars.$color-info-tint;
+  }
+}
+
+.education-card {
+  background: vars.$color-bg-elevated;
+  border: 1px solid vars.$color-border-default;
+  border-radius: vars.$radius-xl;
+  overflow: hidden;
+  display: flex;
+  transition: box-shadow vars.$duration-default vars.$ease-default;
+
+  &:hover {
+    box-shadow: vars.$shadow-sm;
+  }
+}
+
+.number-badge {
+  background: vars.$color-info-tint;
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 16px;
+  border-right: 1px solid vars.$color-border-default;
+
+  span {
+    font-weight: 700;
+    color: vars.$color-info;
+    font-size: 16px;
+  }
+}
+
+.action-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: vars.$color-info;
+
+  button {
+    padding: 4px;
+    border-radius: vars.$radius-md;
+    transition: background vars.$duration-fast vars.$ease-default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: vars.$color-primary-pale;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// DRAG AND DROP (Angular CDK)
+// -----------------------------------------------------------------------------
+
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: vars.$radius-xl;
+  box-shadow: vars.$shadow-lg !important;
+  opacity: 0.95;
+  background: vars.$color-bg-elevated;
+  z-index: 1000;
+  cursor: grabbing !important;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+  background: vars.$color-bg-input;
+  border: 2px dashed vars.$color-border-strong;
+  min-height: 80px;
+  border-radius: vars.$radius-xl;
+  transition: transform vars.$duration-default vars.$ease-default;
+}
+
+.cdk-drag-animating {
+  transition: transform vars.$duration-moderate vars.$ease-out;
+}
+
+.space-y-4.cdk-drop-list-dragging .education-card:not(.cdk-drag-placeholder) {
+  transition: transform vars.$duration-moderate vars.$ease-out;
+}

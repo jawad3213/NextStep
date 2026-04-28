@@ -446,7 +446,6 @@ nextstep/
 ```
 
 **Avantages de l'isolation** :
-
 - ✅ **Confiance** : L'utilisateur comprend pourquoi il donne accès (contexte Candidature)
 - ✅ **Flexibilité** : Changement de fournisseur (Gmail → Outlook) sans toucher Keycloak
 - ✅ **Sécurité** : Le worker Python fonctionne même si la session Keycloak expire

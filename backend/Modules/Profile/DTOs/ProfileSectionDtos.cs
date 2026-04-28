@@ -8,6 +8,8 @@ namespace NextStep.Modules.Profile.DTOs
         public DateTime? DateDebut { get; set; }
         public DateTime? DateFin { get; set; }
         public string? Missions { get; set; }
+        public string? Ville { get; set; }
+        public string? Type { get; set; }
     }
 
     public class FormationDto
@@ -16,6 +18,10 @@ namespace NextStep.Modules.Profile.DTOs
         public string? Etablissement { get; set; }
         public string? Diplome { get; set; }
         public int Annee { get; set; }
+        public string? Ville { get; set; }
+        public string? Specialisation { get; set; }
+        public string? Mention { get; set; }
+        public int? AnneeFin { get; set; }
     }
 
     public class ProjetDto
@@ -26,6 +32,9 @@ namespace NextStep.Modules.Profile.DTOs
         public string? TechnologiesUtilisees { get; set; }
         public string? LienProjet { get; set; }
         public DateTime? DateRealisation { get; set; }
+        public string? DemoUrl { get; set; }
+        public string? ImageUrl { get; set; }
+        public bool IsUniversity { get; set; }
     }
 
     public class CompetenceDto
@@ -36,16 +45,31 @@ namespace NextStep.Modules.Profile.DTOs
         public string? TypeCompetence { get; set; }
     }
 
+    public class CertificationDto
+    {
+        public Guid? Id { get; set; }
+        public string? Titre { get; set; }
+        public string? Organisation { get; set; }
+        public DateTime? DateObtention { get; set; }
+        public string? IdCredential { get; set; }
+        public string? UrlCredential { get; set; }
+    }
+
     public class PersonalInfoDto
     {
         public string? Nom { get; set; }
         public string? Prenom { get; set; }
         public string? Email { get; set; }
-        public string? Coordonnees { get; set; }
+        public string? Telephone { get; set; }
+        public string? Ville { get; set; }
+        public string? Pays { get; set; }
+        public string? TitrePoste { get; set; }
+        public string? PhotoUrl { get; set; }
         public string? LienLinkedin { get; set; }
         public string? LienGithub { get; set; }
         public string? LienPortfolio { get; set; }
         public string? ResumeProfessionnel { get; set; }
+        public string? TitresSections { get; set; }
     }
 
     public class OnboardingDto
@@ -66,5 +90,6 @@ namespace NextStep.Modules.Profile.DTOs
         public List<FormationDto> Formations { get; set; } = new();
         public List<ProjetDto> Projets { get; set; } = new();
         public List<CompetenceDto> Competences { get; set; } = new();
+        public List<CertificationDto> Certifications { get; set; } = new();
     }
 }

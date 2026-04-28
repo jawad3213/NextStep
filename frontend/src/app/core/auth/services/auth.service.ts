@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import Keycloak from 'keycloak-js';
 
 @Injectable({
@@ -6,6 +6,23 @@ import Keycloak from 'keycloak-js';
 })
 export class AuthService {
   private readonly keycloak = inject(Keycloak);
+  
+  user = signal<{firstName?: string, lastName?: string, email?: string} | null>(null);
+
+  constructor() {
+    this.init();
+  }
+
+  private async init() {
+    if (this.isAuthenticated()) {
+      const profile = await this.keycloak.loadUserProfile();
+      this.user.set({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        email: profile.email
+      });
+    }
+  }
 
   /**
    * Log in using the standard Keycloak flow (shows the login page)

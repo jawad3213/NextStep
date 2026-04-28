@@ -1,97 +1,32 @@
-<div class="dashboard-page">
+<div class="shell-container">
+  <header class="page-header">
+    <h1 class="page-title">Tableau de Bord</h1>
+    <p class="page-description">Suivez votre progression et gérez vos prochaines étapes de carrière.</p>
+  </header>
 
-  <!-- ═══════════════════════════════════════════ -->
-  <!-- DASHBOARD CONTENT -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div class="dashboard-content">
-
-    <!-- Loading State -->
-    @if (isLoading()) {
-      <div class="loading-skeleton">
-        <div class="skeleton-bar skeleton-title"></div>
-        <div class="skeleton-bar skeleton-subtitle"></div>
-        <div class="skeleton-card"></div>
+  <div class="bento-grid">
+    <div class="card card-accent">
+      <div class="card-inner">
+        <span class="card-tag">Aperçu</span>
+        <h3>KPIs Principaux</h3>
+        <p class="card-placeholder">Les statistiques de performance et d'analyse sont en préparation.</p>
       </div>
-    }
+    </div>
+    
+    <div class="card">
+      <div class="card-inner">
+        <span class="card-tag alert">Focus du jour</span>
+        <h3>Alertes quotidiennes</h3>
+        <p class="card-placeholder">Aucune alerte critique aujourd'hui. Continuez comme ça !</p>
+      </div>
+    </div>
 
-    @if (!isLoading() && userProfile(); as profile) {
-
-      <!-- Welcome Header -->
-      <header class="welcome-header fade-in-up">
-        <div class="welcome-left">
-          <div class="avatar-circle">{{ getInitials() }}</div>
-          <div class="welcome-text">
-            <h1>{{ getGreeting() }}, <strong>{{ profile.prenom || 'candidat' }}</strong> 👋</h1>
-            <p>Prêt à booster votre carrière aujourd'hui ?</p>
-          </div>
-        </div>
-        <button class="btn btn-secondary btn-sm" (click)="logout()">Se déconnecter</button>
-      </header>
-
-      <!-- Profile Completion Card -->
-      @if (profileStatus(); as ps) {
-        <section class="completion-card fade-in-up delay-1">
-          <div class="completion-top">
-            <div class="completion-info">
-              <h2>Complétion du profil</h2>
-              <p class="completion-hint" [class.complete]="ps.isComplete">
-                @if (ps.isComplete) {
-                  Votre profil est prêt pour la génération de CV !
-                } @else {
-                  Complétez au moins 70% pour débloquer la génération.
-                }
-              </p>
-            </div>
-            <div class="score-ring" [class.complete]="ps.isComplete">
-              <svg viewBox="0 0 80 80">
-                <circle class="ring-bg" cx="40" cy="40" r="34" />
-                <circle class="ring-fill" cx="40" cy="40" r="34"
-                  [style.stroke-dasharray]="'213.6'"
-                  [style.stroke-dashoffset]="213.6 - (213.6 * ps.profileScore / 100)" />
-              </svg>
-              <span class="score-value">{{ ps.profileScore }}%</span>
-            </div>
-          </div>
-
-          <!-- Missing sections -->
-          @if (ps.missingSections.length > 0) {
-            <div class="missing-list">
-              <span class="missing-label">Il manque :</span>
-              @for (section of ps.missingSections; track section) {
-                <span class="missing-tag">{{ section }}</span>
-              }
-            </div>
-          }
-
-          <button class="btn btn-primary" (click)="goToProfile()">
-            @if (ps.isComplete) {
-              Affiner mon profil
-            } @else {
-              Compléter mon profil →
-            }
-          </button>
-        </section>
-      }
-
-      <!-- Quick Actions -->
-      <section class="quick-actions fade-in-up delay-2">
-        <div class="action-card" (click)="goToProfile()">
-          <span class="action-icon">📝</span>
-          <h3>Mon Profil</h3>
-          <p>Gérer vos informations</p>
-        </div>
-        <div class="action-card disabled">
-          <span class="action-icon">📄</span>
-          <h3>Générer un CV</h3>
-          <p>Bientôt disponible</p>
-        </div>
-        <div class="action-card disabled">
-          <span class="action-icon">🎯</span>
-          <h3>Matching IA</h3>
-          <p>Bientôt disponible</p>
-        </div>
-      </section>
-
-    }
+    <div class="card wide-card">
+      <div class="card-inner">
+        <span class="card-tag">Historique</span>
+        <h3>Activité Récente</h3>
+        <p class="card-placeholder">Le flux d'activité est en cours de développement pour un suivi en temps réel.</p>
+      </div>
+    </div>
   </div>
 </div>

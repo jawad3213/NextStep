@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { UserProfile,UserProfileResponse } from '../core/auth/models/user-profile.model';
+import {UserProfileResponse } from '../core/auth/models/user-profile.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({

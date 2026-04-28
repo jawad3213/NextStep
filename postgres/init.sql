@@ -1,5 +1,3 @@
-CREATE SCHEMA IF NOT EXISTS keycloak_schema;
-
 -- MODULE IDENTITY & PROFILE
 CREATE TABLE IF NOT EXISTS utilisateur (
     id_utilisateur UUID PRIMARY KEY DEFAULT gen_random_uuid(),

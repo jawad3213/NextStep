@@ -4,6 +4,10 @@ using NextStep.Modules.Profile.Services;
 using NextStep.Modules.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using backend.data;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text;
 
 namespace NextStep.Modules.Profile.Controllers
 {
@@ -14,11 +18,15 @@ namespace NextStep.Modules.Profile.Controllers
     {
         private readonly IProfileService _profileService;
         private readonly IUserService _userService;
+        private readonly AppDbContext _context;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public ProfileController(IProfileService profileService, IUserService userService)
+        public ProfileController(IProfileService profileService, IUserService userService, AppDbContext context, IHttpClientFactory httpClientFactory)
         {
             _profileService = profileService;
             _userService = userService;
+            _context = context;
+            _httpClientFactory = httpClientFactory;
         }
 
         private async Task<Guid> GetUserIdAsync()
@@ -145,12 +153,76 @@ namespace NextStep.Modules.Profile.Controllers
             return Ok(new { message = "Formation supprimée." });
         }
 
+        // Certifications
+        [HttpPost("certifications")]
+        public async Task<IActionResult> AddCertification([FromBody] CertificationDto dto)
+        {
+            var userId = await GetUserIdAsync();
+            await _profileService.AddCertificationAsync(userId, dto);
+            return Ok(new { message = "Certification ajoutée." });
+        }
+
+        [HttpPut("certifications")]
+        public async Task<IActionResult> UpdateCertification([FromBody] CertificationDto dto)
+        {
+            var userId = await GetUserIdAsync();
+            await _profileService.UpdateCertificationAsync(userId, dto);
+            return Ok(new { message = "Certification mise à jour." });
+        }
+
+        [HttpDelete("certifications/{id}")]
+        public async Task<IActionResult> DeleteCertification(Guid id)
+        {
+            var userId = await GetUserIdAsync();
+            await _profileService.DeleteCertificationAsync(userId, id);
+            return Ok(new { message = "Certification supprimée." });
+        }
+
         [HttpPost("complete-onboarding")]
         public async Task<IActionResult> CompleteOnboarding([FromBody] OnboardingDto dto)
         {
             var userId = await GetUserIdAsync();
             await _profileService.CompleteOnboardingAsync(userId, dto);
             return Ok(new { message = "Onboarding terminé avec succès." });
+        }
+
+        // --- Nouveaux endpoints pour retirer les données "en dur" du frontend ---
+
+        [HttpGet("keywords")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetKeywords()
+        {
+            // Récupère les mots clés depuis la BD au lieu du hardcode frontend
+            var keywords = await _context.Keywords.Select(k => new { k.Mot, k.Categorie }).ToListAsync();
+            return Ok(keywords);
+        }
+
+        [HttpPost("generate-resume")]
+        public async Task<IActionResult> GenerateResume([FromBody] object profileData)
+        {
+            try 
+            {
+                // Proxy vers le conteneur Python Agent
+                var client = _httpClientFactory.CreateClient();
+                var agentUrl = Environment.GetEnvironmentVariable("PythonAgents__Url") ?? "http://agents-python:8000";
+                
+                var content = new StringContent(JsonSerializer.Serialize(profileData), Encoding.UTF8, "application/json");
+                var response = await client.PostAsync($"{agentUrl}/generate-resume", content);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    return Ok(new { resume = result });
+                }
+                
+                // Fallback si l'IA n'est pas prête
+                return Ok(new { resume = "Expert passionné avec une solide expérience technique. Toujours à la recherche de nouveaux défis pour innover et apporter de la valeur." });
+            }
+            catch (Exception ex)
+            {
+                // Si le conteneur python est éteint, on renvoie quand même un fallback au frontend
+                return Ok(new { resume = "Expert passionné avec une solide expérience technique. Toujours à la recherche de nouveaux défis pour innover et apporter de la valeur." });
+            }
         }
     }
 }

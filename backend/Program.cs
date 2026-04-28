@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
-using backend.data;
+using NextStep.data;
 using Microsoft.EntityFrameworkCore;
-using backend.Modules.Identity.Repositories;
-using backend.Modules.Identity.Services;
+using NextStep.Modules.Identity.Repositories;
+using NextStep.Modules.Identity.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +32,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>(); 
 
 // Module Profile
-builder.Services.AddScoped<backend.Modules.Profile.Services.IProfileService, backend.Modules.Profile.Services.ProfileService>();
+builder.Services.AddScoped<NextStep.Modules.Profile.Services.IProfileService, NextStep.Modules.Profile.Services.ProfileService>();
 builder.Services.AddHttpClient();
 
 

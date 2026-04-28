@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using backend.Modules.Identity.Models;
-using backend.Modules.Profile.Models;
+using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Profile.Models;
 
-namespace backend.data
+namespace NextStep.data
 {
     public class AppDbContext : DbContext
     {

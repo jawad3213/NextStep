@@ -1,15 +1,15 @@
 using System.Security.Claims;
-using backend.Modules.Profile.DTOs;
-using backend.Modules.Profile.Services;
-using backend.Modules.Identity.Services;
+using NextStep.Modules.Profile.DTOs;
+using NextStep.Modules.Profile.Services;
+using NextStep.Modules.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using backend.data;
+using NextStep.data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text;
 
-namespace backend.Modules.Profile.Controllers
+namespace NextStep.Modules.Profile.Controllers
 {
     [ApiController]
     [Route("api/profile")]

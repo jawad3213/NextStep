@@ -1,4 +1,4 @@
-namespace backend.Modules.Profile.DTOs
+namespace NextStep.Modules.Profile.DTOs
 {
     public class ExperienceDto
     {

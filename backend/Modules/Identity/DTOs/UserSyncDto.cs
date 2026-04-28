@@ -1,6 +1,6 @@
-using backend.Modules.Identity.Models;
+using NextStep.Modules.Identity.Models;
 
-namespace backend.Modules.Identity.DTOs
+namespace NextStep.Modules.Identity.DTOs
 {
     public class UserSyncDto
     {

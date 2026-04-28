@@ -1,8 +1,8 @@
-using backend.Modules.Identity.Models;
+using NextStep.Modules.Identity.Models;
 using Microsoft.EntityFrameworkCore;
-using backend.data;
+using NextStep.data;
 
-namespace backend.Modules.Identity.Repositories
+namespace NextStep.Modules.Identity.Repositories
 {
     public interface IUserRepository
     {

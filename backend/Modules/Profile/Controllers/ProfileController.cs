@@ -218,7 +218,7 @@ namespace NextStep.Modules.Profile.Controllers
                 // Fallback si l'IA n'est pas prête
                 return Ok(new { resume = "Expert passionné avec une solide expérience technique. Toujours à la recherche de nouveaux défis pour innover et apporter de la valeur." });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Si le conteneur python est éteint, on renvoie quand même un fallback au frontend
                 return Ok(new { resume = "Expert passionné avec une solide expérience technique. Toujours à la recherche de nouveaux défis pour innover et apporter de la valeur." });

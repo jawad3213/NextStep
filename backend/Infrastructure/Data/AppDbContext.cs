@@ -17,6 +17,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Formation> Formations => Set<Formation>();
     public DbSet<Projet> Projets => Set<Projet>();
     public DbSet<Competence> Competences => Set<Competence>();
+    public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<Keyword> Keywords => Set<Keyword>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

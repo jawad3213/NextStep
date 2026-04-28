@@ -4,7 +4,7 @@ using NextStep.Modules.Profile.Services;
 using NextStep.Modules.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using backend.data;
+using NextStep.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text;

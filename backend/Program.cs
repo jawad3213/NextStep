@@ -14,287 +14,118 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
 
-// Fix for PostgreSQL DateTime issue: Allow writing unspecified timestamps
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-
 
 var builder = WebApplication.CreateBuilder(args);
 
-//
-// ─── Controllers + Swagger ─────────────────────────────────────
-//
-
 builder.Services.AddControllers();
-// DB Context will be configured later in the file with full options
+builder.Services.AddHttpClient();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("allowAngular", policy =>
-    {
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+    options.AddPolicy("Angular", policy =>
+        policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials()
+    );
 });
 
-// Services are registered in their respective sections below
-builder.Services.AddHttpClient();
-
-
-// Configuration de l'authentification JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = builder.Configuration["Keycloak:Authority"];
         options.Audience = builder.Configuration["Keycloak:Audience"];
-        options.RequireHttpsMetadata = builder.Configuration.GetValue<bool>("Keycloak:RequireHttpsMetadata");
-        
-        // Explicitly set MetadataAddress for internal Docker communication
-        // This ensures the backend can find the signing keys even if 'Authority' is confusing
+        options.RequireHttpsMetadata = false;
         options.MetadataAddress = "http://keycloak:8080/realms/Next-Step/.well-known/openid-configuration";
-
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateAudience = false,
-            ValidateIssuer = false,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            NameClaimType = "email",
-            RoleClaimType = "roles"
-        };
-
-        // Implémentation de la méthode Lazy Initialization (JIT Provisioning)
+        options.TokenValidationParameters = new TokenValidationParameters { ValidateAudience = false, ValidateIssuer = false, NameClaimType = "email" };
         options.Events = new JwtBearerEvents
         {
-            OnAuthenticationFailed = context =>
-            {
-                Console.WriteLine($"DEBUG: Auth Failed: {context.Exception.Message}");
-                return Task.CompletedTask;
-            },
             OnTokenValidated = async context =>
             {
-                Console.WriteLine("DEBUG: Token Validated Successfully!");
                 var principal = context.Principal;
                 if (principal != null)
                 {
                     var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                    try
-                    {
-                        await userService.EnsureUserCreatedAsync(principal);
-                    }
-                    catch (Exception ex)
-                    {
-                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogError(ex, "Erreur lors de la synchronisation JIT.");
-                    }
+                    try { await userService.EnsureUserCreatedAsync(principal); } catch { }
                 }
             }
         };
     });
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new()
-    {
-        Title = "NextStep API",
-        Version = "v1"
-    });
-});
-
-//
-// ─── PostgreSQL + EF Core ─────────────────────────────────────
-//
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        npg => npg.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)
-    );
-    // Suppress EF Core 10 warning about pending model changes in dev
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<AppDbContext>(options => {
+    options.UseNpgsql(connectionString);
     options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
-//
-// ─── Python Agents HTTP Client ─────────────────────────────────
-//
-
-builder.Services.Configure<AgentPythonOptions>(
-    builder.Configuration.GetSection("PythonAgents")
-);
-
+builder.Services.Configure<AgentPythonOptions>(builder.Configuration.GetSection("PythonAgents"));
 builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
-
-//
-// ─── Module Offer (M2) ─────────────────────────────────────────
-//
-
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IOfferService, OfferService>();
-
-//
-// ─── Module Candidature ────────────────────────────────────────
-//
-
 builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
 builder.Services.AddScoped<ICandidatureService, CandidatureService>();
-
-//
-// ─── Module Email ──────────────────────────────────────────────
-//
-
 builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-
-//
-// ─── Module Identity ───────────────────────────────────────────
-//
-
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
-
-//
-// ─── Module Profile ────────────────────────────────────────────
-//
-
 builder.Services.AddScoped<IProfileService, ProfileService>();
-
-//
-// ─── CORS Angular Dev Environment ──────────────────────────────
-//
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Angular", policy =>
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials()
-    );
-});
 
 var app = builder.Build();
 
-//
-// ─── Middleware Pipeline ───────────────────────────────────────
-//
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseCors("Angular");
-
-// Required because controllers use [Authorize]
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
-//
-// ─── Health Check Endpoint ─────────────────────────────────────
-//
-
-app.MapGet("/health", () =>
-    Results.Ok(new
-    {
-        status = "ok",
-        service = "nextstep-backend"
-    })
-);
-
-//
-// ─── Startup SQL + Auto Migrations (TEAM SAFE MODE) ─────────────
-//
 
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    IEnumerable<string> pending = [];
     try
     {
-        // 1. Appliquer les migrations EF Core standard
-        Console.WriteLine("DEBUG: Checking pending migrations...");
-        pending = await context.Database.GetPendingMigrationsAsync();
-        if (pending.Any())
-        {
-            Console.WriteLine($"DEBUG: Applying pending migrations: {string.Join(", ", pending)}");
-            await context.Database.MigrateAsync();
-        }
+        Console.WriteLine("DEBUG: STARTING FULL NUCLEAR REPAIR...");
+        
+        // 1. Force Create Tables
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.utilisateur (id_utilisateur UUID PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS public.experience (id_experience UUID PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS public.formation (id_formation UUID PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS public.projet (id_projet UUID PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS public.competence (id_competence UUID PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS public.certification (id_certification UUID PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS public.skill_keyword (id_skill_keyword UUID PRIMARY KEY, mot TEXT NOT NULL);
+        ");
 
-        // 2. Toujours s'assurer que les colonnes additionnelles existent (Mode Robustesse)
-        // Ceci corrige les cas où les migrations sont incomplètes ou désynchronisées
-        Console.WriteLine("DEBUG: Ensuring all utilisateur columns exist...");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titres_sections JSONB;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS ville TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS pays TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titre_poste TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS photo_url TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS telephone TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS resume_professionnel TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_linkedin TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_github TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_portfolio TEXT;");
-        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS coordonnees TEXT;");
+        // 2. Force Add Columns (Utilisateur)
+        string[] uCols = { "keycloak_id TEXT", "email TEXT", "nom TEXT", "prenom TEXT", "date_inscription TIMESTAMP", "titres_sections JSONB", "objectif TEXT", "niveau TEXT", "secteur TEXT", "onboarding_completed BOOLEAN DEFAULT FALSE", "onboarding_step INTEGER DEFAULT 0", "onboarding_data JSONB", "profile_score INTEGER DEFAULT 0", "ville TEXT", "pays TEXT", "titre_poste TEXT", "photo_url TEXT", "telephone TEXT", "resume_professionnel TEXT", "lien_linkedin TEXT", "lien_github TEXT", "lien_portfolio TEXT", "coordonnees TEXT" };
+        foreach (var c in uCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.utilisateur ADD COLUMN IF NOT EXISTS {c};");
 
-        Console.WriteLine("DEBUG: Database schema is fully synchronized.");
+        // 3. Force Add Columns (Experience)
+        string[] eCols = { "id_utilisateur UUID", "entreprise TEXT", "poste TEXT", "date_debut TIMESTAMP", "date_fin TIMESTAMP", "missions TEXT", "ville TEXT", "type_contrat TEXT", "is_valid BOOLEAN DEFAULT FALSE" };
+        foreach (var c in eCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.experience ADD COLUMN IF NOT EXISTS {c};");
+
+        // 4. Force Add Columns (Formation)
+        string[] fCols = { "id_utilisateur UUID", "etablissement TEXT", "diplome TEXT", "annee INTEGER", "ville TEXT", "specialisation TEXT", "mention TEXT", "annee_fin INTEGER" };
+        foreach (var c in fCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.formation ADD COLUMN IF NOT EXISTS {c};");
+
+        // 5. Force Add Columns (Projet)
+        string[] pCols = { "id_utilisateur UUID", "titre_projet TEXT", "description TEXT", "technologies_utilisees TEXT", "lien_projet TEXT", "date_realisation TIMESTAMP", "demo_url TEXT", "image_url TEXT", "is_university BOOLEAN DEFAULT FALSE", "is_valid BOOLEAN DEFAULT FALSE" };
+        foreach (var c in pCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.projet ADD COLUMN IF NOT EXISTS {c};");
+
+        // 6. Force Add Columns (Competence)
+        string[] cCols = { "id_utilisateur UUID", "nom TEXT", "niveau INTEGER", "type_competence TEXT", "is_valid BOOLEAN DEFAULT FALSE" };
+        foreach (var c in cCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.competence ADD COLUMN IF NOT EXISTS {c};");
+
+        // 7. Force Add Columns (Certification)
+        string[] ctCols = { "id_utilisateur UUID", "titre TEXT", "organisation TEXT", "date_obtention TIMESTAMP", "id_credential TEXT", "url_credential TEXT" };
+        foreach (var c in ctCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.certification ADD COLUMN IF NOT EXISTS {c};");
+
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'Technique';");
+
+        Console.WriteLine("DEBUG: NUCLEAR REPAIR COMPLETED.");
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"DEBUG: Critical error during database startup: {ex.Message}");
-    }
+    catch (Exception ex) { Console.WriteLine($"DEBUG: REPAIR FAILED: {ex.Message}"); }
 }
-
-    // Ensure Certification and Project tables exist
-    using (var scope2 = app.Services.CreateScope())
-    {
-        var context2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
-        await context2.Database.ExecuteSqlRawAsync(@"
-            CREATE TABLE IF NOT EXISTS certification (
-                id_certification UUID PRIMARY KEY,
-                id_utilisateur UUID NOT NULL,
-                titre TEXT,
-                organisation TEXT,
-                date_obtention TIMESTAMP,
-                id_credential TEXT,
-                url_credential TEXT
-            );
-        ");
-
-        await context2.Database.ExecuteSqlRawAsync(@"
-            CREATE TABLE IF NOT EXISTS projet (
-                id_projet UUID PRIMARY KEY,
-                id_utilisateur UUID NOT NULL,
-                titre_projet TEXT,
-                description TEXT,
-                technologies_utilisees TEXT,
-                lien_projet TEXT,
-                date_realisation TIMESTAMP,
-                demo_url TEXT,
-                image_url TEXT,
-                is_university BOOLEAN DEFAULT FALSE,
-                is_valid BOOLEAN DEFAULT FALSE
-            );
-        ");
-
-        try {
-            await context2.Database.MigrateAsync();
-        } catch {
-            Console.WriteLine("DEBUG: Migration skipped or failed, but SQL applied.");
-        }
-        Console.WriteLine("DEBUG: Migrations/SQL applied successfully!");
-    }
 
 await app.RunAsync();

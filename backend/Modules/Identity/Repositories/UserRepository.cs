@@ -1,6 +1,6 @@
 using NextStep.Modules.Identity.Models;
 using Microsoft.EntityFrameworkCore;
-using NextStep.Infrastructure.Data;
+using NextStep.data;
 
 namespace NextStep.Modules.Identity.Repositories
 {

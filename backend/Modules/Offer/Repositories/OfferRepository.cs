@@ -3,7 +3,7 @@
 // Accès base de données pour les offres d'emploi
 // ============================================================
 using Microsoft.EntityFrameworkCore;
-using NextStep.Infrastructure.Data;
+using NextStep.data;
 using NextStep.Modules.Offer.Models;
 
 namespace NextStep.Modules.Offer.Repositories;

@@ -3,16 +3,16 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy the project file and restore dependencies
-COPY ["backend.csproj", "./"]
-RUN dotnet restore "backend.csproj"
+COPY ["NextStep.csproj", "./"]
+RUN dotnet restore "NextStep.csproj"
 
 # Copy the remaining source code and build the application
 COPY . .
-RUN dotnet build "backend.csproj" -c Release -o /app/build
+RUN dotnet build "NextStep.csproj" -c Release -o /app/build
 
 # Publish the application
 FROM build AS publish
-RUN dotnet publish "backend.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "NextStep.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 2: Final runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
@@ -26,4 +26,4 @@ ENV ASPNETCORE_HTTP_PORTS=5000
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Start the application
-ENTRYPOINT ["dotnet", "backend.dll"]
+ENTRYPOINT ["dotnet", "NextStep.dll"]

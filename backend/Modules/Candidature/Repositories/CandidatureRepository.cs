@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using NextStep.Infrastructure.Data;
+using NextStep.data;
 using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
 
 namespace NextStep.Modules.Candidature.Repositories;

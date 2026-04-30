@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using NextStep.Infrastructure.Data;
+using NextStep.data;
 
 #nullable disable
 
-namespace backend.Migrations
+namespace NextStep.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260415110002_RefactorOnboardingToProfileFlow")]

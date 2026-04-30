@@ -1,4 +1,4 @@
-using NextStep.Infrastructure.Data;
+using NextStep.data;
 using NextStep.Modules.Profile.Models;
 using NextStep.Modules.Profile.DTOs;
 using NextStep.Modules.Identity.Models;

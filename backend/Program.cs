@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using NextStep.Infrastructure.Data;
 using NextStep.Infrastructure.Http;
 using NextStep.Modules.Candidature.Repositories;
 using NextStep.Modules.Candidature.Services;
@@ -12,6 +11,11 @@ using NextStep.Modules.Identity.Services;
 using NextStep.Modules.Profile.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
+using NextStep.data;
+using Microsoft.EntityFrameworkCore;
+using NextStep.Modules.Identity.Repositories;
+using NextStep.Modules.Identity.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,11 +24,28 @@ var builder = WebApplication.CreateBuilder(args);
 //
 
 builder.Services.AddControllers();
+// DB Context will be configured later in the file with full options
 
-//
-// ─── Authentication (Keycloak) ──────────────────────────────────
-//
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("allowAngular", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
+// Module Identity
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>(); 
+
+// Module Profile
+builder.Services.AddScoped<NextStep.Modules.Profile.Services.IProfileService, NextStep.Modules.Profile.Services.ProfileService>();
+builder.Services.AddHttpClient();
+
+
+// Configuration de l'authentification JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -34,8 +55,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateAudience = true,
-            ValidateIssuer = true,
-            ValidateLifetime = true
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            NameClaimType = "email",
+            RoleClaimType = "roles"
+        };
+
+        // Implémentation de la méthode Lazy Initialization (JIT Provisioning)
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                if (principal != null)
+                {
+                    // Récupérer le UserService de l'injection de dépendances pour ce scope
+                    var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
+                    
+                    try
+                    {
+                        // S'assurer que l'utilisateur est bien synchronisé/créé dans la DB locale
+                        await userService.EnsureUserCreatedAsync(principal);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Logguer l'erreur ou gérer l'exception
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                        logger.LogError(ex, "Erreur lors de la synchronisation JIT de l'utilisateur Keycloak.");
+                    }
+                }
+            }
         };
     });
 

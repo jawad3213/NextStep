@@ -19,13 +19,16 @@
 // Angular Material Theme
 @import "@angular/material/prebuilt-themes/indigo-pink.css";
 
-// MASTER LOCK: Force application to stay within viewport
-html, body, app-root {
-  height: 100vh !important;
-  width: 100vw !important;
-  overflow: hidden !important;
+// Global root sizing — overflow is managed per-layout, not globally
+html, body {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
+}
+
+app-root {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
 }

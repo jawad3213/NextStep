@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace backend.Migrations
+namespace NextStep.Migrations
 {
     /// <inheritdoc />
     public partial class RefactorOnboardingToProfileFlow : Migration

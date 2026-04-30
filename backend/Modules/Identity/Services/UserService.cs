@@ -3,7 +3,7 @@ using System.Security.Claims;
 using NextStep.Modules.Identity.DTOs;
 using NextStep.Modules.Identity.Models;
 using NextStep.Modules.Identity.Repositories;
-using NextStep.Infrastructure.Data;
+using NextStep.data;
 
 namespace NextStep.Modules.Identity.Services
 {

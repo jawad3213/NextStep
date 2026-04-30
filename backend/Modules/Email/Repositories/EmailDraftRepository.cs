@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using NextStep.Infrastructure.Data;
+using NextStep.data;
 using NextStep.Modules.Email.Models;
 
 namespace NextStep.Modules.Email.Repositories;

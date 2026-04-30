@@ -22,7 +22,7 @@ public class AgentHttpClient : IAgentHttpClient
         ILogger<AgentHttpClient> logger)
     {
         _client = client;
-        _client.BaseAddress = new Uri(options.Value.BaseUrl);
+        _client.BaseAddress = new Uri(options.Value.Url);
         _client.Timeout = TimeSpan.FromSeconds(120); // pipeline IA peut prendre du temps
         _logger = logger;
     }

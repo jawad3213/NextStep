@@ -14,6 +14,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
 
+// Fix for PostgreSQL DateTime issue: Allow writing unspecified timestamps
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,12 +37,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Module Identity
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserService, UserService>(); 
-
-// Module Profile
-builder.Services.AddScoped<NextStep.Modules.Profile.Services.IProfileService, NextStep.Modules.Profile.Services.ProfileService>();
+// Services are registered in their respective sections below
 builder.Services.AddHttpClient();
 
 
@@ -50,9 +48,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.Authority = builder.Configuration["Keycloak:Authority"];
         options.Audience = builder.Configuration["Keycloak:Audience"];
         options.RequireHttpsMetadata = builder.Configuration.GetValue<bool>("Keycloak:RequireHttpsMetadata");
+        
+        // Explicitly set MetadataAddress for internal Docker communication
+        // This ensures the backend can find the signing keys even if 'Authority' is confusing
+        options.MetadataAddress = "http://keycloak:8080/realms/Next-Step/.well-known/openid-configuration";
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateAudience = true,
+            ValidateAudience = false,
+            ValidateIssuer = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             NameClaimType = "email",
@@ -62,24 +66,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         // Implémentation de la méthode Lazy Initialization (JIT Provisioning)
         options.Events = new JwtBearerEvents
         {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"DEBUG: Auth Failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async context =>
             {
+                Console.WriteLine("DEBUG: Token Validated Successfully!");
                 var principal = context.Principal;
                 if (principal != null)
                 {
-                    // Récupérer le UserService de l'injection de dépendances pour ce scope
                     var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                    
                     try
                     {
-                        // S'assurer que l'utilisateur est bien synchronisé/créé dans la DB locale
                         await userService.EnsureUserCreatedAsync(principal);
                     }
                     catch (Exception ex)
                     {
-                        // Logguer l'erreur ou gérer l'exception
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogError(ex, "Erreur lors de la synchronisation JIT de l'utilisateur Keycloak.");
+                        logger.LogError(ex, "Erreur lors de la synchronisation JIT.");
                     }
                 }
             }
@@ -212,48 +218,50 @@ using (var scope = app.Services.CreateScope())
     IEnumerable<string> pending = [];
     try
     {
+        // 1. Appliquer les migrations EF Core standard
         Console.WriteLine("DEBUG: Checking pending migrations...");
-
         pending = await context.Database.GetPendingMigrationsAsync();
-
         if (pending.Any())
         {
             Console.WriteLine($"DEBUG: Applying pending migrations: {string.Join(", ", pending)}");
             await context.Database.MigrateAsync();
         }
 
-        Console.WriteLine("DEBUG: Database is up to date.");
+        // 2. Toujours s'assurer que les colonnes additionnelles existent (Mode Robustesse)
+        // Ceci corrige les cas où les migrations sont incomplètes ou désynchronisées
+        Console.WriteLine("DEBUG: Ensuring all utilisateur columns exist...");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titres_sections JSONB;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS ville TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS pays TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titre_poste TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS photo_url TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS telephone TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS resume_professionnel TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_linkedin TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_github TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_portfolio TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS coordonnees TEXT;");
 
-        Console.WriteLine("DEBUG: Startup SQL + migrations applied successfully.");
+        Console.WriteLine("DEBUG: Database schema is fully synchronized.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"DEBUG: Migration/startup SQL error: {ex.Message}");
-        Console.WriteLine($"DEBUG: Pending migrations: {string.Join(", ", pending)}");
-        // Fallback: Ensure columns exist manually (only if table exists)
-        try {
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titres_sections JSONB;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS objectif TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS niveau TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS secteur TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS onboarding_data JSONB;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profile_score INTEGER DEFAULT 0;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS ville TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS pays TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS titre_poste TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS photo_url TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS telephone TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS resume_professionnel TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_linkedin TEXT;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS lien_github TEXT;");
-        } catch {
-            Console.WriteLine("DEBUG: Manual ALTER TABLE skipped (likely table 'utilisateur' does not exist yet).");
-        }
-        
-        // Ensure Certification and Project tables exist
-        await context.Database.ExecuteSqlRawAsync(@"
+        Console.WriteLine($"DEBUG: Critical error during database startup: {ex.Message}");
+    }
+}
+
+    // Ensure Certification and Project tables exist
+    using (var scope2 = app.Services.CreateScope())
+    {
+        var context2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context2.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS certification (
                 id_certification UUID PRIMARY KEY,
                 id_utilisateur UUID NOT NULL,
@@ -265,7 +273,7 @@ using (var scope = app.Services.CreateScope())
             );
         ");
 
-        await context.Database.ExecuteSqlRawAsync(@"
+        await context2.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS projet (
                 id_projet UUID PRIMARY KEY,
                 id_utilisateur UUID NOT NULL,
@@ -282,12 +290,11 @@ using (var scope = app.Services.CreateScope())
         ");
 
         try {
-            await context.Database.MigrateAsync();
+            await context2.Database.MigrateAsync();
         } catch {
             Console.WriteLine("DEBUG: Migration skipped or failed, but SQL applied.");
         }
         Console.WriteLine("DEBUG: Migrations/SQL applied successfully!");
     }
-}
 
 await app.RunAsync();

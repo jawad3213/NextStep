@@ -1,5 +1,6 @@
+using NextStep.data;
 using Microsoft.EntityFrameworkCore;
-using NextStep.Infrastructure.Http;
+using NextStep.Shared.Http;
 using NextStep.Modules.Candidature.Repositories;
 using NextStep.Modules.Candidature.Services;
 using NextStep.Modules.Email.Repositories;
@@ -12,10 +13,7 @@ using NextStep.Modules.Profile.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
-using NextStep.data;
-using Microsoft.EntityFrameworkCore;
-using NextStep.Modules.Identity.Repositories;
-using NextStep.Modules.Identity.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 

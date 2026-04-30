@@ -3,7 +3,7 @@
 // Logique métier : soumet l'offre au pipeline Python, sauvegarde en DB
 // ============================================================
 using System.Text.Json;
-using NextStep.Infrastructure.Http;
+using NextStep.Shared.Http;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Offer.Repositories;

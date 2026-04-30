@@ -1,4 +1,4 @@
-using NextStep.Infrastructure.Http;
+using NextStep.Shared.Http;
 using NextStep.Modules.Candidature.Repositories;
 using NextStep.Modules.Email.DTOs;
 using NextStep.Modules.Email.Models;

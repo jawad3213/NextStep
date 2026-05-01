@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.api_schemas import OfferInput, AnalyzedOffer, MatchResult, PipelineResult
 from app.graphs.main_workflow import get_workflow
 from app.schemas.state import AgentState
+from email_engine.router import router as email_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,7 +55,16 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    openapi_tags=[
+        {"name": "Health"},
+        {"name": "Pipeline"},
+        {"name": "M2 — AI Agent"},
+        {"name": "Email Agent", "description": "POST /email/generate — Agent M4 (LangChain + Gemini)"},
+    ],
 )
+
+# ─── Email Agent Router (M4) ───
+app.include_router(email_router)
 
 # ─── CORS ───
 app.add_middleware(
@@ -84,7 +94,7 @@ async def health_check():
             "M2_normalizer":        "✅ actif",
             "M2_scorer":            "✅ actif",
             "M3_cv_formatter":      "⏳ stub",
-            "M4_email_composer":    "⏳ stub",
+            "M4_email_composer":    "✅ actif — POST /email/generate",
         },
     }
 

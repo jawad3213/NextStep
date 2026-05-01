@@ -11,5 +11,7 @@ public class GenerateEmailDraftDto
 
     public string Language { get; set; } = "fr";
 
-    public string Tone { get; set; } = "professional";
+    public string Tone { get; set; } = "professionnel";
+
+    public bool IncludeMotivationLetter { get; set; } = false;
 }

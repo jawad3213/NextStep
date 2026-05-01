@@ -18,6 +18,7 @@ public class EmailController : ControllerBase
     }
 
     [HttpPost("generate")]
+    [AllowAnonymous]
     public async Task<ActionResult<EmailDraftDto>> GenerateDraft(
         [FromBody] GenerateEmailDraftDto dto,
         CancellationToken cancellationToken)

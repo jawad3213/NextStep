@@ -27,6 +27,20 @@ agents/*.pyc
 agents/.venv/
 agents/venv/
 
+# --- Infrastructure (Vagrant & Terraform) ---
+**/.vagrant/
+**/vagrant-*.log
+**/*.box
+
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform.lock.hcl
+**/*.tfvars
+**/*.tfvars.json
+**/override.tf
+**/override.tf.json
+
 # --- IDE ---
 .idea/
 *.swp

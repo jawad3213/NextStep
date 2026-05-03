@@ -1,19 +1,34 @@
 -- MODULE IDENTITY & PROFILE
-CREATE TABLE IF NOT EXISTS utilisateur (
+CREATE TABLE utilisateur (
     id_utilisateur UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    keycloak_id VARCHAR(255) UNIQUE NOT NULL,
+    keycloak_id VARCHAR(255) NOT NULL UNIQUE,
     nom VARCHAR(100),
     prenom VARCHAR(100),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    lien_linkedin VARCHAR(255),
-    lien_github VARCHAR(255),
-    lien_portfolio VARCHAR(255),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    lien_linkedin VARCHAR(500),
+    lien_github VARCHAR(500),
+    lien_portfolio VARCHAR(500),
+    titre_poste VARCHAR(200),
+    photo_url VARCHAR(500),
+    ville VARCHAR(100),
+    pays VARCHAR(100),
+    telephone VARCHAR(20),
     resume_professionnel TEXT,
-    coordonnees VARCHAR(255),
-    onboarding_status VARCHAR(20) DEFAULT 'NEW',
+    coordonnees TEXT,
+    titres_sections JSONB,
+    objectif VARCHAR(50),
+    niveau VARCHAR(50),
+    secteur VARCHAR(50),
+    onboarding_completed BOOLEAN DEFAULT false,
+    onboarding_step INTEGER DEFAULT 0,
+    onboarding_data JSONB,
     profile_score INTEGER DEFAULT 0,
     date_inscription TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Index pour les recherches fréquentes
+CREATE INDEX idx_utilisateur_keycloak_id ON utilisateur(keycloak_id);
+CREATE INDEX idx_utilisateur_email ON utilisateur(email);
 
 CREATE TABLE IF NOT EXISTS experience (
     id_experience UUID PRIMARY KEY DEFAULT gen_random_uuid(),

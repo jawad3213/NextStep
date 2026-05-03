@@ -87,3 +87,38 @@ export interface Profile {
     certifications?: string;
   };
 }
+
+// Display Mappings for UI
+export const MENTION_LABELS: Record<string, string> = {
+  'Passable': 'Pass',
+  'Bien': 'Good',
+  'Très bien': 'Very Good',
+  'Excellent': 'Excellent'
+};
+
+export const EXPERIENCE_TYPE_LABELS: Record<string, string> = {
+  'Stage': 'Internship',
+  'Alternance': 'Apprenticeship',
+  'CDI': 'Full-time (CDI)',
+  'CDD': 'Fixed-term (CDD)',
+  'Freelance': 'Freelance',
+  'PFA': 'Academic Project (PFA)',
+  'PFE': 'Graduation Project (PFE)'
+};
+
+export const DEGREE_LABELS: Record<string, string> = {
+  'licence': "Bachelor's Degree",
+  'master': "Master's Degree",
+  'ingenieur': 'Engineering Degree',
+  'doctorat': 'PhD / Doctorate'
+};
+
+export const LANGUAGE_LEVEL_LABELS: Record<string, string> = {
+  'A1': 'Beginner (A1)',
+  'A2': 'Elementary (A2)',
+  'B1': 'Intermediate (B1)',
+  'B2': 'Upper-Intermediate (B2)',
+  'C1': 'Advanced (C1)',
+  'C2': 'Proficient (C2)',
+  'Natif': 'Native'
+};

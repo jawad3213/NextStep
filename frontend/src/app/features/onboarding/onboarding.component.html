@@ -12,8 +12,8 @@
       <!-- Section 1: Objectif -->
       <section class="onboarding-section reveal">
         <div class="section-header">
-          <h1 class="zety-title">Quel est votre objectif actuel ?</h1>
-          <p class="zety-subtitle">Nous adapterons l'expérience en fonction de votre choix.</p>
+          <h1 class="zety-title">What is your current goal?</h1>
+          <p class="zety-subtitle">We will tailor the experience based on your choice.</p>
         </div>
 
         <div class="zety-grid">
@@ -31,8 +31,8 @@
       @if (showSection2()) {
         <section class="onboarding-section reveal">
           <div class="section-header">
-            <h2 class="zety-title">Votre niveau d'expérience ?</h2>
-            <p class="zety-subtitle">Cela nous aide à personnaliser vos recommandations.</p>
+            <h2 class="zety-title">Your experience level?</h2>
+            <p class="zety-subtitle">This helps us personalize your recommendations.</p>
           </div>
 
           <div class="zety-grid">
@@ -51,8 +51,8 @@
       @if (showSection3()) {
         <section class="onboarding-section reveal">
           <div class="section-header">
-            <h2 class="zety-title">Quel secteur vous intéresse ?</h2>
-            <p class="zety-subtitle">Dernière étape pour configurer votre dashboard.</p>
+            <h2 class="zety-title">Which industry interests you?</h2>
+            <p class="zety-subtitle">Last step to set up your dashboard.</p>
           </div>
 
           <div class="zety-grid zety-grid--sectors">
@@ -69,7 +69,7 @@
             <button class="zety-btn-finish" 
                     [disabled]="!onboardingData.secteur || isSubmitting()" 
                     (click)="finish()">
-              {{ isSubmitting() ? 'Initialisation...' : 'Terminer' }}
+              {{ isSubmitting() ? 'Initializing...' : 'Finish' }}
             </button>
           </div>
         </section>

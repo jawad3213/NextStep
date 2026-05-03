@@ -15,12 +15,12 @@ export class ProfileStepperComponent {
   private readonly profileService = inject(ProfileService);
   
   steps: { id: ProfileStepId, label: string, icon: string }[] = [
-    { id: 'coordonnees', label: 'Coordonnées', icon: 'person' },
-    { id: 'formation', label: 'Formation', icon: 'school' },
-    { id: 'experience', label: 'Expérience', icon: 'work' },
-    { id: 'competences', label: 'Compétences', icon: 'bolt' },
-    { id: 'resume', label: 'Résumé', icon: 'article' },
-    { id: 'projets', label: 'Projets', icon: 'code' },
+    { id: 'coordonnees', label: 'Contact', icon: 'person' },
+    { id: 'formation', label: 'Education', icon: 'school' },
+    { id: 'experience', label: 'Experience', icon: 'work' },
+    { id: 'competences', label: 'Skills', icon: 'bolt' },
+    { id: 'resume', label: 'Summary', icon: 'article' },
+    { id: 'projets', label: 'Projects', icon: 'code' },
     { id: 'certifications', label: 'Certifications', icon: 'verified' }
   ];
 

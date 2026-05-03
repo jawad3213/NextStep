@@ -1,20 +1,26 @@
 <div class="form-step-wrapper animate-fade-slide-up">
-  <div class="bg-white border border-slate-200 rounded-xl p-8 mb-6 shadow-sm">
-    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-      <div class="flex items-center gap-3">
-        @if (isEditingTitle) {
-          <div class="flex items-center gap-2 animate-scale-up">
-            <input #titleInputExp [value]="sectionTitle" 
-                   (keydown.enter)="titleEditSave.emit(titleInputExp.value)"
-                   (blur)="titleEditSave.emit(titleInputExp.value)"
-                   class="text-[14px] font-black text-[#1A91F0] border-b-2 border-[#1A91F0] outline-none bg-transparent uppercase tracking-wider px-1">
-          </div>
-        } @else {
-          <h3 class="text-sm font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-            {{ sectionTitle }} <button (click)="titleEditStart.emit()" class="text-info text-xs font-normal capitalize hover:underline">Rename</button>
-          </h3>
-        }
-      </div>
+  <!-- Experience summary Header -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-[24px] font-bold text-slate-900">Work Experience Summary</h2>
+    <button class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">
+      <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">lightbulb_outline</mat-icon> Tips
+    </button>
+  </div>
+
+  <!-- Surface Container -->
+  <div class="bg-white rounded-[16px] p-6 border border-slate-200">
+    <div class="flex items-center gap-4 mb-5">
+      @if (isEditingTitle) {
+        <div class="flex items-center gap-2 animate-scale-up">
+          <input #titleInputExp [value]="sectionTitle" 
+                 (keydown.enter)="titleEditSave.emit(titleInputExp.value)"
+                 (blur)="titleEditSave.emit(titleInputExp.value)"
+                 class="text-[14px] font-black text-[#1A91F0] border-b-2 border-[#1A91F0] outline-none bg-transparent uppercase tracking-wider px-1">
+        </div>
+      } @else {
+        <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">{{ sectionTitle }}</h3>
+        <button (click)="titleEditStart.emit()" class="text-[13px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">Rename</button>
+      }
     </div>
 
     @if (!isAddingExperience) {
@@ -35,16 +41,16 @@
             <div class="p-5 flex-1">
               <div class="flex justify-between items-start mb-2">
                 <h4 class="font-bold text-slate-900 text-[16px] pr-4">
-                  {{ exp.title }} - <span class="font-semibold text-slate-800">{{ exp.company }}</span> <span class="font-normal text-slate-600">| {{ exp.type }}</span>
+                  {{ exp.title }} - <span class="font-semibold text-slate-800">{{ exp.company }}</span> <span class="font-normal text-slate-600">| {{ getExperienceTypeLabel(exp.type) }}</span>
                 </h4>
                 <div class="action-icons">
                   <button (click)="edit.emit(exp)"><mat-icon>edit</mat-icon></button>
                   <button (click)="duplicate.emit(exp)"><mat-icon>file_copy</mat-icon></button>
                   <button cdkDragHandle style="cursor: grab;" title="Drag to reorder"><mat-icon>open_with</mat-icon></button>
-                  <button (click)="delete.emit(exp.id)" class="hover:text-red-500 transition-colors" title="Supprimer"><mat-icon>delete_outline</mat-icon></button>
+                  <button (click)="delete.emit(exp.id)" class="hover:text-red-500 transition-colors" title="Delete"><mat-icon>delete_outline</mat-icon></button>
                 </div>
               </div>
-              <p class="text-slate-500 text-[14px] mb-2">{{ exp.city }} | {{ exp.startDate }} - {{ exp.current ? 'Présent' : exp.endDate }}</p>
+              <p class="text-slate-500 text-[14px] mb-2">{{ exp.city }} | {{ exp.startDate }} - {{ exp.current ? 'Present' : exp.endDate }}</p>
               <p class="text-slate-700 text-[14px] font-medium line-clamp-2">{{ exp.description }}</p>
             </div>
           </div>
@@ -61,15 +67,15 @@
 
         <div class="form-grid gap-6">
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Poste / Titre</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Position / Title</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">work_outline</mat-icon>
-              <input type="text" placeholder="ex: Ingénieur Logiciel" [ngModel]="newExperience.title" (ngModelChange)="onUpdateNewItem('title', $event)"
+              <input type="text" placeholder="ex: Software Engineer" [ngModel]="newExperience.title" (ngModelChange)="onUpdateNewItem('title', $event)"
                      class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
             </div>
           </div>
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Entreprise</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Company</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">business</mat-icon>
               <input type="text" placeholder="ex: Google" [ngModel]="newExperience.company" (ngModelChange)="onUpdateNewItem('company', $event)"
@@ -80,26 +86,26 @@
 
         <div class="form-grid gap-6 mt-6">
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Ville</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">City</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">location_on</mat-icon>
-              <input type="text" placeholder="ex: Paris, France" [ngModel]="newExperience.city" (ngModelChange)="onUpdateNewItem('city', $event)"
+              <input type="text" placeholder="ex: New York, USA" [ngModel]="newExperience.city" (ngModelChange)="onUpdateNewItem('city', $event)"
                      class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
             </div>
           </div>
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Type de contrat</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Contract Type</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 pointer-events-none z-10">assignment</mat-icon>
               <select [ngModel]="newExperience.type" (ngModelChange)="onUpdateNewItem('type', $event)"
                       class="w-full h-[52px] pl-11 pr-10 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all appearance-none cursor-pointer">
-                <option value="">Sélectionner</option>
-                <option value="Stage">Stage</option>
-                <option value="PFA">PFA</option>
-                <option value="PFE">PFE</option>
-                <option value="Alternance">Alternance</option>
-                <option value="CDI">CDI</option>
-                <option value="CDD">CDD</option>
+                <option value="">Select</option>
+                <option value="Stage">Internship</option>
+                <option value="PFA">PFA Project</option>
+                <option value="PFE">PFE Internship</option>
+                <option value="Alternance">Apprenticeship</option>
+                <option value="CDI">Full-time (CDI)</option>
+                <option value="CDD">Fixed-term (CDD)</option>
                 <option value="Freelance">Freelance</option>
               </select>
               <mat-icon class="absolute right-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-400 pointer-events-none">expand_more</mat-icon>
@@ -109,14 +115,14 @@
 
         <div class="form-grid gap-6 mt-6">
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Date de début</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Start Date</label>
             <div class="relative">
               <input type="month" [ngModel]="newExperience.startDate" (ngModelChange)="onUpdateNewItem('startDate', $event)"
                      class="w-full h-[52px] px-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
             </div>
           </div>
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Date de fin</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">End Date</label>
             <div class="relative">
               <input type="month" [ngModel]="newExperience.endDate" (ngModelChange)="onUpdateNewItem('endDate', $event)" [disabled]="newExperience.current"
                      class="w-full h-[52px] px-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
@@ -125,15 +131,15 @@
         </div>
 
         <div class="field-group mt-6">
-          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Description des missions</label>
-          <textarea rows="4" placeholder="Décrivez vos réalisations et responsabilités clés..." 
+          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Job Description</label>
+          <textarea rows="4" placeholder="Describe your key achievements and responsibilities..." 
                     [ngModel]="newExperience.description" (ngModelChange)="onUpdateNewItem('description', $event)"
                     class="w-full p-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-normal text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all resize-none"></textarea>
         </div>
 
         <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
-          <button (click)="addToggle.emit()" class="px-6 py-2.5 rounded-lg font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Annuler</button>
-          <button (click)="save.emit()" class="px-6 py-2.5 rounded-lg font-semibold bg-[#1A91F0] text-white hover:bg-blue-600 transition-colors shadow-sm">Sauvegarder</button>
+          <button (click)="addToggle.emit()" class="px-6 py-2.5 rounded-lg font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+          <button (click)="save.emit()" class="px-6 py-2.5 rounded-lg font-semibold bg-[#1A91F0] text-white hover:bg-blue-600 transition-colors shadow-sm">Save</button>
         </div>
       </div>
     }

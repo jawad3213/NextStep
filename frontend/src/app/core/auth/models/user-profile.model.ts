@@ -42,32 +42,32 @@ export interface SoftOnboardingPayload {
 
 // Display labels for enums (FR)
 export const OBJECTIF_LABELS: Record<ObjectifEnum, string> = {
-  STAGE: 'Trouver un stage',
-  ALTERNANCE: 'Trouver une alternance',
-  PREMIER_EMPLOI: 'Décrocher un premier emploi',
-  CDI: 'Trouver un CDI',
-  FREELANCE: 'Devenir freelance',
+  STAGE: 'Find an Internship',
+  ALTERNANCE: 'Find an Apprenticeship',
+  PREMIER_EMPLOI: 'Land a first job',
+  CDI: 'Find a Full-time Job',
+  FREELANCE: 'Become a Freelancer',
 };
 
 export const NIVEAU_LABELS: Record<NiveauEnum, string> = {
-  BAC: 'Baccalauréat',
-  BAC_PLUS_2: 'Bac +2 (BTS / DUT)',
-  BAC_PLUS_3: 'Bac +3 (Licence)',
-  BAC_PLUS_5: 'Bac +5 (Master / Ingénieur)',
-  DOCTORAT: 'Doctorat',
+  BAC: 'High School Diploma',
+  BAC_PLUS_2: "Associate's Degree (2 years)",
+  BAC_PLUS_3: "Bachelor's Degree (3 years)",
+  BAC_PLUS_5: "Master's Degree (5 years)",
+  DOCTORAT: 'PhD / Doctorate',
 };
 
 export const SECTEUR_LABELS: Record<SecteurEnum, string> = {
-  INFORMATIQUE: 'Informatique & Tech',
-  FINANCE: 'Finance & Comptabilité',
+  INFORMATIQUE: 'IT & Tech',
+  FINANCE: 'Finance & Accounting',
   MARKETING: 'Marketing & Digital',
-  SANTE: 'Santé & Médical',
-  INGENIERIE: 'Ingénierie',
-  DROIT: 'Droit & Juridique',
-  EDUCATION: 'Éducation & Formation',
-  COMMERCE: 'Commerce & Vente',
-  DESIGN: 'Design & Création',
-  COMMUNICATION: 'Communication & Média',
-  RESSOURCES_HUMAINES: 'Ressources Humaines',
-  AUTRE: 'Autre secteur',
+  SANTE: 'Health & Medical',
+  INGENIERIE: 'Engineering',
+  DROIT: 'Law & Legal',
+  EDUCATION: 'Education & Training',
+  COMMERCE: 'Sales & Commerce',
+  DESIGN: 'Design & Creative',
+  COMMUNICATION: 'Communication & Media',
+  RESSOURCES_HUMAINES: 'Human Resources',
+  AUTRE: 'Other Sector',
 };

@@ -1,4 +1,11 @@
 <div class="form-step-wrapper animate-fade-slide-up space-y-8">
+  <!-- Contact summary Header -->
+  <div class="flex justify-between items-center mb-0">
+    <h2 class="text-[24px] font-bold text-slate-900">Contact & Identity</h2>
+    <button class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">
+      <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">lightbulb_outline</mat-icon> Tips
+    </button>
+  </div>
   <!-- THEME: Identité -->
   <div class="bg-white border border-slate-200 rounded-3xl p-10 shadow-sm relative overflow-hidden">
     <div class="absolute top-0 left-0 w-2 h-full bg-[#1A91F0]"></div>
@@ -18,11 +25,11 @@
           }
           <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1">
             <mat-icon class="!text-[24px]">photo_camera</mat-icon>
-            <span class="text-[10px] font-bold uppercase tracking-widest">Modifier</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest">Edit</span>
           </div>
         </div>
         <div class="text-center">
-          <p class="text-[13px] font-bold text-[#212121]">Photo de profil</p>
+          <p class="text-[13px] font-bold text-[#212121]">Profile Picture</p>
           <p class="text-[11px] text-slate-400 font-medium mt-1">PNG, JPG • Max 2MB</p>
         </div>
       </div>
@@ -30,39 +37,39 @@
       <!-- IDENTITY FIELDS -->
       <div class="flex-1 w-full space-y-8">
         <div class="flex items-center gap-2 mb-2">
-          <h3 class="text-[18px] font-black text-[#212121]">Informations d'identité</h3>
+          <h3 class="text-[18px] font-black text-[#212121]">Identity Information</h3>
           <div class="h-px flex-1 bg-slate-100"></div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Prénom</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">First Name</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">person_outline</mat-icon>
               <input type="text" [value]="data?.firstName || ''" (input)="updateField('firstName', $any($event.target).value)" 
                      class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all"
-                     placeholder="Prénom">
+                     placeholder="First Name">
             </div>
           </div>
           <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nom</label>
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">badge</mat-icon>
               <input type="text" [value]="data?.lastName || ''" (input)="updateField('lastName', $any($event.target).value)" 
                      class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all"
-                     placeholder="Nom">
+                     placeholder="Last Name">
             </div>
           </div>
         </div>
 
         <div class="field-group">
-          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Poste recherché / Titre actuel</label>
+          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Target Position / Current Title</label>
           <div class="relative">
             <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[20px] text-[#1A91F0]">stars</mat-icon>
             <input type="text" [value]="data?.jobTitle || ''" (input)="updateField('jobTitle', $any($event.target).value)" 
                    class="w-full h-[56px] pl-12 pr-12 bg-white border-2 border-slate-100 rounded-2xl text-[16px] font-black text-[#212121] outline-none focus:border-[#1A91F0] focus:shadow-xl transition-all"
                    placeholder="ex: Senior Fullstack Developer">
-            <button class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-[#E8F4FD] hover:text-[#1A91F0] rounded-xl transition-colors" matTooltip="Améliorer avec l'IA">
+            <button class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-[#E8F4FD] hover:text-[#1A91F0] rounded-xl transition-colors" matTooltip="Improve with AI">
               <mat-icon class="!text-[20px]">auto_awesome</mat-icon>
             </button>
           </div>
@@ -78,12 +85,12 @@
         <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-[#1A91F0]">
           <mat-icon class="!text-[20px]">contact_mail</mat-icon>
         </div>
-        <h3 class="text-[16px] font-black text-[#212121] uppercase tracking-wide">Coordonnées</h3>
+        <h3 class="text-[16px] font-black text-[#212121] uppercase tracking-wide">Contact Details</h3>
       </div>
 
       <div class="space-y-6">
         <div class="field-group">
-          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Email Professionnel</label>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Professional Email</label>
           <div class="relative group">
             <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-[#1A91F0] transition-colors">alternate_email</mat-icon>
             <input type="email" [value]="data?.email || ''" (input)="updateField('email', $any($event.target).value)" 
@@ -92,7 +99,7 @@
           </div>
         </div>
         <div class="field-group">
-          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Téléphone</label>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Phone Number</label>
           <div class="relative group">
             <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-[#1A91F0] transition-colors">phone_iphone</mat-icon>
             <input type="tel" [value]="data?.phone || ''" (input)="updateField('phone', $any($event.target).value)" 
@@ -101,13 +108,13 @@
           </div>
         </div>
         <div class="field-group">
-          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Localisation</label>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Location</label>
           <div class="relative group">
             <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-[#1A91F0] transition-colors">push_pin</mat-icon>
             <input type="text" #locInput [value]="(data?.city || '') + (data?.country ? ', ' + data.country : '')" 
                    (input)="updateField('city', locInput.value.split(',')[0].trim()); updateField('country', locInput.value.split(',')[1] ? locInput.value.split(',')[1].trim() : '')"
                    class="w-full h-[48px] pl-11 pr-4 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white transition-all"
-                   placeholder="Ville, Pays">
+                   placeholder="City, Country">
           </div>
         </div>
       </div>
@@ -119,7 +126,7 @@
         <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#1A91F0]">
           <mat-icon class="!text-[20px]">public</mat-icon>
         </div>
-        <h3 class="text-[16px] font-black text-[#212121] uppercase tracking-wide">Réseaux Sociaux</h3>
+        <h3 class="text-[16px] font-black text-[#212121] uppercase tracking-wide">Social Networks</h3>
       </div>
 
       <div class="space-y-6">

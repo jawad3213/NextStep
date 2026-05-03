@@ -1,8 +1,18 @@
 <div class="form-step-wrapper animate-fade-slide-up">
-  <div class="mb-10">
-    <h2 class="text-[28px] font-black text-[#212121] leading-tight mb-2">Compétences & Langues</h2>
-    <p class="text-[15px] text-[#757575] font-medium">Ajoutez les technologies et outils que vous maîtrisez pour renforcer votre profil.</p>
+  <!-- Skills summary Header -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-[24px] font-bold text-slate-900">Skills & Languages Summary</h2>
+    <button class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">
+      <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">lightbulb_outline</mat-icon> Tips
+    </button>
   </div>
+
+  <!-- Surface Container -->
+  <div class="bg-white rounded-[16px] p-8 border border-slate-200">
+    <div class="flex items-center gap-4 mb-6">
+      <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">MY SKILLS & LANGUAGES</h3>
+      <div class="flex-1 h-px bg-slate-100"></div>
+    </div>
 
   <!-- SKILL INPUT WITH AUTOCOMPLETE -->
   <div class="relative mb-10">
@@ -13,12 +23,12 @@
         type="text" 
         (input)="onSkillInput.emit($event)"
         (keydown.enter)="addCustomSkill.emit({name: skillInput.value, category: 'Technique', inputElement: skillInput})"
-        placeholder="Saisir une compétence (ex: Java, React, Figma...)" 
+        placeholder="Enter a skill (ex: Java, React, Figma...)" 
         class="flex-1 h-[52px] border-none outline-none text-[16px] font-medium text-[#424242] placeholder:text-[#BDBDBD]">
       
-      <button (click)="addCustomSkill.emit({name: skillInput.value, category: 'Technique', inputElement: skillInput})"
+      <button (click)="addCustomSkill.emit({name: skillInput.value, category: 'Technical', inputElement: skillInput})"
               class="bg-[#1A91F0] hover:bg-[#0F6EBB] text-white px-8 h-[52px] rounded-xl font-bold transition-all shrink-0">
-        Ajouter
+        Add
       </button>
     </div>
 
@@ -49,7 +59,7 @@
     <div class="mb-10">
       <div class="flex items-center gap-2 mb-4 text-[#212121]">
         <mat-icon class="!text-[20px] !w-5 !h-5 text-[#1A91F0]">verified</mat-icon>
-        <h3 class="text-[15px] font-black uppercase tracking-wider">Mes Compétences</h3>
+        <h3 class="text-[15px] font-black uppercase tracking-wider">My Skills</h3>
       </div>
       
       <div class="flex flex-wrap gap-3" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="reorder.emit($event)">
@@ -70,7 +80,7 @@
   <div class="bg-[#F8FAFC] border border-[#EEEEEE] rounded-3xl p-8">
     <div class="flex items-center gap-2 mb-8">
       <mat-icon class="text-amber-500">lightbulb</mat-icon>
-      <h3 class="text-[15px] font-black text-[#212121] uppercase tracking-wider">Recommandations par catégorie</h3>
+      <h3 class="text-[15px] font-black text-[#212121] uppercase tracking-wider">Recommendations by Category</h3>
     </div>
     
     <div class="space-y-8">
@@ -93,5 +103,6 @@
         </div>
       }
     </div>
+  </div>
   </div>
 </div>

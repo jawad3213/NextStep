@@ -24,10 +24,10 @@ export class ProfileService {
     education: [], experience: [], skills: [], languages: [],
     resume: '', projets: [], certifications: [],
     sectionTitles: {
-      formation: 'Formation',
-      experience: 'Expérience Professionnelle',
-      competences: 'Compétences',
-      projets: 'Projets Personnels',
+      formation: 'Education',
+      experience: 'Work Experience',
+      competences: 'Skills',
+      projets: 'Personal Projects',
       certifications: 'Certifications'
     }
   };
@@ -341,7 +341,7 @@ export class ProfileService {
       return res.resume || '';
     } catch (e) {
       console.error('Erreur génération CV IA', e);
-      return 'Erreur de génération.';
+      return 'Generation error.';
     }
   }
 

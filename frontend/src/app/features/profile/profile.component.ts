@@ -109,12 +109,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   currentStep = this.profileService.currentStep;
   
   steps: { id: ProfileStepId, label: string }[] = [
-    { id: 'coordonnees', label: 'Coordonnées' },
-    { id: 'formation', label: 'Formation' },
-    { id: 'experience', label: 'Expérience' },
-    { id: 'competences', label: 'Compétences' },
-    { id: 'resume', label: 'Résumé' },
-    { id: 'projets', label: 'Projets' },
+    { id: 'coordonnees', label: 'Contact Info' },
+    { id: 'formation', label: 'Education' },
+    { id: 'experience', label: 'Experience' },
+    { id: 'competences', label: 'Skills' },
+    { id: 'resume', label: 'Summary' },
+    { id: 'projets', label: 'Projects' },
     { id: 'certifications', label: 'Certifications' }
   ];
 
@@ -122,7 +122,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   
   nextStepName = computed(() => {
     const nextIdx = this.currentIndex() + 1;
-    return nextIdx < this.steps.length ? this.steps[nextIdx].label : 'Terminer';
+    return nextIdx < this.steps.length ? this.steps[nextIdx].label : 'Finish';
   });
 
   // Section Avancement (Progress in active section)
@@ -137,7 +137,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   async next() {
     const nextIdx = this.currentIndex() + 1;
     if (nextIdx < this.steps.length) {
-      await this.save(); // Sauvegarder avant de changer d'étape
+      await this.save(); // Save before changing step
       this.goToStep(this.steps[nextIdx].id);
     }
   }
@@ -145,7 +145,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   async prev() {
     const prevIdx = this.currentIndex() - 1;
     if (prevIdx >= 0) {
-      await this.save(); // Sauvegarder avant de changer d'étape
+      await this.save(); // Save before changing step
       this.goToStep(this.steps[prevIdx].id);
     }
   }
@@ -203,7 +203,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   importLinkedIn() {
     this.isImporting.set(true);
     // : Connecter à un vrai endpoint d'import LinkedIn backend
-    console.warn("L'import LinkedIn n'est pas encore implémenté côté backend.");
+    console.warn("LinkedIn import is not yet implemented on the backend.");
     setTimeout(() => {
       this.isImporting.set(false);
     }, 1000);

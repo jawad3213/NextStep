@@ -7,26 +7,26 @@
       <div class="w-full flex items-center justify-between">
         <div class="flex flex-col">
           <nav class="breadcrumb">
-            <span class="text-slate-400 text-xs font-medium">Profil</span>
+            <span class="text-slate-400 text-xs font-medium">Profile</span>
             <mat-icon class="text-slate-400 !text-[14px] !w-[14px] !h-[14px] mx-1">chevron_right</mat-icon>
             <span class="text-indigo-600 text-xs font-medium">{{ 
-              currentStep() === 'coordonnees' ? 'Coordonnées' : 
-              currentStep() === 'formation' ? 'Formation' : 
-              currentStep() === 'experience' ? 'Expériences' :
-              currentStep() === 'competences' ? 'Compétences' :
-              currentStep() === 'resume' ? 'Résumé' :
-              currentStep() === 'projets' ? 'Projets' : 'Certifications'
+              currentStep() === 'coordonnees' ? 'Contact Info' : 
+              currentStep() === 'formation' ? 'Education' : 
+              currentStep() === 'experience' ? 'Experience' :
+              currentStep() === 'competences' ? 'Skills' :
+              currentStep() === 'resume' ? 'Summary' :
+              currentStep() === 'projets' ? 'Projects' : 'Certifications'
             }}</span>
           </nav>
           <div class="flex items-center gap-3 mt-1">
             <h2 class="section-title text-2xl font-semibold text-slate-900">
               {{ 
-                currentStep() === 'coordonnees' ? 'Coordonnées Personnelles' : 
-                currentStep() === 'formation' ? 'Votre Formation' : 
-                currentStep() === 'experience' ? 'Expériences Professionnelles' :
-                currentStep() === 'competences' ? 'Compétences & Langues' :
-                currentStep() === 'resume' ? 'Résumé de profil' :
-                currentStep() === 'projets' ? 'Projets Réalisés' : 'Certifications'
+                currentStep() === 'coordonnees' ? 'Personal Details' : 
+                currentStep() === 'formation' ? 'Your Education' : 
+                currentStep() === 'experience' ? 'Work Experience' :
+                currentStep() === 'competences' ? 'Skills & Languages' :
+                currentStep() === 'resume' ? 'Profile Summary' :
+                currentStep() === 'projets' ? 'Completed Projects' : 'Certifications'
               }}
             </h2>
           </div>
@@ -36,13 +36,13 @@
         <div class="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
           @if (isSaving()) {
             <div class="w-4 h-4 border-2 border-slate-200 border-t-[#1A91F0] rounded-full animate-spin"></div>
-            <span class="text-[12px] font-bold text-slate-500">Enregistrement...</span>
+            <span class="text-[12px] font-bold text-slate-500">Saving...</span>
           } @else if (lastSaved()) {
             <mat-icon class="!text-[18px] text-emerald-500">check_circle</mat-icon>
-            <span class="text-[12px] font-bold text-slate-500">Enregistré à {{ lastSaved() | date:'HH:mm:ss' }}</span>
+            <span class="text-[12px] font-bold text-slate-500">Saved at {{ lastSaved() | date:'HH:mm:ss' }}</span>
           } @else {
             <mat-icon class="!text-[18px] text-slate-300">cloud_done</mat-icon>
-            <span class="text-[12px] font-bold text-slate-400">Auto-save actif</span>
+            <span class="text-[12px] font-bold text-slate-400">Auto-save active</span>
           }
         </div>
       </div>
@@ -70,7 +70,7 @@
             [formations]="profile().education"
             [isAddingFormation]="isAddingFormation()"
             [newFormation]="newFormation()"
-            [sectionTitle]="getSectionTitle('formation', 'FORMATION')"
+            [sectionTitle]="getSectionTitle('formation', 'EDUCATION')"
             [isEditingTitle]="editingSection() === 'formation'"
             (addToggle)="toggleAddFormation()"
             (save)="saveFormation()"
@@ -89,7 +89,7 @@
             [experiences]="profile().experience"
             [isAddingExperience]="isAddingExperience()"
             [newExperience]="newExperience()"
-            [sectionTitle]="getSectionTitle('experience', 'EXPÉRIENCE PROFESSIONNELLE')"
+            [sectionTitle]="getSectionTitle('experience', 'WORK EXPERIENCE')"
             [isEditingTitle]="editingSection() === 'experience'"
             (addToggle)="toggleAddExperience()"
             (save)="saveExperience()"
@@ -108,7 +108,7 @@
             [projects]="profile().projets"
             [isAddingProject]="isAddingProject()"
             [newProject]="newProject()"
-            [sectionTitle]="getSectionTitle('projets', 'PROJETS ACADÉMIQUES & PERSONNELS')"
+            [sectionTitle]="getSectionTitle('projets', 'ACADEMIC & PERSONAL PROJECTS')"
             [isEditingTitle]="editingSection() === 'projets'"
             (addToggle)="toggleAddProject()"
             (save)="saveProject()"
@@ -170,11 +170,11 @@
       <button (click)="prev()" [disabled]="currentIndex() === 0" 
               class="flex items-center gap-2 text-slate-500 font-semibold hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
         <mat-icon>arrow_back</mat-icon>
-        Précédent
+        Previous
       </button>
-
+      
       <button (click)="next()" class="btn-primary-next">
-        {{ currentIndex() === steps.length - 1 ? 'Terminer' : 'Suivant: ' + nextStepName() }}
+        {{ currentIndex() === steps.length - 1 ? 'Finish' : 'Next: ' + nextStepName() }}
         <mat-icon>arrow_forward</mat-icon>
       </button>
     </div>
@@ -183,7 +183,7 @@
     @if (showToast()) {
       <div class="toast-notification animate-fade-slide-up">
         <mat-icon class="text-emerald-500">check_circle</mat-icon>
-        <span>Modifications sauvegardées</span>
+        <span>Changes saved</span>
       </div>
     }
 

@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy, ViewEncapsulation } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -46,12 +47,22 @@ import { ResumeComponent } from './components/resume/resume.component';
 })
 export class UserProfileComponent implements OnInit, OnDestroy {
   profileService = inject(ProfileService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
   
   private readonly destroy$ = new Subject<void>();
   private readonly autoSave$ = new Subject<void>();
   
   ngOnInit() {
     this.profileService.refreshProfile();
+
+    // Recover step from URL query params
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      const stepId = params.get('step') as ProfileStepId;
+      if (stepId && this.steps.some(s => s.id === stepId)) {
+        this.profileService.setStep(stepId);
+      }
+    });
 
     // Professional Debounced Auto-save logic
     this.autoSave$.pipe(
@@ -72,6 +83,23 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isSaving = signal(false);
   lastSaved = signal<Date | null>(new Date());
   showToast = signal(false);
+  showCompletionModal = signal(false);
+  private lastSavedSnapshot: string = '';
+
+  // Profile completion stats for the finish modal
+  profileCompletion = computed(() => {
+    const p = this.profile();
+    let filled = 0;
+    const total = 7;
+    if (p.personal?.firstName || p.personal?.lastName) filled++;
+    if (p.education?.length > 0) filled++;
+    if (p.experience?.length > 0) filled++;
+    if (p.skills?.length > 0) filled++;
+    if (p.resume) filled++;
+    if (p.projets?.length > 0) filled++;
+    if (p.certifications?.length > 0) filled++;
+    return { filled, total, percent: Math.round((filled / total) * 100) };
+  });
   
   // Section States
   isAddingFormation = signal(false);
@@ -131,21 +159,47 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   // Step Logic
   goToStep(id: ProfileStepId) {
     this.profileService.setStep(id);
+    // Update URL query params without reloading
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { step: id },
+      queryParamsHandling: 'merge'
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async next() {
     const nextIdx = this.currentIndex() + 1;
     if (nextIdx < this.steps.length) {
-      await this.save(); // Save before changing step
       this.goToStep(this.steps[nextIdx].id);
+    } else {
+      // Last step → Finish
+      await this.finishProfile();
     }
+  }
+
+  async finishProfile() {
+    await this.save();
+    this.showCompletionModal.set(true);
+  }
+
+  goToDashboard() {
+    this.showCompletionModal.set(false);
+    this.router.navigate(['/dashboard']);
+  }
+
+  goToOffers() {
+    this.showCompletionModal.set(false);
+    this.router.navigate(['/cv']);
+  }
+
+  dismissCompletionModal() {
+    this.showCompletionModal.set(false);
   }
 
   async prev() {
     const prevIdx = this.currentIndex() - 1;
     if (prevIdx >= 0) {
-      await this.save(); // Save before changing step
       this.goToStep(this.steps[prevIdx].id);
     }
   }
@@ -162,9 +216,18 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   async save() {
+    const currentData = JSON.stringify(this.profile().personal);
+    
+    // DIRTY CHECK: Only save if data has actually changed
+    if (currentData === this.lastSavedSnapshot) {
+      console.log('No changes detected, skipping save.');
+      return;
+    }
+
     this.isSaving.set(true);
     try {
       await this.profileService.savePersonalInfo(this.profile().personal);
+      this.lastSavedSnapshot = currentData; // Update snapshot after successful save
       this.lastSaved.set(new Date());
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);

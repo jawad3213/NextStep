@@ -189,6 +189,45 @@
 
   </main>
 
+  <!-- PROFILE COMPLETION MODAL -->
+  @if (showCompletionModal()) {
+    <div class="completion-overlay" (click)="dismissCompletionModal()">
+      <div class="completion-modal" (click)="$event.stopPropagation()">
+        
+        <!-- Close button -->
+        <button (click)="dismissCompletionModal()" class="modal-close-btn">
+          <mat-icon>close</mat-icon>
+        </button>
+
+        <div class="modal-content-wrapper">
+          <!-- Premium Success Icon -->
+          <div class="success-visual">
+            <div class="success-ring">
+              <mat-icon class="success-check">check</mat-icon>
+            </div>
+          </div>
+
+          <!-- Text Block -->
+          <h2 class="modal-headline">Your profile is ready!</h2>
+          <p class="modal-subtext">
+            Everything is saved. You can now use this profile to generate 
+            professionally tailored CVs and job applications.
+          </p>
+
+          <!-- Main Actions -->
+          <div class="modal-actions-v2">
+            <button (click)="goToOffers()" class="btn-zety-primary">
+              Build my CV
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+            <button (click)="goToDashboard()" class="btn-zety-link">
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  }
 
 </div>
-

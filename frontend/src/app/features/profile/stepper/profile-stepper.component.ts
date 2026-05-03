@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { ProfileService } from '../profile.service';
@@ -13,6 +14,8 @@ import { ProfileStepId } from '../profile.types';
 })
 export class ProfileStepperComponent {
   private readonly profileService = inject(ProfileService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   
   steps: { id: ProfileStepId, label: string, icon: string }[] = [
     { id: 'coordonnees', label: 'Contact', icon: 'person' },
@@ -28,7 +31,11 @@ export class ProfileStepperComponent {
   completionPercentage = this.profileService.completionPercentage;
 
   setStep(id: ProfileStepId) {
-    this.profileService.setStep(id);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { step: id },
+      queryParamsHandling: 'merge'
+    });
   }
 
   isComplete(id: ProfileStepId) {

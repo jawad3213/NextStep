@@ -1,0 +1,86 @@
+@use '../../../../styles/abstracts/variables' as vars;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shell-container {
+  max-width: 680px;
+  padding: 24px 40px;
+  width: 100%;
+  @media (max-width: 768px) { padding: 20px 16px; }
+}
+
+.loading-state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 80px 0; gap: 16px; color: vars.$color-text-tertiary;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid vars.$color-border-default;
+  border-top-color: vars.$color-primary;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.alert {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-radius: vars.$radius-lg;
+  margin-bottom: 20px; font-size: 14px; font-weight: 500;
+  &.alert-error { background: vars.$color-error-tint; color: vars.$color-error; border: 1px solid rgba(vars.$color-error, 0.2); }
+}
+
+.status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+
+.status-icon-wrapper {
+  width: 64px; height: 64px; border-radius: vars.$radius-xl;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  &.connected { background: vars.$color-success-tint; color: vars.$color-success; }
+  &.disconnected { background: vars.$color-warning-tint; color: vars.$color-warning; }
+}
+
+.status-details {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.status-title {
+  font-size: 18px; font-weight: 700; margin: 0;
+  &.status-ok { color: vars.$color-success; }
+  &.status-warn { color: vars.$color-warning; }
+}
+.status-email { font-size: 15px; color: vars.$color-primary; font-weight: 600; margin: 0; }
+.status-provider { font-size: 13px; color: vars.$color-text-tertiary; margin: 0; }
+.status-note { font-size: 14px; color: vars.$color-text-secondary; margin: 0; line-height: 1.5; }
+
+.info-box {
+  padding: 24px;
+  h4 { font-size: 15px; font-weight: 700; color: vars.$color-text-primary; margin: 0 0 12px; }
+  ol { padding-left: 20px; margin: 0 0 16px; }
+  li { font-size: 14px; color: vars.$color-text-secondary; line-height: 1.7; }
+  .info-note { font-size: 13px; color: vars.$color-text-secondary; margin: 0; }
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+}
+
+.btn-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}

@@ -6,6 +6,10 @@ import { MainLayoutComponent } from './core/layout/main-layout/main-layout.compo
 // Features (Shells)
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { OnboardingComponent } from './features/onboarding/onboarding.component';
+import { ApplicationsComponent } from './features/applications/applications.component';
+import { OffersComponent } from './features/offers/offers.component';
+import { EmailWorkspaceComponent } from './features/candidatures/email-workspace/email-workspace.component';
+import { GmailSettingsComponent } from './features/settings/gmail-settings/gmail-settings.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -23,10 +27,14 @@ export const routes: Routes = [
         path: 'profile',
         loadComponent: () => import('./features/profile/profile.component').then(m => m.UserProfileComponent)
       },
-      { path: 'dashboard', component: DashboardComponent, canActivate: [onboardingGuard] },
+      { 
+        path: 'dashboard', 
+        component: DashboardComponent, 
+        canActivate: [onboardingGuard] 
+      },
       { 
         path: 'offers', 
-        loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
+        component: OffersComponent 
       },
       { 
         path: 'cv', 
@@ -36,9 +44,13 @@ export const routes: Routes = [
         path: 'letters', 
         loadComponent: () => import('./features/letters/letters.component').then(m => m.LettersComponent) 
       },
-      { 
-        path: 'applications', 
-        loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
+      {
+        path: 'candidatures',
+        component: ApplicationsComponent
+      },
+      {
+        path: 'candidatures/:candidatureId/email',
+        component: EmailWorkspaceComponent
       },
       { 
         path: 'company-intel', 
@@ -61,9 +73,14 @@ export const routes: Routes = [
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
       },
       {
+        path: 'email/settings',
+        component: GmailSettingsComponent
+      },
+      {
         path: 'email-test',
         loadComponent: () => import('./features/email-test/email-test.component').then(m => m.EmailTestComponent)
       },
     ]
   },
+  { path: '**', redirectTo: 'dashboard' }
 ];

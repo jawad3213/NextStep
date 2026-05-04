@@ -1,0 +1,279 @@
+<div class="workspace-layout">
+
+  <!-- ── Back navigation ─────────────────────────────────────────────────── -->
+  <div class="workspace-topbar">
+    <button class="back-btn" (click)="goBack()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Mes candidatures
+    </button>
+    <h1 class="workspace-title">Email de Candidature</h1>
+  </div>
+
+  <!-- ── Page error ──────────────────────────────────────────────────────── -->
+  @if (pageError()) {
+    <div class="alert alert-error full-alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+      {{ pageError() }}
+    </div>
+  }
+
+  <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+  @if (loadingPage()) {
+    <div class="page-loading">
+      <div class="spinner"></div>
+      <p>Chargement du workspace...</p>
+    </div>
+  }
+
+  @if (!loadingPage() && !pageError()) {
+    <div class="workspace-body">
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           LEFT PANEL — Candidature + Offer Summary
+      ════════════════════════════════════════════════════════════════════ -->
+      <aside class="left-panel">
+
+        <!-- Gmail Status Banner -->
+        <div class="gmail-banner" [class.gmail-connected]="gmailStatus()?.isConnected" [class.gmail-disconnected]="!gmailStatus()?.isConnected">
+          @if (gmailStatus()?.isConnected) {
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>Gmail connecté — {{ gmailStatus()?.emailAddress }}</span>
+          } @else {
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+            <span>Gmail non connecté</span>
+            <button class="connect-inline-btn" (click)="connectGmail()">Connecter</button>
+          }
+        </div>
+
+        <!-- Offer Summary Card -->
+        @if (offer()) {
+          <div class="info-card card">
+            <div class="card-label">Offre d'emploi</div>
+            <h2 class="offer-title">{{ offer()!.titre }}</h2>
+            <p class="offer-company">{{ offer()!.entreprise }}</p>
+            @if (offer()!.localisation) {
+              <p class="offer-location">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                {{ offer()!.localisation }}
+              </p>
+            }
+            @if ((offer()?.competencesRequises?.length ?? 0) > 0) {
+              <div class="mini-skills">
+                <p class="mini-skills-label">Compétences clés</p>
+                <div class="skill-tags">
+                  @for (skill of offer()!.competencesRequises.slice(0, 5); track skill) {
+                    <span class="skill-tag">{{ skill }}</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="info-card card skeleton-card">
+            <div class="card-label">Offre d'emploi</div>
+            <p class="no-data">Données de l'offre non disponibles</p>
+          </div>
+        }
+
+        <!-- Candidature Status Card -->
+        @if (candidature()) {
+          <div class="info-card card">
+            <div class="card-label">Candidature</div>
+            <div class="candidature-meta">
+              <div class="meta-row">
+                <span class="meta-key">Statut</span>
+                <span class="status-badge status-neutral">{{ candidature()!.statut }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">Créée le</span>
+                <span class="meta-val">{{ formatDate(candidature()!.dateCreation) }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">Réponses</span>
+                <!-- TODO: Future — Hangfire job will poll Gmail for replies and update this field -->
+                <span class="response-placeholder">En attente</span>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Draft Options -->
+        <div class="draft-options-card card">
+          <div class="card-label">Options de génération</div>
+          <div class="form-group">
+            <label class="form-label">Type d'email</label>
+            <select class="form-input" [(ngModel)]="emailType">
+              <option value="application">Candidature spontanée</option>
+              <option value="follow_up">Relance</option>
+              <option value="thank_you">Remerciement</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Langue</label>
+            <select class="form-input" [(ngModel)]="language">
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm btn-full"
+            (click)="generateDraft()"
+            [disabled]="generatingDraft()">
+            @if (generatingDraft()) {
+              <div class="btn-spinner"></div> Génération en cours...
+            } @else {
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Générer un brouillon
+            }
+          </button>
+        </div>
+
+      </aside>
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           RIGHT PANEL — Draft List + Editor
+      ════════════════════════════════════════════════════════════════════ -->
+      <main class="right-panel">
+
+        <!-- Messages -->
+        @if (successMessage()) {
+          <div class="alert alert-success">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            {{ successMessage() }}
+          </div>
+        }
+        @if (errorMessage()) {
+          <div class="alert alert-error">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+            {{ errorMessage() }}
+          </div>
+        }
+
+        <!-- Draft list -->
+        <div class="section-card card">
+          <div class="section-header">
+            <h3 class="section-title">Brouillons</h3>
+            <span class="draft-count">{{ drafts().length }}</span>
+          </div>
+
+          @if (drafts().length === 0) {
+            <div class="drafts-empty">
+              <p>Aucun brouillon généré. Utilisez le panneau gauche pour en créer un.</p>
+            </div>
+          } @else {
+            <div class="drafts-list">
+              @for (draft of drafts(); track draft.id) {
+                <button
+                  class="draft-item"
+                  [class.draft-selected]="selectedDraft()?.id === draft.id"
+                  [class]="getDraftClass(draft)"
+                  (click)="selectDraft(draft)">
+                  <div class="draft-item-left">
+                    <span class="draft-type-badge">{{ draft.emailType }}</span>
+                    <p class="draft-subject">{{ draft.subject || '(sans sujet)' }}</p>
+                    <p class="draft-date">{{ formatDate(draft.createdAtUtc) }}</p>
+                  </div>
+                  <div class="draft-item-right">
+                    @if (draft.isSent) {
+                      <span class="draft-status-pill pill-sent">Envoyé</span>
+                    } @else if (draft.isApproved) {
+                      <span class="draft-status-pill pill-approved">Approuvé</span>
+                    } @else {
+                      <span class="draft-status-pill pill-draft">Brouillon</span>
+                    }
+                  </div>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Editor -->
+        @if (selectedDraft()) {
+          <div class="section-card card">
+            <div class="section-header">
+              <h3 class="section-title">Éditeur</h3>
+              @if (selectedDraft()!.isSent) {
+                <span class="read-only-badge">Lecture seule — Déjà envoyé</span>
+              }
+            </div>
+
+            <div class="editor-fields">
+              <div class="form-group">
+                <label class="form-label">Email du recruteur *</label>
+                <input
+                  class="form-input"
+                  type="email"
+                  [(ngModel)]="recipientEmail"
+                  [disabled]="selectedDraft()!.isSent"
+                  placeholder="recruteur@entreprise.com" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Objet *</label>
+                <input
+                  class="form-input"
+                  type="text"
+                  [(ngModel)]="subject"
+                  [disabled]="selectedDraft()!.isSent"
+                  placeholder="Objet de l'email" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Corps de l'email *</label>
+                <textarea
+                  class="form-textarea"
+                  [(ngModel)]="body"
+                  [disabled]="selectedDraft()!.isSent"
+                  rows="14">
+                </textarea>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="action-bar">
+              <button class="btn btn-secondary btn-sm"
+                (click)="saveDraft()"
+                [disabled]="!canSave">
+                @if (savingDraft()) { <div class="btn-spinner btn-spinner--dark"></div> Sauvegarde... }
+                @else { Sauvegarder }
+              </button>
+
+              <button class="btn btn-outline btn-sm"
+                (click)="approveDraft()"
+                [disabled]="!canApprove">
+                @if (approvingDraft()) { <div class="btn-spinner"></div> Approbation... }
+                @else { Approuver }
+              </button>
+
+              <button class="btn btn-primary btn-sm"
+                (click)="sendDraft()"
+                [disabled]="!canSend"
+                [title]="!gmailStatus()?.isConnected ? 'Connectez Gmail pour envoyer' : !selectedDraft()!.isApproved ? 'Approuvez le brouillon d\'abord' : ''">
+                @if (sendingDraft()) { <div class="btn-spinner"></div> Envoi en cours... }
+                @else {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Envoyer
+                }
+              </button>
+            </div>
+
+            <!-- Send result info -->
+            @if (selectedDraft()!.isSent) {
+              <div class="sent-info">
+                <div class="sent-info-row">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Envoyé le {{ formatDate(selectedDraft()!.sentAtUtc) }}
+                </div>
+                @if (selectedDraft()!.providerMessageId) {
+                  <div class="sent-info-row">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Gmail ID : {{ selectedDraft()!.providerMessageId }}
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+      </main>
+    </div>
+  }
+</div>

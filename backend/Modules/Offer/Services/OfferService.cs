@@ -14,11 +14,15 @@ public interface IOfferService
 {
     Task<OfferAnalysisDto> SubmitAndAnalyzeAsync(
         string rawText,
-        int templateId,
+        string? manualTitre,
+        string? manualEntreprise,
+        string templateId,
         string userId,
         CancellationToken ct = default);
 
     Task<OfferAnalysisDto?> GetAnalysisAsync(Guid offerId, CancellationToken ct = default);
+
+    Task<List<OfferAnalysisDto>> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
 }
 
 public class OfferService(
@@ -34,7 +38,9 @@ public class OfferService(
     /// </summary>
     public async Task<OfferAnalysisDto> SubmitAndAnalyzeAsync(
         string rawText,
-        int templateId,
+        string? manualTitre,
+        string? manualEntreprise,
+        string templateId,
         string userId,
         CancellationToken ct = default)
     {
@@ -44,35 +50,47 @@ public class OfferService(
         var offre = new OffreEmploi
         {
             TexteBrut = rawText,
-            UtilisateurId = Guid.Empty, // Sera remplacé par l'ID réel après intégration M1
+            UtilisateurId = Guid.Parse(userId),
         };
         offre = await repository.SaveAsync(offre, ct);
 
         // Étape 2 : Appel au pipeline Python
-        JsonDocument pipelineResult;
+        JsonDocument? pipelineResult = null;
         try
         {
-            pipelineResult = await agentClient.RunPipelineAsync(rawText, userId, templateId, ct);
+            pipelineResult = await agentClient.RunPipelineAsync(rawText, userId, 1, ct); // Using 1 for template for now
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex)
         {
-            logger.LogError(ex, "OfferService — Erreur appel pipeline Python");
-            throw new InvalidOperationException("Le service IA est temporairement indisponible.", ex);
+            logger.LogWarning(ex, "OfferService — AI Agent failed or unavailable. Using manual metadata.");
         }
-
-        var root = pipelineResult.RootElement;
-
-        // Étape 3 : Sauvegarde le JSON d'analyse
-        var analyzeJson = root.TryGetProperty("analyzed_offer", out var ao)
-            ? ao.GetRawText()
-            : "{}";
+        
+        // Étape 3 : Sauvegarde le JSON d'analyse (AI ou Manuel)
+        string analyzeJson;
+        if (pipelineResult != null)
+        {
+            analyzeJson = pipelineResult.RootElement.TryGetProperty("analyzed_offer", out var ao)
+                ? ao.GetRawText()
+                : "{}";
+        }
+        else
+        {
+            // Create a manual analysis JSON if AI failed
+            analyzeJson = JsonSerializer.Serialize(new {
+                titre = manualTitre ?? "Offre sans titre",
+                entreprise = manualEntreprise ?? "Entreprise inconnue",
+                description_poste = rawText.Length > 200 ? rawText[..200] + "..." : rawText
+            });
+        }
+        
         await repository.UpdateAnalyseJsonAsync(offre.Id, analyzeJson, ct);
 
         // Étape 4 : Construit le DTO de retour
-        var dto = MapToDto(offre.Id, root);
-        logger.LogInformation(
-            "OfferService — ✅ Pipeline terminé : matching={Matching}% ATS={ATS}%",
-            dto.ScoreMatching, dto.ScoreAts);
+        var finalDoc = JsonDocument.Parse(analyzeJson);
+        var dto = MapToDto(offre.Id, finalDoc.RootElement);
+        
+        logger.LogInformation("OfferService — ✅ Offer saved: {Titre} | {Entreprise}", 
+            dto.Titre, dto.Entreprise);
 
         return dto;
     }
@@ -87,28 +105,50 @@ public class OfferService(
         return MapToDto(offre.Id, doc.RootElement);
     }
 
+    public async Task<List<OfferAnalysisDto>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
+    {
+        var offres = await repository.GetByUserIdAsync(userId, ct);
+        return offres
+            .Select(o =>
+            {
+                if (string.IsNullOrEmpty(o.AnalyseJson))
+                {
+                    // Fallback for offers without analysis yet
+                    return new OfferAnalysisDto 
+                    { 
+                        OfferId = o.Id, 
+                        Titre = "Offre en attente d'analyse",
+                        DescriptionPoste = o.TexteBrut?.Length > 100 ? o.TexteBrut[..100] + "..." : o.TexteBrut
+                    };
+                }
+                var doc = JsonDocument.Parse(o.AnalyseJson);
+                return MapToDto(o.Id, doc.RootElement);
+            })
+            .ToList();
+    }
+
     // ─── Mapping JSON Python → DTO .NET ───
     private static OfferAnalysisDto MapToDto(Guid offerId, JsonElement root)
     {
         var dto = new OfferAnalysisDto { OfferId = offerId };
 
-        // Analyse offre (Agent 1)
-        if (root.TryGetProperty("analyzed_offer", out var ao) && ao.ValueKind == JsonValueKind.Object)
-        {
-            dto.Titre = ao.GetStringOrDefault("titre") ?? "";
-            dto.Entreprise = ao.GetStringOrDefault("entreprise");
-            dto.TypeContrat = ao.GetStringOrDefault("type_contrat");
-            dto.Localisation = ao.GetStringOrDefault("localisation");
-            dto.DescriptionPoste = ao.GetStringOrDefault("description_poste");
-            dto.AnneesExperience = ao.GetIntOrDefault("annees_experience");
-            dto.NiveauEtudes = ao.GetStringOrDefault("niveau_etudes");
-            dto.CompetencesRequises = ao.GetStringList("competences_requises");
-            dto.CompetencesSouhaitees = ao.GetStringList("competences_souhaitees");
-            dto.KeywordsAts = ao.GetStringList("keywords_ats");
-        }
+        // 1. Try to get data from AI Agent format ("analyzed_offer" property)
+        // OR fallback to the root level (Manual Submission format)
+        var source = root.TryGetProperty("analyzed_offer", out var ao) ? ao : root;
 
-        // Scoring (Agent 4)
-        if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)
+        dto.Titre = source.GetStringOrDefault("titre") ?? "Poste non défini";
+        dto.Entreprise = source.GetStringOrDefault("entreprise") ?? "Entreprise non renseignée";
+        dto.TypeContrat = source.GetStringOrDefault("type_contrat");
+        dto.Localisation = source.GetStringOrDefault("localisation");
+        dto.DescriptionPoste = source.GetStringOrDefault("description_poste");
+        dto.AnneesExperience = source.GetIntOrDefault("annees_experience");
+        dto.NiveauEtudes = source.GetStringOrDefault("niveau_etudes");
+        dto.CompetencesRequises = source.GetStringList("competences_requises");
+        dto.CompetencesSouhaitees = source.GetStringList("competences_souhaitees");
+        dto.KeywordsAts = source.GetStringList("keywords_ats");
+
+        // 2. Try to get scoring from AI Agent format ("match_result" property)
+        if (root.TryGetProperty("match_result", out var mr))
         {
             dto.ScoreMatching = mr.GetIntOrDefault("score_matching") ?? 0;
             dto.ScoreAts = mr.GetIntOrDefault("score_ats") ?? 0;
@@ -119,7 +159,7 @@ public class OfferService(
             dto.CompetencesManquantes = mr.GetStringList("competences_manquantes");
         }
 
-        // Erreurs pipeline
+        // 3. Errors pipeline
         if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)
         {
             dto.Erreurs = [.. errors.EnumerateArray()

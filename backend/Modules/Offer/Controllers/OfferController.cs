@@ -1,8 +1,13 @@
 // ============================================================
 // Modules/Offer/Controllers/OfferController.cs
-// Endpoints : POST /api/offers/submit · GET /api/offers/{id}/analysis
+// Endpoints: POST /api/offers/submit · GET /api/offers/{id}/analysis · GET /api/offers
 // ============================================================
+using NextStep.Modules.Identity.Repositories;
+using NextStep.Modules.Identity.Models;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NextStep.Modules.Identity.Repositories;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Services;
 
@@ -11,15 +16,17 @@ namespace NextStep.Modules.Offer.Controllers;
 [ApiController]
 [Route("api/offers")]
 [Produces("application/json")]
-public class OfferController(IOfferService offerService, ILogger<OfferController> logger) : ControllerBase
+public class OfferController(
+    IOfferService offerService,
+    IUserRepository userRepository,
+    ILogger<OfferController> logger) : ControllerBase
 {
     /// <summary>
     /// Soumettre une offre d'emploi et lancer le pipeline IA.
     /// Angular colle le texte brut → .NET → Python (LangGraph) → JSON complet.
     /// </summary>
-    /// <param name="dto">Texte brut de l'offre + ID template CV</param>
-    /// <returns>Résultat d'analyse : titre, compétences, scores ATS/matching, email stub</returns>
     [HttpPost("submit")]
+    [Authorize]
     [ProducesResponseType(typeof(OfferAnalysisDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
@@ -30,18 +37,21 @@ public class OfferController(IOfferService offerService, ILogger<OfferController
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        // TODO(M1) : Récupérer le vrai user_id depuis le JWT Keycloak
-        // Pour l'instant, userId est extrait d'un header de test ou d'une valeur par défaut
-        var userId = Request.Headers.TryGetValue("X-User-Id", out var uid) && !string.IsNullOrEmpty(uid)
-            ? uid.ToString()
-            : "00000000-0000-0000-0000-000000000001"; // Valeur de test
+        var localUser = await ResolveLocalUserAsync();
+        var userId = localUser?.Id.ToString() ?? "00000000-0000-0000-0000-000000000001";
 
         logger.LogInformation("POST /api/offers/submit — user={UserId} | template={TemplateId}",
             userId, dto.TemplateId);
 
         try
         {
-            var result = await offerService.SubmitAndAnalyzeAsync(dto.RawText, dto.TemplateId, userId, ct);
+            var result = await offerService.SubmitAndAnalyzeAsync(
+                dto.RawText, 
+                dto.Titre, 
+                dto.Entreprise, 
+                dto.TemplateId, 
+                userId, 
+                ct);
             return Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -54,7 +64,6 @@ public class OfferController(IOfferService offerService, ILogger<OfferController
     /// <summary>
     /// Récupérer le résultat d'analyse d'une offre déjà traitée.
     /// </summary>
-    /// <param name="id">ID de l'offre (UUID)</param>
     [HttpGet("{id:guid}/analysis")]
     [ProducesResponseType(typeof(OfferAnalysisDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -62,5 +71,35 @@ public class OfferController(IOfferService offerService, ILogger<OfferController
     {
         var result = await offerService.GetAnalysisAsync(id, ct);
         return result is null ? NotFound() : Ok(result);
+    }
+
+    /// <summary>
+    /// Récupérer la liste des offres analysées appartenant à l'utilisateur courant.
+    /// </summary>
+    [HttpGet]
+    [Authorize]
+    [ProducesResponseType(typeof(List<OfferAnalysisDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyOffers(CancellationToken ct)
+    {
+        var localUser = await ResolveLocalUserAsync();
+        if (localUser is null)
+            return StatusCode(403, "User not found in local database.");
+
+        var results = await offerService.GetByUserIdAsync(localUser.Id, ct);
+        return Ok(results);
+    }
+
+    // ── Private helpers ──────────────────────────────────────────────────────────
+
+    private async Task<UserEntity?> ResolveLocalUserAsync()
+    {
+        var keycloakId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                      ?? User.FindFirstValue("sub")
+                      ?? User.FindFirstValue("uid");
+
+        if (string.IsNullOrWhiteSpace(keycloakId))
+            return null;
+
+        return await userRepository.GetByKeycloakIdAsync(keycloakId);
     }
 }

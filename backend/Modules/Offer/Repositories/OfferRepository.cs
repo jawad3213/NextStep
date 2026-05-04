@@ -13,6 +13,7 @@ public interface IOfferRepository
     Task<OffreEmploi> SaveAsync(OffreEmploi offre, CancellationToken ct = default);
     Task<OffreEmploi?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task UpdateAnalyseJsonAsync(Guid id, string analyseJson, CancellationToken ct = default);
+    Task<List<OffreEmploi>> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
 }
 
 public class OfferRepository(AppDbContext db) : IOfferRepository
@@ -34,4 +35,11 @@ public class OfferRepository(AppDbContext db) : IOfferRepository
         offre.AnalyseJson = analyseJson;
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task<List<OffreEmploi>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
+        => await db.OffresEmploi
+            .AsNoTracking()
+            .Where(o => o.UtilisateurId == userId)
+            .OrderByDescending(o => o.DateCreation)
+            .ToListAsync(ct);
 }

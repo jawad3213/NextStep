@@ -12,6 +12,10 @@ public interface ICandidatureRepository
         Guid id,
         CancellationToken cancellationToken = default);
 
+    Task<List<CandidatureEntity>> GetByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
     Task<CandidatureEntity?> GetByUserAndOfferAsync(
         Guid userId,
         Guid offerId,

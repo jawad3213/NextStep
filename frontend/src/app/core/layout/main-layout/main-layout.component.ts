@@ -41,7 +41,7 @@ export class MainLayoutComponent {
       items: [
         { path: '/cv', label: 'CV Builder', iconName: 'file-text' },
         { path: '/letters', label: 'Email & Lettre', iconName: 'mail' },
-        { path: '/applications', label: 'Candidatures', iconName: 'kanban' },
+        { path: '/candidatures', label: 'Candidatures', iconName: 'kanban' },
       ]
     },
     {
@@ -56,13 +56,14 @@ export class MainLayoutComponent {
       title: 'System',
       items: [
         { path: '/notifications', label: 'Notifications', iconName: 'bell' },
+        { path: '/email/settings', label: 'Connexion Gmail', iconName: 'send' },
         { path: '/settings', label: 'Paramètres', iconName: 'settings' },
       ]
     }
   ];
 
   isActive(path: string): boolean {
-    return this.router.url === path;
+    return this.router.url === path || this.router.url.startsWith(path + '/');
   }
 
   toggleSidebar() {

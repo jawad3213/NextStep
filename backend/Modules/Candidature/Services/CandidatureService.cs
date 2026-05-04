@@ -53,6 +53,14 @@ public class CandidatureService : ICandidatureService
         return entity is null ? null : MapToDto(entity);
     }
 
+    public async Task<List<CandidatureDto>> GetByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await _candidatureRepository.GetByUserIdAsync(userId, cancellationToken);
+        return entities.Select(MapToDto).ToList();
+    }
+
     private static CandidatureDto MapToDto(CandidatureEntity entity)
     {
         return new CandidatureDto

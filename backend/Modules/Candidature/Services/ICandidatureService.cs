@@ -12,4 +12,8 @@ public interface ICandidatureService
     Task<CandidatureDto?> GetByIdAsync(
         Guid candidatureId,
         CancellationToken cancellationToken = default);
+
+    Task<List<CandidatureDto>> GetByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }

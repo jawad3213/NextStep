@@ -1,0 +1,111 @@
+<div class="shell-container">
+  <header class="page-header">
+    <h1 class="page-title">Mes Candidatures</h1>
+    <p class="page-description">Suivez vos candidatures et l'état de vos emails de motivation.</p>
+  </header>
+
+  <!-- Actions bar -->
+  <div class="actions-bar">
+    <button class="btn btn-primary btn-sm" (click)="navigateToOffers()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Postuler à une offre
+    </button>
+    <button class="btn btn-secondary btn-sm" (click)="load()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Actualiser
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Chargement de vos candidatures...</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @if (error()) {
+    <div class="alert alert-error">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!loading() && !error() && rows().length === 0) {
+    <div class="empty-state card">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+      <h3>Aucune candidature pour le moment</h3>
+      <p>Commencez par postuler à une offre pour générer votre premier email de candidature.</p>
+      <button class="btn btn-primary" (click)="navigateToOffers()">Voir les offres disponibles</button>
+    </div>
+  }
+
+  <!-- Table -->
+  @if (!loading() && rows().length > 0) {
+    <div class="table-wrapper card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Poste / Entreprise</th>
+            <th>Statut</th>
+            <th>Email</th>
+            <th>Réponse</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.candidature.idCandidature) {
+            <tr>
+              <td class="offer-cell">
+                <p class="job-title">{{ row.offer?.titre || 'Poste non trouvé' }}</p>
+                <p class="company-name">{{ row.offer?.entreprise || '—' }}</p>
+                @if (row.offer?.localisation) {
+                  <p class="location">{{ row.offer!.localisation }}</p>
+                }
+              </td>
+
+              <td>
+                <span class="status-badge" [class]="getCandidatureStatusClass(row.candidature.statut)">
+                  {{ row.candidature.statut }}
+                </span>
+              </td>
+
+              <td>
+                <div class="draft-status">
+                  <span class="status-badge" [class]="getDraftStatusClass(row.latestDraft)">
+                    {{ getDraftStatusLabel(row.latestDraft) }}
+                  </span>
+                  @if (row.latestDraft?.isSent && row.latestDraft?.sentAtUtc) {
+                    <p class="sent-date">{{ formatDate(row.latestDraft!.sentAtUtc) }}</p>
+                  }
+                  @if (row.latestDraft?.isSent && row.latestDraft?.providerMessageId) {
+                    <p class="provider-id" title="Gmail Message ID">✓ Confirmé</p>
+                  }
+                </div>
+              </td>
+
+              <td>
+                <!-- TODO: Future — Hangfire job will poll Gmail for replies and update this field -->
+                <span class="response-placeholder">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  En attente
+                </span>
+              </td>
+
+              <td class="date-cell">{{ formatDate(row.candidature.dateCreation) }}</td>
+
+              <td>
+                <button class="btn btn-outline btn-sm" (click)="navigateToEmail(row.candidature.idCandidature)">
+                  Gérer l'email
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

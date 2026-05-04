@@ -1,6 +1,7 @@
 using NextStep.data;
 using Microsoft.EntityFrameworkCore;
 using NextStep.Shared.Http;
+using NextStep.Shared.Config;
 using NextStep.Modules.Candidature.Repositories;
 using NextStep.Modules.Candidature.Services;
 using NextStep.Modules.Email.Repositories;
@@ -67,9 +68,24 @@ builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
 builder.Services.AddScoped<ICandidatureService, CandidatureService>();
 builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailSenderService, GmailEmailSenderService>();
+builder.Services.AddScoped<IEmailConnectionService, EmailConnectionService>();
+builder.Services.AddScoped<IUserEmailConnectionRepository, UserEmailConnectionRepository>();
+builder.Services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+
+// ── Google OAuth configuration ───────────────────────────────────────────────
+builder.Services.Configure<GoogleOAuthOptions>(
+    builder.Configuration.GetSection(GoogleOAuthOptions.SectionName));
+
+// ── ASP.NET Core Data Protection (encrypts Gmail tokens at rest) ─────────────
+// IMPORTANT for Docker: Data Protection keys must be persisted across container
+// restarts or encrypted tokens will become unreadable after recreation.
+// For production, configure a persistent key store (e.g., keys stored in a
+// Docker volume at /root/.aspnet/DataProtection-Keys or an external key store).
+builder.Services.AddDataProtection();
 
 var app = builder.Build();
 
@@ -122,6 +138,41 @@ using (var scope = app.Services.CreateScope())
         foreach (var c in ctCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.certification ADD COLUMN IF NOT EXISTS {c};");
 
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'Technique';");
+
+        // 8. EmailDraft — new columns for approve/send flow
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS date_approbation TIMESTAMP;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS provider_message_id TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS nb_tentatives_envoi INTEGER DEFAULT 0;");
+
+        // 9. user_email_connection — stores encrypted Gmail OAuth tokens
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.user_email_connection (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_utilisateur UUID NOT NULL,
+                provider TEXT NOT NULL,
+                adresse_email TEXT NOT NULL DEFAULT '',
+                access_token_chiffre TEXT NOT NULL DEFAULT '',
+                refresh_token_chiffre TEXT NOT NULL DEFAULT '',
+                access_token_expire_utc TIMESTAMP NOT NULL DEFAULT now(),
+                date_creation TIMESTAMP NOT NULL DEFAULT now(),
+                date_modification TIMESTAMP,
+                UNIQUE (id_utilisateur, provider)
+            );
+        ");
+
+        // 10. oauth_state — short-lived single-use CSRF state tokens for OAuth flows
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.oauth_state (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_utilisateur UUID NOT NULL,
+                provider TEXT NOT NULL,
+                state_token_hash TEXT NOT NULL UNIQUE,
+                expire_utc TIMESTAMP NOT NULL,
+                utilise BOOLEAN NOT NULL DEFAULT FALSE,
+                date_creation TIMESTAMP NOT NULL DEFAULT now(),
+                date_utilisation TIMESTAMP
+            );
+        ");
 
         Console.WriteLine("DEBUG: NUCLEAR REPAIR COMPLETED.");
     }

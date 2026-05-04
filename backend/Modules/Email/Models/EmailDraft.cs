@@ -28,7 +28,15 @@ public class EmailDraft
 
     public DateTime? SentAtUtc { get; set; }
 
+    public DateTime? ApprovedAtUtc { get; set; }
+
     public string? ErrorMessage { get; set; }
+
+    /// <summary>Gmail message ID returned by the Gmail API after successful sending.</summary>
+    public string? ProviderMessageId { get; set; }
+
+    /// <summary>Number of send attempts made (incremented on each real attempt).</summary>
+    public int SendAttemptCount { get; set; } = 0;
 
     public CandidatureEntity? Candidature { get; set; }
 }

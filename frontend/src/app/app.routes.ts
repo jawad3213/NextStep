@@ -60,6 +60,10 @@ export const routes: Routes = [
         path: 'settings', 
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
       },
+      {
+        path: 'email-test',
+        loadComponent: () => import('./features/email-test/email-test.component').then(m => m.EmailTestComponent)
+      },
     ]
   },
 ];

@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NextStep.data;
@@ -13,6 +14,7 @@ public class EmailService : IEmailService
 {
     private readonly ICandidatureRepository _candidatureRepository;
     private readonly IEmailDraftRepository _emailDraftRepository;
+    private readonly IEmailSenderService _emailSenderService;
     private readonly IAgentHttpClient _agentHttpClient;
     private readonly AppDbContext _db;
     private readonly ILogger<EmailService> _logger;
@@ -20,16 +22,20 @@ public class EmailService : IEmailService
     public EmailService(
         ICandidatureRepository candidatureRepository,
         IEmailDraftRepository emailDraftRepository,
+        IEmailSenderService emailSenderService,
         IAgentHttpClient agentHttpClient,
         AppDbContext db,
         ILogger<EmailService> logger)
     {
         _candidatureRepository = candidatureRepository;
-        _emailDraftRepository = emailDraftRepository;
-        _agentHttpClient = agentHttpClient;
-        _db = db;
-        _logger = logger;
+        _emailDraftRepository  = emailDraftRepository;
+        _emailSenderService    = emailSenderService;
+        _agentHttpClient       = agentHttpClient;
+        _db                    = db;
+        _logger                = logger;
     }
+
+    // ── GenerateDraftAsync ────────────────────────────────────────────────────────
 
     public async Task<EmailDraftDto> GenerateDraftAsync(
         GenerateEmailDraftDto dto,
@@ -93,10 +99,10 @@ public class EmailService : IEmailService
         string? jobTitle = null;
         string? companyName = null;
         string? location = null;
-        var requiredSkills = new List<string>();
+        var requiredSkills  = new List<string>();
         var preferredSkills = new List<string>();
-        var missions = new List<string>();
-        var requirements = new List<string>();
+        var missions        = new List<string>();
+        var requirements    = new List<string>();
 
         if (offre?.AnalyseJson is not null)
         {
@@ -154,12 +160,12 @@ public class EmailService : IEmailService
                 missions         = missions,
                 requirements     = requirements,
                 raw_text         = offre?.TexteBrut,
-                analysis_json    = (object?)null,   // skip raw JSON blob to keep payload light
+                analysis_json    = (object?)null,
             },
             options = new
             {
-                language                 = dto.Language,
-                tone                     = dto.Tone,
+                language                  = dto.Language,
+                tone                      = dto.Tone,
                 include_motivation_letter = dto.IncludeMotivationLetter,
             },
         };
@@ -188,11 +194,13 @@ public class EmailService : IEmailService
         }
 
         // ── 8. Save draft ────────────────────────────────────────────────────
+        // BUG FIX: RecipientEmail must NOT be the candidate's own email (user.Email).
+        // The user must set the recruiter/company email before approving and sending.
         var draft = new EmailDraft
         {
             CandidatureId  = candidature.IdCandidature,
             EmailType      = dto.EmailType,
-            RecipientEmail = user.Email,
+            RecipientEmail = null,   // Recruiter email — user must enter this before sending
             Subject        = pythonResponse.Subject,
             Body           = pythonResponse.Body,
             Language       = string.IsNullOrWhiteSpace(pythonResponse.Language)
@@ -212,6 +220,8 @@ public class EmailService : IEmailService
         return MapToDto(draft);
     }
 
+    // ── GetDraftsByCandidatureAsync ───────────────────────────────────────────────
+
     public async Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
         Guid candidatureId,
         CancellationToken cancellationToken = default)
@@ -222,23 +232,219 @@ public class EmailService : IEmailService
         return drafts.Select(MapToDto).ToList();
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // ── UpdateDraftAsync ──────────────────────────────────────────────────────────
+
+    public async Task<EmailDraftDto> UpdateDraftAsync(
+        Guid draftId,
+        Guid localUserId,
+        UpdateEmailDraftDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var draft = await LoadAndVerifyOwnershipAsync(draftId, localUserId, cancellationToken);
+
+        if (draft.IsSent)
+            throw new InvalidOperationException("Cannot update a draft that has already been sent.");
+
+        if (dto.RecipientEmail is not null)
+            draft.RecipientEmail = dto.RecipientEmail.Trim();
+
+        if (dto.Subject is not null)
+            draft.Subject = dto.Subject.Trim();
+
+        if (dto.Body is not null)
+            draft.Body = dto.Body;
+
+        draft.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _emailDraftRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "EmailService — draft {DraftId} updated by user {UserId}", draftId, localUserId);
+
+        return MapToDto(draft);
+    }
+
+    // ── ApproveDraftAsync ─────────────────────────────────────────────────────────
+
+    public async Task<EmailDraftDto> ApproveDraftAsync(
+        Guid draftId,
+        Guid localUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var draft = await LoadAndVerifyOwnershipAsync(draftId, localUserId, cancellationToken);
+
+        if (draft.IsSent)
+            throw new InvalidOperationException("Cannot approve a draft that has already been sent.");
+
+        // Validate required fields
+        if (string.IsNullOrWhiteSpace(draft.RecipientEmail))
+            throw new InvalidOperationException(
+                "RecipientEmail must be set before approving. Please update the draft with the recruiter's email address.");
+
+        if (!IsValidEmail(draft.RecipientEmail))
+            throw new InvalidOperationException(
+                $"RecipientEmail '{draft.RecipientEmail}' is not a valid email address.");
+
+        if (string.IsNullOrWhiteSpace(draft.Subject))
+            throw new InvalidOperationException("Subject must not be empty before approving.");
+
+        if (string.IsNullOrWhiteSpace(draft.Body))
+            throw new InvalidOperationException("Body must not be empty before approving.");
+
+        draft.IsApproved    = true;
+        draft.ApprovedAtUtc = DateTime.UtcNow;
+        draft.UpdatedAtUtc  = DateTime.UtcNow;
+
+        await _emailDraftRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "EmailService — draft {DraftId} approved by user {UserId}", draftId, localUserId);
+
+        return MapToDto(draft);
+    }
+
+    // ── SendDraftAsync ────────────────────────────────────────────────────────────
+
+    public async Task<SendEmailResultDto> SendDraftAsync(
+        Guid draftId,
+        Guid localUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var draft = await LoadAndVerifyOwnershipAsync(draftId, localUserId, cancellationToken);
+
+        if (draft.IsSent)
+            throw new InvalidOperationException("This draft has already been sent.");
+
+        if (!draft.IsApproved)
+            throw new InvalidOperationException(
+                "Draft must be approved before sending. Please approve the draft first.");
+
+        // Final validation before sending
+        if (string.IsNullOrWhiteSpace(draft.RecipientEmail))
+            throw new InvalidOperationException("RecipientEmail must be set before sending.");
+
+        if (!IsValidEmail(draft.RecipientEmail))
+            throw new InvalidOperationException(
+                $"RecipientEmail '{draft.RecipientEmail}' is not a valid email address.");
+
+        if (string.IsNullOrWhiteSpace(draft.Subject))
+            throw new InvalidOperationException("Subject must not be empty before sending.");
+
+        if (string.IsNullOrWhiteSpace(draft.Body))
+            throw new InvalidOperationException("Body must not be empty before sending.");
+
+        // Increment attempt count before trying
+        draft.SendAttemptCount++;
+        draft.UpdatedAtUtc = DateTime.UtcNow;
+
+        // Call Gmail sender
+        var result = await _emailSenderService.SendAsync(
+            localUserId:    localUserId,
+            recipientEmail: draft.RecipientEmail,
+            subject:        draft.Subject,
+            body:           draft.Body,
+            cancellationToken: cancellationToken);
+
+        if (result.Success)
+        {
+            draft.IsSent            = true;
+            draft.SentAtUtc         = DateTime.UtcNow;
+            draft.ProviderMessageId = result.ProviderMessageId;
+            draft.ErrorMessage      = null;
+
+            _logger.LogInformation(
+                "EmailService — draft {DraftId} sent for user {UserId}, Gmail id: {GmailId}",
+                draftId, localUserId, result.ProviderMessageId);
+        }
+        else
+        {
+            draft.IsSent       = false;
+            draft.ErrorMessage = result.ErrorMessage;
+
+            _logger.LogWarning(
+                "EmailService — send failed for draft {DraftId}, user {UserId}: {Error}",
+                draftId, localUserId, result.ErrorMessage);
+        }
+
+        await _emailDraftRepository.SaveChangesAsync(cancellationToken);
+
+        return new SendEmailResultDto
+        {
+            Success           = result.Success,
+            DraftId           = draft.Id,
+            ProviderMessageId = result.ProviderMessageId,
+            ErrorMessage      = result.ErrorMessage,
+            SentAtUtc         = draft.SentAtUtc
+        };
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Loads an EmailDraft and verifies the current user owns the related candidature.
+    /// Throws KeyNotFoundException if draft not found, UnauthorizedAccessException if not owner.
+    /// Returns a tracked entity for modification.
+    /// </summary>
+    private async Task<EmailDraft> LoadAndVerifyOwnershipAsync(
+        Guid draftId,
+        Guid localUserId,
+        CancellationToken cancellationToken)
+    {
+        // Load draft with tracking (no AsNoTracking) so we can update it
+        var draft = await _db.EmailDrafts
+            .FirstOrDefaultAsync(d => d.Id == draftId, cancellationToken);
+
+        if (draft is null)
+            throw new KeyNotFoundException($"Email draft {draftId} not found.");
+
+        // Load candidature to verify ownership
+        var candidature = await _candidatureRepository.GetByIdAsync(
+            draft.CandidatureId, cancellationToken);
+
+        if (candidature is null)
+            throw new KeyNotFoundException(
+                $"Candidature {draft.CandidatureId} not found for draft {draftId}.");
+
+        // TODO: If IdUtilisateur is always set, this check is reliable.
+        // If there are legacy rows without IdUtilisateur, this check may fail unexpectedly.
+        if (candidature.IdUtilisateur != localUserId)
+            throw new UnauthorizedAccessException(
+                $"User {localUserId} does not own draft {draftId}.");
+
+        return draft;
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            var _ = new MailAddress(email);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     private static EmailDraftDto MapToDto(EmailDraft draft) => new()
     {
-        Id             = draft.Id,
-        CandidatureId  = draft.CandidatureId,
-        EmailType      = draft.EmailType,
-        RecipientEmail = draft.RecipientEmail,
-        Subject        = draft.Subject,
-        Body           = draft.Body,
-        Language       = draft.Language,
-        IsApproved     = draft.IsApproved,
-        IsSent         = draft.IsSent,
-        CreatedAtUtc   = draft.CreatedAtUtc,
-        UpdatedAtUtc   = draft.UpdatedAtUtc,
-        SentAtUtc      = draft.SentAtUtc,
-        ErrorMessage   = draft.ErrorMessage,
+        Id               = draft.Id,
+        CandidatureId    = draft.CandidatureId,
+        EmailType        = draft.EmailType,
+        RecipientEmail   = draft.RecipientEmail,
+        Subject          = draft.Subject,
+        Body             = draft.Body,
+        Language         = draft.Language,
+        IsApproved       = draft.IsApproved,
+        IsSent           = draft.IsSent,
+        CreatedAtUtc     = draft.CreatedAtUtc,
+        UpdatedAtUtc     = draft.UpdatedAtUtc,
+        ApprovedAtUtc    = draft.ApprovedAtUtc,
+        SentAtUtc        = draft.SentAtUtc,
+        ErrorMessage     = draft.ErrorMessage,
+        ProviderMessageId = draft.ProviderMessageId,
+        SendAttemptCount = draft.SendAttemptCount,
     };
 
     private static List<string> ExtractStringList(JsonElement root, string property)
@@ -254,7 +460,7 @@ public class EmailService : IEmailService
         return [];
     }
 
-    // ── Python response DTO (internal) ────────────────────────────────────────
+    // ── Python response DTO (internal) ────────────────────────────────────────────
     private sealed class PythonEmailResponse
     {
         public string Subject  { get; set; } = string.Empty;

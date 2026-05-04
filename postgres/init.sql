@@ -79,19 +79,17 @@ CREATE TABLE IF NOT EXISTS competence (
 );
 
 -- MODULE OFFRES
-CREATE TABLE IF NOT EXISTS offre (
-    id_offre UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    titre_poste VARCHAR(150),
-    entreprise VARCHAR(150),
-    description_brute TEXT,
-    localisation VARCHAR(150),
-    url_source VARCHAR(255),
-    date_scraping TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS offres_emploi (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id UUID REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
+    texte_brut TEXT NOT NULL,
+    analyse_json JSONB,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS keyword (
     id_keyword SERIAL PRIMARY KEY,
-    id_offre UUID REFERENCES offre(id_offre) ON DELETE CASCADE,
+    id_offre UUID REFERENCES offres_emploi(id) ON DELETE CASCADE,
     label VARCHAR(100),
     poids_pertinence FLOAT
 );
@@ -100,7 +98,7 @@ CREATE TABLE IF NOT EXISTS keyword (
 CREATE TABLE IF NOT EXISTS candidature (
     id_candidature UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_utilisateur UUID REFERENCES utilisateur(id_utilisateur),
-    id_offre UUID REFERENCES offre(id_offre),
+    id_offre UUID REFERENCES offres_emploi(id),
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
     statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
@@ -132,4 +130,19 @@ CREATE TABLE IF NOT EXISTS question_entrainement (
     id_session UUID REFERENCES session_coaching(id_session) ON DELETE CASCADE,
     texte_question TEXT,
     conseil_reponse TEXT
+);
+CREATE TABLE IF NOT EXISTS email_draft (
+    id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_candidature UUID NOT NULL REFERENCES candidature(id_candidature) ON DELETE CASCADE,
+    type_email VARCHAR(50) NOT NULL DEFAULT 'application',
+    recipient_email VARCHAR(255),
+    objet VARCHAR(255) NOT NULL,
+    corps TEXT NOT NULL,
+    langue VARCHAR(10) DEFAULT 'fr',
+    est_approuve BOOLEAN DEFAULT FALSE,
+    est_envoye BOOLEAN DEFAULT FALSE,
+    error_message TEXT,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_modification TIMESTAMP NULL,
+    date_envoi TIMESTAMP NULL
 );

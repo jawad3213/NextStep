@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-nextstep_db}
-      POSTGRES_MULTIPLE_DATABASES: ${KEYCLOAK_DB}
+      POSTGRES_MULTIPLE_DATABASES: ${KEYCLOAK_DB:-keycloak_db}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:

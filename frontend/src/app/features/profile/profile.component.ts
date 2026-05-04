@@ -5,6 +5,9 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { map } from 'rxjs/operators';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { ProfileService } from './profile.service';
 import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
@@ -146,6 +149,14 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   activeProjectTab = signal<'projects' | 'extracurriculars'>('projects');
   activeSkillsTab = signal<'skills' | 'languages'>('skills');
   
+  private breakpointObserver = inject(BreakpointObserver);
+
+  isMobile = toSignal(
+    this.breakpointObserver.observe([Breakpoints.Handset, Breakpoints.TabletPortrait])
+      .pipe(map(result => result.matches)),
+    { initialValue: false }
+  );
+
   profile = this.profileService.profile;
   currentStep = this.profileService.currentStep;
 
@@ -155,8 +166,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   
   steps: { id: ProfileStepId, label: string }[] = [
     { id: 'coordonnees', label: 'Contact Info' },
-    { id: 'formation', label: 'Education' },
     { id: 'experience', label: 'Experience' },
+    { id: 'formation', label: 'Education' },
     { id: 'competences', label: 'Skills' },
     { id: 'resume', label: 'Summary' },
     { id: 'projets', label: 'Projects' },

@@ -7,12 +7,12 @@
           <input #titleInput [value]="sectionTitle" 
                  (keydown.enter)="titleEditSave.emit(titleInput.value)"
                  (blur)="titleEditSave.emit(titleInput.value)"
-                 class="text-[28px] font-black text-slate-900 border-b-2 border-[#1A91F0] outline-none bg-transparent w-full max-w-md">
+                 class="text-xl md:text-[28px] font-black text-slate-900 border-b-2 border-[#1A91F0] outline-none bg-transparent w-full max-w-md">
           <mat-icon class="text-[#1A91F0] animate-pulse">check_circle</mat-icon>
         </div>
       } @else {
         <div class="flex items-center gap-3 group cursor-pointer" (click)="titleEditStart.emit()">
-          <h2 class="text-[28px] font-black text-slate-900 tracking-tight">{{ sectionTitle }}</h2>
+          <h2 class="text-xl md:text-[28px] font-black text-slate-900 tracking-tight">{{ sectionTitle }}</h2>
           <mat-icon class="text-slate-300 group-hover:text-[#1A91F0] transition-colors opacity-0 group-hover:opacity-100 !text-[20px]">edit</mat-icon>
         </div>
       }
@@ -21,7 +21,7 @@
   </div>
 
   <!-- Surface Container -->
-  <div class="bg-white rounded-[24px] p-8 border border-slate-200 shadow-sm">
+  <div class="bg-white rounded-[24px] p-4 md:p-8 border border-slate-200 shadow-sm">
     
     <!-- SMART TAB SWITCHER -->
     <div class="bg-slate-100 p-1 rounded-xl inline-flex mb-8">
@@ -61,7 +61,7 @@
               class="flex-1 h-[52px] border-none outline-none text-[16px] font-medium text-[#424242] placeholder:text-[#BDBDBD]">
             
             <button (click)="addCustomSkill.emit({name: skillInput.value, category: 'Technical', inputElement: skillInput})"
-                    class="bg-[#1A91F0] hover:bg-[#0F6EBB] text-white px-8 h-[52px] rounded-xl font-bold transition-all shrink-0">
+                    class="bg-[#1A91F0] hover:bg-[#0F6EBB] text-white px-4 md:px-8 h-[52px] rounded-xl font-bold transition-all shrink-0 text-sm md:text-base">
               Add Skill
             </button>
           </div>

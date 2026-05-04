@@ -1,8 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../auth/services/auth.service';
 import { filter } from 'rxjs';
+import { ProfileService } from '../../../features/profile/profile.service';
+
 
 @Component({
   selector: 'app-main-layout',
@@ -17,6 +19,25 @@ export class MainLayoutComponent {
 
   isSidebarOpen = signal(false);
   isSidebarCollapsed = signal(false);
+  
+  profileService = inject(ProfileService);
+  profile = this.profileService.profile;
+  searchQuery = signal('');
+
+  // Filtered menu sections based on search query
+  filteredMenuSections = computed(() => {
+    const query = this.searchQuery().toLowerCase().trim();
+    if (!query) return this.menuSections;
+
+    return this.menuSections.map(section => ({
+      ...section,
+      items: section.items.filter(item => 
+        item.label.toLowerCase().includes(query) || 
+        section.title.toLowerCase().includes(query)
+      )
+    })).filter(section => section.items.length > 0);
+  });
+
 
   constructor() {
     // Close sidebar on route change (for mobile)

@@ -39,9 +39,9 @@
               <span>{{ i + 1 }}</span>
             </div>
             <div class="p-5 flex-1">
-              <div class="flex justify-between items-start mb-2">
-                <h4 class="font-bold text-slate-900 text-[16px] pr-4">
-                  {{ exp.title }} - <span class="font-semibold text-slate-800">{{ exp.company }}</span> <span class="font-normal text-slate-600">| {{ getExperienceTypeLabel(exp.type) }}</span>
+              <div class="flex flex-col md:flex-row justify-between items-start gap-3 mb-2">
+                <h4 class="font-bold text-slate-900 text-[15px] md:text-[16px] flex-1 leading-tight">
+                  {{ exp.title }} - <span class="font-semibold text-slate-800">{{ exp.company }}</span> <span class="text-slate-500 font-normal">| {{ getExperienceTypeLabel(exp.type) }}</span>
                 </h4>
                 <div class="action-icons">
                   <button (click)="edit.emit(exp)"><mat-icon>edit</mat-icon></button>

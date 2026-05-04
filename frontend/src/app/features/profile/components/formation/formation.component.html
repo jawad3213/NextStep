@@ -45,9 +45,9 @@
             </div>
             <!-- Content -->
             <div class="p-5 flex-1">
-              <div class="flex justify-between items-start mb-2">
-                <h4 class="font-bold text-slate-900 text-[16px] pr-4">
-                  {{ getDegreeLabel(edu.degree) }} - <span class="font-semibold text-slate-800">{{ edu.institution }}</span> <span class="font-normal text-slate-600">| {{ edu.specialization }}</span>
+              <div class="flex flex-col md:flex-row justify-between items-start gap-3 mb-2">
+                <h4 class="font-bold text-slate-900 text-[15px] md:text-[16px] flex-1 leading-tight">
+                  {{ getDegreeLabel(edu.degree) }} - <span class="font-semibold text-slate-800">{{ edu.institution }}</span> <span class="text-slate-500 font-normal">| {{ edu.specialization }}</span>
                 </h4>
                 <!-- Actions -->
                 <div class="action-icons">

@@ -19,8 +19,8 @@ export class ProfileStepperComponent {
   
   steps: { id: ProfileStepId, label: string, icon: string }[] = [
     { id: 'coordonnees', label: 'Contact', icon: 'person' },
-    { id: 'formation', label: 'Education', icon: 'school' },
     { id: 'experience', label: 'Experience', icon: 'work' },
+    { id: 'formation', label: 'Education', icon: 'school' },
     { id: 'competences', label: 'Skills', icon: 'bolt' },
     { id: 'resume', label: 'Summary', icon: 'article' },
     { id: 'projets', label: 'Projects', icon: 'code' },

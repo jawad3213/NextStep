@@ -8,6 +8,7 @@
   flex: 1;
   min-height: 0;
   width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -22,7 +23,7 @@
 .focus-area {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
-  height: 100vh;
+  height: calc(100vh - 64px);
   width: 100%;
   overflow: hidden;
 }
@@ -30,7 +31,11 @@
 .form-scroll-container {
   min-height: 0;
   overflow-y: auto !important;
-  padding-bottom: 40px;
+  padding-bottom: 80px; /* Space for mobile nav */
+  
+  @media (max-width: 768px) {
+    padding-bottom: 120px;
+  }
   
   &::-webkit-scrollbar {
     width: 8px;
@@ -553,6 +558,12 @@ button:focus-visible, input:focus-visible {
   position: relative;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.12);
   animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @media (max-width: 576px) {
+    max-width: 100%;
+    margin: 16px;
+    border-radius: 16px;
+  }
 }
 
 @keyframes modalSlideUp {
@@ -589,6 +600,10 @@ button:focus-visible, input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
+
+  @media (max-width: 576px) {
+    padding: 32px 24px;
+  }
 }
 
 .success-visual {
@@ -704,6 +719,10 @@ button:focus-visible, input:focus-visible {
   position: relative;
   overflow: hidden;
 
+  @media (max-width: 768px) {
+    padding: 20px 16px;
+  }
+
   &:hover {
     border-color: #1A91F0;
     background: #F8FAFF;
@@ -721,6 +740,12 @@ button:focus-visible, input:focus-visible {
     display: flex;
     align-items: center;
     gap: 20px;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      text-align: center;
+      gap: 16px;
+    }
   }
 
   .magic-icon-wrapper {
@@ -774,6 +799,11 @@ button:focus-visible, input:focus-visible {
     flex-direction: column;
     align-items: flex-end;
     gap: 12px;
+
+    @media (max-width: 768px) {
+      align-items: center;
+      width: 100%;
+    }
 
     .btn-magic {
       padding: 10px 20px;
@@ -832,4 +862,98 @@ button:focus-visible, input:focus-visible {
 
 .animate-fade-in {
   animation: fade-in 0.5s ease-out forwards;
+}
+
+// Utility to hide scrollbar
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}
+
+// Import Card — Zety-style two-column split
+.import-card-split {
+  display: flex;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    display: none; // Hide on mobile to save space
+  }
+}
+
+.import-split-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: #F8FAFC;
+  }
+
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    &:hover { background: none; }
+  }
+}
+
+.import-split-icon {
+  font-size: 22px !important;
+  width: 22px !important;
+  height: 22px !important;
+  color: #475569;
+}
+
+.import-linkedin-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.import-split-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.import-split-divider {
+  width: 1px;
+  background: #E2E8F0;
+  align-self: stretch;
+}
+
+// Custom animations
+.animate-fade-slide-up {
+  animation: fadeSlideUp 0.4s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive Form Wrapper
+.form-step-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }

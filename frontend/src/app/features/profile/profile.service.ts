@@ -429,19 +429,20 @@ export class ProfileService {
     const p = this.profile();
     let score = 0;
     
-    // 1. Infos Personnelles (Total: 25%)
-    if (p.personal.firstName) score += 5;
-    if (p.personal.lastName) score += 5;
-    if (p.personal.email) score += 5;
-    if (p.personal.phone) score += 5;
-    if (p.personal.jobTitle) score += 5;
+    // 1. Personal Info (Total: 20%)
+    if (p.personal.firstName) score += 4;
+    if (p.personal.lastName) score += 4;
+    if (p.personal.email) score += 4;
+    if (p.personal.phone) score += 4;
+    if (p.personal.jobTitle) score += 4;
     
-    // 2. Sections (Total: 75%)
-    if (p.education.length > 0) score += 15;
+    if (p.education.length > 0) score += 10;
     if (p.experience.length > 0) score += 15;
-    if (p.skills.length > 0) score += 15;
+    if (p.skills.length > 0) score += 10;
+    if (p.languages.length > 0) score += 10;
     if (p.resume && p.resume.length > 50) score += 15;
-    if (p.projets.length > 0) score += 15;
+    if (p.projets.length > 0) score += 10;
+    if (p.certifications.length > 0) score += 10;
 
     return Math.min(score, 100);
   });
@@ -452,7 +453,7 @@ export class ProfileService {
       case 'coordonnees': return !!(p.personal.firstName && p.personal.lastName && p.personal.email);
       case 'formation': return p.education.length > 0;
       case 'experience': return p.experience.length > 0;
-      case 'competences': return p.skills.length > 0;
+      case 'competences': return p.skills.length > 0 || p.languages.length > 0;
       case 'resume': return p.resume.length > 50;
       case 'projets': return p.projets.length > 0;
       case 'certifications': return p.certifications.length > 0;

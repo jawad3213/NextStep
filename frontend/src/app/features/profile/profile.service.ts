@@ -55,6 +55,7 @@ export class ProfileService {
     try {
       console.log('Chargement du profil depuis:', this.apiUrl);
       const data: any = await firstValueFrom(this.http.get<any>(this.apiUrl));
+      console.log('--- REFRESH PROFILE RAW DATA ---', data);
       
       if (!data || !data.personalInfo) {
         console.warn('Données de profil incomplètes reçues du serveur');
@@ -73,6 +74,8 @@ export class ProfileService {
         }
       }
 
+      const rawCompetences = data.competences || data.Competences || [];
+      
       const mappedProfile: Profile = {
         personal: {
           firstName: data.personalInfo.prenom || authUser?.firstName || '',
@@ -90,51 +93,61 @@ export class ProfileService {
             : '',
           useAsHeadline: true
         },
-        education: (data.formations || []).map((f: any) => ({
-          id: f.id,
-          degree: f.diplome,
-          institution: f.etablissement,
-          startYear: f.annee?.toString() || '2024',
-          endYear: f.anneeFin?.toString() || '2024',
-          current: !f.anneeFin,
-          specialization: f.specialisation || '',
-          mention: f.mention || 'Passable',
-          city: f.ville || ''
+        education: (data.formations || data.Formations || []).map((f: any) => ({
+          id: f.id || f.Id,
+          degree: f.diplome || f.Diplome,
+          institution: f.etablissement || f.Etablissement,
+          startYear: (f.annee || f.Annee || 2024).toString(),
+          endYear: (f.anneeFin || f.AnneeFin || 2024).toString(),
+          current: !f.anneeFin && !f.AnneeFin,
+          specialization: f.specialisation || f.Specialisation || '',
+          mention: f.mention || f.Mention || 'Passable',
+          city: f.ville || f.Ville || ''
         })),
-        experience: (data.experiences || []).map((e: any) => ({
-          id: e.id,
-          title: e.poste,
-          company: e.entreprise,
-          startDate: e.dateDebut ? e.dateDebut.substring(0, 7) : '',
-          endDate: e.dateFin ? e.dateFin.substring(0, 7) : '',
-          current: !e.dateFin,
-          description: e.missions || '',
-          city: e.ville || '',
-          type: e.type || 'Stage'
+        experience: (data.experiences || data.Experiences || []).map((e: any) => ({
+          id: e.id || e.Id,
+          title: e.poste || e.Poste,
+          company: e.entreprise || e.Entreprise,
+          startDate: (e.dateDebut || e.DateDebut || '').substring(0, 7),
+          endDate: (e.dateFin || e.DateFin || '').substring(0, 7),
+          current: !e.dateFin && !e.DateFin,
+          description: e.missions || e.Missions || '',
+          city: e.ville || e.Ville || '',
+          type: (e.type === 'Parascolaire' || e.Type === 'Parascolaire' || e.type === 'Extracurricular' || e.Type === 'Extracurricular') ? 'Extracurricular' : (e.type || e.Type || 'Internship')
         })),
-        skills: (data.competences || []).map((c: any) => ({
-          id: c.id,
-          name: c.nom,
-          category: c.typeCompetence || 'Technique'
+        skills: rawCompetences.filter((c: any) => {
+          const type = (c.typeCompetence || c.TypeCompetence || '').toLowerCase();
+          return !type.includes('lang') && !type.includes('linguist');
+        }).map((c: any) => ({
+          id: c.id || c.Id,
+          name: c.nom || c.Nom,
+          category: (c.typeCompetence === 'Technique' || c.typeCompetence === 'Technical' || c.TypeCompetence === 'Technical') ? 'Technical' : (c.typeCompetence || c.TypeCompetence || 'Technical')
         })),
-        languages: [],
+        languages: rawCompetences.filter((c: any) => {
+          const type = (c.typeCompetence || c.TypeCompetence || '').toLowerCase();
+          return type.includes('lang') || type.includes('linguist');
+        }).map((c: any) => ({
+          id: c.id || c.Id,
+          name: c.nom || c.Nom,
+          level: this.mapIntToLevel(c.niveau || c.Niveau || 3)
+        })),
         resume: data.personalInfo.resumeProfessionnel || '',
-        projets: (data.projets || []).map((p: any) => ({
-          id: p.id,
-          title: p.titreProjet,
-          description: p.description,
-          stack: p.technologiesUtilisees?.split(',') || [],
-          githubUrl: p.lienProjet || '',
-          demoUrl: p.demoUrl || '',
-          imageUrl: p.imageUrl || '',
-          isUniversity: p.isUniversity || false
+        projets: (data.projets || data.Projets || []).map((p: any) => ({
+          id: p.id || p.Id,
+          title: p.titreProjet || p.TitreProjet,
+          description: p.description || p.Description,
+          stack: (p.technologiesUtilisees || p.TechnologiesUtilisees || '').split(',').map((s: string) => s.trim()).filter((s: string) => s !== ''),
+          githubUrl: p.lienProjet || p.LienProjet || '',
+          demoUrl: p.demoUrl || p.DemoUrl || '',
+          imageUrl: p.imageUrl || p.ImageUrl || '',
+          isUniversity: p.isUniversity || p.IsUniversity || false
         })),
-        certifications: (data.certifications || []).map((c: any) => ({
-          id: c.id,
-          name: c.titre,
-          issuer: c.organisation,
-          date: c.dateObtention,
-          verificationUrl: c.urlCredential
+        certifications: (data.certifications || data.Certifications || []).map((c: any) => ({
+          id: c.id || c.Id,
+          name: c.titre || c.Titre,
+          issuer: c.organisation || c.Organisation,
+          date: c.dateObtention || c.DateObtention,
+          verificationUrl: c.urlCredential || c.UrlCredential
         })),
         sectionTitles: sectionTitles
       };
@@ -163,18 +176,21 @@ export class ProfileService {
     return firstValueFrom(this.http.put(`${this.apiUrl}/personal-info`, dto));
   }
 
-  async addExperience(exp: Experience) {
+  async addExperience(exp: Experience, refresh = true) {
+    const dateD = exp.startDate ? (exp.startDate.includes('-') ? exp.startDate : exp.startDate + '-01') : null;
+    const dateF = exp.endDate ? (exp.endDate.includes('-') ? exp.endDate : exp.endDate + '-01') : null;
+    
     const dto = {
       entreprise: exp.company,
       poste: exp.title,
-      dateDebut: exp.startDate ? new Date(exp.startDate + '-01').toISOString() : null,
-      dateFin: exp.endDate ? new Date(exp.endDate + '-01').toISOString() : null,
+      dateDebut: dateD ? new Date(dateD).toISOString() : null,
+      dateFin: dateF ? new Date(dateF).toISOString() : null,
       missions: exp.description,
       ville: exp.city,
       type: exp.type
     };
     await firstValueFrom(this.http.post(`${this.apiUrl}/experiences`, dto));
-    await this.loadProfile();
+    if (refresh) await this.loadProfile();
   }
 
   async updateExperience(exp: Experience) {
@@ -198,7 +214,7 @@ export class ProfileService {
     await this.loadProfile();
   }
 
-  async addEducation(edu: Education) {
+  async addEducation(edu: Education, refresh = true) {
     const dto = {
       etablissement: edu.institution,
       diplome: edu.degree,
@@ -209,7 +225,7 @@ export class ProfileService {
       anneeFin: parseInt(edu.endYear) || null
     };
     await firstValueFrom(this.http.post(`${this.apiUrl}/formations`, dto));
-    await this.loadProfile();
+    if (refresh) await this.loadProfile();
   }
 
   async updateEducation(edu: Education) {
@@ -243,6 +259,11 @@ export class ProfileService {
     await this.loadProfile();
   }
 
+  isSkillSelected(skillName: string): boolean {
+    if (!this.profile().skills || !skillName) return false;
+    return this.profile().skills.some(s => s.name?.toLowerCase() === skillName.toLowerCase());
+  }
+
   async updateSkill(skill: Skill) {
     const dto = {
       id: skill.id,
@@ -256,6 +277,62 @@ export class ProfileService {
 
 
   async deleteSkill(id: string) {
+    await firstValueFrom(this.http.delete(`${this.apiUrl}/competences/${id}`));
+    await this.loadProfile();
+  }
+
+  // --- Langues (mapped to Competences in DB) ---
+  mapLevelToInt(level: string): number {
+    const mapping: Record<string, number> = { 
+      'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 5, 
+      'Native': 5, 'Natif': 5, 'Maternelle': 5,
+      'Debutant': 1, 'Intermediaire': 3, 'Avancé': 5, 'Expert': 5
+    };
+    return mapping[level] || 3; 
+  }
+
+  mapIntToLevel(val: number): string {
+    const levels: any = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'Native' };
+    return levels[val] || 'B1';
+  }
+
+  mapExperienceType(type: string): any {
+    const mapping: Record<string, string> = {
+      'Stage': 'Internship',
+      'Alternance': 'Apprenticeship',
+      'CDI': 'CDI',
+      'CDD': 'CDD',
+      'Freelance': 'Freelance',
+      'PFA': 'PFA',
+      'PFE': 'PFE',
+      'Parascolaire': 'Extracurricular',
+      'Extracurricular': 'Extracurricular'
+    };
+    return mapping[type] || 'Internship';
+  }
+
+  async addLanguage(lang: any) {
+    const dto = {
+      nom: lang.name,
+      niveau: this.mapLevelToInt(lang.level),
+      typeCompetence: 'Langue'
+    };
+    await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, dto));
+    await this.loadProfile();
+  }
+
+  async updateLanguage(lang: any) {
+    const dto = {
+      id: lang.id,
+      nom: lang.name,
+      niveau: this.mapLevelToInt(lang.level),
+      typeCompetence: 'Langue'
+    };
+    await firstValueFrom(this.http.put(`${this.apiUrl}/competences`, dto));
+    await this.loadProfile();
+  }
+
+  async deleteLanguage(id: string) {
     await firstValueFrom(this.http.delete(`${this.apiUrl}/competences/${id}`));
     await this.loadProfile();
   }
@@ -385,6 +462,180 @@ export class ProfileService {
 
   updateProfile(newData: Partial<Profile>) {
     this.profile.update(current => ({ ...current, ...newData }));
+  }
+
+  async importResume(file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      console.log('Parsing resume...');
+      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/parse-resume`, formData));
+      console.log('--- DEBUG: AI DATA RECEIVED ---', data);
+      
+      if (data) {
+        console.log('Parsing successful. Clearing existing data before saving new profile...');
+        await firstValueFrom(this.http.delete(`${this.apiUrl}/clear`));
+
+        // 1. Mise à jour et sauvegarde des infos personnelles
+        const personal = {
+          ...this.profile().personal,
+          firstName: data.personal?.prenom || this.profile().personal.firstName,
+          lastName: data.personal?.nom || this.profile().personal.lastName,
+          email: data.personal?.email || this.profile().personal.email,
+          phone: data.personal?.telephone || this.profile().personal.phone,
+          jobTitle: data.personal?.titrePoste || this.profile().personal.jobTitle,
+          city: data.personal?.ville || this.profile().personal.city,
+          country: data.personal?.pays || this.profile().personal.country,
+        };
+        
+        // Mettre à jour le résumé s'il est présent
+        if (data.personal?.resumeProfessionnel) {
+          this.updateProfile({ resume: data.personal.resumeProfessionnel });
+        }
+
+        await this.savePersonalInfo(personal);
+
+        // 2. Ajout des expériences
+        if (data.experience && Array.isArray(data.experience)) {
+          for (const exp of data.experience) {
+            await this.addExperience({
+              id: '',
+              company: exp.entreprise || '',
+              title: exp.poste || '',
+              startDate: exp.dateDebut ? exp.dateDebut.substring(0, 7) : '',
+              endDate: exp.dateFin ? exp.dateFin.substring(0, 7) : '',
+              city: exp.ville || '',
+              description: exp.missions || '',
+              current: !exp.dateFin,
+              type: this.mapExperienceType(exp.type || 'Stage')
+            }, false); // Skip intermediate refresh
+          }
+        }
+
+        // 3. Ajout des formations
+        if (data.education && Array.isArray(data.education)) {
+          for (const edu of data.education) {
+            await this.addEducation({
+              id: '',
+              institution: edu.etablissement || '',
+              degree: edu.diplome || '',
+              startYear: edu.annee || '2024',
+              endYear: edu.anneeFin || '2024',
+              city: edu.ville || '',
+              specialization: edu.specialisation || '',
+              current: !edu.anneeFin,
+              mention: 'Passable'
+            }, false); // Skip intermediate refresh
+          }
+        }
+
+        // 4. Ajout des compétences et langues
+        let skillsData = data.skills || data.competences || data.competence;
+        
+        // Robustesse: Si l'IA renvoie une chaîne de caractères au lieu d'une liste
+        if (typeof skillsData === 'string') {
+          console.log('AI returned skills as string, converting to list...');
+          skillsData = skillsData.split(',').map((s: string) => ({ nom: s.trim(), typeCompetence: 'Technical' }));
+        }
+
+        console.log('--- DEBUG: skillsData before processing ---', JSON.stringify(skillsData));
+
+        if (skillsData && Array.isArray(skillsData) && skillsData.length > 0) {
+          console.log(`Adding ${skillsData.length} skills/languages...`);
+          
+          let dbKeywords: any[] = [];
+          try { dbKeywords = await this.getKeywords(); } catch (e) { console.warn('Could not load keywords'); }
+
+          for (const skill of skillsData) {
+            try {
+              const skillName = typeof skill === 'string' ? skill : (skill.nom || skill.name || skill.title || '');
+              if (!skillName || !skillName.trim()) {
+                console.warn('Skipping empty skill entry:', skill);
+                continue;
+              }
+              
+              const typeRaw = (skill.typeCompetence || skill.type || '').toLowerCase();
+              const isLangue = typeRaw.includes('lang') || typeRaw.includes('linguist');
+              
+              const match = dbKeywords.find((k: any) => k.mot?.toLowerCase() === skillName.toLowerCase());
+              
+              // IMPORTANT: Do NOT send 'id' field - backend expects Guid? and empty string '' causes 400 error
+              const dto = {
+                nom: match ? match.mot : skillName.trim(),
+                niveau: isLangue ? this.mapLevelToInt(skill.niveau || skill.level || 'B1') : 3,
+                typeCompetence: isLangue ? 'Langue' : (match ? match.categorie : (skill.typeCompetence || skill.type || 'Technical'))
+              };
+              
+              console.log(`Saving skill: ${dto.nom} (type: ${dto.typeCompetence}, niveau: ${dto.niveau})`);
+              const result = await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, dto));
+              console.log(`✅ Skill saved successfully: ${dto.nom}`, result);
+            } catch (e: any) {
+              console.error(`❌ Failed to add skill "${typeof skill === 'string' ? skill : skill?.nom}"`, e?.error || e?.message || e);
+            }
+          }
+        } else {
+          console.warn('⚠️ No skills data found in AI response. Keys available:', data ? Object.keys(data) : 'data is null');
+        }
+
+        // 5. Ajout des projets
+        if (data.projects && Array.isArray(data.projects)) {
+          console.log(`Adding ${data.projects.length} projects...`);
+          for (const p of data.projects) {
+            try {
+              await this.addProject({
+                id: '',
+                title: p.titre || p.title || '',
+                description: p.description || '',
+                stack: p.technologies ? p.technologies.split(',') : [],
+                githubUrl: p.lien || p.link || p.githubUrl || '',
+                demoUrl: '',
+                isUniversity: false
+              });
+            } catch (e) { console.error('Failed to add project', p, e); }
+          }
+        }
+
+        // 5b. Ajout des activités parascolaires (Extracurricular)
+        if (data.extracurricular && Array.isArray(data.extracurricular)) {
+          for (const ex of data.extracurricular) {
+            await this.addExperience({
+              id: '',
+              company: ex.organisation || '',
+              title: ex.titre || '',
+              startDate: ex.dateDebut ? ex.dateDebut.substring(0, 7) : '',
+              endDate: ex.dateFin ? ex.dateFin.substring(0, 7) : '',
+              city: '', // non fourni
+              description: ex.description || '',
+              current: !ex.dateFin,
+              type: 'Extracurricular'
+            }, false); // Skip intermediate refresh
+          }
+        }
+
+        // 6. Ajout des certifications
+        if (data.certifications && Array.isArray(data.certifications)) {
+          console.log(`Adding ${data.certifications.length} certifications...`);
+          for (const c of data.certifications) {
+            try {
+              await this.addCertification({
+                id: '',
+                name: c.titre || c.name || c.title || '',
+                issuer: c.organisation || c.issuer || '',
+                date: c.date || '',
+                verificationUrl: c.lien || c.url || c.link || ''
+              });
+            } catch (e) { console.error('Failed to add certification', c, e); }
+          }
+        }
+
+        // 7. Rechargement final pour tout synchroniser proprement
+        await this.loadProfile();
+      }
+    } catch (error) {
+      console.error('Erreur lors du parsing du CV:', error);
+      throw error;
+    }
   }
 
   setStep(stepId: ProfileStepId) {

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from example_module.router import router as example_router
+from resume.router import router as resume_router
 
 app = FastAPI(
     title="NextStep Agents IA",
@@ -7,8 +7,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Enregistrement des routes du module exemple
-app.include_router(example_router, prefix="/example", tags=["Example Module"])
+# Enregistrement des routes
+app.include_router(resume_router, prefix="/resume", tags=["Resume Parsing"])
 
 @app.get("/health", tags=["Health"])
 async def health_check():

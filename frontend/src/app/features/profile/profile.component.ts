@@ -107,6 +107,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isAddingProject = signal(false);
   isAddingCertification = signal(false);
   isGeneratingAI = signal(false);
+  isParsing = signal(false);
   editingSection = signal<SectionTitleKey | null>(null);
   skillSearchQuery = signal('');
   filteredSuggestions = signal<{name: string, category: string}[]>([]);
@@ -121,7 +122,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newExperience = signal<Experience>({
     id: '', title: '', company: '', city: '', 
     startDate: '', endDate: '', current: false, 
-    type: 'Stage', description: ''
+    type: 'Internship', description: ''
   });
 
   newProject = signal<Project>({
@@ -132,9 +133,25 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newCertification = signal<Certification>({
     id: '', name: '', issuer: '', date: '', verificationUrl: ''
   });
+
+  newLanguage = signal<any>({ id: '', name: '', level: 'B1' });
+
+  isAddingExtracurricular = signal(false);
+  newExtracurricular = signal<Experience>({
+    id: '', title: '', company: '', city: '',
+    startDate: '', endDate: '', current: false,
+    type: 'Extracurricular', description: ''
+  });
+
+  activeProjectTab = signal<'projects' | 'extracurriculars'>('projects');
+  activeSkillsTab = signal<'skills' | 'languages'>('skills');
   
   profile = this.profileService.profile;
   currentStep = this.profileService.currentStep;
+
+  // Split experiences
+  workExperiences = computed(() => this.profile().experience.filter((e: any) => e.type !== 'Extracurricular'));
+  extracurriculars = computed(() => this.profile().experience.filter((e: any) => e.type === 'Extracurricular'));
   
   steps: { id: ProfileStepId, label: string }[] = [
     { id: 'coordonnees', label: 'Contact Info' },
@@ -263,6 +280,25 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   showImportBlock = signal(true);
   isImporting = signal(false);
 
+  async onFileImported(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    this.isParsing.set(true);
+    try {
+      await this.profileService.importResume(file);
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+      // Stay on first step but show a nice message? 
+      // Or move to next step automatically? Let's stay to let them check.
+    } catch (error) {
+      console.error('Import failed', error);
+      // Error toast? 
+    } finally {
+      this.isParsing.set(false);
+    }
+  }
+
   importLinkedIn() {
     this.isImporting.set(true);
     // : Connecter à un vrai endpoint d'import LinkedIn backend
@@ -317,7 +353,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.newExperience.set({
         id: '', title: '', company: '', city: '', 
         startDate: '', endDate: '', current: false, 
-        type: 'Stage', description: ''
+        type: 'Internship', description: ''
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -353,6 +389,51 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  // Extracurricular Methods
+  toggleAddExtracurricular() {
+    this.isAddingExtracurricular.update(v => !v);
+  }
+
+  updateNewExtracurricular(field: string, value: any) {
+    this.newExtracurricular.update(v => ({ ...v, [field]: value }));
+  }
+
+  async saveExtracurricular() {
+    this.isSaving.set(true);
+    try {
+      if (this.newExtracurricular().id) {
+        await this.profileService.updateExperience(this.newExtracurricular());
+      } else {
+        await this.profileService.addExperience(this.newExtracurricular());
+      }
+      this.isAddingExtracurricular.set(false);
+      this.newExtracurricular.set({
+        id: '', title: '', company: '', city: '', 
+        startDate: '', endDate: '', current: false, 
+        type: 'Extracurricular', description: ''
+      });
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    } catch (error) {
+      console.error('Erreur activité parascolaire:', error);
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  editExtracurricular(item: Experience) {
+    this.newExtracurricular.set({ ...item });
+    this.isAddingExtracurricular.set(true);
+  }
+
+  async deleteExtracurricular(id: string) {
+    await this.profileService.deleteExperience(id);
+  }
+
+  onProjectTabChange(tab: 'projects' | 'extracurriculars') {
+    this.activeProjectTab.set(tab);
   }
 
   // Certification Methods
@@ -449,6 +530,33 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error(`Erreur suppression ${type}:`, error);
     }
+  }
+
+  // Languages Methods
+  updateNewLanguage(field: string, value: any) {
+    this.newLanguage.update(v => ({ ...v, [field]: value }));
+  }
+
+  async saveLanguage() {
+    this.isSaving.set(true);
+    try {
+      if (this.newLanguage().id) {
+        await this.profileService.updateLanguage(this.newLanguage());
+      } else {
+        await this.profileService.addLanguage(this.newLanguage());
+      }
+      this.newLanguage.set({ id: '', name: '', level: 'B1' });
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    } catch (error) {
+      console.error('Erreur langue:', error);
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  async removeLanguage(id: string) {
+    await this.profileService.deleteLanguage(id);
   }
 
   // Resume Methods

@@ -1,22 +1,36 @@
 <div class="horizontal-stepper-container">
   <div class="w-full px-8 flex items-center justify-between">
     
-    <!-- Tab-style Stepper -->
-    <nav class="steps-tabs hide-scrollbar">
-      @for (step of steps; track step.id; let i = $index) {
-        <button 
-          class="tab-btn" 
-          [class.active]="currentStep() === step.id"
-          [class.completed]="isComplete(step.id)"
-          (click)="setStep(step.id)"
-          [attr.aria-label]="step.label"
-        >
-          @if (isComplete(step.id)) {
-            <mat-icon class="icon-completed">check</mat-icon>
-          }
-          <span class="tab-label">{{ step.label }}</span>
-        </button>
-      }
+    <!-- Connected Node Stepper -->
+    <nav class="node-stepper-wrapper">
+      <div class="stepper-progress-bar">
+        <!-- Background bar -->
+        <div class="stepper-track"></div>
+        <!-- Active progress fill -->
+        <div class="stepper-fill" [style.width.%]="(currentIndex() / (steps.length - 1)) * 100"></div>
+      </div>
+      
+      <div class="stepper-nodes">
+        @for (step of steps; track step.id; let i = $index) {
+          <button 
+            class="stepper-node" 
+            [class.active]="currentStep() === step.id"
+            [class.completed]="isComplete(step.id) && currentStep() !== step.id"
+            [class.future]="!isComplete(step.id) && currentStep() !== step.id"
+            (click)="setStep(step.id)"
+            [attr.aria-label]="step.label"
+          >
+            <div class="node-circle">
+              @if (isComplete(step.id) && currentStep() !== step.id) {
+                <mat-icon class="node-icon">check</mat-icon>
+              } @else {
+                <span class="node-number">{{ i + 1 }}</span>
+              }
+            </div>
+            <span class="node-label">{{ step.label }}</span>
+          </button>
+        }
+      </div>
     </nav>
 
     <!-- Pro Strength Meter (Segmented Linear Design) -->

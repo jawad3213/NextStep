@@ -7,86 +7,126 @@
   z-index: 5;
 }
 
-.steps-tabs {
+// Node Stepper Design
+.node-stepper-wrapper {
+  position: relative;
+  width: 100%;
   display: flex;
-  align-items: stretch;
-  justify-content: flex-start; /* Better for overflow */
-  height: 56px;
-  overflow-x: auto;
-  
-  /* Hide scrollbar */
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.stepper-progress-bar {
+  position: absolute;
+  top: 36px; /* center of the circle */
+  left: 5%;
+  right: 5%;
+  height: 2px;
+  z-index: 0;
+
+  .stepper-track {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #E2E8F0;
+  }
+
+  .stepper-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: #1A91F0;
+    transition: width 0.4s ease-in-out;
   }
 }
 
-.tab-btn {
+.stepper-nodes {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.stepper-node {
   background: transparent;
   border: none;
-  cursor: pointer;
-  padding: 0 24px;
-  height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  transition: all 0.2s ease;
-  position: relative;
-  flex-shrink: 0;
+  gap: 8px;
+  cursor: pointer;
+  outline: none;
 
-  .icon-completed {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    color: #1A91F0;
+  .node-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    
+    .node-number {
+      font-size: 12px;
+      font-weight: 700;
+      color: #94A3B8;
+    }
+    
+    .node-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: #ffffff;
+    }
   }
 
-  .tab-label {
-    font-size: 14px;
-    font-weight: 500;
+  .node-label {
+    font-size: 12px;
+    font-weight: 600;
     color: #94A3B8;
+    transition: all 0.3s ease;
     white-space: nowrap;
-    transition: all 0.2s ease;
-    font-family: 'Lato', sans-serif;
   }
 
-  // Underline indicator
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: #1A91F0;
-    border-radius: 3px 3px 0 0;
-    transform: scaleX(0);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  &.completed {
+    .node-circle {
+      background: #1A91F0;
+      border-color: #1A91F0;
+    }
+    .node-label {
+      color: #1E293B;
+    }
   }
 
-  // ACTIVE STATE
   &.active {
-    .tab-label {
+    .node-circle {
+      border-color: #1A91F0;
+      box-shadow: 0 0 0 4px rgba(26, 145, 240, 0.15);
+      
+      .node-number {
+        color: #1A91F0;
+      }
+    }
+    .node-label {
       color: #1A91F0;
       font-weight: 700;
-    }
-    &::after {
-      transform: scaleX(1);
-    }
-  }
-
-  // COMPLETED STATE
-  &.completed:not(.active) {
-    .tab-label {
-      color: #1E293B;
-      font-weight: 600;
     }
   }
 
   &:hover:not(.active) {
-    background: #F8FAFC;
-    .tab-label {
+    .node-circle {
+      border-color: #CBD5E1;
+    }
+    .node-label {
       color: #64748B;
     }
   }

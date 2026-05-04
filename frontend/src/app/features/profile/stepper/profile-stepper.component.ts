@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -29,6 +29,8 @@ export class ProfileStepperComponent {
 
   currentStep = this.profileService.currentStep;
   completionPercentage = this.profileService.completionPercentage;
+
+  currentIndex = computed(() => this.steps.findIndex(s => s.id === this.currentStep()));
 
   setStep(id: ProfileStepId) {
     this.router.navigate([], {

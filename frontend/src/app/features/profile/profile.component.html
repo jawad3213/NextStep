@@ -1,5 +1,33 @@
 <div class="profile-layout flex flex-col h-full w-full overflow-hidden bg-[#F9FAFF]" [class.preview-active]="isPreviewOpen()">
-  
+  <!-- GLOBAL LOADING OVERLAY FOR AI PARSING -->
+  @if (isParsing()) {
+    <div class="parsing-overlay animate-fade-in">
+      <div class="parsing-content">
+        <div class="ai-orb-wrapper">
+          <div class="ai-orb"></div>
+          <div class="ai-orb-glow"></div>
+        </div>
+        <h2 class="parsing-title">Our AI is building your profile...</h2>
+        <p class="parsing-subtitle">Extracting your professional DNA to fill the sections automatically.</p>
+        
+        <div class="parsing-steps">
+          <div class="step-item active">
+            <mat-icon>check_circle</mat-icon>
+            <span>Reading document...</span>
+          </div>
+          <div class="step-item active">
+            <div class="mini-loader"></div>
+            <span>Analyzing experience...</span>
+          </div>
+          <div class="step-item">
+            <mat-icon>radio_button_unchecked</mat-icon>
+            <span>Structuring data...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
   <!-- CENTER: FOCUS INPUT AREA -->
   <main class="focus-area">
     <!-- Header with progress -->
@@ -32,20 +60,37 @@
           </div>
         </div>
 
-        <!-- Professional Auto-save Indicator moved to main header -->
-        <div class="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
-          @if (isSaving()) {
-            <div class="w-4 h-4 border-2 border-slate-200 border-t-[#1A91F0] rounded-full animate-spin"></div>
-            <span class="text-[12px] font-bold text-slate-500">Saving...</span>
-          } @else if (lastSaved()) {
-            <mat-icon class="!text-[18px] text-emerald-500">check_circle</mat-icon>
-            <span class="text-[12px] font-bold text-slate-500">Saved at {{ lastSaved() | date:'HH:mm:ss' }}</span>
-          } @else {
-            <mat-icon class="!text-[18px] text-slate-300">cloud_done</mat-icon>
-            <span class="text-[12px] font-bold text-slate-400">Auto-save active</span>
-          }
+        <!-- NEW: INTEGRATED MAGIC IMPORT HEADER ACTIONS (SIMPLE & LARGE) -->
+        <div class="flex items-center">
+          <div class="import-header-card" (click)="fileInput.click()">
+            <div class="h-icon">
+              <mat-icon>upload_file</mat-icon>
+            </div>
+            <span class="h-label">Upload existing CV</span>
+          </div>
+
+          <div class="import-header-card disabled ml-4">
+            <div class="h-icon">
+              <mat-icon>link</mat-icon>
+            </div>
+            <span class="h-label">Import LinkedIn profile</span>
+          </div>
+
+          <!-- Vertical Divider -->
+          <div class="header-divider"></div>
+
+          <!-- Professional Auto-save Indicator (Minimal) -->
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl">
+            @if (isSaving()) {
+              <div class="w-3 h-3 border-2 border-slate-200 border-t-[#1A91F0] rounded-full animate-spin"></div>
+            } @else {
+              <mat-icon class="!text-[16px] text-emerald-500">check_circle</mat-icon>
+            }
+            <span class="text-[11px] font-bold text-slate-500">Auto-save</span>
+          </div>
         </div>
       </div>
+      <input #fileInput type="file" (change)="onFileImported($event)" accept=".pdf,.doc,.docx" hidden>
     </header>
 
     <!-- HORIZONTAL STEPPER -->
@@ -86,7 +131,7 @@
 
         @if (currentStep() === 'experience') {
           <app-experience
-            [experiences]="profile().experience"
+            [experiences]="workExperiences()"
             [isAddingExperience]="isAddingExperience()"
             [newExperience]="newExperience()"
             [sectionTitle]="getSectionTitle('experience', 'WORK EXPERIENCE')"
@@ -106,10 +151,15 @@
         @if (currentStep() === 'projets') {
           <app-projects
             [projects]="profile().projets"
+            [extracurriculars]="extracurriculars()"
             [isAddingProject]="isAddingProject()"
+            [isAddingExtracurricular]="isAddingExtracurricular()"
             [newProject]="newProject()"
+            [newExtracurricular]="newExtracurricular()"
             [sectionTitle]="getSectionTitle('projets', 'ACADEMIC & PERSONAL PROJECTS')"
             [isEditingTitle]="editingSection() === 'projets'"
+            [activeTab]="activeProjectTab()"
+            (tabChange)="onProjectTabChange($event)"
             (addToggle)="toggleAddProject()"
             (save)="saveProject()"
             (updateNew)="updateNewItem('project', $event.field, $event.value)"
@@ -117,6 +167,11 @@
             (duplicate)="duplicateItem($event, 'project')"
             (delete)="deleteItem($event, 'projets')"
             (reorder)="drop($event, 'projets')"
+            (addToggleExtra)="toggleAddExtracurricular()"
+            (saveExtra)="saveExtracurricular()"
+            (updateNewExtra)="updateNewExtracurricular($event.field, $event.value)"
+            (editExtra)="editExtracurricular($event)"
+            (deleteExtra)="deleteExtracurricular($event)"
             (titleEditStart)="startEditingSection('projets')"
             (titleEditSave)="updateSectionTitle('projets', $event)">
           </app-projects>
@@ -125,14 +180,25 @@
         @if (currentStep() === 'competences') {
           <app-skills
             [skills]="profile().skills"
+            [languages]="profile().languages"
+            [newLanguage]="newLanguage()"
+            [activeTab]="activeSkillsTab()"
+            [sectionTitle]="getSectionTitle('competences', 'Skills & Languages')"
+            [isEditingTitle]="editingSection() === 'competences'"
             [predefinedSkills]="predefinedSkills"
             [filteredSuggestions]="filteredSuggestions()"
+            (tabChange)="activeSkillsTab.set($event)"
             (onSkillInput)="onSkillInput($event)"
             (addCustomSkill)="addCustomSkill($event.name, $event.category, $event.inputElement)"
             (addSkill)="addSkill($event.name, $event.category)"
             (removeSkill)="deleteItem($event, 'skills')"
             (selectSuggestion)="selectSuggestion($event.suggestion, $event.inputElement)"
-            (reorder)="drop($event, 'skills')">
+            (reorder)="drop($event, 'skills')"
+            (addLanguage)="saveLanguage()"
+            (removeLanguage)="removeLanguage($event)"
+            (updateNewLanguage)="updateNewLanguage($event.field, $event.value)"
+            (titleEditStart)="startEditingSection('competences')"
+            (titleEditSave)="updateSectionTitle('competences', $event)">
           </app-skills>
         }
 

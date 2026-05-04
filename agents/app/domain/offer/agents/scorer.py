@@ -5,6 +5,7 @@
 # Score ATS  : pondération positionnelle (titre/résumé/compétences/expériences)
 # Score Match: Jaccard pondéré 70% compétences requises + 30% souhaitées
 # ============================================================
+import re
 import logging
 from langchain_core.messages import AIMessage
 from app.domain.offer.schemas.state import OfferState
@@ -50,11 +51,14 @@ def _ats_score(
     total_bonus = 0
 
     for kw in keywords:
+        # Recherche par mot entier (plus pro, évite de trouver "Java" dans "JavaScript")
+        pattern = rf"\b{re.escape(kw)}\b"
+        
         bonus = 0
-        if kw in profile_titre:        bonus += POSITION_BONUS["titre"]
-        if kw in profile_resume:       bonus += POSITION_BONUS["resume"]
-        if kw in profile_skills_text:  bonus += POSITION_BONUS["competences"]
-        if kw in exp_text:             bonus += POSITION_BONUS["experiences"]
+        if re.search(pattern, profile_titre):       bonus += POSITION_BONUS["titre"]
+        if re.search(pattern, profile_resume):      bonus += POSITION_BONUS["resume"]
+        if re.search(pattern, profile_skills_text): bonus += POSITION_BONUS["competences"]
+        if re.search(pattern, exp_text):            bonus += POSITION_BONUS["experiences"]
 
         if bonus > 0:
             presents.append(kw)
@@ -75,33 +79,46 @@ def _matching_score(
     offer_required: list[str],
     offer_optional: list[str],
     profile_skills: list[str],
+    profile_full_text: str = "",
 ) -> tuple[int, list[str], list[str]]:
     """
-    Calcule le score de matching Jaccard pondéré 70/30.
-
-    Algorithme :
-      s_req = (|Profil ∩ Requis| / |Requis|) × 100
-      s_opt = (|Profil ∩ Optionnel| / |Optionnel|) × 100
-      score = s_req × 0.70 + s_opt × 0.30
-
-    Si une liste est vide → score partiel = 100% (pas pénalisé).
-
-    Returns:
-        (score_matching, competences_matching, competences_manquantes)
+    Calcule le score de matching avec recherche textuelle de secours.
+    Plus robuste que l'intersection d'ensembles pure.
     """
     profil_set = set(profile_skills)
-    req_set    = set(offer_required)
-    opt_set    = set(offer_optional)
+    matched_req = set()
+    matched_opt = set()
+    manquantes = []
 
-    matched_req = req_set & profil_set
-    matched_opt = opt_set & profil_set
+    # 1. Vérification des Requis
+    for req in offer_required:
+        pattern = rf"\b{re.escape(req)}\b"
+        if req in profil_set:
+            matched_req.add(req)
+        elif profile_full_text and re.search(pattern, profile_full_text):
+            # Match "contextuel" : présent dans le texte mais pas en mot-clé
+            matched_req.add(req)
+        else:
+            manquantes.append(req)
 
-    s_req = (len(matched_req) / len(req_set) * 100) if req_set else 100.0
-    s_opt = (len(matched_opt) / len(opt_set) * 100) if opt_set else 100.0
+    # 2. Vérification des Optionnels
+    for opt in offer_optional:
+        pattern = rf"\b{re.escape(opt)}\b"
+        if opt in profil_set:
+            matched_opt.add(opt)
+        elif profile_full_text and re.search(pattern, profile_full_text):
+            matched_opt.add(opt)
 
-    score      = min(int(s_req * 0.70 + s_opt * 0.30), 100)
-    matching   = list(matched_req | matched_opt)
-    manquantes = list(req_set - profil_set)
+    # 3. Calcul pondéré
+    n_req = len(offer_required)
+    n_opt = len(offer_optional)
+    
+    s_req = (len(matched_req) / n_req * 100) if n_req else 100.0
+    s_opt = (len(matched_opt) / n_opt * 100) if n_opt else 100.0
+
+    score = min(int(s_req * 0.70 + s_opt * 0.30), 100)
+    matching = list(matched_req | matched_opt)
+    
     return score, matching, manquantes
 
 
@@ -184,7 +201,7 @@ async def scorer_node(state: OfferState) -> dict:
         keywords, profile_titre, profile_resume, profile_skills_text, full_text
     )
     score_matching, comp_matching, comp_manquantes = _matching_score(
-        offer_skills, offer_optional, profile_skills
+        offer_skills, offer_optional, profile_skills, full_text
     )
     recs = _recommendations(kw_manquants, comp_manquantes, score_ats, score_matching)
 

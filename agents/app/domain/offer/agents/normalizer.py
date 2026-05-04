@@ -58,20 +58,23 @@ def _normalize_token(token: str) -> str:
 def normalize_skills(skills: list[str]) -> list[str]:
     """
     Normalise et déduplique une liste de compétences.
-
-    Args:
-        skills: Liste brute de compétences (ex: ["React.js", "TypeScript", "TS"])
-
-    Returns:
-        Liste dédupliquée normalisée (ex: ["react", "typescript"])
+    Gère le découpage automatique (ex: "JS / TS" -> ["javascript", "typescript"])
     """
     seen: set[str] = set()
     result = []
+    
+    # Séparateurs courants dans les CV/Offres
+    separators = r"[,/&|]"
+    
     for s in skills:
-        n = _normalize_token(s)
-        if n and n not in seen:
-            seen.add(n)
-            result.append(n)
+        # 1. On découpe par séparateur
+        tokens = re.split(separators, s)
+        for token in tokens:
+            # 2. On normalise chaque morceau
+            n = _normalize_token(token)
+            if n and n not in seen:
+                seen.add(n)
+                result.append(n)
     return result
 
 

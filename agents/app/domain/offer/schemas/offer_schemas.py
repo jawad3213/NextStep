@@ -168,5 +168,6 @@ class PipelineResult(BaseModel):
     """Agent 5 [stub M3] — Données pour QuestPDF"""
     email_draft: Optional[dict] = None
     """Agent 6 [stub M4] — Email de candidature"""
-    errors: list[str] = Field(default_factory=list)
+    messages: list[dict] = Field(default_factory=list)
+    """Historique des actions effectuées par chaque agent"""
     pipeline_version: str = "2.1"

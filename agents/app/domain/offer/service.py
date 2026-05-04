@@ -79,6 +79,15 @@ class OfferService:
             user_id, nb_errors, nb_msgs,
         )
 
+        # Convertir les messages LangChain en dictionnaires sérialisables
+        raw_msgs = final_state.get("messages") or []
+        serializable_msgs = []
+        for m in raw_msgs:
+            serializable_msgs.append({
+                "agent": getattr(m, "name", "unknown"),
+                "content": str(m.content)
+            })
+
         return PipelineResult(
             user_id=user_id,
             analyzed_offer=final_state.get("analyzed_offer"),
@@ -86,6 +95,7 @@ class OfferService:
             match_result=final_state.get("match_result"),
             cv_template_json=final_state.get("cv_template_json"),
             email_draft=final_state.get("email_draft"),
+            messages=serializable_msgs,
             errors=final_state.get("errors") or [],
         )
 

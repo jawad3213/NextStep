@@ -63,12 +63,13 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             # ── Profil de base ──────────────────────────────
             row = (await db.execute(
                 text("""
-                    SELECT u.nom, u.prenom,
-                           p.id            AS profil_id,
-                           p.titre, p.resume, p.telephone, p.ville
-                    FROM utilisateur u
-                    LEFT JOIN profil p ON p.id_utilisateur = u.id_utilisateur
-                    WHERE u.keycloak_id = :uid
+                    SELECT nom, prenom,
+                           id_utilisateur AS profil_id,
+                           titre_poste    AS titre, 
+                           resume_professionnel AS resume, 
+                           telephone, ville
+                    FROM utilisateur
+                    WHERE keycloak_id = :uid
                     LIMIT 1
                 """),
                 {"uid": user_id},
@@ -81,45 +82,71 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             pid = row["profil_id"]
 
             # ── Compétences ─────────────────────────────────
-            comps = (await db.execute(
-                text("SELECT nom, niveau FROM competence WHERE id_utilisateur = :pid"),
-                {"pid": pid},
-            )).mappings().all()
+            try:
+                comps = (await db.execute(
+                    text("SELECT nom, type_competence FROM competence WHERE id_utilisateur = :pid"),
+                    {"pid": pid},
+                )).mappings().all()
+                
+                # LOG DE DEBUG pour voir la structure réelle
+                if comps:
+                    print(f"DEBUG DB_TOOLS - Première compétence: {comps[0]}")
+                    print(f"DEBUG DB_TOOLS - Clés disponibles: {list(comps[0].keys())}")
+            except Exception as e:
+                logger.error("[Tool:db] Erreur compétences : %s", str(e))
+                comps = []
 
             # ── Expériences ─────────────────────────────────
-            exps = (await db.execute(
-                text("""
-                    SELECT poste AS titre, entreprise,
-                           date_debut::text, date_fin::text,
-                           missions AS description
-                    FROM experience WHERE id_utilisateur = :pid
-                    ORDER BY date_debut DESC
-                """),
-                {"pid": pid},
-            )).mappings().all()
+            try:
+                exps = (await db.execute(
+                    text("""
+                        SELECT poste AS titre, entreprise,
+                               date_debut::text, date_fin::text,
+                               missions AS description,
+                               type_contrat AS type
+                        FROM experience WHERE id_utilisateur = :pid
+                        ORDER BY date_debut DESC
+                    """),
+                    {"pid": pid},
+                )).mappings().all()
+            except Exception as e:
+                logger.error("[Tool:db] Erreur expériences : %s", str(e))
+                exps = []
 
             # ── Formations ──────────────────────────────────
-            forms = (await db.execute(
-                text("SELECT diplome, etablissement, annee FROM formation WHERE id_utilisateur = :pid"),
-                {"pid": pid},
-            )).mappings().all()
+            try:
+                forms = (await db.execute(
+                    text("SELECT diplome, etablissement, annee FROM formation WHERE id_utilisateur = :pid"),
+                    {"pid": pid},
+                )).mappings().all()
+            except Exception as e:
+                logger.error("[Tool:db] Erreur formations : %s", str(e))
+                forms = []
 
             # ── Certifications ──────────────────────────────
-            certs = (await db.execute(
-                text("SELECT nom, organisme FROM certification WHERE id_utilisateur = :pid"),
-                {"pid": pid},
-            )).mappings().all()
+            try:
+                certs = (await db.execute(
+                    text("SELECT titre AS nom, organisation AS organisme FROM certification WHERE id_utilisateur = :pid"),
+                    {"pid": pid},
+                )).mappings().all()
+            except Exception as e:
+                logger.error("[Tool:db] Erreur certifications : %s", str(e))
+                certs = []
 
             # ── Projets ─────────────────────────────────────
-            projs = (await db.execute(
-                text("""
-                    SELECT titre_projet AS titre,
-                           description,
-                           technologies_utilisees AS technologies
-                    FROM projet WHERE id_utilisateur = :pid
-                """),
-                {"pid": pid},
-            )).mappings().all()
+            try:
+                projs = (await db.execute(
+                    text("""
+                        SELECT titre_projet AS titre,
+                               description,
+                               technologies_utilisees AS technologies
+                        FROM projet WHERE id_utilisateur = :pid
+                    """),
+                    {"pid": pid},
+                )).mappings().all()
+            except Exception as e:
+                logger.error("[Tool:db] Erreur projets : %s", str(e))
+                projs = []
 
         return {
             "user_id": user_id,

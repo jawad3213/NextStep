@@ -41,20 +41,31 @@ async def profile_retriever_node(state: OfferState) -> dict:
     try:
         profile: dict = await get_user_profile_from_db.ainvoke({"user_id": user_id})
 
-        nb_comp = len(profile.get("competences", []))
-        nb_exp  = len(profile.get("experiences", []))
+        # Analyse granulaire pour le log
+        comps_list = profile.get("competences", [])
+        nb_comp = len(comps_list)
+        
+        # DEBUG : on prend les 5 premiers types pour voir
+        types_sample = list(set([str(c.get('type_competence','')) for c in comps_list]))
+        
+        nb_lang = len([c for c in comps_list if 'lang' in str(c.get('type_competence','')).lower()])
+        
+        all_exps = profile.get("experiences", [])
+        nb_work = len([e for e in all_exps if e.get('type') != 'Extracurricular'])
+        nb_extra = len([e for e in all_exps if e.get('type') == 'Extracurricular'])
+        
         nb_proj = len(profile.get("projets", []))
-
-        logger.info(
-            "Agent 2 ✅ — %s %s | %d compétences | %d expériences | %d projets",
-            profile.get("prenom", "?"), profile.get("nom", "?"),
-            nb_comp, nb_exp, nb_proj,
-        )
+        nb_cert = len(profile.get("certifications", []))
+        nb_form = len(profile.get("formations", []))
+        
+        has_resume = "OUI" if profile.get("resume") and len(profile["resume"]) > 10 else "NON"
 
         summary = (
-            f"[Agent 2] Profil chargé : "
-            f"{profile.get('prenom', '')} {profile.get('nom', '')} "
-            f"({nb_comp} compétences, {nb_exp} expériences, {nb_proj} projets)"
+            f"[Agent 2] Profil chargé. Types trouvés: {types_sample}. "
+            f"Sections : Résumé ({has_resume}), "
+            f"{nb_comp} compétences (dont {nb_lang} langues), "
+            f"{nb_work} expériences pro, {nb_extra} activités parascolaires, "
+            f"{nb_proj} projets, {nb_cert} certifications."
         )
         return {
             "profile_data": profile,

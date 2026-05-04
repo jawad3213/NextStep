@@ -138,7 +138,7 @@
       .logo-icon-container {
         width: 36px;
         height: 36px;
-        background: linear-gradient(135deg, #1A91F0 0%, #6366F1 100%);
+        background: linear-gradient(135deg, vars.$color-info 0%, vars.$color-primary 100%);
         display: flex;
         align-items: center;
         justify-content: center;

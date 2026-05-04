@@ -430,11 +430,11 @@ export class ProfileService {
     let score = 0;
     
     // 1. Personal Info (Total: 20%)
-    if (p.personal.firstName) score += 4;
-    if (p.personal.lastName) score += 4;
-    if (p.personal.email) score += 4;
-    if (p.personal.phone) score += 4;
-    if (p.personal.jobTitle) score += 4;
+    if (p.personal.firstName) score += 5;
+    if (p.personal.lastName) score += 5;
+    if (p.personal.email) score += 5;
+    if (p.personal.phone) score += 2.5;
+    if (p.personal.jobTitle) score += 2.5;
     
     if (p.education.length > 0) score += 10;
     if (p.experience.length > 0) score += 15;

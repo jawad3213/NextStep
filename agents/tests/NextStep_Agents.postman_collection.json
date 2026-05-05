@@ -1,0 +1,444 @@
+{
+  "info": {
+    "name": "NextStep — Agents IA",
+    "description": "Collection Postman pour tester les agents M2 du projet NextStep.\n\n**Architecture :**\n- `GET /health` → Vérification du serveur\n- `POST /offer/*` → Domaine Offre (Agents 1-4 + Pipeline complet)\n- `POST /job/*` → Domaine Job (CV Formatter Agent 5, Email Agent 6)\n- `POST /company/*` → Domaine Entreprise (Analyse culturelle)\n\n**Démarrage du serveur :**\n```\ncd agents\nuvicorn main:app --reload --port 8000\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "URL de base du serveur FastAPI"
+    },
+    {
+      "key": "test_user_id",
+      "value": "a9709404-ae96-4070-91a3-21142ded4139",
+      "type": "string",
+      "description": "UUID d'un utilisateur test existant en base"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Vérifie que le serveur FastAPI est démarré et opérationnel."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status OK', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal('ok');",
+                  "    pm.expect(body).to.have.property('version');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🤖 Offer Domain",
+      "item": [
+        {
+          "name": "Agent 1 — Analyser une offre (LLM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"raw_text\": \"Nous recherchons un Développeur Fullstack Senior (CDI) basé à Paris.\\n\\nCompétences REQUISES :\\n- React.js (5 ans)\\n- Node.js + TypeScript\\n- PostgreSQL\\n- Docker\\n- REST API\\n\\nCompétences SOUHAITÉES :\\n- Kubernetes\\n- Redis\\n- GraphQL\\n- AWS\\n\\nMots-clés ATS : React, Node.js, TypeScript, Docker, PostgreSQL, CI/CD, REST API, Agile, Scrum.\\n\\nRémunération : 55-70k€. Télétravail hybride (3j/semaine). Bac+5 requis, 3 ans d'expérience minimum.\",\n  \"user_id\": \"{{test_user_id}}\",\n  \"template_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/offer/analyze-offer",
+              "host": ["{{base_url}}"],
+              "path": ["offer", "analyze-offer"]
+            },
+            "description": "**Agent 1** — Analyse le texte brut d'une offre via LLM (Groq/OpenAI).\n\n**Réponse :** JSON structuré avec titre, compétences, keywords ATS...\n\n⚠️ Nécessite une clé API LLM configurée dans `.env`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has titre', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('titre');",
+                  "});",
+                  "pm.test('Has competences_requises', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.competences_requises).to.be.an('array');",
+                  "});",
+                  "pm.test('Has keywords_ats', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.keywords_ats).to.be.an('array');",
+                  "    pm.expect(body.keywords_ats.length).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agents 1→4 — Pipeline Complet (Match + ATS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"raw_text\": \"Nous recherchons un Développeur Fullstack Senior (CDI) basé à Paris.\\n\\nCompétences REQUISES :\\n- React.js (5 ans)\\n- Node.js + TypeScript\\n- PostgreSQL\\n- Docker\\n\\nCompétences SOUHAITÉES :\\n- Kubernetes\\n- Redis\\n\\nMots-clés ATS : React, Node.js, TypeScript, Docker, PostgreSQL, CI/CD, REST API.\\n\\nRémunération : 55-70k€. Télétravail hybride. 3 ans d'expérience minimum.\",\n  \"user_id\": \"{{test_user_id}}\",\n  \"template_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/offer/run-pipeline",
+              "host": ["{{base_url}}"],
+              "path": ["offer", "run-pipeline"]
+            },
+            "description": "**Agents 1 → 4** — Pipeline complet LangGraph :\n1. **Agent 1** : Analyse LLM de l'offre\n2. **Agent 2** : Récupération du profil (SQL)\n3. **Agent 3** : Normalisation des compétences\n4. **Agent 4** : Calcul scores ATS + Matching\n\n**Réponse :** match_result avec score_matching (%), score_ats (%), recommandations"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has match_result', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('match_result');",
+                  "});",
+                  "pm.test('Score in [0, 100]', () => {",
+                  "    const match = pm.response.json().match_result;",
+                  "    pm.expect(match.score_matching).to.be.within(0, 100);",
+                  "    pm.expect(match.score_ats).to.be.within(0, 100);",
+                  "});",
+                  "pm.test('Has recommandations', () => {",
+                  "    const match = pm.response.json().match_result;",
+                  "    pm.expect(match.recommandations).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agents 1-2 — Match Direct (sans pipeline)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"raw_text\": \"Développeur Backend Python Django. Compétences : Python, Django, PostgreSQL, Docker. 2 ans exp.\",\n  \"user_id\": \"{{test_user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/offer/match",
+              "host": ["{{base_url}}"],
+              "path": ["offer", "match"]
+            },
+            "description": "Route de matching rapide — Analyse offre + récupération profil."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💼 Job Domain",
+      "item": [
+        {
+          "name": "Agent 5 — Préparer données CV (QuestPDF)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_data\": {\n    \"nom\": \"Dupont\",\n    \"prenom\": \"Jean\",\n    \"titre\": \"Développeur Full-Stack React Node.js\",\n    \"resume\": \"Développeur passionné avec 4 ans d'expérience en React, TypeScript et Node.js. Expert Docker et CI/CD, habitué aux environnements cloud (AWS).\",\n    \"email\": \"jean.dupont@email.com\",\n    \"telephone\": \"+33612345678\",\n    \"ville\": \"Paris\",\n    \"lien_linkedin\": \"https://linkedin.com/in/jean-dupont\",\n    \"lien_github\": \"https://github.com/jeandupont\",\n    \"competences\": [\n      {\"nom\": \"React\", \"niveau\": 5},\n      {\"nom\": \"TypeScript\", \"niveau\": 4},\n      {\"nom\": \"Node.js\", \"niveau\": 4},\n      {\"nom\": \"PostgreSQL\", \"niveau\": 3},\n      {\"nom\": \"Docker\", \"niveau\": 3},\n      {\"nom\": \"Python\", \"niveau\": 2}\n    ],\n    \"experiences\": [\n      {\n        \"titre\": \"Développeur Full-Stack Senior\",\n        \"entreprise\": \"StartupX\",\n        \"date_debut\": \"2021-01-15\",\n        \"date_fin\": null,\n        \"description\": \"Développement d'une plateforme SaaS avec React, Node.js et PostgreSQL. Déploiement Docker sur AWS.\"\n      },\n      {\n        \"titre\": \"Développeur Frontend\",\n        \"entreprise\": \"AgenceY\",\n        \"date_debut\": \"2019-06-01\",\n        \"date_fin\": \"2020-12-31\",\n        \"description\": \"Développement d'interfaces React et TypeScript.\"\n      }\n    ],\n    \"formations\": [\n      {\"diplome\": \"Master Informatique\", \"etablissement\": \"Université Paris-Saclay\", \"annee\": 2019}\n    ],\n    \"certifications\": [\n      {\"nom\": \"AWS Certified Developer Associate\", \"organisme\": \"Amazon Web Services\"}\n    ],\n    \"projets\": [\n      {\n        \"titre\": \"Portfolio Personnel\",\n        \"description\": \"Site Next.js avec TypeScript, Prisma et déploiement Vercel.\",\n        \"technologies\": [\"Next.js\", \"TypeScript\", \"Prisma\", \"Vercel\"]\n      }\n    ]\n  },\n  \"offer_data\": {\n    \"titre\": \"Développeur Full-Stack Senior\",\n    \"entreprise\": \"TechCorp\",\n    \"type_contrat\": \"CDI\"\n  },\n  \"match_result\": {\n    \"score_matching\": 78,\n    \"score_ats\": 65,\n    \"competences_matching\": [\"React\", \"TypeScript\", \"Node.js\", \"Docker\"]\n  },\n  \"template_id\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/job/prepare-cv-data",
+              "host": ["{{base_url}}"],
+              "path": ["job", "prepare-cv-data"]
+            },
+            "description": "**Agent 5** — Formate les données profil pour QuestPDF (.NET M3).\n\n**Réponse :** JSON `cv_template_json` prêt à envoyer au service de génération PDF.\n\n✅ **Sans LLM** — Algorithme pur, testable hors-ligne"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has cv_template_json', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('cv_template_json');",
+                  "});",
+                  "pm.test('Has sections and metadata', () => {",
+                  "    const cv = pm.response.json().cv_template_json;",
+                  "    pm.expect(cv).to.have.property('sections');",
+                  "    pm.expect(cv).to.have.property('metadata');",
+                  "    pm.expect(cv.metadata.poste_vise).to.equal('Développeur Full-Stack Senior');",
+                  "    pm.expect(cv.metadata.template_id).to.equal(2);",
+                  "});",
+                  "pm.test('Matched skills first', () => {",
+                  "    const comps = pm.response.json().cv_template_json.sections.competences;",
+                  "    if (comps.length >= 2) {",
+                  "        pm.expect(comps[0].matched).to.be.true;",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent 6 — Générer email candidature (LLM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_data\": {\n    \"nom\": \"Dupont\",\n    \"prenom\": \"Jean\",\n    \"titre\": \"Développeur Full-Stack React Node.js\",\n    \"competences\": [\n      {\"nom\": \"React\", \"niveau\": 5},\n      {\"nom\": \"TypeScript\", \"niveau\": 4},\n      {\"nom\": \"Node.js\", \"niveau\": 4}\n    ]\n  },\n  \"offer_data\": {\n    \"titre\": \"Développeur Full-Stack Senior\",\n    \"entreprise\": \"TechCorp Paris\",\n    \"type_contrat\": \"CDI\"\n  },\n  \"email_type\": \"candidature\",\n  \"candidature_id\": \"candidature-uuid-123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/job/generate-email",
+              "host": ["{{base_url}}"],
+              "path": ["job", "generate-email"]
+            },
+            "description": "**Agent 6** — Rédige un email de candidature personnalisé via LLM.\n\n**email_type :** `candidature` | `relance`\n\n⚠️ Nécessite une clé API LLM"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has email_draft', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('email_draft');",
+                  "});",
+                  "pm.test('Email has objet and corps', () => {",
+                  "    const email = pm.response.json().email_draft;",
+                  "    pm.expect(email).to.have.property('objet');",
+                  "    pm.expect(email).to.have.property('corps');",
+                  "    pm.expect(email.objet.length).to.be.above(5);",
+                  "    pm.expect(email.corps.length).to.be.above(50);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent 6 — Générer email de relance (LLM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_data\": {\n    \"nom\": \"Dupont\",\n    \"prenom\": \"Jean\",\n    \"titre\": \"Développeur Full-Stack\",\n    \"competences\": [{\"nom\": \"React\"}]\n  },\n  \"offer_data\": {\n    \"titre\": \"Dev Senior\",\n    \"entreprise\": \"StartupZ\",\n    \"type_contrat\": \"CDI\"\n  },\n  \"email_type\": \"relance\",\n  \"candidature_id\": \"candidature-uuid-456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/job/generate-email",
+              "host": ["{{base_url}}"],
+              "path": ["job", "generate-email"]
+            },
+            "description": "**Agent 6** — Email de relance (7 jours après candidature)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏢 Company Domain",
+      "item": [
+        {
+          "name": "Agent Company — Analyser entreprise (sans LLM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"StartupX\",\n  \"offer_data\": {\n    \"titre\": \"Développeur Full-Stack Senior\",\n    \"type_contrat\": \"CDI\",\n    \"localisation\": \"Paris\",\n    \"keywords_ats\": [\"react\", \"typescript\", \"node.js\", \"docker\", \"postgresql\"],\n    \"competences_requises\": [\"React\", \"TypeScript\", \"Node.js\", \"Docker\"],\n    \"competences_souhaitees\": [\"Kubernetes\", \"Redis\"],\n    \"description_poste\": \"Rejoignez notre startup innovante en pleine croissance (levée de fonds série A). Stack moderne React/TypeScript, déploiement Docker. Politique full remote, équipe internationale de 30 personnes.\"\n  },\n  \"profile_data\": {\n    \"competences\": [\n      {\"nom\": \"React\", \"niveau\": 5},\n      {\"nom\": \"TypeScript\", \"niveau\": 4},\n      {\"nom\": \"Node.js\", \"niveau\": 4},\n      {\"nom\": \"Docker\", \"niveau\": 3},\n      {\"nom\": \"Python\", \"niveau\": 2}\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/company/analyze-company",
+              "host": ["{{base_url}}"],
+              "path": ["company", "analyze-company"]
+            },
+            "description": "**Agent Company** — Analyse l'entreprise et calcule un score de compatibilité culturelle.\n\n**Algorithme :**\n- +10 pts : full remote\n- +5 pts : startup\n- +0-20 pts : alignement stack technique\n- +5 pts : stage/alternance\n\n✅ **Sans LLM** — Testable hors-ligne immédiatement"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has company_culture_score', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('company_culture_score');",
+                  "    pm.expect(body.company_culture_score).to.be.within(0, 100);",
+                  "});",
+                  "pm.test('Has company_insights', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.company_insights).to.be.an('array');",
+                  "    pm.expect(body.company_insights.length).to.be.above(0);",
+                  "});",
+                  "pm.test('Score > 60 for startup + full remote', () => {",
+                  "    pm.expect(pm.response.json().company_culture_score).to.be.above(60);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent Company — Grand Groupe Présentiel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"BNP Paribas\",\n  \"offer_data\": {\n    \"titre\": \"Développeur Java Senior\",\n    \"type_contrat\": \"CDI\",\n    \"localisation\": \"La Défense\",\n    \"keywords_ats\": [\"java\", \"spring\", \"microservices\", \"kafka\"],\n    \"description_poste\": \"Groupe bancaire multinational, poste 100% au bureau, environnement grand groupe structuré. 5000 développeurs dans le monde.\"\n  },\n  \"profile_data\": {\n    \"competences\": [\n      {\"nom\": \"Java\", \"niveau\": 4},\n      {\"nom\": \"Spring\", \"niveau\": 3}\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/company/analyze-company",
+              "host": ["{{base_url}}"],
+              "path": ["company", "analyze-company"]
+            },
+            "description": "Test comparatif : Grand groupe en présentiel (score plus modéré que startup remote)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "❌ Tests d'Erreur (Validation)",
+      "item": [
+        {
+          "name": "422 — Offre sans raw_text",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user_id\": \"some-uuid\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/offer/analyze-offer",
+              "host": ["{{base_url}}"],
+              "path": ["offer", "analyze-offer"]
+            },
+            "description": "Doit retourner 422 car raw_text est manquant."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 — Pipeline sans user_id",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"raw_text\": \"Offre de test\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/offer/run-pipeline",
+              "host": ["{{base_url}}"],
+              "path": ["offer", "run-pipeline"]
+            },
+            "description": "Doit retourner 422 car user_id est manquant."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 — Company body vide",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{}"},
+            "url": {
+              "raw": "{{base_url}}/company/analyze-company",
+              "host": ["{{base_url}}"],
+              "path": ["company", "analyze-company"]
+            },
+            "description": "Doit retourner 422 (body vide = champs requis manquants)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

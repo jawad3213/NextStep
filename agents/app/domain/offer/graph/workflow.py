@@ -91,24 +91,27 @@ def _decide_next(state: OfferState) -> _NextNode:
 
 async def cv_formatter_node(state: OfferState) -> dict:
     """
-    Agent 5 [STUB M3] — Formate les données pour QuestPDF.
-    À implémenter par M3 (cv_engine).
+    Agent 5 [CV Engine] — Delegates to the cv_engine domain.
+    Replaces the old M3 stub with the real pipeline.
     """
-    logger.info("📄 Agent 5 [CV Formatter] — Stub M3")
-    profile      = state.get("profile_data")    or {}
-    match_result = state.get("match_result")     or {}
+    logger.info("📄 Agent 5 [CV Engine] — Délégation au domaine cv_engine")
+    from app.domain.cv_engine.service import cv_engine_service
 
-    cv_json = {
-        "profile":        profile,
-        "match_score":    match_result.get("score_matching", 0),
-        "ats_score":      match_result.get("score_ats", 0),
-        "template_id":    state.get("template_id", 1),
-        "analyzed_offer": state.get("analyzed_offer"),
-        "_note": "Stub M3 — implémenté par cv_engine",
-    }
+    result = await cv_engine_service.prepare_cv_data(
+        user_id=state.get("user_id", ""),
+        template_slug=str(state.get("template_id", 1)),
+        offer_data=state.get("analyzed_offer"),
+        match_result=state.get("match_result"),
+    )
+
+    cv_json = result.get("cv_json") or {}
     return {
         "cv_template_json": cv_json,
-        "messages": [AIMessage(content="[Agent 5] CV formatté (stub M3)", name="cv_formatter")],
+        "messages": [AIMessage(
+            content=f"[Agent 5] CV structuré via cv_engine — "
+                    f"{len(cv_json.get('sections', {}).get('competences', []))} compétences",
+            name="cv_formatter",
+        )],
     }
 
 

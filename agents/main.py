@@ -34,6 +34,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.offer_routes import router as offer_router
 from app.api.job_routes import router as job_router
 from app.api.company_routes import router as company_router
+from app.api.cv_engine_routes import router as cv_engine_router
 
 # Compatibilité : ancien email_engine (M4 autonome)
 try:
@@ -61,6 +62,7 @@ app = FastAPI(
 |---------|--------|-------------|
 | **offer** | 1, 2, 3, 4 | Analyse offre → Profil → Normalisation → Scoring |
 | **job**   | 5, 6       | CV Formatter → Email Composer |
+| **cv_engine** | 7, 8, 9 | Profile Loader → Skill Optimizer → CV Structurer |
 | **company** | —        | Analyse entreprise + score culture |
 
 ### Agents M2 (domaine offer)
@@ -80,6 +82,7 @@ app = FastAPI(
         {"name": "Health"},
         {"name": "M2 — Offer Pipeline"},
         {"name": "Job — CV & Email"},
+        {"name": "CV Engine — Préparation données CV"},
         {"name": "Company — Analyse Entreprise"},
         {"name": "Email Agent", "description": "Module M4 autonome"},
     ],
@@ -99,6 +102,7 @@ app.add_middleware(
 # ─── Routers domaines ─────────────────────────────────────────
 app.include_router(offer_router)
 app.include_router(job_router)
+app.include_router(cv_engine_router)
 app.include_router(company_router)
 
 # ─── Router email_engine M4 (compatibilité) ───────────────────
@@ -129,6 +133,11 @@ async def health_check():
                 "Agent5_cv_formatter":  "✅ actif (algorithme)",
                 "Agent6_email_composer":"✅ actif (LLM)",
             },
+            "cv_engine": {
+                "Node1_profile_loader":  "✅ actif (DB SQL)",
+                "Node2_skill_optimizer": "✅ actif (algorithme)",
+                "Node3_cv_structurer":   "✅ actif (algorithme)",
+            },
             "company": {
                 "company_analyzer": "✅ actif (algorithme)",
             },
@@ -137,7 +146,9 @@ async def health_check():
             "pipeline":        "POST /run-pipeline",
             "analyze_offer":   "POST /analyze-offer",
             "match":           "POST /match",
-            "prepare_cv":      "POST /prepare-cv-data",
+            "prepare_cv":      "POST /prepare-cv",
+            "prepare_cv_legacy": "POST /prepare-cv-data",
+            "optimize_skills": "POST /optimize-skills",
             "generate_email":  "POST /generate-email",
             "analyze_company": "POST /analyze-company",
         },

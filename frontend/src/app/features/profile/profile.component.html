@@ -3,26 +3,49 @@
   <!-- GLOBAL LOADING OVERLAY FOR AI PARSING -->
   @if (isParsing()) {
   <div class="parsing-overlay animate-fade-in">
-    <div class="parsing-content">
-      <div class="ai-orb-wrapper">
-        <div class="ai-orb"></div>
-        <div class="ai-orb-glow"></div>
+    <div class="premium-loader-card">
+      <div class="loader-visual">
+        <div class="pulse-ring"></div>
+        <div class="pulse-ring delay-1"></div>
+        <div class="pulse-ring delay-2"></div>
+        <div class="core-dot">
+          <mat-icon>auto_awesome</mat-icon>
+        </div>
       </div>
-      <h2 class="parsing-title">Our AI is building your profile...</h2>
-      <p class="parsing-subtitle">Extracting your professional DNA to fill the sections automatically.</p>
 
-      <div class="parsing-steps">
-        <div class="step-item active">
-          <mat-icon>check_circle</mat-icon>
-          <span>Reading document...</span>
+      <div class="loader-content">
+        <h2 class="loader-headline">Analyzing your professional profile</h2>
+        <p class="loader-subtext">We are processing your document to extract key experiences and skills.</p>
+        
+        <div class="loader-steps">
+          <div class="l-step" [class.completed]="parsingStatus() === 'analyzing' || parsingStatus() === 'structuring'" [class.active]="parsingStatus() === 'reading'">
+            <div class="l-step-icon">
+              @if (parsingStatus() === 'analyzing' || parsingStatus() === 'structuring') { <mat-icon>check</mat-icon> }
+              @else { <div class="mini-spinner"></div> }
+            </div>
+            <span class="l-step-text">Reading document...</span>
+          </div>
+          
+          <div class="l-step" [class.completed]="parsingStatus() === 'structuring'" [class.active]="parsingStatus() === 'analyzing'" [class.pending]="parsingStatus() === 'reading'">
+            <div class="l-step-icon">
+              @if (parsingStatus() === 'structuring') { <mat-icon>check</mat-icon> }
+              @else if (parsingStatus() === 'analyzing') { <div class="mini-spinner"></div> }
+              @else { <div class="dot"></div> }
+            </div>
+            <span class="l-step-text">Analyzing experiences</span>
+          </div>
+          
+          <div class="l-step" [class.active]="parsingStatus() === 'structuring'" [class.pending]="parsingStatus() === 'reading' || parsingStatus() === 'analyzing'">
+            <div class="l-step-icon">
+              @if (parsingStatus() === 'structuring') { <div class="mini-spinner"></div> }
+              @else { <div class="dot"></div> }
+            </div>
+            <span class="l-step-text">Structuring your profile</span>
+          </div>
         </div>
-        <div class="step-item active">
-          <div class="mini-loader"></div>
-          <span>Analyzing experience...</span>
-        </div>
-        <div class="step-item">
-          <mat-icon>radio_button_unchecked</mat-icon>
-          <span>Structuring data...</span>
+
+        <div class="loader-progress-container">
+          <div class="loader-progress-bar" [style.width.%]="parsingProgress()"></div>
         </div>
       </div>
     </div>
@@ -125,20 +148,24 @@
           [newProject]="newProject()" [newExtracurricular]="newExtracurricular()"
           [sectionTitle]="getSectionTitle('projets', 'ACADEMIC & PERSONAL PROJECTS')"
           [isEditingTitle]="editingSection() === 'projets'" [activeTab]="activeProjectTab()"
+          [extraTitle]="getSectionTitle('extraCurricular', 'EXTRACURRICULAR ACTIVITIES & VOLUNTEERING')"
+          [isEditingExtraTitle]="editingSection() === 'extraCurricular'"
           (tabChange)="onProjectTabChange($event)" (addToggle)="toggleAddProject()" (save)="saveProject()"
           (updateNew)="updateNewItem('project', $event.field, $event.value)" (edit)="editItem($event, 'project')"
           (duplicate)="duplicateItem($event, 'project')" (delete)="deleteItem($event, 'projets')"
           (reorder)="drop($event, 'projets')" (addToggleExtra)="toggleAddExtracurricular()"
           (saveExtra)="saveExtracurricular()" (updateNewExtra)="updateNewExtracurricular($event.field, $event.value)"
           (editExtra)="editExtracurricular($event)" (deleteExtra)="deleteExtracurricular($event)"
-          (titleEditStart)="startEditingSection('projets')" (titleEditSave)="updateSectionTitle('projets', $event)">
+          (titleEditStart)="startEditingSection('projets')" (titleEditSave)="updateSectionTitle('projets', $event)"
+          (extraTitleEditStart)="startEditingSection('extraCurricular')" (extraTitleEditSave)="updateSectionTitle('extraCurricular', $event)">
         </app-projects>
         }
-
         @if (currentStep() === 'competences') {
         <app-skills [skills]="profile().skills" [languages]="profile().languages" [newLanguage]="newLanguage()"
           [activeTab]="activeSkillsTab()" [sectionTitle]="getSectionTitle('competences', 'Skills & Languages')"
           [isEditingTitle]="editingSection() === 'competences'" [predefinedSkills]="predefinedSkills"
+          [langTitle]="getSectionTitle('languages', 'Languages')"
+          [isEditingLangTitle]="editingSection() === 'languages'"
           [filteredSuggestions]="filteredSuggestions()" (tabChange)="activeSkillsTab.set($event)"
           (onSkillInput)="onSkillInput($event)"
           (addCustomSkill)="addCustomSkill($event.name, $event.category, $event.inputElement)"
@@ -147,10 +174,11 @@
           (reorder)="drop($event, 'skills')" (addLanguage)="saveLanguage()" (removeLanguage)="removeLanguage($event)"
           (updateNewLanguage)="updateNewLanguage($event.field, $event.value)"
           (titleEditStart)="startEditingSection('competences')"
-          (titleEditSave)="updateSectionTitle('competences', $event)">
+          (titleEditSave)="updateSectionTitle('competences', $event)"
+          (langTitleEditStart)="startEditingSection('languages')"
+          (langTitleEditSave)="updateSectionTitle('languages', $event)">
         </app-skills>
         }
-
 
         @if (currentStep() === 'certifications') {
         <app-certifications [certifications]="profile().certifications"

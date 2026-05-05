@@ -111,6 +111,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isAddingCertification = signal(false);
   isGeneratingAI = signal(false);
   isParsing = signal(false);
+  parsingStatus = signal<'reading' | 'analyzing' | 'structuring'>('reading');
+  parsingProgress = signal(0);
   editingSection = signal<SectionTitleKey | null>(null);
   skillSearchQuery = signal('');
   filteredSuggestions = signal<{name: string, category: string}[]>([]);
@@ -296,17 +298,34 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     if (!file) return;
 
     this.isParsing.set(true);
+    this.parsingStatus.set('reading');
+    this.parsingProgress.set(10);
+
     try {
+      // Step 1: Simulate reading (fast)
+      await new Promise(resolve => setTimeout(resolve, 800));
+      this.parsingStatus.set('analyzing');
+      this.parsingProgress.set(40);
+
+      // Step 2: Actual backend call (this takes most of the time)
       await this.profileService.importResume(file);
+      
+      this.parsingStatus.set('structuring');
+      this.parsingProgress.set(85);
+      
+      // Step 3: Small delay to show completion of structuring
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      this.parsingProgress.set(100);
+      await new Promise(resolve => setTimeout(resolve, 400));
+
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
-      // Stay on first step but show a nice message? 
-      // Or move to next step automatically? Let's stay to let them check.
     } catch (error) {
       console.error('Import failed', error);
-      // Error toast? 
+      // Optional: error toast
     } finally {
       this.isParsing.set(false);
+      this.parsingProgress.set(0);
     }
   }
 

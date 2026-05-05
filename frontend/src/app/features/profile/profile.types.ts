@@ -85,6 +85,8 @@ export interface Profile {
     competences?: string;
     projets?: string;
     certifications?: string;
+    extraCurricular?: string;
+    languages?: string;
   };
 }
 

@@ -28,7 +28,9 @@ export class ProfileService {
       experience: 'Work Experience',
       competences: 'Skills',
       projets: 'Personal Projects',
-      certifications: 'Certifications'
+      certifications: 'Certifications',
+      extraCurricular: 'Extracurricular Activities',
+      languages: 'Languages'
     }
   };
 

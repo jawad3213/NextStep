@@ -66,6 +66,7 @@ async def profile_retriever_node(state: OfferState) -> dict:
             f"{nb_comp} compétences (dont {nb_lang} langues), "
             f"{nb_work} expériences pro, {nb_extra} activités parascolaires, "
             f"{nb_proj} projets, {nb_cert} certifications."
+            f"{nb_form} formations.,"
         )
         return {
             "profile_data": profile,

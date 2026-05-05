@@ -48,10 +48,16 @@ export class SkillsComponent {
   @Input() activeTab: 'skills' | 'languages' = 'skills';
   @Input() sectionTitle: string = 'Skills & Languages';
   @Input() isEditingTitle: boolean = false;
+  
+  @Input() langTitle: string = 'Languages';
+  @Input() isEditingLangTitle: boolean = false;
 
   @Output() tabChange = new EventEmitter<'skills' | 'languages'>();
   @Output() titleEditStart = new EventEmitter<void>();
   @Output() titleEditSave = new EventEmitter<string>();
+
+  @Output() langTitleEditStart = new EventEmitter<void>();
+  @Output() langTitleEditSave = new EventEmitter<string>();
 
   isSkillSelected(skillName: string): boolean {
     if (!this.skills || !skillName) return false;

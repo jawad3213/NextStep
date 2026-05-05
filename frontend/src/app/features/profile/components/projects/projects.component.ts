@@ -26,6 +26,9 @@ export class ProjectsComponent {
   @Input({ required: true }) sectionTitle: string = 'ACADEMIC & PERSONAL PROJECTS';
   @Input({ required: true }) isEditingTitle: boolean = false;
   
+  @Input() extraTitle: string = 'EXTRACURRICULAR ACTIVITIES & VOLUNTEERING';
+  @Input() isEditingExtraTitle: boolean = false;
+  
   @Input() activeTab: 'projects' | 'extracurriculars' = 'projects';
 
   @Output() tabChange = new EventEmitter<'projects' | 'extracurriculars'>();
@@ -46,6 +49,9 @@ export class ProjectsComponent {
   
   @Output() titleEditStart = new EventEmitter<void>();
   @Output() titleEditSave = new EventEmitter<string>();
+
+  @Output() extraTitleEditStart = new EventEmitter<void>();
+  @Output() extraTitleEditSave = new EventEmitter<string>();
 
   onUpdateNewItem(field: string, value: any) {
     this.updateNew.emit({ field, value });

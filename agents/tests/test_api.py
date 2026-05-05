@@ -40,8 +40,8 @@ async def test_analyze_offer_empty_text():
     payload = {"raw_text": "", "user_id": "test-uuid", "template_id": 1}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/offer/analyze-offer", json=payload)
-    # Le serveur doit répondre (pas crasher) — 200 ou 500 selon config LLM
-    assert response.status_code in (200, 500)
+    # Pydantic doit rejeter les textes < 50 caractères avec un code 422
+    assert response.status_code == 422
 
 
 # ─── /offer/run-pipeline ─────────────────────────────────────
@@ -69,6 +69,7 @@ async def test_analyze_company_success():
     """POST /company/analyze-company → score culture + insights (sans LLM)."""
     payload = {
         "company_name": "TechCorp",
+        "user_id": "test-uuid",
         "offer_data": {
             "titre": "Développeur Full-Stack",
             "type_contrat": "CDI",
@@ -101,6 +102,7 @@ async def test_analyze_company_startup_bonus():
     """Score > 55 pour une startup full remote avec stack alignée."""
     payload = {
         "company_name": "StartupX",
+        "user_id": "test-uuid",
         "offer_data": {
             "titre": "Dev React",
             "type_contrat": "CDI",
@@ -136,6 +138,7 @@ async def test_analyze_company_empty_body():
 async def test_prepare_cv_data_success():
     """POST /job/prepare-cv-data → cv_template_json complet."""
     payload = {
+        "user_id": "test-uuid",
         "profile_data": {
             "nom": "Dupont", "prenom": "Jean",
             "titre": "Dev Full-Stack React",
@@ -177,8 +180,7 @@ async def test_prepare_cv_data_success():
         response = await client.post("/job/prepare-cv-data", json=payload)
     assert response.status_code == 200
     body = response.json()
-    assert "cv_template_json" in body
-    cv = body["cv_template_json"]
+    cv = body
     # Vérifier les sections
     assert "sections" in cv
     assert "metadata" in cv
@@ -199,6 +201,7 @@ async def test_prepare_cv_data_success():
 async def test_prepare_cv_data_matched_skills_first():
     """Les compétences matchées doivent apparaître en premier."""
     payload = {
+        "user_id": "test-uuid",
         "profile_data": {
             "competences": [
                 {"nom": "Python", "niveau": 3},    # non matchée
@@ -213,7 +216,7 @@ async def test_prepare_cv_data_matched_skills_first():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/job/prepare-cv-data", json=payload)
     assert response.status_code == 200
-    comps = response.json()["cv_template_json"]["sections"]["competences"]
+    comps = response.json()["sections"]["competences"]
     # Les 2 premiers doivent être matchés
     assert comps[0]["matched"] is True
     assert comps[1]["matched"] is True

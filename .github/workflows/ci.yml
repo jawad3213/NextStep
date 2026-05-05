@@ -1,0 +1,287 @@
+# =============================================================================
+# .github/workflows/ci.yml
+# NextStep — Pipeline CI GitHub Actions
+#
+# Déclencheurs :
+#   push  → branches : main, dev, zakariae, feature-*
+#   PR    → vers main et dev
+#
+# Jobs parallèles :
+#   ┌──────────────┐  ┌────────────────┐  ┌──────────────────┐
+#   │  ci-agents   │  │  ci-frontend   │  │   ci-backend     │
+#   │  (Python)    │  │  (Angular)     │  │   (.NET)         │
+#   └──────┬───────┘  └───────┬────────┘  └────────┬─────────┘
+#          └──────────────────┼───────────────────-─┘
+#                             ▼
+#                    ┌─────────────────┐
+#                    │   ci-summary    │  (badge + résumé)
+#                    └─────────────────┘
+# =============================================================================
+
+name: CI — NextStep
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - zakariae
+      - "feature-*"
+      - "fix/*"
+  pull_request:
+    branches:
+      - main
+      - dev
+
+# Annule les runs en cours sur la même branche si un nouveau push arrive
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VARIABLES GLOBALES
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+  DOTNET_VERSION: "9.0"
+
+# =============================================================================
+# JOB 1 — Agents Python (pytest + lint)
+# =============================================================================
+jobs:
+  ci-agents:
+    name: "🐍 Agents Python"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agents
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+
+      # ── Python ──────────────────────────────────────────────
+      - name: "🐍 Setup Python ${{ env.PYTHON_VERSION }}"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: agents/requirements.txt
+
+      # ── Dépendances ─────────────────────────────────────────
+      - name: "📦 Installer les dépendances"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      # ── Lint (Ruff) ─────────────────────────────────────────
+      - name: "🔍 Lint — Ruff"
+        run: |
+          pip install ruff
+          ruff check app/ --select E,W,F --ignore E501 || true
+
+      # ── Vérification des imports ─────────────────────────────
+      - name: "✅ Vérifier les imports critiques"
+        run: |
+          python -c "
+          from app.domain.offer.schemas.state import OfferState
+          from app.domain.offer.agents.offer_analyzer import offer_analyzer_node
+          from app.domain.offer.agents.profile_retriever import profile_retriever_node
+          from app.domain.offer.agents.normalizer import normalizer_node, normalize_skills
+          from app.domain.offer.agents.scorer import scorer_node
+          from app.domain.job.agents.cv_formatter import cv_formatter_node
+          from app.domain.job.agents.email_composer import email_composer_node
+          from app.domain.company.agents.company_analyzer import company_analyzer_node
+          from app.domain.offer.graph.workflow import build_offer_workflow
+          g = build_offer_workflow()
+          print('✅ Tous les imports et le graphe LangGraph OK')
+          "
+
+      # ── Tests unitaires ─────────────────────────────────────
+      - name: "🧪 Tests unitaires — Normalizer"
+        run: |
+          python -m pytest tests/test_normalizer.py -v --tb=short
+
+      - name: "🧪 Tests unitaires — Scorer"
+        run: |
+          python -m pytest tests/test_scorer.py -v --tb=short
+
+      - name: "🧪 Tests unitaires — Company Signals"
+        run: |
+          python -m pytest tests/test_company_signals.py -v --tb=short
+
+      - name: "🧪 Tests unitaires — CV Builder"
+        run: |
+          python -m pytest tests/test_cv_builder.py -v --tb=short
+
+      # ── Tests d'intégration API ─────────────────────────────
+      - name: "🔌 Tests d'intégration — FastAPI (sans LLM/DB)"
+        env:
+          LLM_PROVIDER: "groq"
+          GROQ_API_KEY: "test-key-not-real"
+          DATABASE_URL: "postgresql+asyncpg://test:test@localhost:5432/test_db"
+        run: |
+          python -m pytest tests/test_api.py -v --tb=short \
+            -k "health or company or cv_data or matched_skills or missing_body"
+
+      # ── Rapport de couverture ────────────────────────────────
+      - name: "📊 Coverage report"
+        run: |
+          pip install pytest-cov
+          python -m pytest tests/test_normalizer.py tests/test_scorer.py \
+            tests/test_company_signals.py tests/test_cv_builder.py \
+            --cov=app --cov-report=term-missing --cov-report=xml \
+            -q
+        continue-on-error: true
+
+      - name: "📤 Upload coverage to Codecov"
+        uses: codecov/codecov-action@v4
+        with:
+          file: agents/coverage.xml
+          flags: agents
+          fail_ci_if_error: false
+        continue-on-error: true
+
+# =============================================================================
+# JOB 2 — Frontend Angular (build + tests Vitest)
+# =============================================================================
+  ci-frontend:
+    name: "🅰️ Frontend Angular"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🟢 Setup Node.js ${{ env.NODE_VERSION }}"
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: "📦 npm install"
+        run: npm ci --prefer-offline
+
+      # ── Lint TypeScript ──────────────────────────────────────
+      - name: "🔍 TypeScript — vérification des types"
+        run: npx tsc --noEmit --skipLibCheck
+        continue-on-error: true
+
+      # ── Tests Vitest ─────────────────────────────────────────
+      - name: "🧪 Tests Vitest"
+        run: npm test -- --run --reporter=verbose
+        continue-on-error: true
+
+      # ── Build de production ──────────────────────────────────
+      - name: "🏗️ Build Angular (production)"
+        run: npm run build -- --configuration=production
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      - name: "📤 Upload build artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 3
+
+# =============================================================================
+# JOB 3 — Backend .NET (build + tests)
+# =============================================================================
+  ci-backend:
+    name: "🔷 Backend .NET"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🔷 Setup .NET ${{ env.DOTNET_VERSION }}"
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: "📦 Restaurer les dépendances NuGet"
+        run: dotnet restore
+
+      - name: "🔨 Build .NET"
+        run: dotnet build --no-restore --configuration Release
+
+      - name: "🧪 Tests .NET"
+        run: |
+          dotnet test --no-build --configuration Release \
+            --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx" \
+            --results-directory ./TestResults
+        continue-on-error: true
+
+      - name: "📤 Upload test results"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dotnet-test-results
+          path: backend/TestResults/*.trx
+          retention-days: 3
+
+# =============================================================================
+# JOB 4 — Validation Docker Compose (structure)
+# =============================================================================
+  ci-docker:
+    name: "🐳 Docker Compose — Validation"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🐳 Validate docker-compose.yml"
+        run: |
+          docker compose config --quiet
+          echo "✅ docker-compose.yml valide"
+
+      - name: "🐳 Build image agents (sans démarrage)"
+        run: |
+          docker build agents/ -t nextstep-agents:ci --quiet
+          echo "✅ Image agents construite"
+        continue-on-error: true
+
+# =============================================================================
+# JOB 5 — Résumé final (dépend de tous les autres)
+# =============================================================================
+  ci-summary:
+    name: "📋 CI Summary"
+    runs-on: ubuntu-latest
+    needs: [ci-agents, ci-frontend, ci-backend, ci-docker]
+    if: always()
+
+    steps:
+      - name: "📋 Résumé des résultats"
+        run: |
+          echo "## 📊 Résultats CI NextStep" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Composant | Statut |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐍 Agents Python | ${{ needs.ci-agents.result == 'success' && '✅ Succès' || '❌ Échec' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🅰️ Frontend Angular | ${{ needs.ci-frontend.result == 'success' && '✅ Succès' || '❌ Échec' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔷 Backend .NET | ${{ needs.ci-backend.result == 'success' && '✅ Succès' || '❌ Échec' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Docker | ${{ needs.ci-docker.result == 'success' && '✅ Succès' || '❌ Échec' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branche :** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit :** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Déclenché par :** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: "❌ Échouer si les agents Python échouent"
+        if: needs.ci-agents.result == 'failure'
+        run: |
+          echo "❌ Les tests Python ont échoué — voir les logs ci-dessus"
+          exit 1

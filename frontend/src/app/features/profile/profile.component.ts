@@ -111,8 +111,10 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isAddingCertification = signal(false);
   isGeneratingAI = signal(false);
   isParsing = signal(false);
+  isApplyingData = signal(false);
   parsingStatus = signal<'reading' | 'analyzing' | 'structuring'>('reading');
   parsingProgress = signal(0);
+  terminalFeed = signal<{timestamp: string, status: string, message: string}[]>([]);
   editingSection = signal<SectionTitleKey | null>(null);
   skillSearchQuery = signal('');
   filteredSuggestions = signal<{name: string, category: string}[]>([]);
@@ -293,38 +295,48 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   showImportBlock = signal(true);
   isImporting = signal(false);
 
-  async onFileImported(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
+  parsingEvents = this.profileService.parsingEvents;
+
+  async onFileImported(event: any) {
+    const file = event.target?.files?.[0] || (event.target as HTMLInputElement)?.files?.[0];
     if (!file) return;
 
     this.isParsing.set(true);
+    this.isApplyingData.set(false);
     this.parsingStatus.set('reading');
     this.parsingProgress.set(10);
 
     try {
-      // Step 1: Simulate reading (fast)
+      // Small UX delay to show the start
       await new Promise(resolve => setTimeout(resolve, 800));
       this.parsingStatus.set('analyzing');
-      this.parsingProgress.set(40);
+      this.parsingProgress.set(30);
 
-      // Step 2: Actual backend call (this takes most of the time)
+      // Actual Import call (emits events into parsingEvents signal)
       await this.profileService.importResume(file);
-      
-      this.parsingStatus.set('structuring');
-      this.parsingProgress.set(85);
-      
-      // Step 3: Small delay to show completion of structuring
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      this.parsingProgress.set(100);
-      await new Promise(resolve => setTimeout(resolve, 400));
 
-      this.showToast.set(true);
-      setTimeout(() => this.showToast.set(false), 3000);
+      this.parsingStatus.set('structuring');
+      this.parsingProgress.set(90);
+      
+      // Delay before closing modal to show the last feed lines
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      this.parsingProgress.set(100);
+      this.isParsing.set(false);
+      this.isApplyingData.set(true);
+      
+      // Keep skeletons for a moment to signify data integration
+      setTimeout(() => {
+        this.isApplyingData.set(false);
+        this.showToast.set(true);
+        setTimeout(() => this.showToast.set(false), 3000);
+      }, 2000);
+
     } catch (error) {
       console.error('Import failed', error);
-      // Optional: error toast
-    } finally {
       this.isParsing.set(false);
+      this.isApplyingData.set(false);
+    } finally {
       this.parsingProgress.set(0);
     }
   }

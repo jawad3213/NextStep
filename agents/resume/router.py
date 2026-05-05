@@ -1,5 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from .service import extract_text_from_pdf, parse_cv_with_ai
+import json
+import asyncio
 
 router = APIRouter()
 

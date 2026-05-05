@@ -239,12 +239,13 @@ namespace NextStep.Modules.Profile.Controllers
                 using var stream = file.OpenReadStream();
                 content.Add(new StreamContent(stream), "file", file.FileName);
                 
+                // On attend la réponse complète (plus stable pour le proxy)
                 var response = await client.PostAsync($"{agentUrl}/resume/parse", content);
                 
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadAsStringAsync();
-                    return Ok(JsonSerializer.Deserialize<object>(result));
+                    return Ok(result); 
                 }
                 
                 var error = await response.Content.ReadAsStringAsync();
@@ -252,7 +253,7 @@ namespace NextStep.Modules.Profile.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erreur lors de la communication avec l'agent IA : {ex.Message}");
+                return StatusCode(500, $"Erreur proxy IA : {ex.Message}");
             }
         }
         [HttpDelete("clear")]

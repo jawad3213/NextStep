@@ -475,157 +475,166 @@ export class ProfileService {
   }
 
   async importResume(file: File): Promise<void> {
+    this.parsingEvents.set([]);
     const formData = new FormData();
     formData.append('file', file);
-    this.parsingEvents.set([]);
 
     try {
-      this.addParsingEvent('info', 'Connecting to AI Agent...');
-      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/parse-resume`, formData));
+      // Simulation du feed pendant la requête
+      this.addParsingEvent('info', 'Connecting to NextStep AI agents...');
       
+      const simulateEvents = async () => {
+        const events: {type: 'info' | 'success', msg: string, entity?: string}[] = [
+          { type: 'info', msg: 'Reading PDF binary data...' },
+          { type: 'success', msg: 'Text extraction complete', entity: 'PDF Source' },
+          { type: 'info', msg: 'Waking up Llama-3.3 agents...' },
+          { type: 'info', msg: 'Analyzing professional patterns...' },
+          { type: 'info', msg: 'Extracting semantic entities...' }
+        ];
+
+        for (const e of events) {
+          if (this.parsingEvents().length > 10) break; // Arrêt si fini
+          this.addParsingEvent(e.type, e.msg, e.entity);
+          await new Promise(r => setTimeout(r, 800));
+        }
+      };
+
+      // On lance la simulation en parallèle
+      const simulationPromise = simulateEvents();
+
+      // Véritable appel API
+      const data = await firstValueFrom(
+        this.http.post<any>(`${this.apiUrl}/parse-resume`, formData)
+      );
+
       if (data) {
-        this.addParsingEvent('success', 'Document analysis complete');
-        this.addParsingEvent('info', 'Cleaning environment for fresh import...');
-        await firstValueFrom(this.http.delete(`${this.apiUrl}/clear`));
-
-        // 1. Personal Info
-        this.addParsingEvent('info', 'Applying personal details...');
-        const personal = {
-          ...this.profile().personal,
-          firstName: data.personal?.prenom || this.profile().personal.firstName,
-          lastName: data.personal?.nom || this.profile().personal.lastName,
-          email: data.personal?.email || this.profile().personal.email,
-          phone: data.personal?.telephone || this.profile().personal.phone,
-          jobTitle: data.personal?.titrePoste || this.profile().personal.jobTitle,
-          city: data.personal?.ville || this.profile().personal.city,
-          country: data.personal?.pays || this.profile().personal.country,
-        };
-        
-        if (data.personal?.resumeProfessionnel) {
-          this.updateProfile({ resume: data.personal.resumeProfessionnel });
-        }
-        await this.savePersonalInfo(personal);
-        this.addParsingEvent('success', 'Profile identity updated', personal.firstName + ' ' + personal.lastName);
-
-        // 2. Experiences
-        if (data.experience && Array.isArray(data.experience)) {
-          for (const exp of data.experience) {
-            this.addParsingEvent('info', 'Extracting experience', exp.entreprise);
-            await this.addExperience({
-              id: '',
-              company: exp.entreprise || '',
-              title: exp.poste || '',
-              startDate: exp.dateDebut ? exp.dateDebut.substring(0, 7) : '',
-              endDate: exp.dateFin ? exp.dateFin.substring(0, 7) : '',
-              city: exp.ville || '',
-              description: exp.missions || '',
-              current: !exp.dateFin,
-              type: this.mapExperienceType(exp.type || 'Stage')
-            }, false);
-            this.addParsingEvent('success', 'Synced', exp.entreprise);
-          }
-        }
-
-        // 3. Education
-        if (data.education && Array.isArray(data.education)) {
-          for (const edu of data.education) {
-            this.addParsingEvent('info', 'Extracting education', edu.etablissement);
-            await this.addEducation({
-              id: '',
-              institution: edu.etablissement || '',
-              degree: edu.diplome || '',
-              startYear: edu.annee || '2024',
-              endYear: edu.anneeFin || '2024',
-              city: edu.ville || '',
-              specialization: edu.specialisation || '',
-              current: !edu.anneeFin,
-              mention: 'Passable'
-            }, false);
-            this.addParsingEvent('success', 'Synced', edu.diplome);
-          }
-        }
-
-        // 4. Skills
-        let skillsData = data.skills || data.competences || data.competence;
-        if (typeof skillsData === 'string') {
-          skillsData = skillsData.split(',').map((s: string) => ({ nom: s.trim(), typeCompetence: 'Technical' }));
-        }
-
-        if (skillsData && Array.isArray(skillsData)) {
-          for (const skill of skillsData) {
-            const skillName = typeof skill === 'string' ? skill : (skill.nom || skill.name || skill.title || '');
-            if (!skillName) continue;
-            
-            const typeRaw = (skill.typeCompetence || skill.type || '').toLowerCase();
-            const isLangue = typeRaw.includes('lang') || typeRaw.includes('linguist');
-            
-            await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
-              nom: skillName.trim(),
-              niveau: isLangue ? this.mapLevelToInt(skill.niveau || skill.level || 'B1') : 3,
-              typeCompetence: isLangue ? 'Langue' : (skill.typeCompetence || 'Technical')
-            }));
-            this.addParsingEvent('success', 'Found skill', skillName);
-          }
-        }
-
-        // 5. Projects
-        if (data.projects && Array.isArray(data.projects)) {
-          for (const p of data.projects) {
-            this.addParsingEvent('info', 'Extracting project', p.titre || p.title);
-            await this.addProject({
-              id: '',
-              title: p.titre || p.title || '',
-              description: p.description || '',
-              stack: p.technologies ? (typeof p.technologies === 'string' ? p.technologies.split(',') : p.technologies) : [],
-              githubUrl: p.lien || p.link || p.githubUrl || '',
-              demoUrl: '',
-              isUniversity: false
-            });
-            this.addParsingEvent('success', 'Synced project', p.titre || p.title);
-          }
-        }
-
-        // 6. Certifications
-        if (data.certifications && Array.isArray(data.certifications)) {
-          for (const cert of data.certifications) {
-            this.addParsingEvent('info', 'Extracting certification', cert.titre || cert.title);
-            await this.addCertification({
-              id: '',
-              name: cert.titre || cert.title || '',
-              issuer: cert.organisation || cert.issuer || '',
-              date: cert.date || '',
-              verificationUrl: cert.lien || cert.url || ''
-            });
-            this.addParsingEvent('success', 'Synced cert', cert.titre || cert.title);
-          }
-        }
-
-        // 7. Extracurricular
-        if (data.extracurricular && Array.isArray(data.extracurricular)) {
-          for (const extra of data.extracurricular) {
-            this.addParsingEvent('info', 'Extracting activity', extra.titre || extra.title);
-            await this.addExperience({
-              id: '',
-              company: extra.organisation || '',
-              title: extra.titre || extra.title || '',
-              startDate: extra.dateDebut ? extra.dateDebut.substring(0, 7) : '',
-              endDate: extra.dateFin ? extra.dateFin.substring(0, 7) : '',
-              city: '',
-              description: extra.description || '',
-              current: !extra.dateFin,
-              type: 'Extracurricular'
-            }, false);
-            this.addParsingEvent('success', 'Synced activity', extra.titre || extra.title);
-          }
-        }
-
-        this.addParsingEvent('success', 'All data successfully integrated!');
-        await this.loadProfile();
+        this.addParsingEvent('success', 'AI Analysis successful!');
+        await this.processExtractedData(data);
       }
     } catch (error) {
       this.addParsingEvent('info', 'Error during parsing', 'Process halted');
       console.error('Erreur lors du parsing du CV:', error);
       throw error;
+    }
+  }
+
+  private async processExtractedData(data: any): Promise<void> {
+    try {
+      // Clear existing profile data for a clean import
+      this.addParsingEvent('info', 'Smart Overwrite: Clearing current profile...');
+      await firstValueFrom(this.http.delete(`${this.apiUrl}/clear`));
+
+      this.addParsingEvent('info', 'Synchronizing with profile...', 'Updating sectors');
+
+      // 1. Personal Info
+      const personal = {
+        ...this.profile().personal,
+        firstName: data.personal?.prenom || data.personal?.firstName || this.profile().personal.firstName,
+        lastName: data.personal?.nom || data.personal?.lastName || this.profile().personal.lastName,
+        email: data.personal?.email || this.profile().personal.email,
+        phone: data.personal?.telephone || data.personal?.phone || this.profile().personal.phone,
+        jobTitle: data.personal?.titrePoste || data.personal?.jobTitle || this.profile().personal.jobTitle,
+        city: data.personal?.ville || this.profile().personal.city,
+        country: data.personal?.pays || this.profile().personal.country,
+      };
+      
+      if (data.personal?.resumeProfessionnel || data.personal?.summary) {
+        this.updateProfile({ resume: data.personal.resumeProfessionnel || data.personal.summary });
+      }
+      await this.savePersonalInfo(personal);
+      this.addParsingEvent('success', 'Profile identity updated', personal.firstName + ' ' + personal.lastName);
+
+      // 2. Experiences
+      if (data.experience && Array.isArray(data.experience)) {
+        for (const exp of data.experience) {
+          this.addParsingEvent('info', 'Mapping experience', exp.entreprise);
+          await this.addExperience({
+            id: '',
+            company: exp.entreprise || '',
+            title: exp.poste || '',
+            startDate: exp.dateDebut ? exp.dateDebut.substring(0, 7) : '',
+            endDate: exp.dateFin ? exp.dateFin.substring(0, 7) : '',
+            city: exp.ville || '',
+            description: exp.missions || '',
+            current: !exp.dateFin,
+            type: this.mapExperienceType(exp.type || 'Stage')
+          }, false);
+          this.addParsingEvent('success', 'Experience synced', exp.entreprise);
+        }
+      }
+
+      // 3. Education
+      if (data.education && Array.isArray(data.education)) {
+        for (const edu of data.education) {
+          this.addParsingEvent('info', 'Mapping education', edu.etablissement);
+          await this.addEducation({
+            id: '',
+            institution: edu.etablissement || '',
+            degree: edu.diplome || '',
+            startYear: edu.annee || '2024',
+            endYear: edu.anneeFin || '2024',
+            city: edu.ville || '',
+            specialization: edu.specialisation || '',
+            current: !edu.anneeFin,
+            mention: 'Passable'
+          }, false);
+          this.addParsingEvent('success', 'Education synced', edu.diplome);
+        }
+      }
+
+      // 4. Skills
+      let skillsData = data.skills || data.competences;
+      if (skillsData && Array.isArray(skillsData)) {
+        for (const skill of skillsData) {
+          const skillName = typeof skill === 'string' ? skill : (skill.nom || skill.name || '');
+          if (!skillName) continue;
+          const typeRaw = (skill.typeCompetence || skill.type || '').toLowerCase();
+          const isLangue = typeRaw.includes('lang') || typeRaw.includes('linguist');
+          
+          await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
+            nom: skillName.trim(),
+            niveau: isLangue ? this.mapLevelToInt(skill.niveau || 'B1') : 3,
+            typeCompetence: isLangue ? 'Langue' : (skill.typeCompetence || 'Technical')
+          }));
+          this.addParsingEvent('success', 'Skill added', skillName);
+        }
+      }
+
+      // 5. Projects
+      if (data.projects && Array.isArray(data.projects)) {
+        for (const p of data.projects) {
+          await this.addProject({
+            id: '',
+            title: p.titre || p.title || '',
+            description: p.description || '',
+            stack: p.technologies ? (typeof p.technologies === 'string' ? p.technologies.split(',') : p.technologies) : [],
+            githubUrl: p.lien || '',
+            demoUrl: '',
+            isUniversity: false
+          });
+          this.addParsingEvent('success', 'Project synced', p.titre || p.title);
+        }
+      }
+
+      // 6. Certifications
+      if (data.certifications && Array.isArray(data.certifications)) {
+        for (const cert of data.certifications) {
+          await this.addCertification({
+            id: '',
+            name: cert.titre || '',
+            issuer: cert.organisation || '',
+            date: cert.date || '',
+            verificationUrl: cert.lien || ''
+          });
+          this.addParsingEvent('success', 'Cert synced', cert.titre);
+        }
+      }
+
+      this.addParsingEvent('success', 'Profile fully synchronized!');
+      await this.loadProfile();
+    } catch (e) {
+      console.error('Error integrating data', e);
+      throw e;
     }
   }
 

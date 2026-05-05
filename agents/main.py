@@ -97,9 +97,9 @@ app.add_middleware(
 )
 
 # ─── Routers domaines ─────────────────────────────────────────
-app.include_router(offer_router)
-app.include_router(job_router)
-app.include_router(company_router)
+app.include_router(offer_router, prefix="/offer")
+app.include_router(job_router, prefix="/job")
+app.include_router(company_router, prefix="/company")
 
 # ─── Router email_engine M4 (compatibilité) ───────────────────
 if _email_router_available:

@@ -246,6 +246,7 @@ jobs:
 
       - name: "🐳 Validate docker-compose.yml"
         run: |
+          touch .env
           docker compose config --quiet
           echo "✅ docker-compose.yml valide"
 

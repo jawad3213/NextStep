@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
+    # ─── Search API ───
+    TAVILY_API_KEY: str = ""
+
     # ─── Backend .NET ───
     DOTNET_BACKEND_URL: str = "http://localhost:5000"
 

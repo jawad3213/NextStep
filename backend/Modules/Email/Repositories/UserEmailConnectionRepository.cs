@@ -48,4 +48,21 @@ public class UserEmailConnectionRepository : IUserEmailConnectionRepository
 
         await _db.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task DeleteAsync(
+        Guid userId,
+        string provider,
+        CancellationToken cancellationToken = default)
+    {
+        var existing = await _db.UserEmailConnections
+            .FirstOrDefaultAsync(
+                c => c.UserId == userId && c.Provider == provider,
+                cancellationToken);
+
+        if (existing != null)
+        {
+            _db.UserEmailConnections.Remove(existing);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+    }
 }

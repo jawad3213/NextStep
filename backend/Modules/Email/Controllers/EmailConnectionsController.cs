@@ -138,6 +138,40 @@ public class EmailConnectionsController : ControllerBase
         return Ok(status);
     }
 
+    // ── DELETE /api/email-connections ─────────────────────────────────────────────
+    
+    /// <summary>
+    /// Disconnects the Gmail account for the authenticated user.
+    /// </summary>
+    [HttpDelete]
+    [Authorize]
+    public async Task<IActionResult> Disconnect(CancellationToken cancellationToken)
+    {
+        var localUserId = await ResolveLocalUserIdAsync();
+        if (localUserId is null)
+            return StatusCode(403, "User not found in local database.");
+
+        await _connectionService.DisconnectAsync(localUserId.Value, cancellationToken);
+        return NoContent();
+    }
+
+    // ── POST /api/email-connections/verify ────────────────────────────────────────
+
+    /// <summary>
+    /// Deep-verifies the Gmail connection by trying to refresh tokens.
+    /// </summary>
+    [HttpPost("verify")]
+    [Authorize]
+    public async Task<ActionResult<EmailConnectionStatusDto>> Verify(CancellationToken cancellationToken)
+    {
+        var localUserId = await ResolveLocalUserIdAsync();
+        if (localUserId is null)
+            return StatusCode(403, "User not found in local database.");
+
+        var status = await _connectionService.VerifyConnectionAsync(localUserId.Value, cancellationToken);
+        return Ok(status);
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────────
 
     private async Task<Guid?> ResolveLocalUserIdAsync()

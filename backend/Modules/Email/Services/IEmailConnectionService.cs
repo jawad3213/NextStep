@@ -24,4 +24,15 @@ public interface IEmailConnectionService
     /// Returns the current Gmail connection status for the given local user.
     /// </summary>
     Task<EmailConnectionStatusDto> GetStatusAsync(Guid localUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Forcefully deletes the user's Gmail connection from the database.
+    /// </summary>
+    Task DisconnectAsync(Guid localUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deep-verifies the Gmail connection by trying to refresh the access token.
+    /// Returns the updated status.
+    /// </summary>
+    Task<EmailConnectionStatusDto> VerifyConnectionAsync(Guid localUserId, CancellationToken ct = default);
 }

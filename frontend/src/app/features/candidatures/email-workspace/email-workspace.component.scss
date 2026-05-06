@@ -92,6 +92,12 @@
     border: 1px solid rgba(vars.$color-warning, 0.2);
     box-shadow: 0 4px 15px rgba(vars.$color-warning, 0.05);
   }
+  &.gmail-warning {
+    background: rgba(vars.$color-error, 0.08);
+    color: vars.$color-error;
+    border: 1px solid rgba(vars.$color-error, 0.2);
+    box-shadow: 0 4px 15px rgba(vars.$color-error, 0.05);
+  }
 }
 
 .connect-inline-btn {

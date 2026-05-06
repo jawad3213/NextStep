@@ -215,13 +215,108 @@ public class EmailConnectionService : IEmailConnectionService
         if (connection is null)
             return new EmailConnectionStatusDto { IsConnected = false, Provider = "Gmail" };
 
+        var isExpired = DateTime.UtcNow >= connection.AccessTokenExpiresAtUtc;
+
         return new EmailConnectionStatusDto
         {
             IsConnected  = true,
+            IsTokenValid = !isExpired, // Basic check: if not expired, we assume it's valid for now
             EmailAddress = connection.EmailAddress,
-            Provider     = "Gmail"
+            Provider     = "Gmail",
+            ErrorMessage = isExpired ? "Access token expired. Verification required." : null
         };
     }
+
+    public async Task DisconnectAsync(Guid localUserId, CancellationToken ct = default)
+    {
+        await _connectionRepo.DeleteAsync(localUserId, "Gmail", ct);
+        _logger.LogInformation("EmailConnectionService — Disconnected Gmail for user {UserId}", localUserId);
+    }
+
+    public async Task<EmailConnectionStatusDto> VerifyConnectionAsync(Guid localUserId, CancellationToken ct = default)
+    {
+        var connection = await _connectionRepo.GetByUserAndProviderAsync(
+            localUserId, "Gmail", ct);
+
+        if (connection is null)
+            return new EmailConnectionStatusDto { IsConnected = false, Provider = "Gmail" };
+
+        string? refreshToken;
+        try
+        {
+            refreshToken = _protector.Unprotect(connection.RefreshTokenEncrypted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "EmailConnectionService — Failed to decrypt refresh token for user {UserId}", localUserId);
+            return new EmailConnectionStatusDto 
+            { 
+                IsConnected = true, 
+                IsTokenValid = false, 
+                EmailAddress = connection.EmailAddress,
+                ErrorMessage = "Failed to decrypt tokens. Please reconnect."
+            };
+        }
+
+        // Try to refresh the token to verify it's still valid with Google
+        var refreshResult = await RefreshAccessTokenInternalAsync(refreshToken, connection, ct);
+
+        return new EmailConnectionStatusDto
+        {
+            IsConnected  = true,
+            IsTokenValid = refreshResult.Success,
+            EmailAddress = connection.EmailAddress,
+            Provider     = "Gmail",
+            ErrorMessage = refreshResult.ErrorMessage
+        };
+    }
+
+    private async Task<RefreshResult> RefreshAccessTokenInternalAsync(
+        string refreshToken,
+        UserEmailConnection connection,
+        CancellationToken ct)
+    {
+        using var httpClient = _httpClientFactory.CreateClient();
+
+        var formData = new Dictionary<string, string>
+        {
+            ["grant_type"]    = "refresh_token",
+            ["client_id"]     = _options.ClientId,
+            ["client_secret"] = _options.ClientSecret,
+            ["refresh_token"] = refreshToken,
+        };
+
+        try
+        {
+            var response = await httpClient.PostAsync(TokenExchangeUrl, new FormUrlEncodedContent(formData), ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("EmailConnectionService — Token refresh failed: {Body}", body);
+                return new RefreshResult(false, "Gmail account access revoked or expired. Please reconnect.");
+            }
+
+            var tokens = JsonSerializer.Deserialize<TokenExchangeResponse>(body);
+            if (tokens == null) return new RefreshResult(false, "Invalid response from Google.");
+
+            // Update connection with new access token
+            connection.AccessTokenEncrypted    = _protector.Protect(tokens.AccessToken);
+            connection.AccessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokens.ExpiresIn - 30);
+            connection.UpdatedAtUtc            = DateTime.UtcNow;
+            
+            await _connectionRepo.UpsertAsync(connection, ct);
+
+            return new RefreshResult(true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "EmailConnectionService — Error during token refresh");
+            return new RefreshResult(false, $"Network error: {ex.Message}");
+        }
+    }
+
+    private record RefreshResult(bool Success, string? ErrorMessage);
 
     // ── Private helpers ───────────────────────────────────────────────────────────
 

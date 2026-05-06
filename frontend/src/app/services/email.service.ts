@@ -46,6 +46,8 @@ export interface SendEmailResultDto {
 
 export interface EmailConnectionStatusDto {
   isConnected: boolean;
+  isTokenValid: boolean;
+  errorMessage: string | null;
   emailAddress: string | null;
   provider: string;
 }
@@ -85,5 +87,13 @@ export class EmailService {
 
   getGmailLoginUrl(): Observable<{ url: string }> {
     return this.http.get<{ url: string }>(`${this.base}/email-connections/google/login-url`);
+  }
+
+  disconnectGmail(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/email-connections`);
+  }
+
+  verifyGmailConnection(): Observable<EmailConnectionStatusDto> {
+    return this.http.post<EmailConnectionStatusDto>(`${this.base}/email-connections/verify`, {});
   }
 }

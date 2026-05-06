@@ -12,4 +12,9 @@ public interface IUserEmailConnectionRepository
     Task UpsertAsync(
         UserEmailConnection connection,
         CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(
+        Guid userId,
+        string provider,
+        CancellationToken cancellationToken = default);
 }

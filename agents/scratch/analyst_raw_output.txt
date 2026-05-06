@@ -1,0 +1,71 @@
+{
+  "intelligence": {
+      "nom": "Docaposte Maroc",
+      "summary": "Leader de la confiance numérique en France, Docaposte accompagne les entreprises et institutions à réussir leur transformation numérique en toute confiance. Éditeur de logiciels et de solutions numériques de confiance, intégrateur et opérateur de plateformes et expert en conseil data/IA.",
+      "sector": "Technologie",
+      "hq_location": "Maroc",
+      "linkedin_url": "https://www.linkedin.com/company/docaposte-maroc/",
+      "culture": {
+         "culture_score": 80,
+         "turnover_rate": "low",
+         "work_life_balance": 4.0,
+         "glassdoor_rating": 4.0,
+         "key_values": ["Confiance", "Innovation", "Responsabilité"],
+         "top_reviews": ["Très bonne expérience professionnelle", "Équipe dynamique et motivée"]
+      },
+      "salaries": [
+         {
+            "job_title": "Data Scientist",
+            "seniority": "Junior",
+            "location": "Maroc",
+            "min_salary": 12000,
+            "max_salary": 18000,
+            "avg_salary": 15000,
+            "currency": "MAD",
+            "period": "month",
+            "source": "Glassdoor"
+         },
+         {
+            "job_title": "Data Scientist",
+            "seniority": "Intermédiaire",
+            "location": "Maroc",
+            "min_salary": 18000,
+            "max_salary": 25000,
+            "avg_salary": 21000,
+            "currency": "MAD",
+            "period": "month",
+            "source": "Glassdoor"
+         },
+         {
+            "job_title": "Data Scientist",
+            "seniority": "Expérimenté",
+            "location": "Maroc",
+            "min_salary": 25000,
+            "max_salary": 35000,
+            "avg_salary": 29000,
+            "currency": "MAD",
+            "period": "month",
+            "source": "Glassdoor"
+         }
+      ],
+      "actualites": [
+         "Leader de la confiance numérique en France",
+         "Accompagne les entreprises et institutions à réussir leur transformation numérique en toute confiance",
+         "Éditeur de logiciels et de solutions numériques de confiance"
+      ],
+      "interview_difficulty": "medium",
+      "interview_questions": [
+         "Quels sont les principaux défis que vous rencontrez en tant que Data Scientist dans une entreprise de confiance numérique?",
+         "Comment décririez-vous votre expérience en tant que Data Scientist dans une entreprise de confiance numérique?",
+         "Quels sont les outils et les technologies que vous utilisez en tant que Data Scientist dans une entreprise de confiance numérique?",
+         "Comment évaluez-vous la qualité des données dans une entreprise de confiance numérique?",
+         "Quels sont les principaux indicateurs de performance que vous utilisez en tant que Data Scientist dans une entreprise de confiance numérique?",
+         "Comment décririez-vous votre rôle en tant que Data Scientist dans une entreprise de confiance numérique?"
+      ],
+      "pros": ["Très bonne expérience professionnelle", "Équipe dynamique et motivée"],
+      "cons": ["Peu de opportunités de carrière", "Salaires modestes"],
+      "career_opportunities": "Opportunités de carrière dans les domaines de la confiance numérique, de l'innovation et de la responsabilité"
+   },
+   "score": 80,
+   "recommendations": ["Rejoindre Docaposte Maroc pour une expérience professionnelle enrichissante", "Développer vos compétences en tant que Data Scientist dans une entreprise de confiance numérique"]
+}

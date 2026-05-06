@@ -16,7 +16,7 @@
 #   │   │   ├── schemas/   — state.py, job_schemas.py
 #   │   │   └── service.py — JobService
 #   │   └── company/       — Analyse entreprise + score culture
-#   │       ├── agents/    — company_analyzer.py
+#   │       ├── agents/    — intelligence_agent.py
 #   │       ├── schemas/   — state.py, company_schemas.py
 #   │       └── service.py — CompanyService
 #   └── api/               — Routes FastAPI par domaine
@@ -130,7 +130,7 @@ async def health_check():
                 "Agent6_email_composer":"✅ actif (LLM)",
             },
             "company": {
-                "company_analyzer": "✅ actif (algorithme)",
+                "intelligence_agent": "✅ actif (LangGraph Pipeline)",
             },
         },
         "endpoints": {

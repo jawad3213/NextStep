@@ -10,80 +10,52 @@ from langgraph.graph.message import add_messages
 
 class CompanyState(TypedDict, total=False):
     """
-    État du domaine COMPANY.
+    État du domaine COMPANY — Intelligence Agent.
 
-    Le domaine COMPANY gère :
-    - Enrichissement des informations sur l'entreprise
-    - Analyse de la culture d'entreprise (LLM)
-    - Score de compatibilité candidat ↔ entreprise
-    - Recommandations personnalisées (angle entreprise)
-
-    ┌──────────────────────────────────────────────────────────┐
-    │  Champ                  │  Type        │  Reducer        │
-    ├──────────────────────────────────────────────────────────┤
-    │  messages               │  list[Msg]   │ add_messages    │
-    │  errors                 │  list[str]   │ operator.add    │
-    │  company_name           │  str         │  replace        │
-    │  user_id                │  str         │  replace        │
-    │  offer_data             │  dict|None   │  replace        │
-    │  company_info           │  dict|None   │  replace        │
-    │  company_culture_score  │  int|None    │  replace        │
-    │  company_insights       │  list[str]   │  replace        │
-    │  next_agent             │  str|None    │  replace        │
-    │  pipeline_version       │  str         │  replace        │
-    └──────────────────────────────────────────────────────────┘
+    Cycle de vie :
+    1. START (company_name, job_title, user_id)
+    2. Search Node (accumule raw_search_results via tools)
+    3. Intelligence Node (LLM structure les résultats en CompanyIntelligence)
+    4. Analyst Node (Calcule la compatibilité et les reco)
+    5. END
     """
 
-    # ── Accumulatifs ──────────────────────────────────────────
+    # ── Accumulatifs (Reducers) ───────────────────────────────
     messages: Annotated[list[BaseMessage], add_messages]
     errors: Annotated[list[str], operator.add]
+    raw_search_results: Annotated[list[dict], operator.add]
+    """Résultats bruts des outils (Glassdoor, LinkedIn, Web)."""
 
     # ── Entrées ───────────────────────────────────────────────
     company_name: str
-    """Nom de l'entreprise (extrait de analyzed_offer)."""
+    """Nom de l'entreprise cible."""
+    
+    job_title: str
+    """Intitulé du poste pour la recherche de salaires."""
 
     user_id: str
-    """Identifiant Keycloak de l'utilisateur."""
+    """ID utilisateur pour le contexte."""
 
-    offer_data: Optional[dict]
-    """Données de l'offre analysée (Agent 1)."""
+    # ── Intelligence Data (Agent 1: Researcher) ───────────────
+    company_summary: str
+    """Résumé narratif de l'entreprise."""
 
-    profile_data: Optional[dict]
-    """Profil du candidat (Agent 2) — pour le score de compatibilité."""
+    salaries: list[dict]
+    """Données de salaires récupérées (SalaryInfo)."""
 
-    # ── Résultats ─────────────────────────────────────────────
-    company_info: Optional[dict]
-    """
-    Informations enrichies sur l'entreprise :
-    {
-        "nom":        str,
-        "secteur":    str,
-        "taille":     str,       # "startup" | "pme" | "grand_groupe"
-        "localisation": str,
-        "description": str,
-        "technologies_stack": list[str],   # stack technique déduit
-        "type_contrat_dominant": str,
-        "remote_policy": str | null,       # "full_remote" | "hybride" | "presentiel"
-    }
-    """
+    culture_metrics: dict
+    """Metrics de culture (Glassdoor rating, turnover etc)."""
 
-    company_culture_score: Optional[int]
-    """
-    Score de compatibilité culture candidat ↔ entreprise (0-100).
-    Calculé à partir des signaux de l'offre (type de contrat, remote,
-    technologies, formulation de l'offre).
-    """
+    # ── Analyse (Agent 2: Strategist) ─────────────────────────
+    intelligence: Optional[dict]
+    """Objet CompanyIntelligence complet et structuré."""
 
-    company_insights: list[str]
-    """
-    Insights actionnables pour le candidat :
-    - "Cette entreprise valorise l'autonomie (remote mentionné)"
-    - "Stack technique alignée avec votre profil"
-    - "Premier poste junior détecté — idéal pour débuter"
-    """
+    score: int
+    """Score de "fit" candidat/entreprise (0-100)."""
+
+    recommendations: list[str]
+    """Conseils pour l'entretien et la candidature."""
 
     # ── Routeur ──────────────────────────────────────────────
     next_agent: Optional[str]
-
-    # ── Méta-données ─────────────────────────────────────────
     pipeline_version: str

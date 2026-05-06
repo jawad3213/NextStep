@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # ─── LLM Provider ───
     LLM_PROVIDER: str = "groq"          # "groq" | "openai"
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 4096
 
     class Config:
-        env_file = ".env"
+        env_file = "../.env" # Relatif au dossier 'agents'
         env_file_encoding = "utf-8"
         extra = "ignore"
 

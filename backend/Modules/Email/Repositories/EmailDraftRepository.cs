@@ -41,8 +41,22 @@ public class EmailDraftRepository : IEmailDraftRepository
             .ToListAsync(cancellationToken);
     }
 
-    public Task SaveChangesAsync(
+    /// <inheritdoc />
+    public async Task<List<EmailDraft>> GetPendingReplyCheckAsync(
         CancellationToken cancellationToken = default)
+    {
+        return await _db.EmailDrafts
+            .Include(d => d.Candidature)               // tracked — job will update candidature
+            .Where(d =>
+                d.IsSent &&
+                d.ProviderThreadId != null &&
+                d.SentAtUtc != null &&
+                d.Candidature != null &&
+                !d.Candidature.HasResponse)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return _db.SaveChangesAsync(cancellationToken);
     }

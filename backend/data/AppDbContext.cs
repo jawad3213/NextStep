@@ -83,6 +83,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasMaxLength(50)
                 .HasDefaultValue("EN_ATTENTE");
 
+            entity.Property(e => e.ResponseStatus)
+                .HasColumnName("response_status")
+                .HasMaxLength(50)
+                .HasDefaultValue("EN_ATTENTE");
+
+            entity.Property(e => e.HasResponse)
+                .HasColumnName("has_response")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.LastCheckedAtUtc)
+                .HasColumnName("last_checked_at_utc");
+
+            entity.Property(e => e.LastResponseAtUtc)
+                .HasColumnName("last_response_at_utc");
+
             entity.HasMany(e => e.EmailDrafts)
                 .WithOne(e => e.Candidature)
                 .HasForeignKey(e => e.CandidatureId)
@@ -160,6 +175,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.ProviderMessageId)
                 .HasColumnName("provider_message_id")
                 .HasMaxLength(255);
+
+            entity.Property(e => e.ProviderThreadId)
+                .HasColumnName("provider_thread_id");
 
             entity.Property(e => e.SendAttemptCount)
                 .HasColumnName("nb_tentatives_envoi")

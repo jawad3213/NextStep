@@ -350,11 +350,12 @@ public class EmailService : IEmailService
             draft.IsSent            = true;
             draft.SentAtUtc         = DateTime.UtcNow;
             draft.ProviderMessageId = result.ProviderMessageId;
+            draft.ProviderThreadId  = result.ProviderThreadId;
             draft.ErrorMessage      = null;
 
             _logger.LogInformation(
-                "EmailService — draft {DraftId} sent for user {UserId}, Gmail id: {GmailId}",
-                draftId, localUserId, result.ProviderMessageId);
+                "EmailService — draft {DraftId} sent for user {UserId}, Gmail message id: {GmailId}, thread id: {ThreadId}",
+                draftId, localUserId, result.ProviderMessageId, result.ProviderThreadId);
         }
         else
         {
@@ -373,6 +374,7 @@ public class EmailService : IEmailService
             Success           = result.Success,
             DraftId           = draft.Id,
             ProviderMessageId = result.ProviderMessageId,
+            ProviderThreadId  = result.ProviderThreadId,
             ErrorMessage      = result.ErrorMessage,
             SentAtUtc         = draft.SentAtUtc
         };
@@ -429,22 +431,23 @@ public class EmailService : IEmailService
 
     private static EmailDraftDto MapToDto(EmailDraft draft) => new()
     {
-        Id               = draft.Id,
-        CandidatureId    = draft.CandidatureId,
-        EmailType        = draft.EmailType,
-        RecipientEmail   = draft.RecipientEmail,
-        Subject          = draft.Subject,
-        Body             = draft.Body,
-        Language         = draft.Language,
-        IsApproved       = draft.IsApproved,
-        IsSent           = draft.IsSent,
-        CreatedAtUtc     = draft.CreatedAtUtc,
-        UpdatedAtUtc     = draft.UpdatedAtUtc,
-        ApprovedAtUtc    = draft.ApprovedAtUtc,
-        SentAtUtc        = draft.SentAtUtc,
-        ErrorMessage     = draft.ErrorMessage,
+        Id                = draft.Id,
+        CandidatureId     = draft.CandidatureId,
+        EmailType         = draft.EmailType,
+        RecipientEmail    = draft.RecipientEmail,
+        Subject           = draft.Subject,
+        Body              = draft.Body,
+        Language          = draft.Language,
+        IsApproved        = draft.IsApproved,
+        IsSent            = draft.IsSent,
+        CreatedAtUtc      = draft.CreatedAtUtc,
+        UpdatedAtUtc      = draft.UpdatedAtUtc,
+        ApprovedAtUtc     = draft.ApprovedAtUtc,
+        SentAtUtc         = draft.SentAtUtc,
+        ErrorMessage      = draft.ErrorMessage,
         ProviderMessageId = draft.ProviderMessageId,
-        SendAttemptCount = draft.SendAttemptCount,
+        ProviderThreadId  = draft.ProviderThreadId,
+        SendAttemptCount  = draft.SendAttemptCount,
     };
 
     private static List<string> ExtractStringList(JsonElement root, string property)

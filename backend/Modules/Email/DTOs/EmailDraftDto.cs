@@ -32,5 +32,7 @@ public class EmailDraftDto
 
     public string? ProviderMessageId { get; set; }
 
+    public string? ProviderThreadId { get; set; }
+
     public int SendAttemptCount { get; set; }
 }

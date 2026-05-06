@@ -65,12 +65,16 @@ public class CandidatureService : ICandidatureService
     {
         return new CandidatureDto
         {
-            IdCandidature = entity.IdCandidature,
-            IdUtilisateur = entity.IdUtilisateur,
-            IdOffre = entity.IdOffre,
-            DateCreation = entity.DateCreation,
+            IdCandidature           = entity.IdCandidature,
+            IdUtilisateur           = entity.IdUtilisateur,
+            IdOffre                 = entity.IdOffre,
+            DateCreation            = entity.DateCreation,
             InclureLettreMotivation = entity.InclureLettreMotivation,
-            Statut = entity.Statut
+            Statut                  = entity.Statut,
+            ResponseStatus          = entity.ResponseStatus,
+            HasResponse             = entity.HasResponse,
+            LastCheckedAtUtc        = entity.LastCheckedAtUtc,
+            LastResponseAtUtc       = entity.LastResponseAtUtc,
         };
     }
 }

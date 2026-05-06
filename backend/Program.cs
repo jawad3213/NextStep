@@ -14,6 +14,9 @@ using NextStep.Modules.Profile.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using Hangfire;
+using Hangfire.PostgreSql;
+using NextStep.Jobs;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -75,6 +78,8 @@ builder.Services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IGmailReplyMonitorService, GmailReplyMonitorService>();
+builder.Services.AddScoped<CheckEmailRepliesJob>();
 
 // ── Google OAuth configuration ───────────────────────────────────────────────
 builder.Services.Configure<GoogleOAuthOptions>(
@@ -87,6 +92,14 @@ builder.Services.Configure<GoogleOAuthOptions>(
 // Docker volume at /root/.aspnet/DataProtection-Keys or an external key store).
 builder.Services.AddDataProtection();
 
+// ── Hangfire (reply-monitoring recurring job) ─────────────────────────────────
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(opt => opt.UseNpgsqlConnection(connectionString)));
+builder.Services.AddHangfireServer();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
@@ -94,6 +107,20 @@ app.UseCors("Angular");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// ── Hangfire Dashboard (Development only) + Recurring Jobs ───────────────────
+if (app.Environment.IsDevelopment())
+{
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new NextStep.Shared.Http.AllowAllHangfireAuthorizationFilter() }
+    });
+}
+
+RecurringJob.AddOrUpdate<CheckEmailRepliesJob>(
+    "check-email-replies",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Daily);   // runs once per day; change to "0 */6 * * *" for every 6 hours
 
 using (var scope = app.Services.CreateScope())
 {
@@ -143,6 +170,13 @@ using (var scope = app.Services.CreateScope())
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS date_approbation TIMESTAMP;");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS provider_message_id TEXT;");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS nb_tentatives_envoi INTEGER DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS provider_thread_id TEXT;");
+
+        // 8b. Candidature — email reply tracking fields
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_status TEXT DEFAULT 'EN_ATTENTE';");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS has_response BOOLEAN DEFAULT FALSE;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_checked_at_utc TIMESTAMP;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_response_at_utc TIMESTAMP;");
 
         // 9. user_email_connection — stores encrypted Gmail OAuth tokens
         await context.Database.ExecuteSqlRawAsync(@"

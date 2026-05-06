@@ -19,5 +19,19 @@ public class Candidature
 
     public string Statut { get; set; } = "EN_ATTENTE";
 
+    // ── Email reply tracking ──────────────────────────────────────────────────────
+
+    /// <summary>Tracks whether a reply to the sent email has been detected. Default: "EN_ATTENTE".</summary>
+    public string ResponseStatus { get; set; } = "EN_ATTENTE";
+
+    /// <summary>True when a reply from the recruiter/recipient has been detected.</summary>
+    public bool HasResponse { get; set; } = false;
+
+    /// <summary>UTC timestamp of the last time the Gmail thread was polled for replies.</summary>
+    public DateTime? LastCheckedAtUtc { get; set; }
+
+    /// <summary>UTC timestamp of the detected reply message. Null until a reply is found.</summary>
+    public DateTime? LastResponseAtUtc { get; set; }
+
     public ICollection<EmailDraft> EmailDrafts { get; set; } = new List<EmailDraft>();
 }

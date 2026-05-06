@@ -144,25 +144,29 @@ public class GmailEmailSenderService : IEmailSenderService
         }
 
         string? gmailMessageId = null;
+        string? gmailThreadId  = null;
         try
         {
             using var doc = JsonDocument.Parse(responseBody);
             if (doc.RootElement.TryGetProperty("id", out var idProp))
                 gmailMessageId = idProp.GetString();
+            if (doc.RootElement.TryGetProperty("threadId", out var threadProp))
+                gmailThreadId = threadProp.GetString();
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "GmailSender — could not parse Gmail response id");
+            _logger.LogWarning(ex, "GmailSender — could not parse Gmail response id/threadId");
         }
 
         _logger.LogInformation(
-            "GmailSender — email sent for user {UserId}, Gmail message id: {MessageId}",
-            localUserId, gmailMessageId);
+            "GmailSender — email sent for user {UserId}, Gmail message id: {MessageId}, thread id: {ThreadId}",
+            localUserId, gmailMessageId, gmailThreadId);
 
         return new SendEmailResult
         {
             Success           = true,
-            ProviderMessageId = gmailMessageId
+            ProviderMessageId = gmailMessageId,
+            ProviderThreadId  = gmailThreadId
         };
     }
 

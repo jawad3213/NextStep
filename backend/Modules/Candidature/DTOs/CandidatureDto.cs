@@ -8,4 +8,10 @@ public class CandidatureDto
     public DateTime DateCreation { get; set; }
     public bool InclureLettreMotivation { get; set; }
     public string Statut { get; set; } = string.Empty;
+
+    // ── Email reply tracking ──────────────────────────────────────────────────────
+    public string ResponseStatus { get; set; } = "EN_ATTENTE";
+    public bool HasResponse { get; set; }
+    public DateTime? LastCheckedAtUtc { get; set; }
+    public DateTime? LastResponseAtUtc { get; set; }
 }

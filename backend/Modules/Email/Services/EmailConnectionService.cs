@@ -21,7 +21,9 @@ public class EmailConnectionService : IEmailConnectionService
     private const string DataProtectionPurpose = "GmailOAuthTokens";
     private const string GmailProfileUrl       = "https://gmail.googleapis.com/gmail/v1/users/me/profile";
     private const string TokenExchangeUrl      = "https://oauth2.googleapis.com/token";
-    private const string GmailScope            = "https://www.googleapis.com/auth/gmail.send";
+    private const string GmailScope =
+        "https://www.googleapis.com/auth/gmail.send " +
+        "https://www.googleapis.com/auth/gmail.readonly";
     private const string GoogleAuthBase        = "https://accounts.google.com/o/oauth2/v2/auth";
     private static readonly TimeSpan StateExpiry = TimeSpan.FromMinutes(10);
 

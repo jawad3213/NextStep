@@ -7,7 +7,6 @@ using NextStep.Modules.Identity.Models;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NextStep.Modules.Identity.Repositories;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Services;
 

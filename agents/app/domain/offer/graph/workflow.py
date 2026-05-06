@@ -2,13 +2,12 @@
 # app/domain/offer/graph/workflow.py
 # Graphe LangGraph du domaine OFFER
 #
-# Flux :
-#   START → router ──[conditional]──► offer_analyzer
-#                                   ► profile_retriever
-#                                   ► normalizer
-#                                   ► scorer
-#                                   ► cv_formatter  [stub M3]
-#                                   ► email_composer [stub M4]
+# Flux (simplifié — normalizer intégré dans les agents) :
+#   START → router ──[conditional]──► offer_analyzer      (Agent 1 + normalise offre)
+#                                   ► profile_retriever   (Agent 2 + normalise profil)
+#                                   ► scorer              (Agent 4 — ATS + Matching)
+#                                   ► cv_formatter        [stub M3]
+#                                   ► email_composer      [stub M4]
 #                                   ► END
 #   Chaque agent → router (boucle) jusqu'à END
 # ============================================================
@@ -18,16 +17,15 @@ from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph, END
 
 from app.domain.offer.schemas.state import OfferState
-from app.domain.offer.agents.offer_analyzer import offer_analyzer_node
-from app.domain.offer.agents.profile_retriever import profile_retriever_node
-from app.domain.offer.agents.normalizer import normalizer_node
-from app.domain.offer.agents.scorer import scorer_node
+from app.domain.offer_analyzer.graph.workflow import build_offer_analyzer_workflow
+from app.domain.profile_retriever.graph.workflow import build_profile_retriever_workflow
+from app.domain.scorer.graph.workflow import build_scorer_workflow
 
 logger = logging.getLogger(__name__)
 
 # ─── Types pour les arêtes conditionnelles ────────────────────
 _NextNode = Literal[
-    "offer_analyzer", "profile_retriever", "normalizer",
+    "offer_analyzer", "profile_retriever",
     "scorer", "cv_formatter", "email_composer", "__end__"
 ]
 
@@ -41,13 +39,12 @@ async def router_node(state: OfferState) -> dict:
     Nœud Router — Analyse l'état et décide quel agent appeler.
 
     Logique de priorité (dans l'ordre) :
-      1. analyzed_offer manquant  → offer_analyzer
-      2. profile_data manquant    → profile_retriever
-      3. normalized_* manquants   → normalizer
-      4. match_result manquant    → scorer
-      5. cv_template_json manquant→ cv_formatter (stub M3)
-      6. email_draft manquant     → email_composer (stub M4)
-      7. Tout présent             → end
+      1. analyzed_offer manquant        → offer_analyzer  (+ normalise offre)
+      2. profile_data manquant          → profile_retriever (+ normalise profil)
+      3. match_result manquant          → scorer
+      4. cv_template_json manquant      → cv_formatter (stub M3)
+      5. email_draft manquant           → email_composer (stub M4)
+      6. Tout présent                   → end
     """
     logger.info("🔀 Router — Décision routing")
 
@@ -55,8 +52,6 @@ async def router_node(state: OfferState) -> dict:
         next_agent = "offer_analyzer"
     elif not state.get("profile_data"):
         next_agent = "profile_retriever"
-    elif not state.get("normalized_offer_skills"):
-        next_agent = "normalizer"
     elif not state.get("match_result"):
         next_agent = "scorer"
     elif not state.get("cv_template_json"):
@@ -149,10 +144,9 @@ def build_offer_workflow() -> StateGraph:
     """
     Construit et compile le graphe LangGraph du domaine OFFER.
 
-    Topologie :
+    Topologie (sans nœud normalizer) :
       START → router ─[conditional]─► offer_analyzer ─► router
                                     ► profile_retriever ─► router
-                                    ► normalizer ─► router
                                     ► scorer ─► router
                                     ► cv_formatter ─► router
                                     ► email_composer ─► router
@@ -160,12 +154,16 @@ def build_offer_workflow() -> StateGraph:
     """
     graph = StateGraph(OfferState)
 
+    # ── Sous-graphes ───────────────────────────────────────────
+    offer_analyzer_graph    = build_offer_analyzer_workflow()
+    profile_retriever_graph = build_profile_retriever_workflow()
+    scorer_graph            = build_scorer_workflow()
+
     # ── Nœuds ──────────────────────────────────────────────────
     graph.add_node("router",            router_node)
-    graph.add_node("offer_analyzer",    offer_analyzer_node)
-    graph.add_node("profile_retriever", profile_retriever_node)
-    graph.add_node("normalizer",        normalizer_node)
-    graph.add_node("scorer",            scorer_node)
+    graph.add_node("offer_analyzer",    offer_analyzer_graph)
+    graph.add_node("profile_retriever", profile_retriever_graph)
+    graph.add_node("scorer",            scorer_graph)
     graph.add_node("cv_formatter",      cv_formatter_node)
     graph.add_node("email_composer",    email_composer_node)
 
@@ -179,7 +177,6 @@ def build_offer_workflow() -> StateGraph:
         {
             "offer_analyzer":    "offer_analyzer",
             "profile_retriever": "profile_retriever",
-            "normalizer":        "normalizer",
             "scorer":            "scorer",
             "cv_formatter":      "cv_formatter",
             "email_composer":    "email_composer",
@@ -190,7 +187,7 @@ def build_offer_workflow() -> StateGraph:
     # ── Arêtes de retour au Router (après chaque agent) ────────
     for node in [
         "offer_analyzer", "profile_retriever",
-        "normalizer", "scorer",
+        "scorer",
         "cv_formatter", "email_composer",
     ]:
         graph.add_edge(node, "router")
@@ -207,5 +204,5 @@ def get_offer_workflow():
     global _workflow
     if _workflow is None:
         _workflow = build_offer_workflow()
-        logger.info("✅ Graphe OFFER compilé")
+        logger.info("✅ Graphe OFFER compilé (sans nœud normalizer)")
     return _workflow

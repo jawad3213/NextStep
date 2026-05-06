@@ -7,8 +7,7 @@ import pytest
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.domain.offer.agents.normalizer import normalize_skills, normalize_text
-from app.domain.offer.agents.normalizer.synonyms import SYNONYMES
+from app.core.utils.normalizer import normalize_skills, normalize_text, SYNONYMES
 
 
 class TestNormalizeSkills:

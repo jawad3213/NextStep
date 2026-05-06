@@ -3,7 +3,7 @@
 # Fonctions de détection de signaux dans les offres
 # Isolées pour enrichissement facile et tests unitaires
 # ============================================================
-from app.domain.offer.agents.normalizer import normalize_text
+from app.core.utils.normalizer import normalize_text
 
 # ─── Signaux de détection ─────────────────────────────────────
 _REMOTE_SIGNALS       = {"télétravail", "remote", "distanciel", "full remote", "hybrid", "hybride"}

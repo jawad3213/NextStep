@@ -144,6 +144,10 @@ def _build_profile_text(profile: dict) -> str:
         if isinstance(p, dict):
             parts.append(p.get("titre", ""))
             parts.append(p.get("description", ""))
-            parts.append(p.get("technologies", ""))
+            techs = p.get("technologies", "")
+            if isinstance(techs, list):
+                parts.append(" ".join(str(t) for t in techs))
+            else:
+                parts.append(str(techs))
 
-    return _normalize(" ".join(filter(None, parts)))
+    return _normalize(" ".join(str(p) for p in filter(None, parts)))

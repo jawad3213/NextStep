@@ -1,7 +1,9 @@
 using System.Net.Mail;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NextStep.data;
+using NextStep.Shared.Config;
 using NextStep.Shared.Http;
 using NextStep.Modules.Candidature.Repositories;
 using NextStep.Modules.Email.DTOs;
@@ -18,6 +20,7 @@ public class EmailService : IEmailService
     private readonly IAgentHttpClient _agentHttpClient;
     private readonly AppDbContext _db;
     private readonly ILogger<EmailService> _logger;
+    private readonly EmailFollowUpOptions _followUpOptions;
 
     public EmailService(
         ICandidatureRepository candidatureRepository,
@@ -25,7 +28,8 @@ public class EmailService : IEmailService
         IEmailSenderService emailSenderService,
         IAgentHttpClient agentHttpClient,
         AppDbContext db,
-        ILogger<EmailService> logger)
+        ILogger<EmailService> logger,
+        IOptions<EmailFollowUpOptions> followUpOptions)
     {
         _candidatureRepository = candidatureRepository;
         _emailDraftRepository  = emailDraftRepository;
@@ -33,6 +37,7 @@ public class EmailService : IEmailService
         _agentHttpClient       = agentHttpClient;
         _db                    = db;
         _logger                = logger;
+        _followUpOptions       = followUpOptions.Value;
     }
 
     // ── GenerateDraftAsync ────────────────────────────────────────────────────────
@@ -41,127 +46,19 @@ public class EmailService : IEmailService
         GenerateEmailDraftDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ── 1. Load candidature ──────────────────────────────────────────────
         var candidature = await _candidatureRepository.GetByIdAsync(
             dto.CandidatureId, cancellationToken);
 
         if (candidature is null)
             throw new KeyNotFoundException($"Candidature {dto.CandidatureId} not found.");
 
-        // ── 2. Load user ─────────────────────────────────────────────────────
-        var user = await _db.Utilisateurs
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == candidature.IdUtilisateur, cancellationToken);
+        var ctx = await BuildCandidatureContextAsync(candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
 
-        if (user is null)
-            throw new KeyNotFoundException($"User {candidature.IdUtilisateur} not found.");
-
-        // ── 3. Load profile data ─────────────────────────────────────────────
-        var userId = candidature.IdUtilisateur;
-
-        var skills = await _db.Competences
-            .AsNoTracking()
-            .Where(c => c.UserId == userId)
-            .Select(c => c.Nom ?? "")
-            .Where(n => n.Length > 0)
-            .ToListAsync(cancellationToken);
-
-        var experiences = await _db.Experiences
-            .AsNoTracking()
-            .Where(e => e.UserId == userId)
-            .ToListAsync(cancellationToken);
-
-        var formations = await _db.Formations
-            .AsNoTracking()
-            .Where(f => f.UserId == userId)
-            .ToListAsync(cancellationToken);
-
-        var projets = await _db.Projets
-            .AsNoTracking()
-            .Where(p => p.UserId == userId)
-            .Select(p => p.TitreProjet ?? "")
-            .Where(t => t.Length > 0)
-            .ToListAsync(cancellationToken);
-
-        var certifications = await _db.Certifications
-            .AsNoTracking()
-            .Where(c => c.UserId == userId)
-            .Select(c => c.Titre ?? "")
-            .Where(t => t.Length > 0)
-            .ToListAsync(cancellationToken);
-
-        // ── 4. Load offer ────────────────────────────────────────────────────
-        var offre = await _db.OffresEmploi
-            .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == candidature.IdOffre, cancellationToken);
-
-        // ── 5. Parse offer analysis JSON ─────────────────────────────────────
-        string? jobTitle = null;
-        string? companyName = null;
-        string? location = null;
-        var requiredSkills  = new List<string>();
-        var preferredSkills = new List<string>();
-        var missions        = new List<string>();
-        var requirements    = new List<string>();
-
-        if (offre?.AnalyseJson is not null)
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(offre.AnalyseJson);
-                var root = doc.RootElement;
-
-                if (root.TryGetProperty("job_title", out var jt))
-                    jobTitle = jt.GetString();
-                if (root.TryGetProperty("company_name", out var cn))
-                    companyName = cn.GetString();
-                if (root.TryGetProperty("location", out var loc))
-                    location = loc.GetString();
-
-                requiredSkills  = ExtractStringList(root, "required_skills");
-                preferredSkills = ExtractStringList(root, "preferred_skills");
-                missions        = ExtractStringList(root, "missions");
-                requirements    = ExtractStringList(root, "requirements");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex,
-                    "Could not parse AnalyseJson for offer {OfferId} — will use raw text only.",
-                    candidature.IdOffre);
-            }
-        }
-
-        // ── 6. Build Python request payload ──────────────────────────────────
         var pythonRequest = new
         {
             candidature_id = candidature.IdCandidature.ToString(),
-            candidate = new
-            {
-                full_name        = $"{user.Prenom} {user.Nom}".Trim(),
-                email            = user.Email,
-                phone            = user.Telephone,
-                current_title    = user.TitrePoste,
-                skills           = skills,
-                experiences      = experiences.Select(e =>
-                    $"{e.Poste} chez {e.Entreprise}" +
-                    $" ({e.DateDebut?.Year}\u2013{(e.DateFin.HasValue ? e.DateFin.Value.Year.ToString() : "présent")})").ToList(),
-                education        = formations.Select(f =>
-                    $"{f.Diplome} \u2013 {f.Etablissement} ({f.Annee})").ToList(),
-                projects         = projets,
-                certifications   = certifications,
-            },
-            job_offer = new
-            {
-                job_title        = jobTitle ?? "Poste non spécifié",
-                company_name     = companyName,
-                location         = location,
-                required_skills  = requiredSkills,
-                preferred_skills = preferredSkills,
-                missions         = missions,
-                requirements     = requirements,
-                raw_text         = offre?.TexteBrut,
-                analysis_json    = (object?)null,
-            },
+            candidate      = BuildCandidatePayload(ctx),
+            job_offer      = BuildJobOfferPayload(ctx),
             options = new
             {
                 language                  = dto.Language,
@@ -170,7 +67,6 @@ public class EmailService : IEmailService
             },
         };
 
-        // ── 7. Call Python /email/generate ───────────────────────────────────
         _logger.LogInformation(
             "EmailService — calling Python /email/generate for candidature {CandidatureId}",
             dto.CandidatureId);
@@ -193,14 +89,11 @@ public class EmailService : IEmailService
                 $"Email generation failed: {ex.Message}", ex);
         }
 
-        // ── 8. Save draft ────────────────────────────────────────────────────
-        // BUG FIX: RecipientEmail must NOT be the candidate's own email (user.Email).
-        // The user must set the recruiter/company email before approving and sending.
         var draft = new EmailDraft
         {
             CandidatureId  = candidature.IdCandidature,
             EmailType      = dto.EmailType,
-            RecipientEmail = null,   // Recruiter email — user must enter this before sending
+            RecipientEmail = null,
             Subject        = pythonResponse.Subject,
             Body           = pythonResponse.Body,
             Language       = string.IsNullOrWhiteSpace(pythonResponse.Language)
@@ -217,6 +110,18 @@ public class EmailService : IEmailService
             "EmailService — draft saved for candidature {CandidatureId} | subject: {Subject}",
             dto.CandidatureId, draft.Subject);
 
+        return MapToDto(draft);
+    }
+
+    // ── GetDraftByIdAsync ─────────────────────────────────────────────────────────
+
+    public async Task<EmailDraftDto> GetDraftByIdAsync(
+        Guid draftId,
+        Guid localUserId,
+        CancellationToken cancellationToken = default)
+    {
+        // LoadAndVerifyOwnershipAsync throws KeyNotFoundException / UnauthorizedAccessException
+        var draft = await LoadAndVerifyOwnershipAsync(draftId, localUserId, cancellationToken);
         return MapToDto(draft);
     }
 
@@ -276,7 +181,6 @@ public class EmailService : IEmailService
         if (draft.IsSent)
             throw new InvalidOperationException("Cannot approve a draft that has already been sent.");
 
-        // Validate required fields
         if (string.IsNullOrWhiteSpace(draft.RecipientEmail))
             throw new InvalidOperationException(
                 "RecipientEmail must be set before approving. Please update the draft with the recruiter's email address.");
@@ -319,7 +223,6 @@ public class EmailService : IEmailService
             throw new InvalidOperationException(
                 "Draft must be approved before sending. Please approve the draft first.");
 
-        // Final validation before sending
         if (string.IsNullOrWhiteSpace(draft.RecipientEmail))
             throw new InvalidOperationException("RecipientEmail must be set before sending.");
 
@@ -333,16 +236,14 @@ public class EmailService : IEmailService
         if (string.IsNullOrWhiteSpace(draft.Body))
             throw new InvalidOperationException("Body must not be empty before sending.");
 
-        // Increment attempt count before trying
         draft.SendAttemptCount++;
         draft.UpdatedAtUtc = DateTime.UtcNow;
 
-        // Call Gmail sender
         var result = await _emailSenderService.SendAsync(
-            localUserId:    localUserId,
-            recipientEmail: draft.RecipientEmail,
-            subject:        draft.Subject,
-            body:           draft.Body,
+            localUserId:       localUserId,
+            recipientEmail:    draft.RecipientEmail,
+            subject:           draft.Subject,
+            body:              draft.Body,
             cancellationToken: cancellationToken);
 
         if (result.Success)
@@ -356,6 +257,21 @@ public class EmailService : IEmailService
             _logger.LogInformation(
                 "EmailService — draft {DraftId} sent for user {UserId}, Gmail message id: {GmailId}, thread id: {ThreadId}",
                 draftId, localUserId, result.ProviderMessageId, result.ProviderThreadId);
+
+            // ── Update candidature status if this was a relance ──────────────
+            if (draft.EmailType == "relance")
+            {
+                var candidature = await _candidatureRepository.GetByIdAsync(
+                    draft.CandidatureId, cancellationToken);
+                if (candidature is not null)
+                {
+                    candidature.ResponseStatus = "RELANCE_ENVOYEE";
+                    candidature.Statut         = "RELANCE_ENVOYEE";
+                    _logger.LogInformation(
+                        "EmailService — candidature {CandidatureId} status updated to RELANCE_ENVOYEE",
+                        draft.CandidatureId);
+                }
+            }
         }
         else
         {
@@ -380,26 +296,333 @@ public class EmailService : IEmailService
         };
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────────
+    // ── GenerateFollowUpDraftAsync ────────────────────────────────────────────────
 
-    /// <summary>
-    /// Loads an EmailDraft and verifies the current user owns the related candidature.
-    /// Throws KeyNotFoundException if draft not found, UnauthorizedAccessException if not owner.
-    /// Returns a tracked entity for modification.
-    /// </summary>
+    public async Task<EmailDraftDto> GenerateFollowUpDraftAsync(
+        GenerateFollowUpDraftDto dto,
+        Guid localUserId,
+        CancellationToken cancellationToken = default)
+    {
+        // ── 1. Load and verify candidature ───────────────────────────────────
+        var candidature = await _candidatureRepository.GetByIdAsync(
+            dto.CandidatureId, cancellationToken);
+
+        if (candidature is null)
+            throw new KeyNotFoundException($"Candidature {dto.CandidatureId} not found.");
+
+        if (candidature.IdUtilisateur != localUserId)
+            throw new UnauthorizedAccessException(
+                $"User {localUserId} does not own candidature {dto.CandidatureId}.");
+
+        // ── 2. Block if a reply was already received ─────────────────────────
+        if (candidature.HasResponse)
+            throw new InvalidOperationException(
+                "A response has already been received for this candidature. Follow-up is not needed.");
+
+        // ── 3. Check MaxFollowUps limit ──────────────────────────────────────
+        int maxFollowUps = _followUpOptions.MaxFollowUps;
+
+        int sentRelanceCount = await _db.EmailDrafts
+            .CountAsync(d =>
+                d.CandidatureId == candidature.IdCandidature &&
+                d.EmailType == "relance" &&
+                d.IsSent,
+                cancellationToken);
+
+        if (sentRelanceCount >= maxFollowUps)
+            throw new InvalidOperationException(
+                $"Maximum number of follow-ups ({maxFollowUps}) reached for this candidature.");
+
+        // ── 4. Return existing unsent relance draft if one already exists ────
+        var existingUnsentRelance = await _db.EmailDrafts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d =>
+                d.CandidatureId == candidature.IdCandidature &&
+                d.EmailType == "relance" &&
+                !d.IsSent,
+                cancellationToken);
+
+        if (existingUnsentRelance is not null)
+        {
+            _logger.LogWarning(
+                "EmailService — unsent relance draft {DraftId} already exists for candidature {CandidatureId}. Returning existing draft.",
+                existingUnsentRelance.Id, dto.CandidatureId);
+            return MapToDto(existingUnsentRelance);
+        }
+
+        // ── 5. Find previous email context ───────────────────────────────────
+        // If relances have been sent, follow up on the latest relance.
+        // Otherwise, follow up on the latest sent application email.
+        EmailDraft? previousDraft;
+
+        if (sentRelanceCount > 0)
+        {
+            previousDraft = await _db.EmailDrafts
+                .AsNoTracking()
+                .Where(d =>
+                    d.CandidatureId == candidature.IdCandidature &&
+                    d.EmailType == "relance" &&
+                    d.IsSent &&
+                    d.SentAtUtc != null)
+                .OrderByDescending(d => d.SentAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+        else
+        {
+            previousDraft = await _db.EmailDrafts
+                .AsNoTracking()
+                .Where(d =>
+                    d.CandidatureId == candidature.IdCandidature &&
+                    d.IsSent &&
+                    d.SentAtUtc != null)
+                .OrderByDescending(d => d.SentAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (previousDraft is null)
+            throw new InvalidOperationException(
+                "Cannot generate a follow-up because no sent email exists for this candidature.");
+
+        int daysSinceSent = (int)(DateTime.UtcNow - previousDraft.SentAtUtc!.Value).TotalDays;
+
+        // ── 6. Load profile and offer context ────────────────────────────────
+        var ctx = await BuildCandidatureContextAsync(
+            candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
+
+        // ── 7. Build Python payload ──────────────────────────────────────────
+        var pythonRequest = new
+        {
+            candidature_id = candidature.IdCandidature.ToString(),
+            candidate      = BuildCandidatePayload(ctx),
+            job_offer      = BuildJobOfferPayload(ctx),
+            previous_email = new
+            {
+                subject     = previousDraft.Subject,
+                body        = previousDraft.Body,
+                sent_at_utc = previousDraft.SentAtUtc?.ToString("o"),
+            },
+            options = new
+            {
+                language        = dto.Language,
+                tone            = dto.Tone,
+                days_since_sent = daysSinceSent,
+            },
+        };
+
+        _logger.LogInformation(
+            "EmailService — calling Python /email/generate-follow-up for candidature {CandidatureId} | sentRelances={Count} | daysSinceSent={Days}",
+            dto.CandidatureId, sentRelanceCount, daysSinceSent);
+
+        PythonEmailResponse pythonResponse;
+        try
+        {
+            pythonResponse = await _agentHttpClient
+                .PostAsync<object, PythonEmailResponse>(
+                    "/email/generate-follow-up",
+                    pythonRequest,
+                    cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "EmailService — Python follow-up agent failed for candidature {CandidatureId}",
+                dto.CandidatureId);
+            throw new InvalidOperationException(
+                $"Follow-up email generation failed: {ex.Message}", ex);
+        }
+
+        // ── 8. Save relance draft ────────────────────────────────────────────
+        var draft = new EmailDraft
+        {
+            CandidatureId  = candidature.IdCandidature,
+            EmailType      = "relance",
+            RecipientEmail = previousDraft.RecipientEmail,  // carry over from previous email
+            Subject        = pythonResponse.Subject,
+            Body           = pythonResponse.Body,
+            Language       = string.IsNullOrWhiteSpace(pythonResponse.Language)
+                                 ? dto.Language
+                                 : pythonResponse.Language,
+            IsApproved     = false,
+            IsSent         = false,
+            CreatedAtUtc   = DateTime.UtcNow,
+        };
+
+        await _emailDraftRepository.AddAsync(draft, cancellationToken);
+
+        // ── 9. Update candidature status ─────────────────────────────────────
+        candidature.ResponseStatus = "RELANCE_GENEREE";
+        candidature.Statut         = "RELANCE_GENEREE";
+
+        await _emailDraftRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "EmailService — relance draft {DraftId} saved for candidature {CandidatureId} | subject: {Subject}",
+            draft.Id, dto.CandidatureId, draft.Subject);
+
+        return MapToDto(draft);
+    }
+
+    // ── Private: profile + offer context builder ──────────────────────────────────
+
+    private sealed record CandidatureContext(
+        string FullName,
+        string? Email,
+        string? Phone,
+        string? CurrentTitle,
+        List<string> Skills,
+        List<string> Experiences,
+        List<string> Education,
+        List<string> Projects,
+        List<string> Certifications,
+        string JobTitle,
+        string? CompanyName,
+        string? Location,
+        List<string> RequiredSkills,
+        List<string> PreferredSkills,
+        List<string> Missions,
+        List<string> Requirements,
+        string? RawText);
+
+    private async Task<CandidatureContext> BuildCandidatureContextAsync(
+        Guid userId,
+        Guid offreId,
+        CancellationToken cancellationToken)
+    {
+        var user = await _db.Utilisateurs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        var skills = await _db.Competences
+            .AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .Select(c => c.Nom ?? "")
+            .Where(n => n.Length > 0)
+            .ToListAsync(cancellationToken);
+
+        var experiences = await _db.Experiences
+            .AsNoTracking()
+            .Where(e => e.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        var formations = await _db.Formations
+            .AsNoTracking()
+            .Where(f => f.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        var projets = await _db.Projets
+            .AsNoTracking()
+            .Where(p => p.UserId == userId)
+            .Select(p => p.TitreProjet ?? "")
+            .Where(t => t.Length > 0)
+            .ToListAsync(cancellationToken);
+
+        var certifications = await _db.Certifications
+            .AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .Select(c => c.Titre ?? "")
+            .Where(t => t.Length > 0)
+            .ToListAsync(cancellationToken);
+
+        var offre = await _db.OffresEmploi
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == offreId, cancellationToken);
+
+        string? jobTitle = null;
+        string? companyName = null;
+        string? location = null;
+        var requiredSkills  = new List<string>();
+        var preferredSkills = new List<string>();
+        var missions        = new List<string>();
+        var requirements    = new List<string>();
+
+        if (offre?.AnalyseJson is not null)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(offre.AnalyseJson);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("job_title", out var jt))   jobTitle    = jt.GetString();
+                if (root.TryGetProperty("company_name", out var cn)) companyName = cn.GetString();
+                if (root.TryGetProperty("location", out var loc))    location    = loc.GetString();
+
+                requiredSkills  = ExtractStringList(root, "required_skills");
+                preferredSkills = ExtractStringList(root, "preferred_skills");
+                missions        = ExtractStringList(root, "missions");
+                requirements    = ExtractStringList(root, "requirements");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Could not parse AnalyseJson for offer {OfferId} — will use raw text only.", offreId);
+            }
+        }
+
+        return new CandidatureContext(
+            FullName:        $"{user.Prenom} {user.Nom}".Trim(),
+            Email:           user.Email,
+            Phone:           user.Telephone,
+            CurrentTitle:    user.TitrePoste,
+            Skills:          skills,
+            Experiences:     experiences.Select(e =>
+                $"{e.Poste} chez {e.Entreprise}" +
+                $" ({e.DateDebut?.Year}\u2013{(e.DateFin.HasValue ? e.DateFin.Value.Year.ToString() : "présent")})").ToList(),
+            Education:       formations.Select(f =>
+                $"{f.Diplome} \u2013 {f.Etablissement} ({f.Annee})").ToList(),
+            Projects:        projets,
+            Certifications:  certifications,
+            JobTitle:        jobTitle ?? "Poste non spécifié",
+            CompanyName:     companyName,
+            Location:        location,
+            RequiredSkills:  requiredSkills,
+            PreferredSkills: preferredSkills,
+            Missions:        missions,
+            Requirements:    requirements,
+            RawText:         offre?.TexteBrut);
+    }
+
+    private static object BuildCandidatePayload(CandidatureContext ctx) => new
+    {
+        full_name     = ctx.FullName,
+        email         = ctx.Email,
+        phone         = ctx.Phone,
+        current_title = ctx.CurrentTitle,
+        skills        = ctx.Skills,
+        experiences   = ctx.Experiences,
+        education     = ctx.Education,
+        projects      = ctx.Projects,
+        certifications = ctx.Certifications,
+    };
+
+    private static object BuildJobOfferPayload(CandidatureContext ctx) => new
+    {
+        job_title        = ctx.JobTitle,
+        company_name     = ctx.CompanyName,
+        location         = ctx.Location,
+        required_skills  = ctx.RequiredSkills,
+        preferred_skills = ctx.PreferredSkills,
+        missions         = ctx.Missions,
+        requirements     = ctx.Requirements,
+        raw_text         = ctx.RawText,
+        analysis_json    = (object?)null,
+    };
+
+    // ── Private: load + ownership check ──────────────────────────────────────────
+
     private async Task<EmailDraft> LoadAndVerifyOwnershipAsync(
         Guid draftId,
         Guid localUserId,
         CancellationToken cancellationToken)
     {
-        // Load draft with tracking (no AsNoTracking) so we can update it
         var draft = await _db.EmailDrafts
             .FirstOrDefaultAsync(d => d.Id == draftId, cancellationToken);
 
         if (draft is null)
             throw new KeyNotFoundException($"Email draft {draftId} not found.");
 
-        // Load candidature to verify ownership
         var candidature = await _candidatureRepository.GetByIdAsync(
             draft.CandidatureId, cancellationToken);
 
@@ -407,8 +630,6 @@ public class EmailService : IEmailService
             throw new KeyNotFoundException(
                 $"Candidature {draft.CandidatureId} not found for draft {draftId}.");
 
-        // TODO: If IdUtilisateur is always set, this check is reliable.
-        // If there are legacy rows without IdUtilisateur, this check may fail unexpectedly.
         if (candidature.IdUtilisateur != localUserId)
             throw new UnauthorizedAccessException(
                 $"User {localUserId} does not own draft {draftId}.");
@@ -418,15 +639,8 @@ public class EmailService : IEmailService
 
     private static bool IsValidEmail(string email)
     {
-        try
-        {
-            var _ = new MailAddress(email);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        try   { var _ = new MailAddress(email); return true; }
+        catch { return false; }
     }
 
     private static EmailDraftDto MapToDto(EmailDraft draft) => new()

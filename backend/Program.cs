@@ -80,10 +80,15 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IGmailReplyMonitorService, GmailReplyMonitorService>();
 builder.Services.AddScoped<CheckEmailRepliesJob>();
+builder.Services.AddScoped<DetectFollowUpNeededJob>();
 
 // ── Google OAuth configuration ───────────────────────────────────────────────
 builder.Services.Configure<GoogleOAuthOptions>(
     builder.Configuration.GetSection(GoogleOAuthOptions.SectionName));
+
+// ── Email Follow-up configuration ───────────────────────────────────────────
+builder.Services.Configure<EmailFollowUpOptions>(
+    builder.Configuration.GetSection(EmailFollowUpOptions.SectionName));
 
 // ── ASP.NET Core Data Protection (encrypts Gmail tokens at rest) ─────────────
 // IMPORTANT for Docker: Data Protection keys must be persisted across container
@@ -121,6 +126,12 @@ RecurringJob.AddOrUpdate<CheckEmailRepliesJob>(
     "check-email-replies",
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Daily);   // runs once per day; change to "0 */6 * * *" for every 6 hours
+
+RecurringJob.AddOrUpdate<DetectFollowUpNeededJob>(
+    "detect-follow-up-needed",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Daily);
+
 
 using (var scope = app.Services.CreateScope())
 {

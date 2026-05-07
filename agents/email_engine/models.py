@@ -10,21 +10,21 @@ class CandidateInput(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     current_title: Optional[str] = None
-    skills: List[str] = []
-    experiences: List[str] = []
-    education: List[str] = []
-    projects: List[str] = []
-    certifications: List[str] = []
+    skills: List[str] = Field(default_factory=list)
+    experiences: List[str] = Field(default_factory=list)
+    education: List[str] = Field(default_factory=list)
+    projects: List[str] = Field(default_factory=list)
+    certifications: List[str] = Field(default_factory=list)
 
 
 class JobOfferInput(BaseModel):
     job_title: str
     company_name: Optional[str] = None
     location: Optional[str] = None
-    required_skills: List[str] = []
-    preferred_skills: List[str] = []
-    missions: List[str] = []
-    requirements: List[str] = []
+    required_skills: List[str] = Field(default_factory=list)
+    preferred_skills: List[str] = Field(default_factory=list)
+    missions: List[str] = Field(default_factory=list)
+    requirements: List[str] = Field(default_factory=list)
     raw_text: Optional[str] = None
     analysis_json: Optional[Dict[str, Any]] = None
 
@@ -47,3 +47,28 @@ class GenerateEmailResponse(BaseModel):
     body: str
     language: str
     tone: str
+
+
+# ── Follow-up / Relance models ────────────────────────────────────────────────
+
+class PreviousEmailInput(BaseModel):
+    """Context about the previously sent email that received no reply."""
+    subject: str
+    body: str
+    sent_at_utc: Optional[str] = None
+
+
+class FollowUpOptions(BaseModel):
+    """Options for the follow-up email generation."""
+    language: str = "fr"
+    tone: str = "professionnel"
+    days_since_sent: Optional[int] = None
+
+
+class GenerateFollowUpEmailRequest(BaseModel):
+    """Request payload for POST /email/generate-follow-up."""
+    candidature_id: str
+    candidate: CandidateInput
+    job_offer: JobOfferInput
+    previous_email: PreviousEmailInput
+    options: FollowUpOptions = Field(default_factory=FollowUpOptions)

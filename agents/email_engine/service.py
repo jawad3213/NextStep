@@ -5,11 +5,15 @@
 import logging
 from langchain_core.prompts import ChatPromptTemplate
 from .llm import get_email_llm
-from .models import GenerateEmailRequest, GenerateEmailResponse
+from .models import (
+    GenerateEmailRequest,
+    GenerateEmailResponse,
+    GenerateFollowUpEmailRequest,
+)
 
 logger = logging.getLogger(__name__)
 
-# ─── Prompts ────────────────────────────────────────────────
+# ─── Application email prompts ───────────────────────────────────────────────
 
 _SYSTEM = """\
 Tu es un agent expert en rédaction d'emails de candidature professionnels.
@@ -60,8 +64,64 @@ Ton                          : {tone}
 Inclure lettre de motivation : {include_motivation_letter}
 """
 
+# ─── Follow-up / Relance prompts ─────────────────────────────────────────────
 
-# ─── Helpers ────────────────────────────────────────────────
+_FOLLOWUP_SYSTEM = """\
+Tu es un agent expert en rédaction d'emails de relance professionnels.
+
+Règles strictes :
+- Génère un email de relance complet, prêt à envoyer, faisant suite à une candidature sans réponse.
+- Sois poli, concis et professionnel. Ne sois PAS impatient, agressif, désespéré ou insistant.
+- Mentionne poliment que tu fais suite à ta candidature précédente.
+- Mentionne le poste et l'entreprise si disponibles.
+- N'invente aucune compétence, diplôme, entreprise, certification ou expérience.
+- Utilise UNIQUEMENT les données du candidat et de l'offre fournies.
+- Respecte la langue demandée (fr = français, en = English, etc.).
+- Respecte le ton demandé.
+- N'utilise PAS de markdown (pas de **, *, #, listes à puces, etc.).
+- Ne laisse PAS de placeholders comme [Nom], [Entreprise], [Poste], etc.
+- Ne mentionne PAS que l'email a été généré par une IA.
+- L'email doit inclure : formule d'appel polie, rappel bref de la candidature précédente, \
+réaffirmation de l'intérêt pour le poste, disponibilité pour un entretien ou complément \
+d'information, formule de politesse et signature.
+"""
+
+_FOLLOWUP_HUMAN = """\
+Génère un email de relance pour une candidature n'ayant reçu aucune réponse.
+
+=== CANDIDAT ===
+Nom complet       : {full_name}
+Email             : {email}
+Téléphone         : {phone}
+Titre actuel      : {current_title}
+Compétences       : {skills}
+Expériences       : {experiences}
+Formation         : {education}
+Projets           : {projects}
+Certifications    : {certifications}
+
+=== OFFRE D'EMPLOI ===
+Poste             : {job_title}
+Entreprise        : {company_name}
+Localisation      : {location}
+Compétences req.  : {required_skills}
+Compétences souh. : {preferred_skills}
+Missions          : {missions}
+Prérequis         : {requirements}
+
+=== EMAIL PRÉCÉDENT (sans réponse) ===
+Objet             : {previous_subject}
+Corps             : {previous_body}
+Envoyé le (UTC)   : {sent_at_utc}
+Jours écoulés     : {days_since_sent}
+
+=== OPTIONS ===
+Langue            : {language}
+Ton               : {tone}
+"""
+
+
+# ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _fmt(lst: list) -> str:
     """Format a list as a comma-separated string, or 'Non spécifié' if empty."""
@@ -75,7 +135,7 @@ def _truncate(text: str | None, max_chars: int = 2000) -> str:
     return text[:max_chars] + ("…" if len(text) > max_chars else "")
 
 
-# ─── Main function ───────────────────────────────────────────
+# ─── Application email generation ────────────────────────────────────────────
 
 async def generate_email_with_llm(
     request: GenerateEmailRequest,
@@ -137,6 +197,81 @@ async def generate_email_with_llm(
 
     logger.info(
         "Email agent — generation succeeded for candidature_id=%s | subject=%s",
+        request.candidature_id,
+        result.subject[:60] if result.subject else "",
+    )
+    return result
+
+
+# ─── Follow-up / Relance email generation ────────────────────────────────────
+
+async def generate_follow_up_email_with_llm(
+    request: GenerateFollowUpEmailRequest,
+) -> GenerateEmailResponse:
+    """
+    Generate a professional follow-up (relance) email for a candidature
+    that received no response to the previous email.
+
+    The generated email is polite, concise, and ready to send.
+    It does NOT auto-approve or auto-send — it is saved as a draft.
+    """
+    logger.info(
+        "Follow-up agent — generating for candidature_id=%s | lang=%s | tone=%s | days=%s",
+        request.candidature_id,
+        request.options.language,
+        request.options.tone,
+        request.options.days_since_sent,
+    )
+
+    llm = get_email_llm()
+    structured_llm = llm.with_structured_output(GenerateEmailResponse)
+
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", _FOLLOWUP_SYSTEM), ("human", _FOLLOWUP_HUMAN)]
+    )
+
+    chain = prompt | structured_llm
+
+    c = request.candidate
+    j = request.job_offer
+    p = request.previous_email
+    o = request.options
+
+    days_label = str(o.days_since_sent) if o.days_since_sent is not None else "Non spécifié"
+
+    result: GenerateEmailResponse = await chain.ainvoke(
+        {
+            # Candidate
+            "full_name": c.full_name or "Non spécifié",
+            "email": c.email or "Non spécifié",
+            "phone": c.phone or "Non spécifié",
+            "current_title": c.current_title or "Non spécifié",
+            "skills": _fmt(c.skills),
+            "experiences": _fmt(c.experiences),
+            "education": _fmt(c.education),
+            "projects": _fmt(c.projects),
+            "certifications": _fmt(c.certifications),
+            # Offer
+            "job_title": j.job_title,
+            "company_name": j.company_name or "votre entreprise",
+            "location": j.location or "Non spécifié",
+            "required_skills": _fmt(j.required_skills),
+            "preferred_skills": _fmt(j.preferred_skills),
+            "missions": _fmt(j.missions),
+            "requirements": _fmt(j.requirements),
+            # Previous email context
+            "previous_subject": p.subject or "Non spécifié",
+            "previous_body": _truncate(p.body, 1500),
+            "sent_at_utc": p.sent_at_utc or "Non spécifié",
+            "days_since_sent": days_label,
+            # Options
+            "language": o.language,
+            "tone": o.tone,
+        }
+    )
+
+    logger.info(
+        "Follow-up agent — generation succeeded for candidature_id=%s | subject=%s",
         request.candidature_id,
         result.subject[:60] if result.subject else "",
     )

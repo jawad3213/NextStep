@@ -8,6 +8,11 @@ public interface IEmailService
         GenerateEmailDraftDto dto,
         CancellationToken cancellationToken = default);
 
+    Task<EmailDraftDto> GetDraftByIdAsync(
+        Guid draftId,
+        Guid localUserId,
+        CancellationToken cancellationToken = default);
+
     Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
         Guid candidatureId,
         CancellationToken cancellationToken = default);
@@ -25,6 +30,11 @@ public interface IEmailService
 
     Task<SendEmailResultDto> SendDraftAsync(
         Guid draftId,
+        Guid localUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<EmailDraftDto> GenerateFollowUpDraftAsync(
+        GenerateFollowUpDraftDto dto,
         Guid localUserId,
         CancellationToken cancellationToken = default);
 }

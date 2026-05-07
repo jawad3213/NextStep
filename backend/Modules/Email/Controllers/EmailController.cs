@@ -68,7 +68,6 @@ public class EmailController : ControllerBase
     }
 
     // ── Existing: Get draft by ID ───────────────────────────────────────
-
     [HttpGet("drafts/{draftId:guid}")]
     public async Task<ActionResult<EmailDraftDto>> GetDraftById(
         Guid draftId,
@@ -77,18 +76,57 @@ public class EmailController : ControllerBase
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
             return Unauthorized("User not found in local database.");
-        
-        try 
+
+        try
         {
-            // Note: IEmailService needs to have this method if it does not, we'll assume it doesn't and skip it.
-            // Wait, looking at IEmailService, we don't know if GetDraftByIdAsync exists. Let's just omit this if we're not sure,
-            // or we can fetch drafts by candidature and filter. Actually the prompt says "Add GET ... if useful".
-            // Since we need to get a draft, we can just use the response from Update/Generate.
-            // For now, I will NOT add GetDraftById unless I need it.
-            // Oh I already wrote this replacement. I'll just restore the original code since I can't be sure the service has the method.
+            var result = await _emailService.GetDraftByIdAsync(draftId, localUserId.Value, cancellationToken);
+            return Ok(result);
         }
-        catch { }
-        return NotFound();
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
+    }
+
+    // ── POST /api/emails/generate-follow-up ──────────────────────────────────────
+    [HttpPost("generate-follow-up")]
+    public async Task<ActionResult<EmailDraftDto>> GenerateFollowUpDraft(
+        [FromBody] GenerateFollowUpDraftDto dto,
+        CancellationToken cancellationToken)
+    {
+        var localUserId = await ResolveLocalUserIdAsync();
+        if (localUserId is null)
+            return Unauthorized("User not found in local database.");
+
+        try
+        {
+            var result = await _emailService.GenerateFollowUpDraftAsync(dto, localUserId.Value, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
     }
 
     // ── PUT /api/emails/drafts/{draftId} — Update draft ──────────────────────────

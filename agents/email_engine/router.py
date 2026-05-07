@@ -1,11 +1,17 @@
 # ============================================================
 # email_engine/router.py — FastAPI router for Email Agent
-# Route: POST /email/generate
+# Routes:
+#   POST /email/generate          — Initial application email
+#   POST /email/generate-follow-up — Follow-up / relance email
 # ============================================================
 import logging
 from fastapi import APIRouter, HTTPException
-from .models import GenerateEmailRequest, GenerateEmailResponse
-from .service import generate_email_with_llm
+from .models import (
+    GenerateEmailRequest,
+    GenerateEmailResponse,
+    GenerateFollowUpEmailRequest,
+)
+from .service import generate_email_with_llm, generate_follow_up_email_with_llm
 
 logger = logging.getLogger(__name__)
 
@@ -37,4 +43,31 @@ async def generate_email(
         raise HTTPException(
             status_code=500,
             detail=f"Erreur génération email : {exc}",
+        ) from exc
+
+
+@router.post(
+    "/generate-follow-up",
+    response_model=GenerateEmailResponse,
+    summary="Générer un email de relance via LLM",
+    description=(
+        "Reçoit les données du candidat, de l'offre et de l'email précédent depuis le backend .NET. "
+        "Génère un email de relance professionnel, poli et concis. "
+        "Ne s'envoie PAS automatiquement — retourne un brouillon à valider par l'utilisateur."
+    ),
+)
+async def generate_follow_up_email(
+    payload: GenerateFollowUpEmailRequest,
+) -> GenerateEmailResponse:
+    """POST /email/generate-follow-up — Appelé par le backend .NET."""
+    try:
+        return await generate_follow_up_email_with_llm(payload)
+    except ValueError as exc:
+        logger.error("Follow-up agent — configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+    except Exception as exc:
+        logger.error("Follow-up agent — generation failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur génération relance : {exc}",
         ) from exc

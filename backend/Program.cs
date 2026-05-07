@@ -10,6 +10,10 @@ using NextStep.Modules.Offer.Services;
 using NextStep.Modules.Identity.Repositories;
 using NextStep.Modules.Identity.Services;
 using NextStep.Modules.Profile.Services;
+using NextStep.Modules.Cv.Services;
+using NextStep.Shared.Storage;
+using Amazon.S3;
+using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
@@ -70,6 +74,24 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<ICvService, CvService>();
+builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
+
+// ─── MinIO / S3 Storage ───
+builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<MinioOptions>>().Value;
+    var config = new AmazonS3Config
+    {
+        ServiceURL = opts.Endpoint,
+        ForcePathStyle = true,   // Required for MinIO
+    };
+    return new AmazonS3Client(opts.AccessKey, opts.SecretKey, config);
+});
+builder.Services.AddSingleton<IStorageService, MinioStorageService>();
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var app = builder.Build();
 
@@ -122,6 +144,91 @@ using (var scope = app.Services.CreateScope())
         foreach (var c in ctCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.certification ADD COLUMN IF NOT EXISTS {c};");
 
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'Technique';");
+
+        // 8. CvTemplate table
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.cv_template (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                slug VARCHAR(50) NOT NULL UNIQUE,
+                name VARCHAR(120) NOT NULL,
+                description VARCHAR(500),
+                thumbnail_url VARCHAR(500),
+                industries JSONB DEFAULT '[]',
+                experience_levels JSONB DEFAULT '[]',
+                style VARCHAR(30),
+                layout INTEGER DEFAULT 0,
+                background_color VARCHAR(9) DEFAULT '#FFFFFF',
+                tags JSONB DEFAULT '[]',
+                is_active BOOLEAN DEFAULT TRUE,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT now(),
+                updated_at TIMESTAMP
+            );
+        ");
+
+        // Seed default templates if table is empty
+        var templateCount = await context.Database.ExecuteSqlRawAsync(@"
+            INSERT INTO public.cv_template (slug, name, description, industries, experience_levels, style, layout, background_color, tags, sort_order)
+            SELECT * FROM (VALUES
+                ('modern',    'Modern',    'Dark blue header, two-column layout.',
+                 '[""ITAndEngineering"",""CreativeAndDesign"",""MarketingAndSales""]'::jsonb,
+                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Modern', 6, '#1B2A4A',
+                 '[""two-column"",""dark-header""]'::jsonb, 1),
+
+                ('classic',   'Classic',   'Clean single-column, Georgia name font.',
+                 '[""AdministrativeAndOffice"",""EducationAndAcademic"",""FinanceAndAccounting"",""HealthcareAndMedical""]'::jsonb,
+                 '[""StudentEntryLevel"",""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Traditional', 9, '#FFFFFF',
+                 '[""single-column"",""ATS-friendly"",""clean""]'::jsonb, 2),
+
+                ('executive', 'Executive', 'Salmon/peach four-quadrant design.',
+                 '[""BusinessAndManagement"",""FinanceAndAccounting"",""MarketingAndSales""]'::jsonb,
+                 '[""SeniorExecutive""]'::jsonb,
+                 'Elegant', 6, '#F4A68C',
+                 '[""two-column"",""premium"",""executive""]'::jsonb, 3),
+
+                ('pro',       'Pro',       'Navy sidebar with skill bars and SVG contact chips.',
+                 '[""ITAndEngineering"",""CreativeAndDesign"",""BusinessAndManagement""]'::jsonb,
+                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Professional', 6, '#1E2A3A',
+                 '[""two-column"",""sidebar"",""skill-bars""]'::jsonb, 4),
+
+                ('elegant',   'Elegant',   'Dark navy sidebar, spaced-letter headings.',
+                 '[""CreativeAndDesign"",""MarketingAndSales"",""BusinessAndManagement""]'::jsonb,
+                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Elegant', 6, '#1A1F36',
+                 '[""two-column"",""sidebar"",""elegant""]'::jsonb, 5)
+            ) AS t(slug, name, description, industries, experience_levels, style, layout, background_color, tags, sort_order)
+            WHERE NOT EXISTS (SELECT 1 FROM public.cv_template LIMIT 1);
+        ");
+
+        Console.WriteLine("DEBUG: CV TEMPLATE TABLE AND SEED COMPLETED.");
+
+        // 9. CvHistory table
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.cv_history (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                title VARCHAR(200),
+                template_slug VARCHAR(50) NOT NULL,
+                template_name VARCHAR(120),
+                cv_data_json JSONB DEFAULT '{}',
+                file_url VARCHAR(1000) NOT NULL,
+                object_key VARCHAR(500) NOT NULL,
+                bucket_name VARCHAR(100) NOT NULL,
+                file_size_bytes BIGINT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT now(),
+                updated_at TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS ix_cv_history_user_created
+                ON public.cv_history (user_id, created_at DESC);
+        ");
+
+        // Add columns if table already exists (safe idempotent migration)
+        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{}'", "updated_at TIMESTAMP" };
+        foreach (var c in histCols)
+            await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS {c};");
 
         Console.WriteLine("DEBUG: NUCLEAR REPAIR COMPLETED.");
     }

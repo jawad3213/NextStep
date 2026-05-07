@@ -78,6 +78,11 @@ services:
       - Keycloak__Authority=http://keycloak:8080/realms/Next-Step
       - Redis__Configuration=redis:6379
       - PythonAgents__Url=http://agents-python:8000
+      - Minio__Endpoint=http://minio:9000
+      - Minio__AccessKey=${MINIO_ROOT_USER:-admin}
+      - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-admin123}
+      - Minio__BucketName=nextstep-cvs
+      - Minio__PublicUrl=http://localhost:9000
     ports:
       - "5000:5000"
     volumes:
@@ -89,6 +94,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+      minio:
+        condition: service_started
     networks:
       - nextstep-network
 
@@ -117,6 +124,22 @@ services:
     networks:
       - nextstep-network
 
+  minio:
+    image: minio/minio
+    container_name: nextstep-storage
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-admin123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - nextstep-network
+
   frontend:
     image: node:22-alpine
     container_name: nextstep-ui
@@ -141,6 +164,8 @@ volumes:
   redis_data:
     driver: local
   frontend_node_modules:
+    driver: local
+  minio_data:
     driver: local
 
 networks:

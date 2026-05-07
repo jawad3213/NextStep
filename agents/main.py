@@ -62,6 +62,7 @@ app = FastAPI(
 |---------|--------|-------------|
 | **offer** | 1, 2, 3, 4 | Analyse offre → Profil → Normalisation → Scoring |
 | **job**   | 5, 6       | CV Formatter → Email Composer |
+| **cv_engine** | 7, 8, 9 | Profile Loader → Skill Optimizer → CV Structurer |
 | **company** | —        | Analyse entreprise + score culture |
 | **cv_optimizer** | —    | Optimisation et réécriture du CV (STAR) |
 
@@ -82,6 +83,7 @@ app = FastAPI(
         {"name": "Health"},
         {"name": "M2 — Offer Pipeline"},
         {"name": "Job — CV & Email"},
+        {"name": "CV Engine — Préparation données CV"},
         {"name": "Company — Analyse Entreprise"},
         {"name": "CV Optimizer"},
         {"name": "Email Agent", "description": "Module M4 autonome"},
@@ -134,6 +136,11 @@ async def health_check():
                 "Agent5_cv_formatter":  "✅ actif (algorithme)",
                 "Agent6_email_composer":"✅ actif (LLM)",
             },
+            "cv_engine": {
+                "Node1_profile_loader":  "✅ actif (DB SQL)",
+                "Node2_skill_optimizer": "✅ actif (algorithme)",
+                "Node3_cv_structurer":   "✅ actif (algorithme)",
+            },
             "company": {
                 "intelligence_agent": "✅ actif (LangGraph Pipeline)",
             },
@@ -142,7 +149,9 @@ async def health_check():
             "pipeline":        "POST /run-pipeline",
             "analyze_offer":   "POST /analyze-offer",
             "match":           "POST /match",
-            "prepare_cv":      "POST /prepare-cv-data",
+            "prepare_cv":      "POST /prepare-cv",
+            "prepare_cv_legacy": "POST /prepare-cv-data",
+            "optimize_skills": "POST /optimize-skills",
             "generate_email":  "POST /generate-email",
             "analyze_company": "POST /analyze-company",
         },

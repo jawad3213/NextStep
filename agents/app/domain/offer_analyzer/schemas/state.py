@@ -22,3 +22,4 @@ class OfferAnalyzerState(TypedDict, total=False):
 
     messages: Annotated[list[BaseMessage], add_messages]
     errors: Annotated[list[str], operator.add]
+    iteration_count: int

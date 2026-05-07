@@ -14,7 +14,7 @@ Schéma attendu :
 {{
   "titre": "string",
   "entreprise": "string ou null",
-  "type_contrat": "CDI | CDD | Stage | Alternance | Freelance | null",
+  "type_contrat": "CDI | CDD | Stage | PFA | PFE | Alternance | Freelance | null",
   "localisation": "string ou null",
   "competences_requises": ["liste des compétences obligatoires"],
   "competences_souhaitees": ["liste des compétences bonus"],

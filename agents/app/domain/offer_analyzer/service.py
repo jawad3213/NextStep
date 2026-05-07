@@ -15,6 +15,7 @@ class OfferAnalyzerService:
         workflow = build_offer_analyzer_workflow()
         initial_state: OfferAnalyzerState = {
             "raw_offer_text": raw_text,
+            "iteration_count": 0,
             "messages": [],
             "errors": [],
             "normalized_offer_skills": [],

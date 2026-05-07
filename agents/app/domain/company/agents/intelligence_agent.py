@@ -10,7 +10,7 @@ from app.domain.company.tools.web_tool import smart_search, high_precision_scrap
 from app.domain.company.tools.glassdoor_tool import glassdoor_search
 from app.domain.company.tools.linkedin_tool import linkedin_company_search
 from app.domain.company.tools.salary_tool import salary_data_search
-from app.domain.company.agents.prompts import _SELECTOR_PROMPT, _ANALYST_PROMPT, _SKILL_GAP_PROMPT
+from app.domain.company.agents.prompts import _SELECTOR_PROMPT, _ANALYST_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -292,70 +292,4 @@ async def analyst_node(state: CompanyState) -> dict:
     }
 
 
-async def skill_gap_node(state: CompanyState) -> dict:
-    """
-    Nœud 3 : Analyse des compétences manquantes et de l'adéquation CV / Offre.
-    """
-    candidate_cv = state.get("candidate_cv")
-    job_offer = state.get("job_offer")
-    
-    # Fallback par défaut si aucune donnée d'évaluation n'est passée
-    if not candidate_cv:
-        candidate_cv = {
-            "name": "Alice Martin",
-            "skills": ["SQL", "Python", "Docker"],
-            "certifications": [],
-            "experience_years": 3.5
-        }
-    if not job_offer:
-        job_offer = {
-            "job_title": state.get("job_title", "Poste recherché"),
-            "required_skills": ["SQL", "Python", "Apache Airflow", "dbt"],
-            "required_certs": ["AWS Certified Data Analytics"],
-            "required_years": 4.0
-        }
-        
-    logger.info(f"🎯 Skill Gap Agent — Évaluation du profil pour le poste de {job_offer.get('job_title')}")
-    
-    llm = get_llm()
-    if hasattr(llm, "bind"):
-        llm = llm.bind(response_format={"type": "json_object"})
-        
-    skill_gap_prompt = ChatPromptTemplate.from_template(_SKILL_GAP_PROMPT)
-    skill_gap_chain = skill_gap_prompt | llm
-    
-    try:
-        response = await skill_gap_chain.ainvoke({
-            "candidate_cv": json.dumps(candidate_cv, indent=2, ensure_ascii=False),
-            "job_offer": json.dumps(job_offer, indent=2, ensure_ascii=False)
-        })
-        
-        # Log pour debug
-        import os
-        os.makedirs("scratch", exist_ok=True)
-        with open("scratch/skill_gap_raw_output.txt", "w", encoding="utf-8") as f:
-            f.write(response.content if hasattr(response, "content") else str(response))
-            
-        skill_gap_result = parse_json_markdown(response.content if hasattr(response, "content") else str(response))
-    except Exception as e:
-        logger.error(f"❌ Erreur lors de l'analyse Skill Gap par le LLM: {e}")
-        # Fallback robuste par défaut
-        skill_gap_result = {
-            "candidate_name": candidate_cv.get("name", "Candidat"),
-            "job_title": job_offer.get("job_title", "Poste"),
-            "relevance_score": 0.5,
-            "matched_skills": list(set(candidate_cv.get("skills", [])) & set(job_offer.get("required_skills", []))),
-            "missing_skills": list(set(job_offer.get("required_skills", [])) - set(candidate_cv.get("skills", []))),
-            "required_certs": job_offer.get("required_certs", []),
-            "cert_match": any(c in candidate_cv.get("certifications", []) for c in job_offer.get("required_certs", [])),
-            "experience_years": candidate_cv.get("experience_years", 0.0),
-            "required_years": job_offer.get("required_years", 0.0),
-            "experience_gap_years": max(0.0, float(job_offer.get("required_years", 0.0) - candidate_cv.get("experience_years", 0.0))),
-            "flag": "minor_gap",
-            "revision_hints": ["Mettre à jour le CV avec les projets clés", "Détailler les compétences techniques"]
-        }
-        
-    return {
-        "skill_gap": skill_gap_result,
-        "messages": [AIMessage(content="Analyse des écarts de compétences (Skill Gap) terminée.", name="skill_gap_analyzer")]
-    }
+

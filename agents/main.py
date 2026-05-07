@@ -34,6 +34,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.offer_routes import router as offer_router
 from app.api.job_routes import router as job_router
 from app.api.company_routes import router as company_router
+from app.api.cv_optimizer_routes import router as cv_optimizer_router
 
 # Compatibilité : ancien email_engine (M4 autonome)
 try:
@@ -62,6 +63,7 @@ app = FastAPI(
 | **offer** | 1, 2, 3, 4 | Analyse offre → Profil → Normalisation → Scoring |
 | **job**   | 5, 6       | CV Formatter → Email Composer |
 | **company** | —        | Analyse entreprise + score culture |
+| **cv_optimizer** | —    | Optimisation et réécriture du CV (STAR) |
 
 ### Agents M2 (domaine offer)
 - 🤖 **Agent 1** — Offer Analyzer (LLM Groq/OpenAI)
@@ -81,6 +83,7 @@ app = FastAPI(
         {"name": "M2 — Offer Pipeline"},
         {"name": "Job — CV & Email"},
         {"name": "Company — Analyse Entreprise"},
+        {"name": "CV Optimizer"},
         {"name": "Email Agent", "description": "Module M4 autonome"},
     ],
 )
@@ -100,6 +103,8 @@ app.add_middleware(
 app.include_router(offer_router, prefix="/offer")
 app.include_router(job_router, prefix="/job")
 app.include_router(company_router, prefix="/company")
+app.include_router(cv_optimizer_router)
+
 
 # ─── Router email_engine M4 (compatibilité) ───────────────────
 if _email_router_available:

@@ -84,7 +84,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             # ── Compétences ─────────────────────────────────
             try:
                 comps = (await db.execute(
-                    text("SELECT nom, type_competence FROM competence WHERE id_utilisateur = :pid"),
+                    text("SELECT nom, type_competence, niveau FROM competence WHERE id_utilisateur = :pid"),
                     {"pid": pid},
                 )).mappings().all()
                 
@@ -135,18 +135,29 @@ async def get_user_profile_from_db(user_id: str) -> dict:
 
             # ── Projets ─────────────────────────────────────
             try:
-                projs = (await db.execute(
+                projs_raw = (await db.execute(
                     text("""
                         SELECT titre_projet AS titre,
-                               description,
-                               technologies_utilisees AS technologies
+                                description,
+                                technologies_utilisees AS technologies
                         FROM projet WHERE id_utilisateur = :pid
                     """),
                     {"pid": pid},
                 )).mappings().all()
+                
+                projs = []
+                for p in projs_raw:
+                    p_dict = dict(p)
+                    # Parsing des technologies (string -> list) si nécessaire
+                    techs = p_dict.get("technologies")
+                    if isinstance(techs, str):
+                        p_dict["technologies"] = [t.strip() for t in techs.split(",") if t.strip()]
+                    elif techs is None:
+                        p_dict["technologies"] = []
+                    projs.append(p_dict)
             except Exception as e:
                 logger.error("[Tool:db] Erreur projets : %s", str(e))
-                projs = []
+                raise  # On laisse remonter pour déclencher le fallback
 
         return {
             "user_id": user_id,
@@ -160,7 +171,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             "experiences":    [dict(e) for e in exps],
             "formations":     [dict(f) for f in forms],
             "certifications": [dict(c) for c in certs],
-            "projets":        [dict(p) for p in projs],
+            "projets":        projs,
         }
 
     except Exception as e:

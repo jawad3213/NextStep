@@ -3,7 +3,7 @@ import logging
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from app.core.config import get_llm
-from app.core.utils.json_parser import parse_json_markdown
+from langchain_core.utils.json import parse_json_markdown
 from app.domain.cv_optimizer.schemas.state import CVOptimizerState
 from app.domain.cv_optimizer.schemas.models import OptimizedCVOutput
 from app.domain.cv_optimizer.agents.prompts import _CV_OPTIMIZER_PROMPT

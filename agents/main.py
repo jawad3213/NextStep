@@ -5,24 +5,13 @@
 #   app/
 #   ├── core/              — config.py, database.py (partagés)
 #   ├── domain/
-#   │   ├── offer/         — Agents 1-4 + stubs 5-6 (M2)
-#   │   │   ├── agents/    — offer_analyzer, profile_retriever, normalizer, scorer
-#   │   │   ├── tools/     — db_tools.py (@tool LangChain)
-#   │   │   ├── schemas/   — state.py, offer_schemas.py
-#   │   │   ├── graph/     — workflow.py (LangGraph StateGraph)
-#   │   │   └── service.py — OfferService (orchestration)
-#   │   ├── job/           — Agent 5 (CV Formatter) + Agent 6 (Email Composer)
-#   │   │   ├── agents/    — cv_formatter.py, email_composer.py
-#   │   │   ├── schemas/   — state.py, job_schemas.py
-#   │   │   └── service.py — JobService
+#   │   ├── offer_analyzer/
+#   │   ├── profile_retriever/
+#   │   ├── skill_gap/
+#   │   ├── cv_optimizer/
+#   │   ├── cv_engine/
 #   │   └── company/       — Analyse entreprise + score culture
-#   │       ├── agents/    — intelligence_agent.py
-#   │       ├── schemas/   — state.py, company_schemas.py
-#   │       └── service.py — CompanyService
 #   └── api/               — Routes FastAPI par domaine
-#       ├── offer_routes.py
-#       ├── job_routes.py
-#       └── company_routes.py
 #
 # main.py                  ← CE FICHIER (monte les routers)
 # ============================================================
@@ -32,9 +21,9 @@ from resume.router import router as resume_router
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.offer_routes import router as offer_router
-from app.api.job_routes import router as job_router
 from app.api.company_routes import router as company_router
 from app.api.cv_optimizer_routes import router as cv_optimizer_router
+from app.api.cv_engine_routes import router as cv_engine_router
 
 # Compatibilité : ancien email_engine (M4 autonome)
 try:
@@ -60,21 +49,12 @@ app = FastAPI(
 ### Domaines
 | Domaine | Agents | Description |
 |---------|--------|-------------|
-| **offer** | 1, 2, 3, 4 | Analyse offre → Profil → Normalisation → Scoring |
-| **job**   | 5, 6       | CV Formatter → Email Composer |
-| **cv_engine** | 7, 8, 9 | Profile Loader → Skill Optimizer → CV Structurer |
-| **company** | —        | Analyse entreprise + score culture |
-| **cv_optimizer** | —    | Optimisation et réécriture du CV (STAR) |
-
-### Agents M2 (domaine offer)
-- 🤖 **Agent 1** — Offer Analyzer (LLM Groq/OpenAI)
-- 📊 **Agent 2** — Profile Retriever (PostgreSQL direct)
-- 🔧 **Agent 3** — Normalizer (Algorithme pur)
-- 📈 **Agent 4** — Scorer ATS + Matching (Algorithme pur)
-
-### Agents M3/M4 (domaine job)
-- 📄 **Agent 5** — CV Formatter (JSON pour QuestPDF)
-- ✉️  **Agent 6** — Email Composer (LLM)
+| **offer_analyzer** | 1 | Analyse de l'offre (LLM) |
+| **profile_retriever**| 2 | Récupération du profil depuis BDD |
+| **skill_gap**      | 3, 4 | Normalisation + Scoring ATS et Gap Analysis |
+| **cv_optimizer**   | — | Optimisation et réécriture du CV (STAR) |
+| **cv_engine**      | — | Formateur algorithmique pour QuestPDF JSON |
+| **company**        | — | Analyse entreprise + score culture |
 """,
     version="3.0.0",
     docs_url="/docs",
@@ -82,7 +62,6 @@ app = FastAPI(
     openapi_tags=[
         {"name": "Health"},
         {"name": "M2 — Offer Pipeline"},
-        {"name": "Job — CV & Email"},
         {"name": "CV Engine — Préparation données CV"},
         {"name": "Company — Analyse Entreprise"},
         {"name": "CV Optimizer"},
@@ -103,9 +82,9 @@ app.add_middleware(
 
 # ─── Routers domaines ─────────────────────────────────────────
 app.include_router(offer_router, prefix="/offer")
-app.include_router(job_router, prefix="/job")
 app.include_router(company_router, prefix="/company")
 app.include_router(cv_optimizer_router)
+app.include_router(cv_engine_router)
 
 
 # ─── Router email_engine M4 (compatibilité) ───────────────────
@@ -113,7 +92,7 @@ if _email_router_available:
     app.include_router(email_router)
     logger.info("✅ email_engine router monté (M4 autonome)")
 else:
-    logger.info("ℹ️  email_engine non disponible — utiliser /generate-email")
+    logger.info("ℹ️  email_engine non disponible")
 
 
 # ─── Health check ─────────────────────────────────────────────
@@ -125,35 +104,13 @@ async def health_check():
         "service": "nextstep-agents",
         "version": "3.0.0",
         "architecture": "Domain-Driven + LangGraph StateGraph",
-        "domains": {
-            "offer": {
-                "Agent1_offer_analyzer":    "✅ actif (LLM)",
-                "Agent2_profile_retriever": "✅ actif (DB SQL)",
-                "Agent3_normalizer":        "✅ actif (algorithme)",
-                "Agent4_scorer":            "✅ actif (algorithme)",
-            },
-            "job": {
-                "Agent5_cv_formatter":  "✅ actif (algorithme)",
-                "Agent6_email_composer":"✅ actif (LLM)",
-            },
-            "cv_engine": {
-                "Node1_profile_loader":  "✅ actif (DB SQL)",
-                "Node2_skill_optimizer": "✅ actif (algorithme)",
-                "Node3_cv_structurer":   "✅ actif (algorithme)",
-            },
-            "company": {
-                "intelligence_agent": "✅ actif (LangGraph Pipeline)",
-            },
-        },
         "endpoints": {
-            "pipeline":        "POST /run-pipeline",
-            "analyze_offer":   "POST /analyze-offer",
-            "match":           "POST /match",
-            "prepare_cv":      "POST /prepare-cv",
-            "prepare_cv_legacy": "POST /prepare-cv-data",
-            "optimize_skills": "POST /optimize-skills",
-            "generate_email":  "POST /generate-email",
-            "analyze_company": "POST /analyze-company",
+            "pipeline":        "POST /offer/run-pipeline",
+            "analyze_offer":   "POST /offer/analyze-offer",
+            "match":           "POST /offer/match",
+            "format_questpdf": "POST /cv-engine/format-questpdf",
+            "analyze_company": "POST /company/analyze-company",
+            "optimize_cv":     "POST /cv-optimizer/optimize",
         },
     }
 

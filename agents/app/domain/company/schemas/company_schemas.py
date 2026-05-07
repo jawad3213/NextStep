@@ -70,3 +70,11 @@ class SkillGapResult(BaseModel):
     flag: str = Field(..., description="Niveau d'alerte, ex: perfect_match, minor_gap, critical_gap")
     revision_hints: list[str] = Field(default_factory=list, description="Suggestions concrètes pour améliorer le CV face à l'offre")
 
+
+class CompanyAnalyzeRequest(BaseModel):
+    """Requête pour l'analyse d'une entreprise."""
+    company_name: str
+    offer_data: dict
+    profile_data: dict
+    user_id: int
+

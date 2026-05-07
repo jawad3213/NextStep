@@ -56,6 +56,16 @@ class CompanyState(TypedDict, total=False):
     recommendations: list[str]
     """Conseils pour l'entretien et la candidature."""
 
+    # ── Skill Gap (Agent 3: Skill Gap Analyzer) ───────────────
+    candidate_cv: Optional[dict]
+    """CV du candidat (ex: {"name": str, "skills": list, "certifications": list, "experience_years": float})."""
+
+    job_offer: Optional[dict]
+    """Offre d'emploi (ex: {"job_title": str, "required_skills": list, "required_certs": list, "required_years": float})."""
+
+    skill_gap: Optional[dict]
+    """Analyse de l'écart de compétences (SkillGapResult sous forme de dictionnaire)."""
+
     # ── Routeur ──────────────────────────────────────────────
     next_agent: Optional[str]
     pipeline_version: str

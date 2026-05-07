@@ -53,3 +53,20 @@ class CompanyAnalysisResult(BaseModel):
     intelligence: CompanyIntelligence
     compatibility_score: int = Field(ge=0, le=100)
     recommendations: list[str] = Field(default_factory=list)
+
+
+class SkillGapResult(BaseModel):
+    """Analyse de l'écart de compétences (Skill Gap) entre un candidat et une offre."""
+    candidate_name: str
+    job_title: str
+    relevance_score: float = Field(..., description="Score de pertinence de 0.0 à 1.0")
+    matched_skills: list[str] = Field(default_factory=list, description="Compétences communes du candidat et de l'offre")
+    missing_skills: list[str] = Field(default_factory=list, description="Compétences requises par l'offre mais absentes du CV")
+    required_certs: list[str] = Field(default_factory=list, description="Certifications exigées ou recommandées par l'offre")
+    cert_match: bool = Field(..., description="Vrai si le candidat possède les certifications requises")
+    experience_years: float = Field(..., description="Années d'expérience du candidat")
+    required_years: float = Field(..., description="Années d'expérience requises par l'offre")
+    experience_gap_years: float = Field(..., description="Écart d'années d'expérience")
+    flag: str = Field(..., description="Niveau d'alerte, ex: perfect_match, minor_gap, critical_gap")
+    revision_hints: list[str] = Field(default_factory=list, description="Suggestions concrètes pour améliorer le CV face à l'offre")
+

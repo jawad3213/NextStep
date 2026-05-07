@@ -1,0 +1,30 @@
+{
+  "candidate_name": "Nichan Said",
+   "job_title": "Développeur Full-Stack Senior Python/React",
+   "relevance_score": 0.65,
+   "matched_skills": [
+      "Python",
+      "React",
+      "TypeScript",
+      "PostgreSQL",
+      "Docker",
+      "Kubernetes",
+      "Scrum",
+      "Agile"
+   ],
+   "missing_skills": [
+      "Django",
+      "FastAPI",
+      "AWS"
+   ],
+   "required_certs": [],
+   "cert_match": true,
+   "experience_years": 5.0,
+   "required_years": 5.0,
+   "experience_gap_years": 0.0,
+   "flag": "perfect_match",
+   "revision_hints": [
+      "Ajoutez un projet spécifique avec Django pour montrer vos compétences en développement web avec ce framework.",
+      "Passez la certification AWS Certified Developer - Associate pour renforcer vos compétences en développement sur la plateforme AWS."
+   ]
+}

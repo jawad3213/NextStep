@@ -34,7 +34,7 @@ async def scorer_node(state: ScorerState) -> dict:
     │  LLM            │  aucun — calcul mathématique pur        │
     └────────────────────────────────────────────────────────────┘
     """
-    logger.info("📈 Agent 4 [Scorer] — Démarrage")
+    logger.info("Agent 4 [Scorer] -- START")
 
     offer_skills   = state.get("normalized_offer_skills")   or []
     profile_skills = state.get("normalized_profile_skills") or []
@@ -72,7 +72,7 @@ async def scorer_node(state: ScorerState) -> dict:
     }
 
     logger.info(
-        "Agent 4 ✅ — Score matching=%d%% | Score ATS=%d%% | %d/%d keywords",
+        "Agent 4 OK -- Score matching=%d%% | Score ATS=%d%% | %d/%d keywords",
         score_matching, score_ats,
         len(kw_presents), len(kw_presents) + len(kw_manquants),
     )

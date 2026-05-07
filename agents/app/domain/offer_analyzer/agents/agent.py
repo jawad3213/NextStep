@@ -33,7 +33,7 @@ async def offer_analyzer_node(state: OfferAnalyzerState) -> dict:
     │  LLM utilisé    │  Groq llama-3.3-70b | OpenAI gpt-4o  │
     └─────────────────────────────────────────────────────────┘
     """
-    logger.info("🤖 Agent 1 [Offer Analyzer] — Démarrage")
+    logger.info("Agent 1 [Offer Analyzer] -- START")
     raw_text = state.get("raw_offer_text", "")
 
     if not raw_text:
@@ -58,7 +58,7 @@ async def offer_analyzer_node(state: OfferAnalyzerState) -> dict:
         keywords     = normalize_skills(result.get("keywords_ats", []))
 
         logger.info(
-            "Agent 1 ✅ — '%s' | %d compétences requises | %d keywords ATS",
+            "Agent 1 OK -- '%s' | %d competences requises | %d keywords ATS",
             result.get("titre", "?"),
             len(offer_skills),
             len(keywords),

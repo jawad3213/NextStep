@@ -8,7 +8,7 @@
 import logging
 from app.domain.offer.schemas.state import OfferState
 from app.domain.offer.schemas.offer_schemas import PipelineResult
-from app.domain.offer.graph.workflow import get_offer_workflow
+from app.domain.pipeline.workflow import get_offer_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class OfferService:
             user_id, template_id, len(raw_text),
         )
 
-        workflow = get_offer_workflow()
+        pipeline = get_offer_pipeline()
 
         initial_state: OfferState = {
             # ── Entrées obligatoires ──
@@ -70,7 +70,7 @@ class OfferService:
             "pipeline_version":  "2.1",
         }
 
-        final_state: OfferState = await workflow.ainvoke(initial_state)
+        final_state: OfferState = await pipeline.ainvoke(initial_state)
 
         nb_errors = len(final_state.get("errors") or [])
         nb_msgs   = len(final_state.get("messages") or [])
@@ -107,7 +107,7 @@ class OfferService:
         Returns:
             Dict JSON de l'offre analysée ou {} si erreur
         """
-        from app.domain.offer.agents.offer_analyzer import offer_analyzer_node
+        from app.domain.offer_analyzer.agents.agent import offer_analyzer_node
         state: OfferState = {
             "raw_offer_text": raw_text,
             "user_id": user_id,
@@ -128,9 +128,8 @@ class OfferService:
         Returns:
             Dict match_result ou {} si erreur
         """
-        from app.domain.offer.agents.profile_retriever import profile_retriever_node
-        from app.domain.offer.agents.normalizer import normalizer_node
-        from app.domain.offer.agents.scorer import scorer_node
+        from app.domain.profile_retriever.agents.agent import profile_retriever_node
+        from app.domain.scorer.agents.agent import scorer_node
 
         state: OfferState = {
             "user_id":        user_id,
@@ -142,7 +141,6 @@ class OfferService:
             "profile_full_text": "",
         }
         state.update(await profile_retriever_node(state))  # type: ignore[arg-type]
-        state.update(await normalizer_node(state))          # type: ignore[arg-type]
         state.update(await scorer_node(state))              # type: ignore[arg-type]
         return state.get("match_result") or {}
 

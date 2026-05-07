@@ -24,10 +24,11 @@ Schéma attendu :
   "description_poste": "résumé en 2-3 phrases"
 }}
 
-Règles :
-- keywords_ats : technologies, frameworks, certifications, méthodologies clés
-- Ne jamais inventer d'informations absentes de l'offre
-- Sois exhaustif sur les compétences (liste complète)
+Rules :
+- keywords_ats : technologies, frameworks, certifications, méthodologies clés.
+- NORMALISATION TECHNIQUE : Convertis les abréviations en noms complets canoniques (ex: JS -> javascript, TS -> typescript, ReactJS -> react, Py -> python, AWS -> amazon web services, K8s -> kubernetes).
+- Ne jamais inventer d'informations absentes de l'offre.
+- Sois exhaustif sur les compétences (liste complète).
 """
 
 HUMAN_PROMPT = "Offre à analyser :\n\n{raw_offer_text}"

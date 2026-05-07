@@ -24,9 +24,11 @@ class CompanyService:
         company_name: str,
         job_title: str,
         user_id: str = "",
+        candidate_cv: Optional[dict] = None,
+        job_offer: Optional[dict] = None,
     ) -> dict:
         """
-        Lance le pipeline d'intelligence entreprise (Recherche + Analyse).
+        Lance le pipeline d'intelligence entreprise (Recherche + Analyse + Skill Gap).
         """
         logger.info(f"🏢 CompanyService.get_company_intelligence — '{company_name}' for '{job_title}'")
 
@@ -37,6 +39,8 @@ class CompanyService:
             "messages": [],
             "errors": [],
             "raw_search_results": [],
+            "candidate_cv": candidate_cv,
+            "job_offer": job_offer,
             "pipeline_version": "3.0",
         }
 
@@ -47,7 +51,8 @@ class CompanyService:
             "intelligence": final_state.get("intelligence"),
             "score": final_state.get("score"),
             "recommendations": final_state.get("recommendations", []),
-            "summary": final_state.get("company_summary")
+            "summary": final_state.get("company_summary"),
+            "skill_gap": final_state.get("skill_gap")
         }
 
     async def save_company_intelligence(

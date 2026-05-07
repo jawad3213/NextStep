@@ -11,7 +11,7 @@ import logging
 from langchain_core.messages import AIMessage
 from app.core.utils.normalizer import normalize_skills, build_profile_full_text
 from app.domain.profile_retriever.schemas.state import ProfileRetrieverState
-from app.domain.offer.tools.db_tools import get_user_profile_from_db
+from app.domain.profile_retriever.tools.db_tools import get_user_profile_from_db
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ async def profile_retriever_node(state: ProfileRetrieverState) -> dict:
     │  Fallback       │  dict vide avec user_id si non trouvé     │
     └──────────────────────────────────────────────────────────────┘
     """
-    logger.info("📊 Agent 2 [Profile Retriever] — Démarrage")
+    logger.info("Agent 2 [Profile Retriever] -- START")
     user_id = state.get("user_id", "")
 
     if not user_id:
@@ -81,7 +81,7 @@ async def profile_retriever_node(state: ProfileRetrieverState) -> dict:
         }
 
     except Exception as e:
-        logger.error("Agent 2 ❌ — Erreur récupération profil : %s", str(e))
+        logger.error("Agent 2 ERROR -- Erreur récupération profil : %s", str(e))
         return {
             "profile_data":              {"user_id": user_id, "competences": [], "experiences": []},
             "normalized_profile_skills": [],

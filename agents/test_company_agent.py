@@ -24,8 +24,8 @@ async def test_run():
     """
     Lance une exécution de test pour une entreprise réelle.
     """
-    company_name = "Docaposte Maroc"
-    job_title = "Data Scientist"
+    company_name = "SQLI Maroc"
+    job_title = "Développeur Full Stack"
     
     logger.info(f"🚀 Démarrage du test pour {company_name}...")
     

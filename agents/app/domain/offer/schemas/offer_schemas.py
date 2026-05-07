@@ -23,6 +23,9 @@ class OfferInput(BaseModel):
     user_id: str = Field(
         ..., description="ID Keycloak de l'utilisateur connecté"
     )
+    url: Optional[str] = Field(
+        None, description="URL optionnelle de l'offre d'emploi"
+    )
     template_id: int = Field(
         default=1, ge=1, le=3,
         description="Template CV : 1=Modern · 2=Classic · 3=Creative"
@@ -170,4 +173,6 @@ class PipelineResult(BaseModel):
     """Agent 6 [stub M4] — Email de candidature"""
     messages: list[dict] = Field(default_factory=list)
     """Historique des actions effectuées par chaque agent"""
+    errors: list[str] = Field(default_factory=list)
+    """Liste des erreurs accumulées durant le pipeline"""
     pipeline_version: str = "2.1"

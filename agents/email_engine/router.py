@@ -12,12 +12,15 @@ from .models import (
     GenerateFollowUpEmailRequest,
     ClassifyResponseRequest,
     ClassifyResponseResult,
+    GenerateReplyEmailRequest,
 )
 from .service import (
     generate_email_with_llm,
     generate_follow_up_email_with_llm,
     classify_recruiter_response_with_llm,
+    generate_reply_email_with_llm,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -103,4 +106,31 @@ async def classify_response(
         raise HTTPException(
             status_code=500,
             detail=f"Erreur classification réponse : {exc}",
+        ) from exc
+
+
+@router.post(
+    "/generate-reply",
+    response_model=GenerateEmailResponse,
+    summary="Générer un brouillon de réponse au recruteur via LLM",
+    description=(
+        "Reçoit le contexte de la réponse du recruteur depuis le backend .NET. "
+        "Génère un brouillon de réponse professionnel adapté au type de réponse. "
+        "Ne lit pas Gmail. Ne s’envoie PAS automatiquement. Ne s’approuve PAS automatiquement."
+    ),
+)
+async def generate_reply_email(
+    payload: GenerateReplyEmailRequest,
+) -> GenerateEmailResponse:
+    """POST /email/generate-reply — Appelé par le backend .NET."""
+    try:
+        return await generate_reply_email_with_llm(payload)
+    except ValueError as exc:
+        logger.error("Reply agent — configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+    except Exception as exc:
+        logger.error("Reply agent — generation failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur génération réponse : {exc}",
         ) from exc

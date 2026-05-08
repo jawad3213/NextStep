@@ -8,7 +8,8 @@ import { OfferService, OfferDto } from '../../../services/offer.service';
 import {
   EmailService,
   EmailDraftDto,
-  EmailConnectionStatusDto
+  EmailConnectionStatusDto,
+  GenerateReplyDraftPayload
 } from '../../../services/email.service';
 
 @Component({
@@ -36,6 +37,7 @@ export class EmailWorkspaceComponent implements OnInit {
   // Loading flags
   loadingPage = signal(true);
   generatingDraft = signal(false);
+  generatingReply = signal(false);
   savingDraft = signal(false);
   approvingDraft = signal(false);
   sendingDraft = signal(false);
@@ -46,6 +48,7 @@ export class EmailWorkspaceComponent implements OnInit {
   body = '';
   emailType = 'application';
   language = 'fr';
+  userInstructions = ''; // for reply draft generation
 
   // Messages
   successMessage = signal<string | null>(null);
@@ -142,29 +145,48 @@ export class EmailWorkspaceComponent implements OnInit {
     this.emailService.generateFollowUpDraft({
       candidatureId: this.candidatureId,
       language: this.language,
-      tone: 'professionnel' // Default tone for relance
+      tone: 'professionnel'
     }).subscribe({
       next: (draft) => {
-        // Prepend to local drafts list and select immediately
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
-        
-        // Update candidature status locally
         const current = this.candidature();
         if (current) {
-          this.candidature.set({
-            ...current,
-            responseStatus: 'RELANCE_GENEREE',
-            statut: 'RELANCE_GENEREE'
-          });
+          this.candidature.set({ ...current, responseStatus: 'RELANCE_GENEREE', statut: 'RELANCE_GENEREE' });
         }
-
         this.successMessage.set('Email de relance généré avec succès.');
         this.generatingDraft.set(false);
       },
       error: (err) => {
         this.errorMessage.set(err?.error || 'Erreur lors de la génération de la relance.');
         this.generatingDraft.set(false);
+      }
+    });
+  }
+
+  generateReplyDraft() {
+    if (this.generatingReply()) return;
+    this.generatingReply.set(true);
+    this.clearMessages();
+
+    const payload: GenerateReplyDraftPayload = {
+      candidatureId: this.candidatureId,
+      language: this.language,
+      tone: 'professionnel',
+      userInstructions: this.userInstructions.trim() || undefined
+    };
+
+    this.emailService.generateReplyDraft(payload).subscribe({
+      next: (draft) => {
+        this.drafts.update(drafts => [draft, ...drafts]);
+        this.selectDraft(draft);
+        this.userInstructions = '';
+        this.successMessage.set('Brouillon de réponse généré. Vérifiez et approuvez avant envoi.');
+        this.generatingReply.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.error || 'Erreur lors de la génération de la réponse.');
+        this.generatingReply.set(false);
       }
     });
   }
@@ -295,13 +317,15 @@ export class EmailWorkspaceComponent implements OnInit {
   get canGenerateRelance(): boolean {
     const cand = this.candidature();
     if (!cand) return false;
-    
-    // Block if already has a response
     if (cand.hasResponse) return false;
-
-    // Show button if no sent relance exists or if more are allowed (logic handled by backend)
-    // For now we just show it if there is at least one sent email
     return this.drafts().some(d => d.isSent) && !this.generatingDraft();
+  }
+
+  get canGenerateReply(): boolean {
+    const cand = this.candidature();
+    if (!cand) return false;
+    // Only show if a recruiter response was detected
+    return !!cand.hasResponse && !this.generatingReply();
   }
 
   formatDate(dateStr: string | null): string {

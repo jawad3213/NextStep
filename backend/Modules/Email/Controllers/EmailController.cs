@@ -129,6 +129,40 @@ public class EmailController : ControllerBase
         }
     }
 
+    // ── POST /api/emails/generate-reply ──────────────────────────────────────────
+
+    [HttpPost("generate-reply")]
+    public async Task<ActionResult<EmailDraftDto>> GenerateReplyDraft(
+        [FromBody] GenerateReplyDraftDto dto,
+        CancellationToken cancellationToken)
+    {
+        var localUserId = await ResolveLocalUserIdAsync();
+        if (localUserId is null)
+            return Unauthorized("User not found in local database.");
+
+        try
+        {
+            var result = await _emailService.GenerateReplyDraftAsync(dto, localUserId.Value, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
+    }
+
     // ── PUT /api/emails/drafts/{draftId} — Update draft ──────────────────────────
 
     [HttpPut("drafts/{draftId:guid}")]

@@ -235,6 +235,28 @@
   select.form-input { cursor: pointer; }
 }
 
+.reply-draft-card {
+  padding: 20px;
+  border: 1px solid rgba(vars.$color-primary, 0.2);
+  background: linear-gradient(135deg, rgba(vars.$color-primary, 0.02) 0%, #FFFFFF 100%);
+
+  .form-group { margin-bottom: 12px; }
+}
+
+.reply-hint {
+  font-size: 12px;
+  color: vars.$color-text-secondary;
+  line-height: 1.5;
+  margin: 0 0 14px 0;
+}
+
+.reply-instructions {
+  resize: vertical;
+  min-height: 72px;
+  font-size: 13px;
+}
+
+
 .btn-full { width: 100%; justify-content: center; }
 
 .mt-2 { margin-top: 8px; }

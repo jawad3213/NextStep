@@ -104,3 +104,28 @@ class ClassifyResponseResult(BaseModel):
     summary: str
     recommended_action: str
     should_generate_reply_draft: bool = False
+
+
+# ── Reply generation models ───────────────────────────────────────────────────
+
+class RecruiterReplyInput(BaseModel):
+    """Context about the recruiter's reply message."""
+    from_email: Optional[str] = None
+    subject: Optional[str] = None
+    snippet: str
+    received_at_utc: Optional[str] = None
+
+
+class GenerateReplyEmailRequest(BaseModel):
+    """Request payload for POST /email/generate-reply."""
+    candidature_id: str
+    candidate: CandidateInput
+    job_offer: JobOfferInput
+    previous_email: Optional[PreviousEmailInput] = None
+    recruiter_reply: RecruiterReplyInput
+    response_type: str
+    response_summary: Optional[str] = None
+    recommended_action: Optional[str] = None
+    language: str = "fr"
+    tone: str = "professionnel"
+    user_instructions: Optional[str] = None

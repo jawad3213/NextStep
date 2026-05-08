@@ -463,6 +463,152 @@ public class EmailService : IEmailService
         return MapToDto(draft);
     }
 
+    // ── GenerateReplyDraftAsync ───────────────────────────────────────────────────
+
+    public async Task<EmailDraftDto> GenerateReplyDraftAsync(
+        GenerateReplyDraftDto dto,
+        Guid localUserId,
+        CancellationToken cancellationToken = default)
+    {
+        // ── 1. Load and verify candidature ───────────────────────────────────
+        var candidature = await _db.Candidatures
+            .FirstOrDefaultAsync(c => c.IdCandidature == dto.CandidatureId, cancellationToken);
+
+        if (candidature is null)
+            throw new KeyNotFoundException($"Candidature {dto.CandidatureId} not found.");
+
+        if (candidature.IdUtilisateur != localUserId)
+            throw new UnauthorizedAccessException(
+                $"User {localUserId} does not own candidature {dto.CandidatureId}.");
+
+        // ── 2. Guard: reply must have been detected ───────────────────────────
+        if (!candidature.HasResponse)
+            throw new InvalidOperationException(
+                "Cannot generate reply draft because no recruiter response has been detected for this candidature.");
+
+        // ── 3. Guard: need some reply context ────────────────────────────────
+        if (string.IsNullOrWhiteSpace(candidature.LastResponseSnippet) &&
+            string.IsNullOrWhiteSpace(candidature.ResponseSummary))
+            throw new InvalidOperationException(
+                "Cannot generate reply draft because the recruiter response context (snippet/summary) is missing.");
+
+        // ── 4. Duplicate prevention: return existing unsent reply draft ──────
+        var existingUnsentReply = await _db.EmailDrafts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d =>
+                d.CandidatureId == candidature.IdCandidature &&
+                d.EmailType     == "reply" &&
+                !d.IsSent,
+                cancellationToken);
+
+        if (existingUnsentReply is not null)
+        {
+            _logger.LogWarning(
+                "EmailService — unsent reply draft {DraftId} already exists for candidature {CandidatureId}. Returning existing draft.",
+                existingUnsentReply.Id, dto.CandidatureId);
+            return MapToDto(existingUnsentReply);
+        }
+
+        // ── 5. Find previous sent email for context ───────────────────────────
+        var previousDraft = await _db.EmailDrafts
+            .AsNoTracking()
+            .Where(d =>
+                d.CandidatureId == candidature.IdCandidature &&
+                (d.EmailType == "application" || d.EmailType == "relance") &&
+                d.IsSent &&
+                d.SentAtUtc != null)
+            .OrderByDescending(d => d.SentAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // ── 6. Load candidate + offer context ────────────────────────────────
+        var ctx = await BuildCandidatureContextAsync(
+            candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
+
+        // ── 7. Resolve recipient email ────────────────────────────────────────
+        // Prefer LastResponseFrom (parse "Name <email>" format safely).
+        // Fallback to previousDraft.RecipientEmail. Null if neither is valid.
+        string? recipientEmail = TryParseEmailAddress(candidature.LastResponseFrom)
+                                 ?? previousDraft?.RecipientEmail;
+
+        // ── 8. Build Python payload ──────────────────────────────────────────
+        var pythonRequest = new
+        {
+            candidature_id = candidature.IdCandidature.ToString(),
+            candidate      = BuildCandidatePayload(ctx),
+            job_offer      = BuildJobOfferPayload(ctx),
+            previous_email = previousDraft is null ? null : new
+            {
+                subject     = previousDraft.Subject,
+                body        = previousDraft.Body is { Length: > 0 } b
+                                  ? b[..Math.Min(1500, b.Length)]
+                                  : previousDraft.Body,
+                sent_at_utc = previousDraft.SentAtUtc?.ToString("o"),
+            },
+            recruiter_reply = new
+            {
+                from_email       = candidature.LastResponseFrom,
+                snippet          = candidature.LastResponseSnippet ?? candidature.ResponseSummary ?? string.Empty,
+                received_at_utc  = candidature.LastResponseAtUtc?.ToString("o"),
+            },
+            response_type      = candidature.ResponseStatus,
+            response_summary   = candidature.ResponseSummary,
+            recommended_action = candidature.RecommendedAction,
+            language           = dto.Language,
+            tone               = dto.Tone,
+            user_instructions  = dto.UserInstructions,
+        };
+
+        _logger.LogInformation(
+            "EmailService — calling Python /email/generate-reply for candidature {CandidatureId} | responseType={ResponseType}",
+            dto.CandidatureId, candidature.ResponseStatus);
+
+        // ── 9. Call Python agent ──────────────────────────────────────────────
+        PythonEmailResponse pythonResponse;
+        try
+        {
+            pythonResponse = await _agentHttpClient
+                .PostAsync<object, PythonEmailResponse>(
+                    "/email/generate-reply",
+                    pythonRequest,
+                    cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "EmailService — Python reply agent failed for candidature {CandidatureId}",
+                dto.CandidatureId);
+            throw new InvalidOperationException(
+                $"Reply email generation failed: {ex.Message}", ex);
+        }
+
+        // ── 10. Save reply draft ─────────────────────────────────────────────
+        // IMPORTANT: Do NOT modify candidature.ResponseStatus or candidature.Statut here.
+        // Classification information must remain visible to the user.
+        var draft = new EmailDraft
+        {
+            CandidatureId  = candidature.IdCandidature,
+            EmailType      = "reply",
+            RecipientEmail = recipientEmail,
+            Subject        = pythonResponse.Subject,
+            Body           = pythonResponse.Body,
+            Language       = string.IsNullOrWhiteSpace(pythonResponse.Language)
+                                 ? dto.Language
+                                 : pythonResponse.Language,
+            IsApproved     = false,
+            IsSent         = false,
+            CreatedAtUtc   = DateTime.UtcNow,
+        };
+
+        await _emailDraftRepository.AddAsync(draft, cancellationToken);
+        await _emailDraftRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "EmailService — reply draft {DraftId} saved for candidature {CandidatureId} | subject: {Subject} | recipient: {Recipient}",
+            draft.Id, dto.CandidatureId, draft.Subject, recipientEmail ?? "(none — user must set)");
+
+        return MapToDto(draft);
+    }
+
     // ── Private: profile + offer context builder ──────────────────────────────────
 
     private sealed record CandidatureContext(
@@ -642,6 +788,21 @@ public class EmailService : IEmailService
     {
         try   { var _ = new MailAddress(email); return true; }
         catch { return false; }
+    }
+
+    /// <summary>
+    /// Parses a raw email header value such as "Name &lt;email@domain.com&gt;" or
+    /// "email@domain.com" and returns the address part if valid; otherwise null.
+    /// </summary>
+    private static string? TryParseEmailAddress(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        try
+        {
+            var addr = new MailAddress(raw.Trim());
+            return addr.Address;
+        }
+        catch { return null; }
     }
 
     private static EmailDraftDto MapToDto(EmailDraft draft) => new()

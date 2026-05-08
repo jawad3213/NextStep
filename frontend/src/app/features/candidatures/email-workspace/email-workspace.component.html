@@ -164,6 +164,38 @@
           }
         </div>
 
+        <!-- Reply Draft Section — shown only when a recruiter response exists -->
+        @if (canGenerateReply) {
+          <div class="reply-draft-card card">
+            <div class="card-label">Répondre au recruteur</div>
+
+            <p class="reply-hint">
+              L'IA va générer une réponse adaptée à la réponse du recruteur.
+              Vous pouvez ajouter des instructions ci-dessous (ex: disponibilités, informations à mentionner).
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Instructions (optionnel)</label>
+              <textarea
+                class="form-input reply-instructions"
+                [(ngModel)]="userInstructions"
+                rows="3"
+                placeholder="Ex: Je suis disponible lundi après-midi et mercredi matin. Garder la réponse courte."></textarea>
+            </div>
+
+            <button class="btn btn-primary btn-sm btn-full"
+              (click)="generateReplyDraft()"
+              [disabled]="generatingReply()">
+              @if (generatingReply()) {
+                <div class="btn-spinner"></div> Génération de la réponse...
+              } @else {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><polyline points="20 17 15 12 20 7"/></svg>
+                Générer une réponse (IA)
+              }
+            </button>
+          </div>
+        }
+
       </aside>
 
       <!-- ════════════════════════════════════════════════════════════════════

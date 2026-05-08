@@ -11,6 +11,7 @@ from .models import (
     GenerateFollowUpEmailRequest,
     ClassifyResponseRequest,
     ClassifyResponseResult,
+    GenerateReplyEmailRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -373,5 +374,136 @@ async def classify_recruiter_response_with_llm(
         result.response_type,
         result.confidence,
         request.candidature_id,
+    )
+    return result
+
+
+# ─── Reply draft generation ───────────────────────────────────────────────────────────
+
+_REPLY_SYSTEM = """\
+Tu es un agent expert en rédaction d'emails professionnels répondant à des recruteurs.
+
+Règles strictes :
+- Génère une réponse professionnelle, complète, prête à envoyer.
+- Adapte le contenu au type de réponse du recruteur :
+    ENTRETIEN_PROPOSE     : Remercie le recruteur et accepte poliment. Si l’utilisateur a fourni
+                           des disponibilités, mentionne-les. Sinon, dis que tu restes disponible
+                           pour convenir d’un créneau.
+    INFORMATIONS_DEMANDEES: Remercie et indique que tu peux fournir les informations demandées.
+                           N’invente aucun document, lien, pièce jointe, portfolio ou référence.
+    ACCEPTE               : Exprime ta gratitude, confirme ton intérêt et demande les prochaines étapes.
+    REFUSE                : Rédige un court message de remerciement poli et professionnel.
+    REPONSE_AUTOMATIQUE   : Rédige un bref accusé de réception si pertinent, sinon reste minimal.
+    REPONSE_GENERALE      : Rédige un accusé de réception professionnel et prudent.
+    INCONNU               : Rédige un accusé de réception professionnel et prudent.
+- Si l’utilisateur fournit des instructions supplémentaires (disponibilités, ton spécifique,
+  informations à mentionner, etc.), respecte-les si elles sont compatibles avec le contexte
+  connu et les règles de sécurité. Ignore les parties en contradiction avec les faits connus.
+- N’invente PAS de compétences, expériences, diplômes, certifications, liens, pièces jointes,
+  salaires, entreprises ou disponibilités que l’utilisateur n’a pas mentionnés.
+- Ne prétends PAS qu’une pièce jointe est incluse sauf si le backend le confirme explicitement.
+- Utilise UNIQUEMENT les informations du candidat, de l’offre et de la réponse du recruteur.
+- Respecte la langue demandée (fr = français, en = English, etc.).
+- Respecte le ton demandé (professionnel, décontracté, formel, etc.).
+- N’utilise PAS de markdown (étoiles, dièses, listes à puces, etc.).
+- Ne laisse PAS de placeholders comme [Nom], [Date], [Entreprise], [Disponibilité], etc.
+- Ne mentionne PAS que l’email a été généré par une IA.
+- Sois concis et professionnel. Évite les longueurs excessives.
+- L’email doit être prêt à envoyer mais reste modifiable par l’utilisateur.
+"""
+
+_REPLY_HUMAN = """\
+Génère une réponse professionnelle à la réponse du recruteur.
+
+=== CANDIDAT ===
+Nom complet    : {full_name}
+Titre actuel   : {current_title}
+Email          : {email}
+
+=== OFFRE D’EMPLOI ===
+Poste          : {job_title}
+Entreprise     : {company_name}
+
+=== EMAIL PRÉCÉDENT ENVOYÉ ===
+Objet          : {previous_subject}
+Date d’envoi   : {previous_sent_at}
+
+=== RÉPONSE DU RECRUTEUR ===
+De             : {reply_from}
+Objet          : {reply_subject}
+Date           : {reply_received_at}
+Extrait        : {reply_snippet}
+
+=== ANALYSE DE LA RÉPONSE ===
+Type de réponse       : {response_type}
+Résumé               : {response_summary}
+Action recommandée   : {recommended_action}
+
+=== INSTRUCTIONS DE L’UTILISATEUR ===
+{user_instructions}
+
+=== OPTIONS ===
+Langue : {language}
+Ton    : {tone}
+"""
+
+
+async def generate_reply_email_with_llm(
+    request: GenerateReplyEmailRequest,
+) -> GenerateEmailResponse:
+    """
+    Generate a professional reply draft to the recruiter's response.
+
+    Never auto-sends. Never auto-approves.
+    Respects user_instructions only when compatible with known facts.
+    """
+    logger.info(
+        "Reply agent — candidature_id=%s | response_type=%s | lang=%s",
+        request.candidature_id,
+        request.response_type,
+        request.language,
+    )
+
+    llm = get_email_llm()
+    structured_llm = llm.with_structured_output(GenerateEmailResponse)
+
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", _REPLY_SYSTEM), ("human", _REPLY_HUMAN)]
+    )
+
+    chain = prompt | structured_llm
+
+    result: GenerateEmailResponse = await chain.ainvoke(
+        {
+            # Candidate
+            "full_name":       request.candidate.full_name,
+            "current_title":   request.candidate.current_title or "Non spécifié",
+            "email":           request.candidate.email         or "Non spécifié",
+            # Job offer
+            "job_title":       request.job_offer.job_title,
+            "company_name":    request.job_offer.company_name  or "Non spécifié",
+            # Previous sent email
+            "previous_subject":  request.previous_email.subject   if request.previous_email else "Non spécifié",
+            "previous_sent_at": request.previous_email.sent_at_utc if request.previous_email else "Non spécifié",
+            # Recruiter reply
+            "reply_from":        request.recruiter_reply.from_email    or "Non spécifié",
+            "reply_subject":     request.recruiter_reply.subject        or "Non spécifié",
+            "reply_received_at": request.recruiter_reply.received_at_utc or "Non spécifié",
+            "reply_snippet":     _truncate(request.recruiter_reply.snippet, 800),
+            # Classification context
+            "response_type":      request.response_type,
+            "response_summary":   request.response_summary   or "Non spécifié",
+            "recommended_action": request.recommended_action or "Non spécifié",
+            # Options
+            "user_instructions": request.user_instructions or "Aucune instruction supplémentaire.",
+            "language":          request.language,
+            "tone":              request.tone,
+        }
+    )
+
+    logger.info(
+        "Reply agent — generation succeeded for candidature_id=%s | subject=%s",
+        request.candidature_id,
+        result.subject[:60] if result.subject else "",
     )
     return result

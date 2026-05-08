@@ -37,4 +37,9 @@ public interface IEmailService
         GenerateFollowUpDraftDto dto,
         Guid localUserId,
         CancellationToken cancellationToken = default);
+
+    Task<EmailDraftDto> GenerateReplyDraftAsync(
+        GenerateReplyDraftDto dto,
+        Guid localUserId,
+        CancellationToken cancellationToken = default);
 }

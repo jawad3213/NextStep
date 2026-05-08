@@ -22,7 +22,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      @for (section of menuSections; track section.title) {
+      @for (section of filteredMenuSections(); track section.title) {
         <div class="nav-section">
           <h3 class="section-title">{{ section.title }}</h3>
           <div class="section-items">
@@ -55,14 +55,22 @@
     </nav>
 
     <div class="sidebar-footer">
-      <div class="user-brief">
-        <div class="avatar">S</div>
-        <div class="user-info">
-          <p class="name">Said N.</p>
-          <p class="status">Pro Account</p>
+      <div class="user-brief-container">
+        <div class="user-brief">
+          <div class="avatar" [title]="profile().personal.firstName + ' ' + profile().personal.lastName">
+            @if (profile().personal.photoUrl) {
+              <img [src]="profile().personal.photoUrl" alt="User" class="w-full h-full object-cover" />
+            } @else {
+              {{ (profile().personal.firstName[0] || 'U') }}
+            }
+          </div>
+          <div class="user-info">
+            <p class="name">{{ profile().personal.firstName }} {{ profile().personal.lastName }}</p>
+            <p class="status">Pro Account</p>
+          </div>
         </div>
-        <button class="logout-btn" (click)="logout()" title="Se déconnecter">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <button class="logout-btn-sidebar" (click)="logout()" title="Logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
     </div>
@@ -70,7 +78,10 @@
 
   <!-- Content Area -->
   <main class="main-area">
-   
+    <!-- Floating Mobile Toggle (Visible only on mobile since header is gone) -->
+    <button class="mobile-floating-nav md:hidden" (click)="toggleSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
 
     <div class="content-wrapper">
       <router-outlet></router-outlet>

@@ -1,7 +1,29 @@
 <div class="form-step-wrapper animate-fade-slide-up">
-  <div class="bg-white border border-slate-200 rounded-xl p-8 mb-6 shadow-sm">
-    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-      <div class="flex items-center gap-3">
+  <!-- Projects summary Header -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-[24px] font-bold text-slate-900">Projects & Extracurriculars</h2>
+    <button class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">
+      <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">lightbulb_outline</mat-icon> Tips
+    </button>
+  </div>
+
+  <!-- TAB SWITCHER -->
+  <div class="flex p-1 bg-slate-100 rounded-xl w-fit mb-6">
+    <button (click)="tabChange.emit('projects')"
+            [class]="activeTab === 'projects' ? 'px-6 py-2 rounded-lg text-[14px] font-bold bg-white text-[#1A91F0] shadow-sm transition-all' : 'px-6 py-2 rounded-lg text-[14px] font-bold text-slate-500 hover:text-slate-700 transition-all'">
+      Projects
+    </button>
+    <button (click)="tabChange.emit('extracurriculars')"
+            [class]="activeTab === 'extracurriculars' ? 'px-6 py-2 rounded-lg text-[14px] font-bold bg-white text-[#1A91F0] shadow-sm transition-all' : 'px-6 py-2 rounded-lg text-[14px] font-bold text-slate-500 hover:text-slate-700 transition-all'">
+      Extracurricular
+    </button>
+  </div>
+
+  <!-- Surface Container -->
+  <div class="bg-white rounded-[16px] p-6 border border-slate-200">
+    
+    @if (activeTab === 'projects') {
+      <div class="flex items-center gap-4 mb-5">
         @if (isEditingTitle) {
           <div class="flex items-center gap-2 animate-scale-up">
             <input #titleInputProj [value]="sectionTitle" 
@@ -10,130 +32,236 @@
                    class="text-[14px] font-black text-[#1A91F0] border-b-2 border-[#1A91F0] outline-none bg-transparent uppercase tracking-wider px-1">
           </div>
         } @else {
-          <h3 class="text-sm font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-            {{ sectionTitle }} <button (click)="titleEditStart.emit()" class="text-info text-xs font-normal capitalize hover:underline">Rename</button>
-          </h3>
+          <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">{{ sectionTitle }}</h3>
+          <button (click)="titleEditStart.emit()" class="text-[13px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">Rename</button>
         }
       </div>
-    </div>
 
-    @if (!isAddingProject) {
-      <button (click)="addToggle.emit()" class="btn-add-dashed">
-        <mat-icon>add</mat-icon> Add another project
-      </button>
-    }
-
-    @if (!isAddingProject && projects.length > 0) {
-      <div class="space-y-4" cdkDropList (cdkDropListDropped)="reorder.emit($event)">
-        @for (proj of projects; track proj.id; let i = $index) {
-          <div class="education-card cursor-pointer" cdkDrag>
-            <div *cdkDragPlaceholder class="drag-placeholder"></div>
-            <div class="number-badge">
-              <span>{{ i + 1 }}</span>
-            </div>
-            <div class="p-5 flex-1">
-              <div class="flex justify-between items-start mb-2">
-                <h4 class="font-bold text-slate-900 text-[16px] pr-4">
-                  {{ proj.title }} <span class="font-normal text-slate-600">| {{ proj.isUniversity ? 'Projet Académique' : 'Projet Personnel' }}</span>
-                </h4>
-                <div class="action-icons">
-                  <button (click)="edit.emit(proj)"><mat-icon>edit</mat-icon></button>
-                  <button (click)="duplicate.emit(proj)"><mat-icon>file_copy</mat-icon></button>
-                  <button cdkDragHandle style="cursor: grab;" title="Drag to reorder"><mat-icon>open_with</mat-icon></button>
-                  <button (click)="delete.emit(proj.id)" class="hover:text-red-500 transition-colors" title="Supprimer"><mat-icon>delete_outline</mat-icon></button>
-                </div>
-              </div>
-              <p class="text-slate-500 text-[14px] mb-2 font-mono text-xs">{{ proj.stack.join(', ') }}</p>
-              <p class="text-slate-700 text-[14px] font-medium line-clamp-2">{{ proj.description }}</p>
-            </div>
-          </div>
-        }
-      </div>
-    }
-
-    <!-- ADD PROJECT FORM -->
-    @if (isAddingProject) {
-      <div class="bg-slate-50/50 border border-slate-200 rounded-xl p-8 mt-4 animate-fade-slide-up relative">
-        <button (click)="addToggle.emit()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
-          <mat-icon>close</mat-icon>
+      @if (!isAddingProject) {
+        <button (click)="addToggle.emit()" class="btn-add-dashed">
+          <mat-icon>add</mat-icon> Add another project
         </button>
+      }
 
-        <div class="form-grid gap-6">
-          <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Titre du projet</label>
-            <div class="relative">
-              <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">folder_open</mat-icon>
-              <input type="text" placeholder="ex: Clone Netflix" [ngModel]="newProject.title" (ngModelChange)="onUpdateNewItem('title', $event)"
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
-            </div>
-          </div>
-          <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Technologies (Stack)</label>
-            <div class="relative">
-              <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">code</mat-icon>
-              <input type="text" placeholder="ex: Angular, Node.js, MongoDB" 
-                     [ngModel]="newProject.stack.join(', ')" (ngModelChange)="onUpdateNewItem('stack', $event)"
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
-            </div>
-          </div>
-        </div>
-
-        <!-- Project Type Toggle -->
-        <div class="mt-6">
-          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3 block">Type de projet</label>
-          <div class="flex gap-3">
-            <button type="button" (click)="onUpdateNewItem('isUniversity', false)"
-                    [class]="newProject.isUniversity === false 
-                      ? 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#1A91F0] text-white shadow-lg shadow-blue-500/20 border-2 border-[#1A91F0]' 
-                      : 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#F8FAFC] text-[#757575] border-2 border-slate-200 hover:border-[#1A91F0] hover:text-[#1A91F0]'">
-              <div class="flex items-center justify-center gap-2">
-                <mat-icon class="!text-[20px] !w-5 !h-5">person</mat-icon>
-                Projet Personnel
+      @if (!isAddingProject && projects.length > 0) {
+        <div class="space-y-4" cdkDropList (cdkDropListDropped)="reorder.emit($event)">
+          @for (proj of projects; track proj.id; let i = $index) {
+            <div class="education-card cursor-pointer" cdkDrag>
+              <div *cdkDragPlaceholder class="drag-placeholder"></div>
+              <div class="number-badge">
+                <span>{{ i + 1 }}</span>
               </div>
-            </button>
-            <button type="button" (click)="onUpdateNewItem('isUniversity', true)"
-                    [class]="newProject.isUniversity === true 
-                      ? 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#1A91F0] text-white shadow-lg shadow-blue-500/20 border-2 border-[#1A91F0]' 
-                      : 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#F8FAFC] text-[#757575] border-2 border-slate-200 hover:border-[#1A91F0] hover:text-[#1A91F0]'">
-              <div class="flex items-center justify-center gap-2">
-                <mat-icon class="!text-[20px] !w-5 !h-5">school</mat-icon>
-                Projet Académique
+              <div class="p-5 flex-1">
+                <div class="flex justify-between items-start mb-2">
+                  <h4 class="font-bold text-slate-900 text-[16px] pr-4">
+                    {{ proj.title }} <span class="font-normal text-slate-600">| {{ proj.isUniversity ? 'Academic Project' : 'Personal Project' }}</span>
+                  </h4>
+                  <div class="action-icons">
+                    <button (click)="edit.emit(proj)"><mat-icon>edit</mat-icon></button>
+                    <button (click)="duplicate.emit(proj)"><mat-icon>file_copy</mat-icon></button>
+                    <button cdkDragHandle style="cursor: grab;" title="Drag to reorder"><mat-icon>open_with</mat-icon></button>
+                    <button (click)="delete.emit(proj.id)" class="hover:text-red-500 transition-colors" title="Delete"><mat-icon>delete_outline</mat-icon></button>
+                  </div>
+                </div>
+                <p class="text-slate-500 text-[14px] mb-2 font-mono text-xs">{{ proj.stack.join(', ') }}</p>
+                <p class="text-slate-700 text-[14px] font-medium line-clamp-2">{{ proj.description }}</p>
               </div>
-            </button>
-          </div>
+            </div>
+          }
         </div>
+      }
 
-        <div class="form-grid gap-6 mt-6">
-          <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lien GitHub (Optionnel)</label>
-            <div class="relative">
-              <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">link</mat-icon>
-              <input type="url" placeholder="https://github.com/..." [ngModel]="newProject.githubUrl" (ngModelChange)="onUpdateNewItem('githubUrl', $event)"
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+      <!-- ADD PROJECT FORM -->
+      @if (isAddingProject) {
+        <div class="bg-slate-50/50 border border-slate-200 rounded-xl p-8 mt-4 animate-fade-slide-up relative">
+          <button (click)="addToggle.emit()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
+            <mat-icon>close</mat-icon>
+          </button>
+
+          <div class="form-grid gap-6">
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Project Title</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">folder_open</mat-icon>
+                <input type="text" placeholder="ex: E-commerce Platform" [ngModel]="newProject.title" (ngModelChange)="onUpdateNewItem('title', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Technologies (Stack)</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">code</mat-icon>
+                <input type="text" placeholder="ex: Angular, Node.js, MongoDB" 
+                       [ngModel]="newProject.stack.join(', ')" (ngModelChange)="onUpdateNewItem('stack', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
             </div>
           </div>
-          <div class="field-group">
-            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lien Demo (Optionnel)</label>
-            <div class="relative">
-              <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">open_in_new</mat-icon>
-              <input type="url" placeholder="https://mon-projet.vercel.app" [ngModel]="newProject.demoUrl" (ngModelChange)="onUpdateNewItem('demoUrl', $event)"
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+
+          <!-- Project Type Toggle -->
+          <div class="mt-6">
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3 block">Project Type</label>
+            <div class="flex gap-3">
+              <button type="button" (click)="onUpdateNewItem('isUniversity', false)"
+                      [class]="newProject.isUniversity === false 
+                        ? 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#1A91F0] text-white shadow-lg shadow-blue-500/20 border-2 border-[#1A91F0]' 
+                        : 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#F8FAFC] text-[#757575] border-2 border-slate-200 hover:border-[#1A91F0] hover:text-[#1A91F0]'">
+                <div class="flex items-center justify-center gap-2">
+                  <mat-icon class="!text-[20px] !w-5 !h-5">person</mat-icon>
+                  Personal Project
+                </div>
+              </button>
+              <button type="button" (click)="onUpdateNewItem('isUniversity', true)"
+                      [class]="newProject.isUniversity === true 
+                        ? 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#1A91F0] text-white shadow-lg shadow-blue-500/20 border-2 border-[#1A91F0]' 
+                        : 'flex-1 h-[52px] rounded-2xl font-bold text-[15px] transition-all bg-[#F8FAFC] text-[#757575] border-2 border-slate-200 hover:border-[#1A91F0] hover:text-[#1A91F0]'">
+                <div class="flex items-center justify-center gap-2">
+                  <mat-icon class="!text-[20px] !w-5 !h-5">school</mat-icon>
+                  Academic Project
+                </div>
+              </button>
             </div>
           </div>
-        </div>
 
-        <div class="field-group mt-6">
-          <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Description du projet</label>
-          <textarea rows="4" placeholder="Décrivez les fonctionnalités principales..." 
-                    [ngModel]="newProject.description" (ngModelChange)="onUpdateNewItem('description', $event)"
-                    class="w-full p-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-normal text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all resize-none"></textarea>
-        </div>
+          <div class="form-grid gap-6 mt-6">
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">GitHub Link (Optional)</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">link</mat-icon>
+                <input type="url" placeholder="https://github.com/..." [ngModel]="newProject.githubUrl" (ngModelChange)="onUpdateNewItem('githubUrl', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Demo Link (Optional)</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">open_in_new</mat-icon>
+                <input type="url" placeholder="https://my-project.vercel.app" [ngModel]="newProject.demoUrl" (ngModelChange)="onUpdateNewItem('demoUrl', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
+            </div>
+          </div>
 
-        <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
-          <button (click)="addToggle.emit()" class="px-6 py-2.5 rounded-lg font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Annuler</button>
-          <button (click)="save.emit()" class="px-6 py-2.5 rounded-lg font-semibold bg-[#1A91F0] text-white hover:bg-blue-600 transition-colors shadow-sm">Sauvegarder</button>
+          <div class="field-group mt-6">
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Project Description</label>
+            <textarea rows="4" placeholder="Describe the main features..." 
+                      [ngModel]="newProject.description" (ngModelChange)="onUpdateNewItem('description', $event)"
+                      class="w-full p-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-normal text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all resize-none"></textarea>
+          </div>
+
+          <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
+            <button (click)="addToggle.emit()" class="px-6 py-2.5 rounded-lg font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+            <button (click)="save.emit()" class="px-6 py-2.5 rounded-lg font-semibold bg-[#1A91F0] text-white hover:bg-blue-600 transition-colors shadow-sm">Save</button>
+          </div>
         </div>
+      }
+    } @else {
+      <!-- EXTRACURRICULAR TAB -->
+      <div class="flex items-center gap-4 mb-5">
+        @if (isEditingExtraTitle) {
+          <div class="flex items-center gap-2 animate-scale-up">
+            <input #titleInputExtra [value]="extraTitle" 
+                   (keydown.enter)="extraTitleEditSave.emit(titleInputExtra.value)"
+                   (blur)="extraTitleEditSave.emit(titleInputExtra.value)"
+                   class="text-[14px] font-black text-[#1A91F0] border-b-2 border-[#1A91F0] outline-none bg-transparent uppercase tracking-wider px-1">
+          </div>
+        } @else {
+          <div class="flex items-center gap-3 group cursor-pointer" (click)="extraTitleEditStart.emit()">
+            <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">{{ extraTitle }}</h3>
+            <mat-icon class="text-slate-300 group-hover:text-[#1A91F0] transition-colors opacity-0 group-hover:opacity-100 !text-[18px]">edit</mat-icon>
+          </div>
+        }
       </div>
+
+      @if (!isAddingExtracurricular) {
+        <button (click)="addToggleExtra.emit()" class="btn-add-dashed">
+          <mat-icon>add</mat-icon> Add another activity
+        </button>
+      }
+
+      @if (!isAddingExtracurricular && extracurriculars.length > 0) {
+        <div class="space-y-4">
+          @for (extra of extracurriculars; track extra.id; let i = $index) {
+            <div class="education-card cursor-pointer">
+              <div class="number-badge">
+                <span>{{ i + 1 }}</span>
+              </div>
+              <div class="p-5 flex-1">
+                <div class="flex justify-between items-start mb-2">
+                  <h4 class="font-bold text-slate-900 text-[16px] pr-4">
+                    {{ extra.title }} <span class="font-normal text-slate-600">| {{ extra.company }}</span>
+                  </h4>
+                  <div class="action-icons">
+                    <button (click)="editExtra.emit(extra)"><mat-icon>edit</mat-icon></button>
+                    <button (click)="deleteExtra.emit(extra.id)" class="hover:text-red-500 transition-colors" title="Delete"><mat-icon>delete_outline</mat-icon></button>
+                  </div>
+                </div>
+                <p class="text-slate-500 text-[14px] mb-2 font-mono text-xs">{{ extra.startDate }} - {{ extra.endDate ? extra.endDate : 'Present' }}</p>
+                <p class="text-slate-700 text-[14px] font-medium line-clamp-2">{{ extra.description }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ADD EXTRACURRICULAR FORM -->
+      @if (isAddingExtracurricular) {
+        <div class="bg-slate-50/50 border border-slate-200 rounded-xl p-8 mt-4 animate-fade-slide-up relative">
+          <button (click)="addToggleExtra.emit()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
+            <mat-icon>close</mat-icon>
+          </button>
+
+          <div class="form-grid gap-6">
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Role / Title</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">badge</mat-icon>
+                <input type="text" placeholder="ex: President, Volunteer, Member..." [ngModel]="newExtracurricular.title" (ngModelChange)="onUpdateNewExtra('title', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Organization / Club</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">group</mat-icon>
+                <input type="text" placeholder="ex: IT Club, Red Cross..." [ngModel]="newExtracurricular.company" (ngModelChange)="onUpdateNewExtra('company', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid gap-6 mt-6">
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Start Date (YYYY-MM)</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">event</mat-icon>
+                <input type="month" [ngModel]="newExtracurricular.startDate" (ngModelChange)="onUpdateNewExtra('startDate', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">End Date</label>
+              <div class="relative">
+                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">event</mat-icon>
+                <input type="month" [ngModel]="newExtracurricular.endDate" (ngModelChange)="onUpdateNewExtra('endDate', $event)"
+                       class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+              </div>
+            </div>
+          </div>
+
+          <div class="field-group mt-6">
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Description</label>
+            <textarea rows="4" placeholder="What did you do? What were your responsibilities?" 
+                      [ngModel]="newExtracurricular.description" (ngModelChange)="onUpdateNewExtra('description', $event)"
+                      class="w-full p-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-normal text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all resize-none"></textarea>
+          </div>
+
+          <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
+            <button (click)="addToggleExtra.emit()" class="px-6 py-2.5 rounded-lg font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+            <button (click)="saveExtra.emit()" class="px-6 py-2.5 rounded-lg font-semibold bg-[#1A91F0] text-white hover:bg-blue-600 transition-colors shadow-sm">Save</button>
+          </div>
+        </div>
+      }
     }
   </div>
 </div>

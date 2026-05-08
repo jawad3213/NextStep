@@ -1,28 +1,28 @@
 <div class="form-step-wrapper animate-fade-slide-up">
-  <div class="flex items-center justify-between mb-8">
-    <div>
-      <h2 class="text-[28px] font-black text-[#212121] leading-tight mb-2">Résumé du profil</h2>
-      <p class="text-[15px] text-[#757575] font-medium">Rédigez une introduction percutante pour capter l'attention des recruteurs.</p>
-    </div>
-    
+  <!-- Resume summary Header -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-[24px] font-bold text-slate-900">Profile Summary</h2>
     <button (click)="generateAI.emit()" 
             [disabled]="isGeneratingAI"
-            class="bg-[#1A91F0] hover:bg-[#0F6EBB] text-white rounded-xl h-[44px] px-6 text-[15px] font-bold transition-all flex items-center gap-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed">
-      @if (isGeneratingAI) {
-        <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1"></div>
-        Génération...
-      } @else {
-        <mat-icon class="!w-5 !h-5 !text-[20px]">auto_awesome</mat-icon>
-        Générer avec l'IA
-      }
+            class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors disabled:opacity-50">
+      <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">auto_awesome</mat-icon> 
+      {{ isGeneratingAI ? 'Generating...' : 'Generate with AI' }}
     </button>
   </div>
+
+  <!-- Surface Container -->
+  <div class="bg-white rounded-[16px] p-6 border border-slate-200">
+    <div class="flex items-center gap-4 mb-5">
+      <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">PROFESSIONAL SUMMARY</h3>
+      <div class="flex-1 h-px bg-slate-100"></div>
+    </div>
 
   <div class="bg-white border border-[#EEEEEE] rounded-2xl p-6 shadow-sm focus-within:border-[#1A91F0] transition-all">
     <textarea 
       [value]="resume"
       (input)="onResumeChange($event)"
       class="w-full min-h-[200px] border-none outline-none resize-none bg-transparent text-[16px] leading-relaxed text-[#424242] placeholder:text-[#BDBDBD] font-medium"
-      placeholder="Décrivez votre parcours, vos points forts et ce que vous recherchez..."></textarea>
+      placeholder="Describe your career path, your strengths, and what you are looking for..."></textarea>
+  </div>
   </div>
 </div>

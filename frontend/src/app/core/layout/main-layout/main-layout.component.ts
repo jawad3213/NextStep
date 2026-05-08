@@ -1,8 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../auth/services/auth.service';
 import { filter } from 'rxjs';
+import { ProfileService } from '../../../features/profile/profile.service';
+
 
 @Component({
   selector: 'app-main-layout',
@@ -17,6 +19,25 @@ export class MainLayoutComponent {
 
   isSidebarOpen = signal(false);
   isSidebarCollapsed = signal(false);
+  
+  profileService = inject(ProfileService);
+  profile = this.profileService.profile;
+  searchQuery = signal('');
+
+  // Filtered menu sections based on search query
+  filteredMenuSections = computed(() => {
+    const query = this.searchQuery().toLowerCase().trim();
+    if (!query) return this.menuSections;
+
+    return this.menuSections.map(section => ({
+      ...section,
+      items: section.items.filter(item => 
+        item.label.toLowerCase().includes(query) || 
+        section.title.toLowerCase().includes(query)
+      )
+    })).filter(section => section.items.length > 0);
+  });
+
 
   constructor() {
     // Close sidebar on route change (for mobile)
@@ -32,32 +53,32 @@ export class MainLayoutComponent {
       title: 'Core',
       items: [
         { path: '/dashboard', label: 'Dashboard', iconName: 'layout' },
-        { path: '/profile', label: 'Mon Profil', iconName: 'user' },
-        { path: '/offers', label: 'Offres', iconName: 'briefcase' },
+        { path: '/profile', label: 'My Profile', iconName: 'user' },
+        { path: '/offers', label: 'Jobs', iconName: 'briefcase' },
       ]
     },
     {
       title: 'Tools',
       items: [
         { path: '/cv', label: 'CV Builder', iconName: 'file-text' },
-        { path: '/letters', label: 'Email & Lettre', iconName: 'mail' },
-        { path: '/candidatures', label: 'Candidatures', iconName: 'kanban' },
+        { path: '/letters', label: 'Email & Letter', iconName: 'mail' },
+        { path: '/applications', label: 'Applications', iconName: 'kanban' },
       ]
     },
     {
       title: 'AI Insights',
       items: [
-        { path: '/company-intel', label: 'Intelligence', iconName: 'search-analytics' },
+        { path: '/company-intel', label: 'Company Intel', iconName: 'search-analytics' },
         { path: '/skill-gap', label: 'Skill Gap', iconName: 'target' },
-        { path: '/chatbot', label: 'Chatbot', iconName: 'cpu' },
+        { path: '/chatbot', label: 'AI Chatbot', iconName: 'cpu' },
       ]
     },
     {
       title: 'System',
       items: [
         { path: '/notifications', label: 'Notifications', iconName: 'bell' },
-        { path: '/email/settings', label: 'Connexion Gmail', iconName: 'send' },
-        { path: '/settings', label: 'Paramètres', iconName: 'settings' },
+        { path: '/email/settings', label: 'Gmail Settings', iconName: 'send' },
+        { path: '/settings', label: 'Settings', iconName: 'settings' },
       ]
     }
   ];

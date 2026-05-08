@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { Education } from '../../profile.types';
+import { Education, MENTION_LABELS, DEGREE_LABELS } from '../../profile.types';
 
 @Component({
   selector: 'app-formation',
@@ -34,5 +34,13 @@ export class FormationComponent {
 
   onUpdateNewItem(field: string, value: any) {
     this.updateNew.emit({ field, value });
+  }
+
+  getMentionLabel(m: string): string {
+    return MENTION_LABELS[m] || m;
+  }
+
+  getDegreeLabel(d: string): string {
+    return DEGREE_LABELS[d] || d;
   }
 }

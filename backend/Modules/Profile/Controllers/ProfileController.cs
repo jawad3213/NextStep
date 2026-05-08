@@ -220,9 +220,63 @@ namespace NextStep.Modules.Profile.Controllers
             }
             catch (Exception)
             {
-                // Si le conteneur python est éteint, on renvoie quand même un fallback au frontend
                 return Ok(new { resume = "Expert passionné avec une solide expérience technique. Toujours à la recherche de nouveaux défis pour innover et apporter de la valeur." });
             }
+        }
+
+        [HttpPost("parse-resume")]
+        public async Task<IActionResult> ParseResume(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Aucun fichier fourni.");
+
+            try 
+            {
+                var client = _httpClientFactory.CreateClient();
+                var agentUrl = Environment.GetEnvironmentVariable("PythonAgents__Url") ?? "http://agents-python:8000";
+                
+                using var content = new MultipartFormDataContent();
+                using var stream = file.OpenReadStream();
+                content.Add(new StreamContent(stream), "file", file.FileName);
+                
+                // On attend la réponse complète (plus stable pour le proxy)
+                var response = await client.PostAsync($"{agentUrl}/resume/parse", content);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    return Ok(result); 
+                }
+                
+                var error = await response.Content.ReadAsStringAsync();
+                return StatusCode((int)response.StatusCode, $"Erreur agent IA : {error}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erreur proxy IA : {ex.Message}");
+            }
+        }
+        [HttpDelete("clear")]
+        public async Task<IActionResult> ClearProfile()
+        {
+            var userId = await GetUserIdAsync();
+            
+            // Delete all related records for this user
+            var experiences = _context.Experiences.Where(e => e.UserId == userId);
+            var formations = _context.Formations.Where(f => f.UserId == userId);
+            var competences = _context.Competences.Where(c => c.UserId == userId);
+            var projets = _context.Projets.Where(p => p.UserId == userId);
+            var certifications = _context.Certifications.Where(c => c.UserId == userId);
+
+            _context.Experiences.RemoveRange(experiences);
+            _context.Formations.RemoveRange(formations);
+            _context.Competences.RemoveRange(competences);
+            _context.Projets.RemoveRange(projets);
+            _context.Certifications.RemoveRange(certifications);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Profil réinitialisé avec succès." });
         }
     }
 }

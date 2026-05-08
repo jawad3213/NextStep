@@ -1,0 +1,56 @@
+{
+  "intelligence": {
+      "nom": "SQLI Maroc",
+      "summary": "SQLI Maroc est une entreprise française spécialisée dans les services informatiques et le conseil. Fondée en 1990, elle a une présence importante au Maroc, notamment à Casablanca et Rabat. L'entreprise propose une gamme de services qui incluent la transformation numérique, l'ingénierie, la R&D et l'intégration. Les collaborateurs de SQLI Maroc ont une bonne expérience technique, mais soulignent la nécessité d'améliorer la rémunération. L'environnement de travail est décrit comme positif, avec de belles opportunités de développement professionnel. L'entreprise est connue pour son expertise dans les technologies Python et React.",
+      "sector": "Services informatiques et conseil",
+      "hq_location": "Casablanca, Maroc",
+      "linkedin_url": "https://www.linkedin.com/company/sqli/",
+      "culture": {
+         "culture_score": 72,
+         "turnover_rate": "low",
+         "work_life_balance": 3.8,
+         "glassdoor_rating": 3.2,
+         "key_values": ["Expertise technique", "Opportunités de développement professionnel", "Environnement de travail positif"],
+         "top_reviews": ["Bonne expérience technique", "Opportunités de développement professionnel", "Environnement de travail positif"]
+      },
+      "salaries": [
+         {
+            "job_title": "Développeur Full-Stack Senior Python/React",
+            "seniority": "Junior",
+            "location": "Casablanca, Maroc",
+            "min_salary": 10000,
+            "max_salary": 15000,
+            "avg_salary": 12500,
+            "currency": "MAD",
+            "period": "month",
+            "source": "Glassdoor"
+         },
+         {
+            "job_title": "Développeur Full-Stack Senior Python/React",
+            "seniority": "Senior",
+            "location": "Casablanca, Maroc",
+            "min_salary": 20000,
+            "max_salary": 30000,
+            "avg_salary": 25000,
+            "currency": "MAD",
+            "period": "month",
+            "source": "Levels.fyi"
+         }
+      ],
+      "actualites": ["Acquisition de Levana, agence française spécialisée dans l'écosystème Salesforce", "Ouverture d'une succursale à Barcelone en Espagne"],
+      "interview_difficulty": "medium",
+      "interview_questions": [
+         "Qu'est-ce que vous entendez par transformation numérique ?",
+         "Comment gérez-vous le stress dans un environnement de travail dynamique ?",
+         "Quels sont les principaux défis que vous avez rencontrés dans votre dernier projet ?",
+         "Pourquoi notre entreprise ?",
+         "Présentez un projet complexe que vous avez mené à bien",
+         "Comment évaluez-vous la performance d'un développeur full-stack ?"
+      ],
+      "pros": ["Expertise technique", "Opportunités de développement professionnel", "Environnement de travail positif"],
+      "cons": ["Rémunération à améliorer", "Salaire à revoir"],
+      "career_opportunities": "Les opportunités d'avancement professionnel sont nombreuses, avec des possibilités de développement technique et de leadership."
+   },
+   "score": 80,
+   "recommendations": ["Faites preuve de flexibilité et d'adaptabilité dans votre approche de travail", "Développez vos compétences techniques pour répondre aux besoins de l'entreprise"]
+}

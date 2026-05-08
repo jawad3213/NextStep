@@ -134,6 +134,41 @@ export class EmailWorkspaceComponent implements OnInit {
     });
   }
 
+  generateFollowUpDraft() {
+    if (this.generatingDraft()) return;
+    this.generatingDraft.set(true);
+    this.clearMessages();
+
+    this.emailService.generateFollowUpDraft({
+      candidatureId: this.candidatureId,
+      language: this.language,
+      tone: 'professionnel' // Default tone for relance
+    }).subscribe({
+      next: (draft) => {
+        // Prepend to local drafts list and select immediately
+        this.drafts.update(drafts => [draft, ...drafts]);
+        this.selectDraft(draft);
+        
+        // Update candidature status locally
+        const current = this.candidature();
+        if (current) {
+          this.candidature.set({
+            ...current,
+            responseStatus: 'RELANCE_GENEREE',
+            statut: 'RELANCE_GENEREE'
+          });
+        }
+
+        this.successMessage.set('Email de relance généré avec succès.');
+        this.generatingDraft.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.error || 'Erreur lors de la génération de la relance.');
+        this.generatingDraft.set(false);
+      }
+    });
+  }
+
   saveDraft() {
     const draft = this.selectedDraft();
     if (!draft || this.savingDraft()) return;
@@ -257,6 +292,18 @@ export class EmailWorkspaceComponent implements OnInit {
       !!gmail?.isConnected && !this.sendingDraft();
   }
 
+  get canGenerateRelance(): boolean {
+    const cand = this.candidature();
+    if (!cand) return false;
+    
+    // Block if already has a response
+    if (cand.hasResponse) return false;
+
+    // Show button if no sent relance exists or if more are allowed (logic handled by backend)
+    // For now we just show it if there is at least one sent email
+    return this.drafts().some(d => d.isSent) && !this.generatingDraft();
+  }
+
   formatDate(dateStr: string | null): string {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -271,6 +318,20 @@ export class EmailWorkspaceComponent implements OnInit {
     if (draft.isSent) return 'draft-sent';
     if (draft.isApproved) return 'draft-approved';
     return 'draft-pending';
+  }
+
+  getCandidatureStatusClass(statut: string): string {
+    switch (statut) {
+      case 'ENVOYE': return 'status-sent';
+      case 'VU': return 'status-approved';
+      case 'ENTRETIEN_PROPOSE': return 'status-info';
+      case 'INFORMATIONS_DEMANDEES': return 'status-warning';
+      case 'ACCEPTE': return 'status-success';
+      case 'REFUSE': return 'status-error';
+      case 'REPONSE_RECUE': return 'status-info';
+      case 'REPONSE_AUTOMATIQUE': return 'status-none';
+      default: return 'status-neutral';
+    }
   }
 
   goBack() {

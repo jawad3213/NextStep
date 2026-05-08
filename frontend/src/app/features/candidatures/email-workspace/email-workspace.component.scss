@@ -177,7 +177,23 @@
 .meta-row { display: flex; justify-content: space-between; align-items: center; }
 .meta-key { font-size: 12px; color: vars.$color-text-secondary; }
 .meta-val { font-size: 12px; color: vars.$color-text-primary; font-weight: 600; }
-.status-badge.status-neutral { background: vars.$color-bg-input; color: vars.$color-text-secondary; padding: 4px 12px; border-radius: vars.$radius-full; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.status-badge {
+  padding: 4px 12px; 
+  border-radius: vars.$radius-full; 
+  font-size: 10px; 
+  font-weight: 700; 
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+
+  &.status-neutral { background: vars.$color-bg-input; color: vars.$color-text-secondary; }
+  &.status-sent { background: vars.$color-success-tint; color: vars.$color-success; }
+  &.status-approved { background: vars.$color-info-tint; color: vars.$color-info; }
+  &.status-info { background: vars.$color-primary-pale; color: vars.$color-primary; }
+  &.status-warning { background: vars.$color-warning-tint; color: vars.$color-warning; }
+  &.status-success { background: vars.$color-success-tint; color: vars.$color-success; }
+  &.status-error { background: vars.$color-error-tint; color: vars.$color-error; }
+}
 .response-placeholder { 
   font-size: 11px; 
   color: vars.$color-text-tertiary; 
@@ -189,6 +205,30 @@
 }
 .no-data { font-size: 13px; color: vars.$color-text-tertiary; margin: 0; }
 
+.response-analysis {
+  background: rgba(vars.$color-primary, 0.04);
+  border-radius: vars.$radius-md;
+  padding: 12px;
+  border: 1px solid rgba(vars.$color-primary, 0.1);
+
+  .analysis-summary {
+    font-size: 13px;
+    color: vars.$color-text-primary;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .analysis-action {
+    font-size: 12px;
+    color: vars.$color-primary;
+    line-height: 1.4;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(vars.$color-primary, 0.2);
+
+    strong { font-weight: 700; }
+  }
+}
+
 .draft-options-card {
   padding: 20px;
   .form-group { margin-bottom: 12px; }
@@ -196,6 +236,8 @@
 }
 
 .btn-full { width: 100%; justify-content: center; }
+
+.mt-2 { margin-top: 8px; }
 
 // ── Right panel ──────────────────────────────────────────────────────────────
 .right-panel { display: flex; flex-direction: column; gap: 20px; }

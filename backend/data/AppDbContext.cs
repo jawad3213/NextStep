@@ -98,6 +98,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.LastResponseAtUtc)
                 .HasColumnName("last_response_at_utc");
 
+            entity.Property(e => e.LastResponseFrom)
+                .HasColumnName("last_response_from");
+
+            entity.Property(e => e.LastResponseSnippet)
+                .HasColumnName("last_response_snippet");
+
+            entity.Property(e => e.ResponseSummary)
+                .HasColumnName("response_summary");
+
+            entity.Property(e => e.RecommendedAction)
+                .HasColumnName("recommended_action");
+
+            entity.Property(e => e.ResponseConfidence)
+                .HasColumnName("response_confidence");
+
+            entity.Property(e => e.ResponseClassifiedAtUtc)
+                .HasColumnName("response_classified_at_utc");
+
             entity.HasMany(e => e.EmailDrafts)
                 .WithOne(e => e.Candidature)
                 .HasForeignKey(e => e.CandidatureId)

@@ -17,6 +17,12 @@ public class ReplyCheckResult
     /// <summary>Short snippet from the reply for logging only. Not exposed to the frontend.</summary>
     public string? Snippet { get; set; }
 
+    /// <summary>Subject header of the reply message. Null if not present in metadata.</summary>
+    public string? ReplySubject { get; set; }
+
+    /// <summary>Gmail message ID (not thread ID) of the specific reply message.</summary>
+    public string? GmailMessageId { get; set; }
+
     /// <summary>
     /// Non-null when monitoring failed (e.g. insufficient Gmail scope, network error).
     /// The candidature will NOT be marked as having a reply when this is set.

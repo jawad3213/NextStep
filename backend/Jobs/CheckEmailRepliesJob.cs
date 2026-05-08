@@ -7,24 +7,44 @@ namespace NextStep.Jobs;
 /// Hangfire recurring job that polls Gmail threads for recruiter replies
 /// and updates candidature response status accordingly.
 ///
+/// Phase 3A: after a reply is detected, the job calls IResponseClassificationService
+/// to classify the reply via the Python LLM agent. Classification failure is fully
+/// isolated — it never prevents HasResponse=true from being persisted.
+///
 /// This job does NOT send any emails and does NOT generate follow-up drafts.
-/// It only reads Gmail thread metadata and updates the local candidature record.
 /// </summary>
 public class CheckEmailRepliesJob
 {
     private static readonly TimeSpan CooldownPeriod = TimeSpan.FromHours(6);
 
-    private readonly IEmailDraftRepository _draftRepository;
-    private readonly IGmailReplyMonitorService _replyMonitor;
-    private readonly ILogger<CheckEmailRepliesJob> _logger;
+    // LLM-returned types that can override ResponseStatus/Statut.
+    // "REPONSE_RECUE" is the fallback — it is never returned by the LLM directly.
+    private static readonly HashSet<string> ClassifiableTypes =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "ENTRETIEN_PROPOSE",
+            "INFORMATIONS_DEMANDEES",
+            "ACCEPTE",
+            "REFUSE",
+            "REPONSE_AUTOMATIQUE",
+            "REPONSE_GENERALE",
+            "INCONNU",
+        };
+
+    private readonly IEmailDraftRepository            _draftRepository;
+    private readonly IGmailReplyMonitorService         _replyMonitor;
+    private readonly IResponseClassificationService    _classifier;
+    private readonly ILogger<CheckEmailRepliesJob>     _logger;
 
     public CheckEmailRepliesJob(
-        IEmailDraftRepository draftRepository,
-        IGmailReplyMonitorService replyMonitor,
-        ILogger<CheckEmailRepliesJob> logger)
+        IEmailDraftRepository         draftRepository,
+        IGmailReplyMonitorService      replyMonitor,
+        IResponseClassificationService classifier,
+        ILogger<CheckEmailRepliesJob>  logger)
     {
         _draftRepository = draftRepository;
         _replyMonitor    = replyMonitor;
+        _classifier      = classifier;
         _logger          = logger;
     }
 
@@ -78,7 +98,7 @@ public class CheckEmailRepliesJob
 
             checked_++;
 
-            // ── 2c. Handle result ──────────────────────────────────────────────
+            // ── 2c. Handle error ───────────────────────────────────────────────
             if (result.ErrorMessage is not null)
             {
                 _logger.LogWarning(
@@ -89,19 +109,43 @@ public class CheckEmailRepliesJob
                 continue;
             }
 
+            // ── 2d. Reply detected ─────────────────────────────────────────────
             if (result.HasReply)
             {
                 _logger.LogInformation(
                     "CheckEmailRepliesJob — reply detected for candidature {CandidatureId}: " +
-                    "from={ReplyFrom}, date={ReplyDate}",
-                    candidature.IdCandidature, result.ReplyFrom, result.ReplyDateUtc);
+                    "from={ReplyFrom}, date={ReplyDate}, subject={ReplySubject}",
+                    candidature.IdCandidature, result.ReplyFrom, result.ReplyDateUtc, result.ReplySubject);
 
-                candidature.HasResponse       = true;
-                candidature.ResponseStatus    = "REPONSE_RECUE";
-                candidature.Statut            = "REPONSE_RECUE";
-                candidature.LastResponseAtUtc = result.ReplyDateUtc;
-                candidature.LastCheckedAtUtc  = DateTime.UtcNow;
+                // STEP 1 — Always persist baseline fields first.
+                //          These are GUARANTEED to be saved even if classification fails.
+                candidature.HasResponse         = true;
+                candidature.ResponseStatus      = "REPONSE_RECUE";
+                candidature.Statut              = "REPONSE_RECUE";
+                candidature.LastResponseAtUtc   = result.ReplyDateUtc;
+                candidature.LastCheckedAtUtc    = DateTime.UtcNow;
+                candidature.LastResponseFrom    = result.ReplyFrom;
+                candidature.LastResponseSnippet = result.Snippet;
                 repliesFound++;
+
+                // STEP 2 — Attempt AI classification (never throws).
+                var classification = await _classifier.ClassifyAsync(candidature, draft, result, ct);
+
+                // STEP 3 — Apply classification result.
+                //          Only override ResponseStatus/Statut when the LLM returned a
+                //          specific classified type (not the "REPONSE_RECUE" fallback).
+                if (ClassifiableTypes.Contains(classification.ResponseType))
+                {
+                    candidature.ResponseStatus = classification.ResponseType;
+                    candidature.Statut         = classification.ResponseType;
+                }
+                // else: keep REPONSE_RECUE set in STEP 1
+
+                // Always store analysis metadata (fallback values are still meaningful).
+                candidature.ResponseSummary         = classification.Summary;
+                candidature.RecommendedAction       = classification.RecommendedAction;
+                candidature.ResponseConfidence      = classification.Confidence;
+                candidature.ResponseClassifiedAtUtc = DateTime.UtcNow;
             }
             else
             {

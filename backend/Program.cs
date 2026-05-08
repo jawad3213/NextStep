@@ -79,6 +79,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IGmailReplyMonitorService, GmailReplyMonitorService>();
+builder.Services.AddScoped<IResponseClassificationService, ResponseClassificationService>();
 builder.Services.AddScoped<CheckEmailRepliesJob>();
 builder.Services.AddScoped<DetectFollowUpNeededJob>();
 
@@ -188,6 +189,14 @@ using (var scope = app.Services.CreateScope())
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS has_response BOOLEAN DEFAULT FALSE;");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_checked_at_utc TIMESTAMP;");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_response_at_utc TIMESTAMP;");
+
+        // 8c. Candidature — AI classification fields (Phase 3A)
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_response_from TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_response_snippet TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_summary TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS recommended_action TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_confidence DOUBLE PRECISION;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_classified_at_utc TIMESTAMP;");
 
         // 9. user_email_connection — stores encrypted Gmail OAuth tokens
         await context.Database.ExecuteSqlRawAsync(@"

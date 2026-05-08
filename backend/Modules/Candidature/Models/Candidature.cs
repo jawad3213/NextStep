@@ -33,5 +33,25 @@ public class Candidature
     /// <summary>UTC timestamp of the detected reply message. Null until a reply is found.</summary>
     public DateTime? LastResponseAtUtc { get; set; }
 
+    // ── AI Classification fields ──────────────────────────────────────────────────
+
+    /// <summary>From address of the detected reply message. Populated by CheckEmailRepliesJob.</summary>
+    public string? LastResponseFrom { get; set; }
+
+    /// <summary>Short snippet from the detected reply. Populated by CheckEmailRepliesJob.</summary>
+    public string? LastResponseSnippet { get; set; }
+
+    /// <summary>LLM-generated summary of the recruiter reply (in French).</summary>
+    public string? ResponseSummary { get; set; }
+
+    /// <summary>LLM-generated recommended next action for the candidate (in French).</summary>
+    public string? RecommendedAction { get; set; }
+
+    /// <summary>Classifier confidence score, normalised to [0, 1]. Null until classified.</summary>
+    public double? ResponseConfidence { get; set; }
+
+    /// <summary>UTC timestamp when the LLM classification was last run. Null until classified.</summary>
+    public DateTime? ResponseClassifiedAtUtc { get; set; }
+
     public ICollection<EmailDraft> EmailDrafts { get; set; } = new List<EmailDraft>();
 }

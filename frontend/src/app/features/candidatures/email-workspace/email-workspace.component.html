@@ -90,17 +90,33 @@
             <div class="candidature-meta">
               <div class="meta-row">
                 <span class="meta-key">Statut</span>
-                <span class="status-badge status-neutral">{{ candidature()!.statut }}</span>
+                <span class="status-badge" [class]="getCandidatureStatusClass(candidature()!.statut)">
+                  {{ candidature()!.statut }}
+                </span>
               </div>
               <div class="meta-row">
                 <span class="meta-key">Créée le</span>
                 <span class="meta-val">{{ formatDate(candidature()!.dateCreation) }}</span>
               </div>
-              <div class="meta-row">
-                <span class="meta-key">Réponses</span>
-                <!-- TODO: Future — Hangfire job will poll Gmail for replies and update this field -->
-                <span class="response-placeholder">En attente</span>
-              </div>
+              
+              @if (candidature()!.hasResponse) {
+                <div class="response-analysis mt-3">
+                  <div class="card-label mb-1">Analyse de la réponse</div>
+                  <div class="analysis-content">
+                    <p class="analysis-summary">{{ candidature()!.responseSummary }}</p>
+                    @if (candidature()!.recommendedAction) {
+                      <div class="analysis-action">
+                        <strong>Conseil :</strong> {{ candidature()!.recommendedAction }}
+                      </div>
+                    }
+                  </div>
+                </div>
+              } @else {
+                <div class="meta-row">
+                  <span class="meta-key">Réponses</span>
+                  <span class="response-placeholder">En attente</span>
+                </div>
+              }
             </div>
           </div>
         }
@@ -126,13 +142,26 @@
           <button class="btn btn-primary btn-sm btn-full"
             (click)="generateDraft()"
             [disabled]="generatingDraft()">
-            @if (generatingDraft()) {
+            @if (generatingDraft() && emailType !== 'relance') {
               <div class="btn-spinner"></div> Génération en cours...
             } @else {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               Générer un brouillon
             }
           </button>
+
+          @if (canGenerateRelance) {
+            <button class="btn btn-outline btn-sm btn-full mt-2"
+              (click)="generateFollowUpDraft()"
+              [disabled]="generatingDraft()">
+              @if (generatingDraft()) {
+                <div class="btn-spinner"></div> Génération...
+              } @else {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Générer une relance (IA)
+              }
+            </button>
+          }
         </div>
 
       </aside>

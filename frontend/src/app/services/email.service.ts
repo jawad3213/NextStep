@@ -28,6 +28,13 @@ export interface GenerateDraftPayload {
   candidatureId: string;
   emailType: string;
   language: string;
+  tone?: string;
+}
+
+export interface GenerateFollowUpDraftPayload {
+  candidatureId: string;
+  language: string;
+  tone: string;
 }
 
 export interface UpdateDraftPayload {
@@ -66,6 +73,14 @@ export class EmailService {
 
   generateDraft(payload: GenerateDraftPayload): Observable<EmailDraftDto> {
     return this.http.post<EmailDraftDto>(`${this.base}/emails/generate`, payload);
+  }
+
+  generateFollowUpDraft(payload: GenerateFollowUpDraftPayload): Observable<EmailDraftDto> {
+    return this.http.post<EmailDraftDto>(`${this.base}/emails/generate-follow-up`, payload);
+  }
+
+  getDraftById(draftId: string): Observable<EmailDraftDto> {
+    return this.http.get<EmailDraftDto>(`${this.base}/emails/drafts/${draftId}`);
   }
 
   updateDraft(draftId: string, payload: UpdateDraftPayload): Observable<EmailDraftDto> {

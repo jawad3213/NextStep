@@ -12,6 +12,18 @@ export interface CandidatureDto {
   dateCreation: string;
   inclureLettreMotivation: boolean;
   statut: string;
+  responseStatus: string;
+  hasResponse: boolean;
+  lastCheckedAtUtc?: string;
+  lastResponseAtUtc?: string;
+
+  // ── AI Classification ─────────────────────────────────────────────────────────
+  lastResponseFrom?: string;
+  lastResponseSnippet?: string;
+  responseSummary?: string;
+  recommendedAction?: string;
+  responseConfidence?: number;
+  responseClassifiedAtUtc?: string;
 }
 
 export interface CreateCandidaturePayload {

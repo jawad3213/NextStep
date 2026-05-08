@@ -9,6 +9,8 @@ from .models import (
     GenerateEmailRequest,
     GenerateEmailResponse,
     GenerateFollowUpEmailRequest,
+    ClassifyResponseRequest,
+    ClassifyResponseResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -274,5 +276,102 @@ async def generate_follow_up_email_with_llm(
         "Follow-up agent — generation succeeded for candidature_id=%s | subject=%s",
         request.candidature_id,
         result.subject[:60] if result.subject else "",
+    )
+    return result
+
+
+# ─── Response classification ────────────────────────────────────────────────────────────
+
+_CLASSIFY_SYSTEM = """\
+Tu es un agent expert en analyse de réponses de recruteurs à des candidatures professionnelles.
+
+Règles strictes de classification :
+- Classe la réponse dans une SEULE catégorie parmi :
+  * ENTRETIEN_PROPOSE     : le recruteur propose un entretien, appel téléphonique ou réunion.
+  * INFORMATIONS_DEMANDEES: le recruteur demande des documents, disponibilités, portfolio, CV,
+                            prétentions salariales ou autres informations complémentaires.
+  * ACCEPTE               : le recruteur confirme EXPLICITEMENT la sélection du candidat
+                            (offre d’emploi formelle, proposition contractuelle).
+  * REFUSE                : le recruteur signale EXPLICITEMENT un refus ou que la candidature
+                            n’est pas retenue.
+  * REPONSE_AUTOMATIQUE   : réponse automatique (absence du bureau, accusé de réception
+                            automatique, notification de livraison, confirmation générique).
+  * REPONSE_GENERALE      : vraie réponse humaine qui ne correspond à aucune catégorie précise.
+  * INCONNU               : impossible de déterminer la catégorie avec certitude.
+
+Règles de prudence :
+- Utilise REFUSE UNIQUEMENT pour un refus explicite et sans ambigüité.
+- Utilise ACCEPTE UNIQUEMENT pour une acceptation explicite ou une offre d’emploi formelle.
+- Utilise ENTRETIEN_PROPOSE UNIQUEMENT si une invitation à un entretien, appel ou réunion
+  est clairement formulée.
+- En cas de doute, préfère REPONSE_GENERALE ou INCONNU.
+- N’invente aucun fait non présent dans l’extrait.
+- Ne mentionne PAS que l’analyse est faite par une IA.
+- Retourne UNIQUEMENT la structure demandée, sans explication supplémentaire.
+- Les champs summary et recommended_action doivent être rédigés dans la langue demandée.
+- Le champ confidence est un décimal entre 0 et 1 représentant ta certitude.
+"""
+
+_CLASSIFY_HUMAN = """\
+Analyse la réponse suivante d’un recruteur à une candidature :
+
+=== CONTEXTE ===
+Poste visé  : {job_title}
+Entreprise  : {company_name}
+Objet email précédent : {previous_email_subject}
+
+=== RÉPONSE REÇUE ===
+De      : {reply_from}
+Date    : {reply_date_utc}
+Objet   : {reply_subject}
+Extrait : {reply_snippet}
+
+=== OPTIONS ===
+Langue de sortie : {language}
+"""
+
+
+async def classify_recruiter_response_with_llm(
+    request: ClassifyResponseRequest,
+) -> ClassifyResponseResult:
+    """
+    Classify a recruiter reply using the LLM.
+
+    Conservative classification rules (see system prompt).
+    Returns a structured ClassifyResponseResult; never auto-sends or generates drafts.
+    """
+    logger.info(
+        "Classify agent — candidature_id=%s | lang=%s",
+        request.candidature_id,
+        request.language,
+    )
+
+    llm = get_email_llm()
+    structured_llm = llm.with_structured_output(ClassifyResponseResult)
+
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", _CLASSIFY_SYSTEM), ("human", _CLASSIFY_HUMAN)]
+    )
+
+    chain = prompt | structured_llm
+
+    result: ClassifyResponseResult = await chain.ainvoke(
+        {
+            "job_title":              request.job_title              or "Non spécifié",
+            "company_name":           request.company_name           or "Non spécifié",
+            "previous_email_subject": request.previous_email_subject or "Non spécifié",
+            "reply_from":             request.reply_from             or "Non spécifié",
+            "reply_date_utc":         request.reply_date_utc         or "Non spécifié",
+            "reply_subject":          request.reply_subject          or "Non spécifié",
+            "reply_snippet":          _truncate(request.reply_snippet, 800),
+            "language":               request.language,
+        }
+    )
+
+    logger.info(
+        "Classify agent — result: type=%s, confidence=%s for candidature_id=%s",
+        result.response_type,
+        result.confidence,
+        request.candidature_id,
     )
     return result

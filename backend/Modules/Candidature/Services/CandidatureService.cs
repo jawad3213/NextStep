@@ -75,6 +75,13 @@ public class CandidatureService : ICandidatureService
             HasResponse             = entity.HasResponse,
             LastCheckedAtUtc        = entity.LastCheckedAtUtc,
             LastResponseAtUtc       = entity.LastResponseAtUtc,
+            // AI Classification
+            LastResponseFrom        = entity.LastResponseFrom,
+            LastResponseSnippet     = entity.LastResponseSnippet,
+            ResponseSummary         = entity.ResponseSummary,
+            RecommendedAction       = entity.RecommendedAction,
+            ResponseConfidence      = entity.ResponseConfidence,
+            ResponseClassifiedAtUtc = entity.ResponseClassifiedAtUtc,
         };
     }
 }

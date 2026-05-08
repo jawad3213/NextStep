@@ -176,9 +176,14 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
                 if (msgDate is null || msgDate <= sentAtUtc)
                     continue;
 
-                // Extract From header from payload.headers[]
-                string? fromHeader = null;
-                string? snippet    = null;
+                // Extract From + Subject headers and top-level message id
+                string? fromHeader    = null;
+                string? subjectHeader = null;
+                string? snippet       = null;
+                string? gmailMsgId    = null;
+
+                if (msg.TryGetProperty("id", out var msgIdProp))
+                    gmailMsgId = msgIdProp.GetString();
 
                 if (msg.TryGetProperty("snippet", out var snippetProp))
                     snippet = snippetProp.GetString();
@@ -189,13 +194,18 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
                 {
                     foreach (var header in headersEl.EnumerateArray())
                     {
-                        if (header.TryGetProperty("name", out var nameProp) &&
-                            nameProp.GetString()?.Equals("From", StringComparison.OrdinalIgnoreCase) == true &&
-                            header.TryGetProperty("value", out var valueProp))
-                        {
+                        if (!header.TryGetProperty("name", out var nameProp) ||
+                            !header.TryGetProperty("value", out var valueProp))
+                            continue;
+
+                        var hName = nameProp.GetString();
+                        if (hName?.Equals("From", StringComparison.OrdinalIgnoreCase) == true)
                             fromHeader = valueProp.GetString();
-                            break;
-                        }
+                        else if (hName?.Equals("Subject", StringComparison.OrdinalIgnoreCase) == true)
+                            subjectHeader = valueProp.GetString();
+
+                        if (fromHeader is not null && subjectHeader is not null)
+                            break; // both captured — stop early
                     }
                 }
 
@@ -212,10 +222,12 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
 
                 return new ReplyCheckResult
                 {
-                    HasReply     = true,
-                    ReplyDateUtc = msgDate,
-                    ReplyFrom    = fromHeader,
-                    Snippet      = snippet,
+                    HasReply       = true,
+                    ReplyDateUtc   = msgDate,
+                    ReplyFrom      = fromHeader,
+                    Snippet        = snippet,
+                    ReplySubject   = subjectHeader,
+                    GmailMessageId = gmailMsgId,
                 };
             }
 

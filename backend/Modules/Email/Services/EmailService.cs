@@ -261,8 +261,9 @@ public class EmailService : IEmailService
             // ── Update candidature status if this was a relance ──────────────
             if (draft.EmailType == "relance")
             {
-                var candidature = await _candidatureRepository.GetByIdAsync(
-                    draft.CandidatureId, cancellationToken);
+                // We load without AsNoTracking to ensure status update is saved
+                var candidature = await _db.Candidatures
+                    .FirstOrDefaultAsync(c => c.IdCandidature == draft.CandidatureId, cancellationToken);
                 if (candidature is not null)
                 {
                     candidature.ResponseStatus = "RELANCE_ENVOYEE";
@@ -303,9 +304,9 @@ public class EmailService : IEmailService
         Guid localUserId,
         CancellationToken cancellationToken = default)
     {
-        // ── 1. Load and verify candidature ───────────────────────────────────
-        var candidature = await _candidatureRepository.GetByIdAsync(
-            dto.CandidatureId, cancellationToken);
+        // ── 1. Load and verify candidature (with tracking) ───────────────────
+        var candidature = await _db.Candidatures
+            .FirstOrDefaultAsync(c => c.IdCandidature == dto.CandidatureId, cancellationToken);
 
         if (candidature is null)
             throw new KeyNotFoundException($"Candidature {dto.CandidatureId} not found.");

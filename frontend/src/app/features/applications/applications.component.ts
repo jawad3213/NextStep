@@ -110,8 +110,26 @@ export class ApplicationsComponent implements OnInit {
     switch (statut) {
       case 'ENVOYE': return 'status-sent';
       case 'VU': return 'status-approved';
-      case 'ENTRETIEN': return 'status-info';
+      case 'ENTRETIEN_PROPOSE': return 'status-info';
+      case 'INFORMATIONS_DEMANDEES': return 'status-warning';
+      case 'ACCEPTE': return 'status-success';
+      case 'REFUSE': return 'status-error';
+      case 'REPONSE_RECUE': return 'status-info';
+      case 'REPONSE_AUTOMATIQUE': return 'status-none';
       default: return 'status-none';
+    }
+  }
+
+  getResponseLabel(statut: string): string {
+    switch (statut) {
+      case 'ENTRETIEN_PROPOSE': return 'Entretien';
+      case 'INFORMATIONS_DEMANDEES': return 'Infos demandées';
+      case 'ACCEPTE': return 'Accepté';
+      case 'REFUSE': return 'Refusé';
+      case 'REPONSE_AUTOMATIQUE': return 'Auto';
+      case 'REPONSE_GENERALE': return 'Réponse';
+      case 'REPONSE_RECUE': return 'Reçue';
+      default: return 'En attente';
     }
   }
 

@@ -88,11 +88,28 @@
               </td>
 
               <td>
-                <!-- TODO: Future — Hangfire job will poll Gmail for replies and update this field -->
-                <span class="response-placeholder">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  En attente
-                </span>
+                @if (row.candidature.hasResponse) {
+                  <div class="response-info">
+                    <span class="status-badge" [class]="getCandidatureStatusClass(row.candidature.responseStatus)">
+                      {{ getResponseLabel(row.candidature.responseStatus) }}
+                    </span>
+                    @if (row.candidature.responseSummary) {
+                      <p class="response-summary" [title]="row.candidature.responseSummary">
+                        {{ row.candidature.responseSummary }}
+                      </p>
+                    }
+                    @if (row.candidature.recommendedAction) {
+                      <p class="recommended-action">
+                        <strong>Action :</strong> {{ row.candidature.recommendedAction }}
+                      </p>
+                    }
+                  </div>
+                } @else {
+                  <span class="response-placeholder">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    En attente
+                  </span>
+                }
               </td>
 
               <td class="date-cell">{{ formatDate(row.candidature.dateCreation) }}</td>

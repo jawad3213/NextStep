@@ -72,3 +72,35 @@ class GenerateFollowUpEmailRequest(BaseModel):
     job_offer: JobOfferInput
     previous_email: PreviousEmailInput
     options: FollowUpOptions = Field(default_factory=FollowUpOptions)
+
+
+# ── Response classification models ────────────────────────────────────────────────────
+
+class ClassifyResponseRequest(BaseModel):
+    """Request payload for POST /email/classify-response."""
+    candidature_id: str
+    candidate_name: Optional[str] = None
+    job_title: Optional[str] = None
+    company_name: Optional[str] = None
+    previous_email_subject: Optional[str] = None
+    previous_email_body: Optional[str] = None
+    reply_from: Optional[str] = None
+    reply_date_utc: Optional[str] = None
+    reply_subject: Optional[str] = None
+    reply_snippet: str
+    language: str = "fr"
+
+
+class ClassifyResponseResult(BaseModel):
+    """
+    Result of LLM-based recruiter reply classification.
+
+    response_type must be one of:
+      ENTRETIEN_PROPOSE | INFORMATIONS_DEMANDEES | ACCEPTE | REFUSE |
+      REPONSE_AUTOMATIQUE | REPONSE_GENERALE | INCONNU
+    """
+    response_type: str
+    confidence: float
+    summary: str
+    recommended_action: str
+    should_generate_reply_draft: bool = False

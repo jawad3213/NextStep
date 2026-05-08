@@ -14,4 +14,12 @@ public class CandidatureDto
     public bool HasResponse { get; set; }
     public DateTime? LastCheckedAtUtc { get; set; }
     public DateTime? LastResponseAtUtc { get; set; }
+
+    // ── AI Classification ─────────────────────────────────────────────────────────
+    public string? LastResponseFrom { get; set; }
+    public string? LastResponseSnippet { get; set; }
+    public string? ResponseSummary { get; set; }
+    public string? RecommendedAction { get; set; }
+    public double? ResponseConfidence { get; set; }
+    public DateTime? ResponseClassifiedAtUtc { get; set; }
 }

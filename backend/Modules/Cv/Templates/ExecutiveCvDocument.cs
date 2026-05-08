@@ -95,7 +95,7 @@ public class ExecutiveCvDocument : IDocument
         ContactRow(col, SvgLocation, _data.Candidate.Location);
     }
 
-    private static void ContactRow(ColumnDescriptor col, string svg, string? value)
+    private void ContactRow(ColumnDescriptor col, string svg, string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
         col.Item().PaddingBottom(9).Row(row =>
@@ -147,7 +147,7 @@ public class ExecutiveCvDocument : IDocument
                 {
                     ec.Item().Text(edu.Institution).FontSize(9f).Bold().FontColor(TextDark);
                     ec.Item().Text(edu.Degree).FontSize(8.5f).Italic().FontColor(TextBody);
-                    ec.Item().Text($"{edu.StartDate:MMM yyyy} - {(edu.EndDate.HasValue ? edu.EndDate.Value.ToString("MMM yyyy") : "Present")}").FontSize(8f).FontColor(TextMuted);
+                    ec.Item().Text(edu.Year).FontSize(8f).FontColor(TextMuted);
                 });
             }
         });
@@ -169,12 +169,12 @@ public class ExecutiveCvDocument : IDocument
             {
                 c.Item().Row(r =>
                 {
-                    r.RelativeItem().Text(exp.Position).FontSize(10f).Bold().FontColor(TextDark);
-                    r.AutoItem().Text($"{exp.StartDate:MMM yyyy} - {(exp.EndDate.HasValue ? exp.EndDate.Value.ToString("MMM yyyy") : "Present")}").FontSize(8.5f).FontColor(TextMuted);
+                    r.RelativeItem().Text(exp.Role).FontSize(10f).Bold().FontColor(TextDark);
+                    r.AutoItem().Text($"{exp.Start} - {exp.End ?? "Present"}").FontSize(8.5f).FontColor(TextMuted);
                 });
                 c.Item().Text(exp.Company).FontSize(9.5f).SemiBold().FontColor(OrangeDark);
-                if (!string.IsNullOrWhiteSpace(exp.Description))
-                    c.Item().PaddingTop(4).Text(exp.Description).FontSize(9f).FontColor(TextBody).LineHeight(1.5f);
+                if (exp.Bullets != null && exp.Bullets.Any())
+                    c.Item().PaddingTop(4).Text(string.Join("\n", exp.Bullets)).FontSize(9f).FontColor(TextBody).LineHeight(1.5f);
             });
         }
 

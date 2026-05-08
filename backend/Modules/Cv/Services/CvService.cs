@@ -9,6 +9,7 @@ using NextStep.Modules.Cv.Templates;
 using NextStep.Modules.Profile.Services;
 using NextStep.Shared.Storage;
 using NextStep.Shared.Http;
+using NextStep.Modules.Offer.Services;
 
 namespace NextStep.Modules.Cv.Services;
 

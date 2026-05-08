@@ -134,7 +134,7 @@ public class ClassicCvDocument : IDocument
         column.Item().PaddingTop(10);
     }
 
-    private static void ComposeSectionTitle(ColumnDescriptor column, string title)
+    private void ComposeSectionTitle(ColumnDescriptor column, string title)
     {
         column.Item().PaddingBottom(8).Text(title.ToUpper())
             .FontFamily(BodyFont).FontSize(13).Bold().FontColor(TitleColor);
@@ -145,7 +145,7 @@ public class ClassicCvDocument : IDocument
         column.Item().PaddingVertical(8).LineHorizontal(1).LineColor(DividerColor);
     }
 
-    private static void ComposeExperience(ColumnDescriptor column, CvExperience exp)
+    private void ComposeExperience(ColumnDescriptor column, CvExperience exp)
     {
         var dateStr = exp.End is not null ? $"{exp.Start} – {exp.End}" : $"{exp.Start} – Present";
         column.Item().PaddingBottom(12).Column(item =>
@@ -169,7 +169,7 @@ public class ClassicCvDocument : IDocument
         });
     }
 
-    private static void ComposeProject(ColumnDescriptor column, CvProject prj)
+    private void ComposeProject(ColumnDescriptor column, CvProject prj)
     {
         column.Item().PaddingBottom(10).Column(item =>
         {
@@ -189,7 +189,7 @@ public class ClassicCvDocument : IDocument
         });
     }
 
-    private static void ComposeActivity(ColumnDescriptor column, CvActivity act)
+    private void ComposeActivity(ColumnDescriptor column, CvActivity act)
     {
         column.Item().PaddingBottom(8).Column(item =>
         {
@@ -204,7 +204,7 @@ public class ClassicCvDocument : IDocument
         });
     }
 
-    private static void ComposeEducation(ColumnDescriptor column, CvEducation edu)
+    private void ComposeEducation(ColumnDescriptor column, CvEducation edu)
     {
         column.Item().PaddingBottom(10).Column(item =>
         {

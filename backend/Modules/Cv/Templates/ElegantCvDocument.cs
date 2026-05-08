@@ -102,7 +102,7 @@ public class ElegantCvDocument : IDocument
         });
     }
 
-    private static void SidebarHeading(ColumnDescriptor col, string title)
+    private void SidebarHeading(ColumnDescriptor col, string title)
     {
         col.Item().PaddingTop(SectionGap).Column(h =>
         {
@@ -120,7 +120,7 @@ public class ElegantCvDocument : IDocument
         SidebarContactRow(col, "⌂", _data.Candidate.Location);
     }
 
-    private static void SidebarContactRow(ColumnDescriptor col, string icon, string? value)
+    private void SidebarContactRow(ColumnDescriptor col, string icon, string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
         col.Item().PaddingBottom(6).Row(row =>
@@ -172,7 +172,7 @@ public class ElegantCvDocument : IDocument
             });
     }
 
-    private static void ContentHeading(ColumnDescriptor col, string title)
+    private void ContentHeading(ColumnDescriptor col, string title)
     {
         col.Item().PaddingTop(SectionGap).Column(h =>
         {
@@ -258,7 +258,7 @@ public class ElegantCvDocument : IDocument
             });
     }
 
-    private static void ArrowBullet(ColumnDescriptor col, string text)
+    private void ArrowBullet(ColumnDescriptor col, string text)
     {
         col.Item().PaddingBottom(3).Row(row =>
         {

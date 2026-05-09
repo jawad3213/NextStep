@@ -18,7 +18,7 @@ export class MainLayoutComponent {
   private readonly authService = inject(AuthService);
 
   isSidebarOpen = signal(false);
-  isSidebarCollapsed = signal(false);
+  isSidebarCollapsed = signal(true);
   
   profileService = inject(ProfileService);
   profile = this.profileService.profile;

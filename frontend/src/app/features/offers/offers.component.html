@@ -1,0 +1,315 @@
+<div class="offers-feature-wrapper">
+  
+  @switch (currentStage()) {
+    
+    <!-- STAGE 1: MAIN DASHBOARD LIST & PIPELINES -->
+    @case ('dashboard') {
+      <div class="dashboard-stage-view">
+        <!-- GLOBAL ACTION HEADER -->
+        <header class="dashboard-header">
+          <div class="header-left">
+            <h1 class="heading-1">Offres d'Emploi</h1>
+            <p class="body-default text-secondary">Suivez vos candidatures et optimisez vos CVs par rapport aux profils d'offres.</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn-secondary" [class.syncing]="isSyncing()" (click)="triggerGlobalSync()">
+              <svg viewBox="0 0 24 24" class="icon-sm"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>{{ isSyncing() ? 'Synchronisation...' : 'Synchroniser' }}</span>
+            </button>
+            <button class="btn-primary" (click)="goToStage('new-offer')">
+              <span class="btn-plus-icon">+</span>
+              <span>Nouvelle Offre</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- KPI SUMMARY METRICS -->
+        <section class="kpi-metrics-grid">
+          <div class="kpi-card">
+            <span class="kpi-title overline text-uppercase text-secondary">TOTAL OFFRES</span>
+            <div class="kpi-value-row">
+              <span class="kpi-number">{{ offersService.offers().length }}</span>
+              <span class="kpi-trend up">↗ +2 this week</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title overline text-uppercase text-secondary">SCORE MOYEN ATS</span>
+            <div class="kpi-value-row">
+              <span class="kpi-number">82%</span>
+              <span class="kpi-trend up">↗ +4.5%</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title overline text-uppercase text-secondary">PIPELINES EN COURS</span>
+            <div class="kpi-value-row">
+              <span class="kpi-number">{{ offersService.pipelineRunning() ? 1 : 0 }}</span>
+              <span class="kpi-trend neutral">● Active</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEARCH & FILTER PANELS -->
+        <section class="filters-search-panel">
+          <div class="search-input-container">
+            <svg viewBox="0 0 24 24" class="search-lens-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Rechercher par titre, entreprise ou tags..." [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)">
+          </div>
+          <div class="filters-actions-row">
+            <select [ngModel]="filterContract()" (ngModelChange)="filterContract.set($event)">
+              <option value="">Tous les contrats</option>
+              <option value="CDI">CDI</option>
+              <option value="CDD">CDD</option>
+              <option value="Freelance">Freelance</option>
+              <option value="Stage">Stage</option>
+            </select>
+            <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event)">
+              <option value="">Tous les statuts</option>
+              <option value="analysee">Analysé</option>
+              <option value="non_traitee">En attente</option>
+              <option value="analyse_en_cours">Analyse en cours</option>
+            </select>
+            <div class="view-mode-pill">
+              <button [class.active]="viewMode() === 'list'" (click)="setViewMode('list')" aria-label="List view">
+                <svg viewBox="0 0 24 24" class="icon-sm"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button [class.active]="viewMode() === 'grid'" (click)="setViewMode('grid')" aria-label="Grid view">
+                <svg viewBox="0 0 24 24" class="icon-sm"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- EMPTY STATE FALLBACK -->
+        @if (filteredOffers().length === 0) {
+          <div class="empty-state-banner">
+            <svg viewBox="0 0 24 24" class="empty-icon"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <h3 class="heading-4 text-dark">Aucune offre trouvée</h3>
+            <p class="body-default text-secondary">Ajustez vos filtres de recherche ou cliquez sur "Nouvelle Offre" pour en ajouter une.</p>
+          </div>
+        } @else {
+          <!-- OPPORTUNITIES LIST / GRID -->
+          <div class="opportunities-layout" [class.grid-layout]="viewMode() === 'grid'">
+            @for (offer of filteredOffers(); track offer.id) {
+              <div class="opportunity-card" [class.running]="offersService.runningOfferId() === offer.id" (click)="selectOffer(offer.id)">
+                
+                <div class="card-logo-column">
+                  <div class="company-bubble" [style.background]="getBubbleGradient(offer.company)">
+                    {{ getInitials(offer.company) }}
+                  </div>
+                </div>
+
+                <div class="card-details-column">
+                  <div class="card-top-row">
+                    <h3 class="offer-title heading-4">{{ offer.title }}</h3>
+                    <span class="badge-contract-type">{{ offer.contractType }}</span>
+                  </div>
+                  <p class="company-subline-row">
+                    <span class="company-name font-bold">{{ offer.company }}</span>
+                    <span class="bullet-spacer">•</span>
+                    <span class="location-name text-secondary">{{ offer.location }}</span>
+                  </p>
+
+                  <div class="tags-container-row">
+                    @for (tag of offer.tags; track tag) {
+                      <span class="tag-badge-pill">{{ tag }}</span>
+                    }
+                  </div>
+
+                  <!-- ACTIVE PIPELINE TELEMETRY LOADER -->
+                  @if (offersService.runningOfferId() === offer.id) {
+                    <div class="pipeline-loader-wrapper" (click)="$event.stopPropagation()">
+                      <div class="loading-bar-outer">
+                        <div class="loading-bar-inner animate-loading" [style.width.%]="pipelineProgress()"></div>
+                      </div>
+                      <div class="pipeline-steps-status">
+                        <span class="active-step font-bold">Node: {{ pipelineStep() }}</span>
+                        <span class="active-pct">{{ pipelineProgress() }}%</span>
+                      </div>
+                      
+                      <!-- LOGS STREAM TERMINAL CONTAINER -->
+                      <div class="logs-console-stream">
+                        <div class="console-header">
+                          <span class="console-bullet">●</span>
+                          <span class="console-title">langgraph_agent_telemetry.log</span>
+                        </div>
+                        <div class="console-body">
+                          @for (log of pipelineLogs(); track log) {
+                            <div class="log-line">
+                              <span class="log-timestamp">[{{ getFormattedTime() }}]</span>
+                              <span class="log-text">{{ log }}</span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="card-actions-column">
+                  @if (offer.status === 'analysee' || offer.status === 'cv_genere') {
+                    <div class="score-pill green">
+                      <span class="score-lbl">MATCH</span>
+                      <span class="score-num font-bold">{{ offer.matchingScore }}%</span>
+                    </div>
+                    <button class="btn-cv-generate" (click)="generateCvDirect($event, offer)">
+                      Générer CV
+                    </button>
+                  } @else if (offer.status === 'non_traitee') {
+                    <button class="btn-pipeline-trigger" (click)="$event.stopPropagation(); runPipeline(offer.id)">
+                      Lancer l'Analyse
+                    </button>
+                  } @else {
+                    <span class="running-indicator-badge">Analyse...</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- STAGE 1.5: DEDICATED NEW OFFER PAGE -->
+    @case ('new-offer') {
+      <div class="new-offer-stage-view">
+        <header class="new-offer-header">
+          <button class="btn-back" (click)="goToStage('dashboard')">
+            <svg viewBox="0 0 24 24" class="icon-md"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Retour aux Offres</span>
+          </button>
+          <h1 class="heading-1">Ajouter une nouvelle offre</h1>
+          <p class="body-default text-secondary">Entrez les détails de la fiche de poste pour alimenter l'analyseur sémantique d'IA.</p>
+        </header>
+
+        <div class="new-offer-form-card">
+          <!-- BASIC INFO ROW -->
+          <div class="form-fields-grid">
+            <div class="form-field">
+              <label>Titre du poste</label>
+              <input type="text" placeholder="ex: Développeur Full Stack Python / React" [ngModel]="newTitle()" (ngModelChange)="newTitle.set($event)">
+            </div>
+            <div class="form-field">
+              <label>Entreprise</label>
+              <input type="text" placeholder="ex: Smart Automation Technologie" [ngModel]="newCompany()" (ngModelChange)="newCompany.set($event)">
+            </div>
+            <div class="form-field-row">
+              <div class="form-field">
+                <label>Localisation</label>
+                <input type="text" placeholder="ex: Salé, Maroc" [ngModel]="newLocation()" (ngModelChange)="newLocation.set($event)">
+              </div>
+              <div class="form-field">
+                <label>Type de contrat</label>
+                <select [ngModel]="newContractType()" (ngModelChange)="newContractType.set($event)">
+                  <option value="CDI">CDI</option>
+                  <option value="CDD">CDD</option>
+                  <option value="Freelance">Freelance</option>
+                  <option value="Stage">Stage</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB CONTROLLERS -->
+          <div class="form-tab-headers">
+            <button [class.active]="activeFormTab() === 'paste'" (click)="setFormTab('paste')">
+              <svg viewBox="0 0 24 24" class="icon-sm"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+              <span>Copier-coller le texte</span>
+            </button>
+            <button [class.active]="activeFormTab() === 'url'" (click)="setFormTab('url')">
+              <svg viewBox="0 0 24 24" class="icon-sm"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span>Lien URL d'offre</span>
+            </button>
+            <button [class.active]="activeFormTab() === 'import'" (click)="setFormTab('import')">
+              <svg viewBox="0 0 24 24" class="icon-sm"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Importer un fichier (PDF/Word)</span>
+            </button>
+          </div>
+
+          <!-- TAB BODY CONTEXT -->
+          <div class="form-tab-body">
+            @switch (activeFormTab()) {
+              @case ('paste') {
+                <div class="paste-tab-content">
+                  <div class="textarea-header-row">
+                    <span class="body-small text-secondary font-bold">Description de l'offre (Min. 10 mots)</span>
+                    <span class="quality-label-badge" [class]="getQualityClass()">
+                      Qualité: {{ getQualityText() }} ({{ wordCount() }} mots)
+                    </span>
+                  </div>
+                  <textarea rows="8" placeholder="Collez l'intégralité de la fiche de poste ici. Plus elle est complète, plus la pertinence de l'analyse sera excellente..." [ngModel]="newRawText()" (ngModelChange)="newRawText.set($event)"></textarea>
+                </div>
+              }
+              @case ('url') {
+                <div class="url-tab-content">
+                  <div class="form-field">
+                    <label>Lien direct de l'offre (URL)</label>
+                    <input type="text" placeholder="https://linkedin.com/jobs/view/..." [ngModel]="newUrl()" (ngModelChange)="newUrl.set($event)">
+                  </div>
+                  <p class="body-small text-secondary inline-help-box">
+                    💡 Notre agent de scraping automatique récupérera directement le texte de la page pour lancer le matching sémantique.
+                  </p>
+                </div>
+              }
+              @case ('import') {
+                <div class="import-tab-content">
+                  <div class="drag-drop-zone"
+                       [class.dragging]="isDragging()"
+                       (dragover)="onDragOver($event)"
+                       (dragleave)="onDragLeave($event)"
+                       (drop)="onDrop($event)">
+                    
+                    <svg viewBox="0 0 24 24" class="drag-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    
+                    @if (selectedFileName()) {
+                      <div class="selected-file-badge">
+                        <span class="file-name font-bold">{{ selectedFileName() }}</span>
+                        <button class="btn-clear-file" (click)="clearSelectedFile()">✖</button>
+                      </div>
+                    } @else {
+                      <p class="drag-instructions body-default">
+                        Glissez-déposez la fiche de poste ou <label class="file-trigger">parcourez vos fichiers<input type="file" class="hidden-input" (change)="onFileSelected($event)"></label>
+                      </p>
+                      <p class="drag-subtext body-small">PDF, DOCX, TXT supportés (Max. 5MB)</p>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          </div>
+
+          <!-- FORM FOOTER BUTTONS -->
+          <footer class="form-action-footer">
+            <button class="btn-secondary" (click)="goToStage('dashboard')">Annuler</button>
+            <button class="btn-primary" [disabled]="!isFormValid()" (click)="submitNewOffer()">
+              Lancer l'Analyse sémantique d'IA
+            </button>
+          </footer>
+        </div>
+      </div>
+    }
+
+    <!-- STAGE 2: DETAILED MATCH ANALYSIS REPORT -->
+    @case ('analysis') {
+      <app-analysis-report 
+        (back)="goToStage('dashboard')" 
+        (generateCv)="goToStage('templates')">
+      </app-analysis-report>
+    }
+
+    <!-- STAGE 3: CHOOSE ATS TEMPLATE -->
+    @case ('templates') {
+      <app-template-selector 
+        (back)="goToStage('analysis')" 
+        (selectTemplate)="onTemplateSelected($event)">
+      </app-template-selector>
+    }
+
+    <!-- STAGE 4: SYNC SPLIT LIVE EDITOR -->
+    @case ('editor') {
+      <app-resume-editor 
+        [templateId]="selectedTemplate()" 
+        (back)="goToStage('templates')">
+      </app-resume-editor>
+    }
+  }
+</div>

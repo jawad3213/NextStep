@@ -27,6 +27,7 @@ class PipelineResult(BaseModel):
     analyzed_offer: Optional[Dict[str, Any]] = None
     profile_data: Optional[Dict[str, Any]] = None
     skill_gap: Optional[Dict[str, Any]] = None
+    cv_data: Optional[Dict[str, Any]] = None
     errors: list = []
 
 from app.domain.pipeline.workflow import get_offer_pipeline
@@ -34,8 +35,8 @@ from app.domain.pipeline.workflow import get_offer_pipeline
 @router.post(
     "/run-pipeline",
     response_model=PipelineResult,
-    summary="Pipeline complet — Agents 1-3",
-    description="Orchestre l'analyse de l'offre, la récupération du profil et le scoring/skill gap via LangGraph."
+    summary="Pipeline complet — Agents 1-5",
+    description="Orchestre l'analyse de l'offre, le matching, l'optimisation du CV et le formatage pour QuestPDF."
 )
 async def run_pipeline(payload: OfferInput) -> PipelineResult:
     """
@@ -61,6 +62,7 @@ async def run_pipeline(payload: OfferInput) -> PipelineResult:
             analyzed_offer=final_state.get("analyzed_offer"),
             profile_data=final_state.get("profile_data"),
             skill_gap=final_state.get("match_result"),
+            cv_data=final_state.get("cv_engine_result"),
             errors=final_state.get("errors", [])
         )
     except Exception as e:

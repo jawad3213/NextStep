@@ -13,6 +13,8 @@ from app.domain.pipeline.state import PipelineState
 from app.domain.offer_analyzer.service import offer_analyzer_service
 from app.domain.profile_retriever.service import profile_retriever_service
 from app.domain.skill_gap.service import skill_gap_service
+from app.domain.cv_optimizer.service import cv_optimizer_service
+from app.domain.cv_engine.service import cv_engine_service
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,40 @@ async def skill_gap_node(state: PipelineState) -> dict:
         "messages": [AIMessage(content="[Pipeline] Skill Gap analysé via Service", name="orchestrator")],
     }
 
+async def cv_optimizer_node(state: PipelineState) -> dict:
+    """Nœud appelant le service d'optimisation de CV."""
+    logger.info("Pipeline -- Calling CvOptimizerService")
+    
+    if not state.get("profile_data") or not state.get("analyzed_offer"):
+        return {"errors": ["Données manquantes pour l'optimisation de CV"]}
+        
+    result = await cv_optimizer_service.optimize_cv(
+        profile_data=state["profile_data"],
+        analyzed_offer=state["analyzed_offer"]
+    )
+    
+    return {
+        "cv_optimized_content": result.model_dump() if result else None,
+        "messages": [AIMessage(content="[Pipeline] CV optimisé via Service", name="orchestrator")],
+    }
+
+async def cv_engine_node(state: PipelineState) -> dict:
+    """Nœud appelant le service de formatage CV Engine."""
+    logger.info("Pipeline -- Calling CvEngineService")
+    
+    if not state.get("profile_data") or not state.get("cv_optimized_content"):
+         return {"errors": ["Données manquantes pour le formatage du CV"]}
+         
+    result = await cv_engine_service.format_for_questpdf(
+        profile_data=state["profile_data"],
+        optimized_data=state["cv_optimized_content"]
+    )
+    
+    return {
+        "cv_engine_result": result,
+        "messages": [AIMessage(content="[Pipeline] CV finalisé via Service", name="orchestrator")],
+    }
+
 # ─── CONSTRUCTION DU GRAPHE ───────────────────────────────────
 
 def build_offer_pipeline() -> StateGraph:
@@ -69,12 +105,16 @@ def build_offer_pipeline() -> StateGraph:
     workflow.add_node("offer_analyzer_node",    offer_analyzer_node)
     workflow.add_node("profile_retriever_node", profile_retriever_node)
     workflow.add_node("skill_gap_node",         skill_gap_node)
+    workflow.add_node("cv_optimizer_node",      cv_optimizer_node)
+    workflow.add_node("cv_engine_node",         cv_engine_node)
 
     workflow.set_entry_point("offer_analyzer_node")
 
     workflow.add_edge("offer_analyzer_node",    "profile_retriever_node")
     workflow.add_edge("profile_retriever_node", "skill_gap_node")
-    workflow.add_edge("skill_gap_node",         END)
+    workflow.add_edge("skill_gap_node",         "cv_optimizer_node")
+    workflow.add_edge("cv_optimizer_node",      "cv_engine_node")
+    workflow.add_edge("cv_engine_node",         END)
 
     return workflow.compile()
 

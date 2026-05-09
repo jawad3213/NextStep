@@ -22,6 +22,10 @@ class PipelineState(TypedDict, total=False):
     
     match_result: Optional[Dict[str, Any]]
     
+    # -- Sorties Finales (CV) --
+    cv_optimized_content: Optional[Dict[str, Any]]
+    cv_engine_result: Optional[Dict[str, Any]]
+
     # -- Métadonnées --
     messages: Annotated[list[BaseMessage], add_messages]
     errors: Annotated[list[str], operator.add]

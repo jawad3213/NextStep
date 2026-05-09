@@ -63,7 +63,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             # ── Profil de base ──────────────────────────────
             row = (await db.execute(
                 text("""
-                    SELECT nom, prenom,
+                    SELECT nom, prenom, email,
                            id_utilisateur AS profil_id,
                            titre_poste    AS titre, 
                            resume_professionnel AS resume, 
@@ -78,6 +78,8 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             if not row:
                 logger.warning("[Tool:db] Profil introuvable pour user_id=%s", user_id)
                 return {"user_id": user_id, "competences": [], "experiences": []}
+
+
 
             pid = row["profil_id"]
 
@@ -163,6 +165,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             "user_id": user_id,
             "nom":       row["nom"],
             "prenom":    row["prenom"],
+            "email":     row["email"],
             "titre":     row["titre"],
             "resume":    row["resume"],
             "telephone": row["telephone"],

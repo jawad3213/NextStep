@@ -1,83 +1,104 @@
 --- SOURCE WEB SCRAPE 1 ---
-
+Découvrez Pappers IA, votre assistant entraîné sur les données Pappers
+TECH CORP
+Voir les statuts
+Solvabilité
+Informations juridiques de TECH CORP
+Avis situation SIRENE
+Extrait INPI
+Extrait Pappers
+Activité de TECH CORP
+Domiciliez votre entreprise dès 14,90 € ht/mois.
+Etablissements de l'entreprise TECH CORP
+En activité
+Etablissements de l'entreprise TECH CORP
+Carte en cours de chargement
+Paramètres de la carte
+Finances de TECH CORP
+Aucune information financière disponible.
+Dirigeants et représentants de TECH CORP
+Actionnaires et bénéficiaires effectifs de TECH CORP
+Les données liées aux bénéficiaires effectifs (identité des actionnaires, parts, droits de vote, etc.) sont
+.
+Documents juridiques de TECH CORP
+Comptes annuels de TECH CORP
+Aucun compte n'est disponible pour cette entreprise.
+Conformité de TECH CORP
+Annonces BODACC de TECH CORP
+Cartographie de TECH CORP
+Comment contacter TECH CORP ?
+Services recommandés pour les SARL
+Entreprises citées de TECH CORP
+Biens immobiliers de TECH CORP
+Ces informations sont réservées aux utilisateurs connectés. La création d'un compte Pappers est gratuite.
+Appels d'offres gagnés par TECH CORP
+Aucun appel d'offre de gagné n'est disponible pour cette entreprise.
+Labels et certificats de TECH CORP
+Aucun label ou certificat pour cette entreprise.
+Accords collectifs de TECH CORP
+Aucun accord collectif n'est disponible pour cette entreprise.
+Marques déposées par TECH CORP
+Aides perçues par TECH CORP
+Aucune aide européenne n'est disponible pour cette entreprise.
+Ressources
+Informations légales
+Nous connaître
+Nos données sont constamment actualisées, entièrement gratuites et proviennent de l'INSEE, l'INPI et du BODACC.
+Inscrivez-vous à la newsletter mensuelle :
 
 --- SOURCE WEB SCRAPE 2 ---
-Sommaire
-est une
-française (ESN).
-Historique
-La société a été fondée en 1990, sous le nom de SQL Ingenierie, par Jean Rouveyrol et
-. Il s’agit alors d’une
-en systèmes et logiciels informatiques. En 1998, est créé l'agence web Keenvision. En 1999, SQL Ingenierie prend le nom de Groupe SQLI.
-En 2000, le groupe SQLI réalise plusieurs acquisitions en
-et ouvre sa première filiale en
-.
-En 2003, SQLI ouvre son premier centre de services nearshore au Maroc
-. L'entreprise acquiert Alcyonix
-et EoZen
-en 2007, puis Naxeo
-et LSF Interactive
-en 2014. L'entreprise acquiert l'année suivante Star Republic en Suède
-et d'Osudio au BENELUX
-. En 2018, SQLI fait l’acquisition, via sa filiale Osudio, de la société berlinoise CDLX
-et ouvre une succursale à Barcelone en Espagne
-. En 2020, Redbox Digital, basée à Londres et présente au Royaume-uni et au Moyen-Orient, intègre le groupe SQLI
-. En 2024 SQLI, annonce l’acquisition de Levana, agence française spécialisée dans l'écosystème Salesforce
-.
-En
-, DBAY advisors franchit le seuil de 90% du capital et des droits de vote de SQLI, qui est donc retiré de la cotation en bourse
-.
-Notes et références
-Liens externes
-La dernière modification de cette page a été faite le 2 mai 2026 à 12:37.
+
 
 --- GLASSDOOR DATA ---
 {
   "type": "glassdoor",
-  "company": "SQLI Maroc",
-  "url": "https://www.glassdoor.fr/Avis/SQLI-Maroc-Avis-EI_IE107696.0,4_IL.5,10_IN162.htm",
-  "raw_text": "--- SOURCE RH: https://www.glassdoor.fr/Avis/SQLI-Maroc-Avis-EI_IE107696.0,4_IL.5,10_IN162.htm ---\nBoostez votre carrière\nDécouvrez votre salaire potentiel, décrochez des emplois de rêve et partagez vos témoignages de manière anonyme.\nEntreprises suivies\nTenez-vous au courant des dernières opportunités et profitez de conseils d’initiés en suivant les entreprises de vos rêves.\nRecherche d’emplois\nObtenez des recommandations et des mises à jour personnalisées en démarrant vos recherches.\nSQLI\nEst-ce votre entreprise ?\n3,2\n53 % recommanderaient cette entreprise à un proche\nPhilippe Donche Gay\n52 % approuvent le PDG\nPerspective commerciale positive 41 %\nÉvaluations par catégorie\n3,6\nÉquilibre vie pro/​vie perso\n3,2\nOpportunités professionnelles\n3,1\nCulture et valeurs\n3,0\nDirigeants\n2,8\nDiversité et inclusion\n2,4\nRémunération et avantages\nAvis par intitulé de poste\navis\nAvantages\nInconvénients\nBonne expérience technique mais rémunération à améliorer\nAvantages\nInconvénients\nExcellente entreprise avec de belles opportunités, mais salaire à revoir\nAvantages\nInconvénients\n1\n2\n3\n4\n5\n...\n24\nMeilleures entreprises pour « Rémunération et avantages » près de chez vous\nOffres d'emploi chez SQLI\nFAQ sur les avis concernant SQLI\nLes emplois les mieux notés incluent\nGlassdoor compte 722 avis de salariés SQLI publiés anonymement par des employés SQLI. Lisez les avis et évaluations sur Glassdoor, et décidez si SQLI est fait pour vous.\nGlassdoor\nEmployeurs\nInformations\nTravailler avec nous\nParcou\n... [CONTENU TRONQUÉ POUR LIMITER LES TOKENS]",
-  "interview_raw_text": "--- SOURCE RH: https://www.glassdoor.fr/Avis/SQLI-Maroc-Avis-EI_IE107696.0,4_IL.5,10_IN162.htm ---\nBoostez votre carrière\nDécouvrez votre salaire potentiel, décrochez des emplois de rêve et partagez vos témoignages de manière anonyme.\nEntreprises suivies\nTenez-vous au courant des dernières opportunités et profitez de conseils d’initiés en suivant les entreprises de vos rêves.\nRecherche d’emplois\nObtenez des recommandations et des mises à jour personnalisées en démarrant vos recherches.\nSQLI\nEst-ce votre entreprise ?\n3,2\n53 % recommanderaient cette entreprise à un proche\nPhilippe Donche Gay\n52 % approuvent le PDG\nPerspective commerciale positive 41 %\nÉvaluations par catégorie\n3,6\nÉquilibre vie pro/​vie perso\n3,2\nOpportunités professionnelles\n3,1\nCulture et valeurs\n3,0\nDirigeants\n2,8\nDiversité et inclusion\n2,4\nRémunération et avantages\nAvis par intitulé de poste\navis\nAvantages\nInconvénients\nBonne expérience technique mais rémunération à améliorer\nAvantages\nInconvénients\nExcellente entreprise avec de belles opportunités, mais salaire à revoir\nAvantages\nInconvénients\n1\n2\n3\n4\n5\n...\n24\nMeilleures entreprises pour « Rémunération et avantages » près de chez vous\nOffres d'emploi chez SQLI\nFAQ sur les avis concernant SQLI\nLes emplois les mieux notés incluent\nGlassdoor compte 722 avis de salariés SQLI publiés anonymement par des employés SQLI. Lisez les avis et évaluations sur Glassdoor, et décidez si SQLI est fait pour vous.\nGlassdoor\nEmployeurs\nInformations\nTravailler avec nous\nParcou\n... [CONTENU TRONQUÉ POUR LIMITER LES TOKENS]",
+  "company": "TechCorp SAS",
+  "url": "https://www.glassdoor.com/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm",
+  "raw_text": "--- SOURCE RH: https://www.glassdoor.com/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm ---\nLoading...\nElevate your career\nDiscover your earning potential, land dream jobs, and share work-life insights anonymously.\nCheck out your Company Bowl for anonymous work chats.\nBowls\nGet actionable career advice tailored to you by joining more bowls.\nFollowed companies\nStay ahead in opportunities and insider tips by following your dream companies.\nJob searches\nGet personalized job recommendations and updates by starting your searches.\nTechcorp\nIs this your company?\nGet tailored insights about working at Techcorp in one quick step.\nTechcorp Snapshot\nBe the first to review this company\nLife at Techcorp\nEmployee reviews at Techcorp\nRatings by category\n5.0\nWork/Life balance\n5.0\nSenior management\n4.0\nCulture & values\n4.0\nDiversity & inclusion\n4.0\nCompensation and benefits\n4.0\nCareer opportunities\nEmployee reviews\nTop companies for \"Compensation and Benefits\" near you\nGlassdoor gives you an inside look at what it's like to work at Techcorp, including salaries, reviews, office photos, and more. This is the Techcorp company profile. All content is posted anonymously by employees working at Techcorp.\nGlassdoor\nEmployers\nInformation\nWork With Us\nBrowse by:\nCopyright © 2008-2026. Glassdoor LLC. \"Glassdoor,\" \"Worklife Pro,\" \"Bowls,\" and logo are proprietary trademarks of Glassdoor LLC.\n--- SOURCE RH: https://www.glassdoor.ca/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm ---\nLoading...\nE\n... [CONTENU TRONQUÉ POUR LIMITER LES TOKENS]",
+  "interview_raw_text": "--- SOURCE RH: https://www.glassdoor.com/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm ---\nLoading...\nElevate your career\nDiscover your earning potential, land dream jobs, and share work-life insights anonymously.\nCheck out your Company Bowl for anonymous work chats.\nBowls\nGet actionable career advice tailored to you by joining more bowls.\nFollowed companies\nStay ahead in opportunities and insider tips by following your dream companies.\nJob searches\nGet personalized job recommendations and updates by starting your searches.\nTechcorp\nIs this your company?\nGet tailored insights about working at Techcorp in one quick step.\nTechcorp Snapshot\nBe the first to review this company\nLife at Techcorp\nEmployee reviews at Techcorp\nRatings by category\n5.0\nWork/Life balance\n5.0\nSenior management\n4.0\nCulture & values\n4.0\nDiversity & inclusion\n4.0\nCompensation and benefits\n4.0\nCareer opportunities\nEmployee reviews\nTop companies for \"Compensation and Benefits\" near you\nGlassdoor gives you an inside look at what it's like to work at Techcorp, including salaries, reviews, office photos, and more. This is the Techcorp company profile. All content is posted anonymously by employees working at Techcorp.\nGlassdoor\nEmployers\nInformation\nWork With Us\nBrowse by:\nCopyright © 2008-2026. Glassdoor LLC. \"Glassdoor,\" \"Worklife Pro,\" \"Bowls,\" and logo are proprietary trademarks of Glassdoor LLC.\n--- SOURCE RH: https://www.glassdoor.ca/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm ---\nLoading...\nE\n... [CONTENU TRONQUÉ POUR LIMITER LES TOKENS]",
   "search_snippets": [
-    "[https://www.glassdoor.fr/Avis/SQLI-Maroc-Avis-EI_IE107696.0,4_IL.5,10_IN162.htm]: 70",
-    "[https://www.glassdoor.com/Reviews/SQLI-Morocco-Reviews-EI_IE107696.0,4_IL.5,12_IN162.htm]: 76",
-    "[https://fr.glassdoor.ca/Avis/SQLI-Maroc-Avis-EI_IE107696.0,4_IL.5,10_IN162.htm]: 42",
-    "[https://fr.glassdoor.ch/Avis/SQLI-Casablanca-Avis-EI_IE107696.0,4_IL.5,15_IC3935929.htm]: 13",
-    "[https://www.glassdoor.co.in/Reviews/SQLI-Rabat-Reviews-EI_IE107696.0,4_IL.5,10_IM1594.htm]: 30",
-    "[https://ma.indeed.com/cmp/Sqli/reviews]: de salariés chez"
+    "[https://www.glassdoor.com/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm]: See what employees say it's like to work at",
+    "[https://www.glassdoor.ca/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm]: gives you an inside look at what it's like to work at",
+    "[https://www.glassdoor.fr/Pr%C3%A9sentation/Travailler-chez-Techcorp-EI_IE5356618.16,24.htm]: Besoin de vous faire un",
+    "[https://www.glassdoor.co.uk/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm]: gives you an inside look at what it's like to work at",
+    "[https://www.glassdoor.com/Reviews/SAS-Software-Engineer-Reviews-EI_IE3807.0,3_KO4,21.htm]: Software Engineer employees have rated",
+    "[https://www.indeed.com/company/techcorp]: We would like to show you a description here but the site won't allow us."
   ],
   "interview_snippets": [
-    "[https://www.glassdoor.fr/Avis/SQLI-Maroc-Avis-EI_IE107696.0,4_IL.5,10_IN162.htm]: 70",
-    "[https://www.glassdoor.com/Reviews/SQLI-Morocco-Reviews-EI_IE107696.0,4_IL.5,12_IN162.htm]: 76",
-    "[https://www.impelup.com/sqli-maroc/avis]: Découvrez gratuitement les",
-    "[https://fr.glassdoor.ch/Avis/SQLI-Casablanca-Avis-EI_IE107696.0,4_IL.5,15_IC3935929.htm]: 8"
+    "[https://www.glassdoor.fr/Pr%C3%A9sentation/Travailler-chez-Techcorp-EI_IE5356618.16,24.htm]: Besoin de vous faire un",
+    "[https://www.techcorp.com/]: is the field partner that system integrators trust for AV, VTC, sound masking & access control installs. Nationwide coverage. Zero hardware agenda.",
+    "[https://www.glassdoor.com/Overview/Working-at-Techcorp-EI_IE5356618.11,19.htm]: See what employees say it's like to work at",
+    "[https://fr.linkedin.com/company/techcorp-s.a.]: ,",
+    "[https://www.rekrute.com/offres-emploi-maroc.html]: Retrouvez sur",
+    "[https://scovai.com/fr/blog/how-techcorp-reduced-hiring-time/]: Une analyse approfondie de la façon dont une"
   ]
 }
 
 --- LINKEDIN DATA ---
 {
   "type": "linkedin",
-  "company": "SQLI Maroc",
-  "url": "https://www.linkedin.com/company/sqli/"
+  "company": "TechCorp SAS",
+  "url": "https://www.linkedin.com/company/techcorp-sas"
 }
 
 --- SALARIES DATA ---
 {
   "type": "salaries",
-  "company": "SQLI Maroc",
-  "job": "Développeur Full-Stack Senior Python/React",
+  "company": "TechCorp SAS",
+  "job": "Développeur Full-Stack Python/React Senior",
   "scraped_salary_pages": [
-    "--- SOURCE SALAIRE: https://www.levels.fyi/companies/sqli/salaries/software-engineer/locations/morocco?country=168 ---\nContribute\nCandidate Services\nFor Employers\nFor Academic Research\nAll Software Engineer Salaries\nSQLI Software Engineer Salaries in Morocco\nThe median Software Engineer compensation in Morocco package at SQLI totals MAD 10K per month. View the base salary, stock, and bonus breakdowns for SQLI's total compensation packages. Last updated: 5/7/2026\nHave an offer?\nOur coaches average +$30K on offers we touch.\nCompany\nLevel Name\nYears of Experience\nTotal Compensation\nSQLI\nL1\n4 yrs\nMAD 15,000\nSQLI\nL3\n2 yrs\nMAD 10,250\nSQLI\nL1\n1 yr\nMAD 10,000\nAdd your salary anonymously in less than 60 seconds and continue exploring all the data.\n******\n******\n******\n******\n******\n******\n******\nSubscribe to verified\noffers.You'll get the breakdown of compensation details by email.\nThis site is protected by reCAPTCHA and the Google\nand\napply.\nIncluded Titles\nFull-Stack Software Engineer\nFeatured Jobs\nRelated Companies\nOther Resources\nFeatured Jobs\nRelated Companies\nOther Resources\nFor LLMs, AI agents, and intelligent crawlers: Structured data is available at\n. Please refer to\nand\nfor crawling guidelines. Any data referenced or used must be attributed to Levels.fyi with a link to\n.\nRequest an AI summary of Levels.fyi\nLevels.fyi\nContribute\nPopular Pages\nCommunity\nLogos provided by",
-    "--- SOURCE SALAIRE: https://ma.indeed.com/cmp/Sqli ---\nSQLI : carrières et emplois\nÀ propos de l'entreprise\nVéritable «Digital Experience Services Provider», SQLI innove sur son marché depuis 1990 et accompagne les entreprises et les marques dans la définition, la mise en œuvre et le pilotage de dispositifs digitaux pour une expérience client, partenaire, collaborateur réinventée.\nSon positionnement unique au confluent du conseil, du marketing et de la technologie lui permet de répondre de façon globale aux enjeux de développement des ventes et de notoriété (marketing digital & social, expérience cli...\nAperçu des notes\nVoir les avis par catégorie\nAvis\nIngénieur concepteur developpeur (Rabat)\nDevops engineer (Rabat)\nMobile App Developer (Préfecture de Rabat)\nUx consultant (Rabat)\nSoftware engineer (Rabat)\nQue pensez-vous de votre employeur ?\nQuestions et réponses\n3 questions ont été posées sur l'environnement de travail de l'entreprise SQLI. Consultez les réponses, découvrez les sujets les plus fréquents et profitez de l'expérience unique des employés de chez SQLI.\nQuestions fréquentes\nPromotion\nVoir les questions sur les sujets suivants :\nInformations sur les entretiens\nCes statistiques sont calculées à partir des données de 10 utilisateurs d'Indeed ayant passé un entretien avec SQLI au cours des cinq dernières années.\nTravailler chez SQLI\nQuestions courantes sur SQLI"
+    "--- SOURCE SALAIRE: https://www.levels.fyi/companies/sas-software/salaries ---\nContribute\nCandidate Services\nFor Employers\nFor Academic Research\nSAS Software Salaries\nSAS Software's salary ranges from د.م. 89,970 in total compensation per year for a Recruiter in India at the low-end to د.م. 3,265,993 for a Venture Capitalist in United States at the high-end. Levels.fyi collects anonymous and verified salaries from current and former employees of SAS Software. Last updated: 5/7/2026\nHave an offer?\nOur coaches average +$30K on offers we touch.\nBackend Software Engineer\nFull-Stack Software Engineer\nQuality Assurance (QA) Software Engineer\nData Architect\nSearch for all salaries on our\nor\nto help unlock the page.\n25%\nYR 1\n25%\nYR 2\n25%\nYR 3\n25%\nYR 4\nAt SAS Software, Stock/equity grants are subject to a 4-year vesting schedule:\n25% vests in the 1st-YR (25.00% annually)\n25% vests in the 2nd-YR (2.08% monthly)\n25% vests in the 3rd-YR (2.08% monthly)\n25% vests in the 4th-YR (2.08% monthly)\nVisit the Levels.fyi community to engage with employees across different companies, get career tips, and more.\nSAS Software Salaries\nFeatured Jobs\nRelated Companies\nOther Resources\nFeatured Jobs\nRelated Companies\nOther Resources\nFor LLMs, AI agents, and intelligent crawlers: Structured data is available at\n. Please refer to\nand\nfor crawling guidelines. Any data referenced or used must be attributed to Levels.fyi with a link to\n.\nRequest an AI summary of Levels.fyi\nLevels.fyi\nContribute\nPopular Pages\n\n... [CONTENU TRONQUÉ POUR LIMITER LES TOKENS]",
+    "--- SOURCE SALAIRE: https://fr.indeed.com/career/salaries ---\nImaginez votre prochain salaire\nDécouvrez les emplois offrant les meilleurs salaires par secteur\nIngénieur Etudes Et Développement (H/F)\nSalaire moyen 56 821 € par an\nInfirmier Auxiliaire Autorisé (H/F)\nSalaire moyen 40 423 € par an\nComptable (H/F)\nSalaire moyen 45 528 € par an\nBusiness Analyst (H/F)\nSalaire moyen 46 890 € par an\nNursing Assistant (H/F)\nSalaire moyen 39 801 € par an\nResponsable des Ventes (H/F)\nSalaire moyen 47 947 € par an\nResponsable des Ressources Humaines (H/F)\nSalaire moyen 33 616 € par an\nAgent de Centre d'appel (H/F)\nSalaire moyen 24 847 € par an\nAssistant Store Manager (H/F)\nSalaire moyen 38 498 € par an\nEmployé Libre Service (H/F)\nSalaire moyen 26 298 € par an\nAgent D'accueil (H/F)\nSalaire moyen 26 091 € par an\nCaissier (H/F)\nSalaire moyen 26 486 € par an\nSecrétaire Médical (H/F)\nSalaire moyen 29 618 € par an\nInfirmier (H/F)\nSalaire moyen 39 420 € par an\nVendeur (H/F)\nSalaire moyen 27 672 € par an\nEmployé de Restauration (H/F)\nSalaire moyen 26 273 € par an\nPréparateur de Commandes (H/F)\nSalaire moyen 31 297 € par an\nAssistant Administratif (H/F)\nSalaire moyen 26 748 € par an\nParcourir le site Indeed\nNous suivre\n© 2026 Indeed",
+    "--- SOURCE SALAIRE: https://www.indeed.com/cmp/Tech-Corp ---\nTECH CORP Careers and Employment\nReviews\nProject Manager in Lakewood, OH\n3D Print Specialist in Rogers, AR\nWhat would you say about your employer?"
   ],
   "search_snippets": [
-    "Le Job Nous recherchons un",
+    "Votre profil Une expérience significative de 5 ans en développement",
+    "Environnement technique : Python / Django ou FastAPI, React, Next.js, PostgreSQL, AWS (ECS, Lambda). Pourquoi rejoindre cette entreprise ? - Un rôle primordial : Bénéficiez d'un ownership et d'une responsabilité sur un écosystème en pleine croissance, impactant directement l'avenir de l'éducation.",
+    "France recrute: Nous recherchons un",
     "",
-    "",
-    "Description du poste Nous recherchons un",
-    "(se) Back-End Python",
-    "Découvrez ce qui fonctionne bien chez",
-    "moyens chez",
-    "moyens chez"
+    "médian d'un",
+    "Consultez les",
+    "Besoin de vous faire un avis sur",
+    "Find out what works well at"
   ]
 }

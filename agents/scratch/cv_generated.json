@@ -1,0 +1,305 @@
+{
+  "candidate": {
+    "name": "Nichan Said",
+    "email": "saidnichan6@gmail.com",
+    "phone": "+212 713 668 431",
+    "location": "Salé",
+    "linkedIn": null,
+    "gitHub": null,
+    "portfolio": null
+  },
+  "summary": "Je suis un développeur Full Stack passionné par la création d'applications web évolutives, l'intégration d'IA et l'automatisation. Je recherche activement un stage PFA pour mettre en pratique mes compétences et acquérir de nouvelles expériences.",
+  "experience": [
+    {
+      "role": "Stage Développeur Full-Stack",
+      "company": "Smart Automation Technologie",
+      "start": "2025-07-01",
+      "end": "2025-08-01",
+      "bullets": [
+        "Contribuer à l'amélioration et à la refonte d'une plateforme web marketplace en utilisant Angular, développer un chatbot IA basé sur l'approche RAG pour automatiser le support client, mettre en place l'automatisation des workflows avec n8n, collaborer au sein d'une équipe Agile avec gestion du versionning via GitLab."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Cycle d'Ingénieur – Génie Informatique",
+      "institution": "Ecole Nationale des Sciences Appliquées (ENSA) Tanger",
+      "year": "2024"
+    },
+    {
+      "degree": "",
+      "institution": "Classes Préparatoires Intégrées",
+      "year": "2022"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Java",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "JavaScript/TypeScript",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "C#",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "C",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "PHP",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Node.js",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": ".NET",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Angular",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Vue.js",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "HTML5",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "PostgreSQL",
+      "level": 3,
+      "isMatched": true
+    },
+    {
+      "name": "MySQL",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Git",
+      "level": 3,
+      "isMatched": true
+    },
+    {
+      "name": "GitHub",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Kubernetes",
+      "level": 3,
+      "isMatched": true
+    },
+    {
+      "name": "Ansible",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Cloud Computing",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "SonarQube",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "RAG (Retrieval-Augmented Generation)",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "n8n",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Cypress",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Jira",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Arabe",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Anglais",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Python",
+      "level": 3,
+      "isMatched": true
+    },
+    {
+      "name": "SQL",
+      "level": 3,
+      "isMatched": true
+    },
+    {
+      "name": "C++",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Spring Boot",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Express.js",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Clean Architecture",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "React.js",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Tailwind CSS",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "CSS3",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "MongoDB",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Oracle DB",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "GitLab",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Docker",
+      "level": 3,
+      "isMatched": true
+    },
+    {
+      "name": "Terraform",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Linux",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Virtual Machines",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Keycloak (Auth)",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "OpenAI API",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Vitest",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Jest",
+      "level": 3,
+      "isMatched": false
+    },
+    {
+      "name": "Agile/Scrum",
+      "level": 3,
+      "isMatched": true
+    },
+    {
+      "name": "Français",
+      "level": 3,
+      "isMatched": false
+    }
+  ],
+  "projects": [
+    {
+      "title": "Roadmap Builder",
+      "description": null,
+      "bullets": [
+        "Plateforme interactive avec la Clean Architecture et une authentification sécurisée (JWT, Supabase), intégration d'un assistant IA (BMO) pour générer des roadmaps visuelles et gérer les nœuds structurés, mise en place du CI/CD (Vercel, Render) et gestion du projet avec la méthodologie Agile (Jira)."
+      ]
+    },
+    {
+      "title": "FlowCom – Chat Temps Réel",
+      "description": null,
+      "bullets": [
+        "Application de messagerie similaire à WhatsApp avec gestion du temps réel et notifications, développement des API Backend et intégration d'une base de données NoSQL pour le stockage sécurisé des messages."
+      ]
+    },
+    {
+      "title": "Soft Skills Evaluation Web App",
+      "description": null,
+      "bullets": [
+        "Application web pour l'évaluation des compétences sociales, assurance qualité (QA) et réalisation des phases de test unitaires et E2E."
+      ]
+    }
+  ],
+  "certifications": [
+    "Oracle Certified Professional : Java SE 17 Developer - Oracle",
+    "Agile Project Management – Google (Coursera) - Google"
+  ],
+  "languages": [
+    "Arabe",
+    "Anglais",
+    "Français"
+  ],
+  "activities": [],
+  "themeColor": null,
+  "fontFamily": null,
+  "atsScore": 69,
+  "matchingScore": 69,
+  "atsCoveragePct": 69.0
+}

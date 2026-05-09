@@ -26,6 +26,8 @@ export class OffersComponent implements OnInit {
   error = signal<string | null>(null);
   successMessage = signal<string | null>(null);
   offers = signal<OfferDto[]>([]);
+  selectedOffer = signal<OfferDto | null>(null);
+  showDetails = signal(false);
 
   ngOnInit() {
     this.load();

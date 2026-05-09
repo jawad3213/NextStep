@@ -1,0 +1,144 @@
+# ============================================================
+# app/domain/email_composer/router.py
+#
+# FastAPI router for the Email Composer domain.
+#
+# Public routes — IDENTICAL to the old email_engine/router.py:
+#   POST /email/generate
+#   POST /email/generate-follow-up
+#   POST /email/classify-response
+#   POST /email/generate-reply
+#
+# The .NET backend must NOT be changed. These URLs are preserved exactly.
+# ============================================================
+import logging
+from fastapi import APIRouter, HTTPException
+
+from app.domain.email_composer.schemas.models import (
+    GenerateEmailRequest,
+    GenerateEmailResponse,
+    GenerateFollowUpEmailRequest,
+    ClassifyResponseRequest,
+    ClassifyResponseResult,
+    GenerateReplyEmailRequest,
+)
+from app.domain.email_composer.service import (
+    generate_email_with_llm,
+    generate_follow_up_email_with_llm,
+    classify_recruiter_response_with_llm,
+    generate_reply_email_with_llm,
+)
+
+logger = logging.getLogger(__name__)
+
+# Prefix and tag preserved from the original email_engine/router.py
+router = APIRouter(prefix="/email", tags=["Email Agent"])
+
+
+@router.post(
+    "/generate",
+    response_model=GenerateEmailResponse,
+    summary="Générer un email de candidature via LLM",
+    description=(
+        "Reçoit les données du candidat et de l'offre depuis le backend .NET. "
+        "Génère un email de candidature professionnel via LLM (LangChain). "
+        "Les champs skill_gap et company_intelligence sont optionnels — "
+        "les appels .NET existants sans ces champs continuent de fonctionner."
+    ),
+)
+async def generate_email(
+    payload: GenerateEmailRequest,
+) -> GenerateEmailResponse:
+    """POST /email/generate — Appelé par le backend .NET."""
+    try:
+        return await generate_email_with_llm(payload)
+    except ValueError as exc:
+        logger.error("EmailComposer — configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+    except Exception as exc:
+        logger.error("EmailComposer — generation failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur génération email : {exc}",
+        ) from exc
+
+
+@router.post(
+    "/generate-follow-up",
+    response_model=GenerateEmailResponse,
+    summary="Générer un email de relance via LLM",
+    description=(
+        "Reçoit les données du candidat, de l'offre et de l'email précédent depuis le backend .NET. "
+        "Génère un email de relance professionnel, poli et concis. "
+        "Ne s'envoie PAS automatiquement — retourne un brouillon à valider par l'utilisateur."
+    ),
+)
+async def generate_follow_up_email(
+    payload: GenerateFollowUpEmailRequest,
+) -> GenerateEmailResponse:
+    """POST /email/generate-follow-up — Appelé par le backend .NET."""
+    try:
+        return await generate_follow_up_email_with_llm(payload)
+    except ValueError as exc:
+        logger.error("EmailComposer — follow-up configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+    except Exception as exc:
+        logger.error("EmailComposer — follow-up generation failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur génération relance : {exc}",
+        ) from exc
+
+
+@router.post(
+    "/classify-response",
+    response_model=ClassifyResponseResult,
+    summary="Classifier la réponse d'un recruteur via LLM",
+    description=(
+        "Reçoit les métadonnées d'une réponse recruteur depuis le backend .NET. "
+        "Classifie la réponse (entretien, refus, automatique, etc.) via le LLM. "
+        "Ne lit pas Gmail directement. Ne génère pas de brouillon. Ne s'envoie pas."
+    ),
+)
+async def classify_response(
+    payload: ClassifyResponseRequest,
+) -> ClassifyResponseResult:
+    """POST /email/classify-response — Appelé par le backend .NET après détection d'une réponse."""
+    try:
+        return await classify_recruiter_response_with_llm(payload)
+    except ValueError as exc:
+        logger.error("EmailComposer — classify configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+    except Exception as exc:
+        logger.error("EmailComposer — classify failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur classification réponse : {exc}",
+        ) from exc
+
+
+@router.post(
+    "/generate-reply",
+    response_model=GenerateEmailResponse,
+    summary="Générer un brouillon de réponse au recruteur via LLM",
+    description=(
+        "Reçoit le contexte de la réponse du recruteur depuis le backend .NET. "
+        "Génère un brouillon de réponse professionnel adapté au type de réponse. "
+        "Ne lit pas Gmail. Ne s'envoie PAS automatiquement. Ne s'approuve PAS automatiquement."
+    ),
+)
+async def generate_reply_email(
+    payload: GenerateReplyEmailRequest,
+) -> GenerateEmailResponse:
+    """POST /email/generate-reply — Appelé par le backend .NET."""
+    try:
+        return await generate_reply_email_with_llm(payload)
+    except ValueError as exc:
+        logger.error("EmailComposer — reply configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+    except Exception as exc:
+        logger.error("EmailComposer — reply generation failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur génération réponse : {exc}",
+        ) from exc

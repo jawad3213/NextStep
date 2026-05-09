@@ -69,9 +69,9 @@ public class OfferService(
         string analyzeJson;
         if (pipelineResult != null)
         {
-            analyzeJson = pipelineResult.RootElement.TryGetProperty("analyzed_offer", out var ao)
-                ? ao.GetRawText()
-                : "{}";
+            // On sauvegarde l'intégralité du résultat du pipeline (Analyse + Match + Company)
+            // pour que les agents suivants (Email) puissent en bénéficier.
+            analyzeJson = pipelineResult.RootElement.GetRawText();
         }
         else
         {

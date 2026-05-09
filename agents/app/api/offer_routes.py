@@ -18,6 +18,10 @@ class OfferInput(BaseModel):
     raw_text: str = Field(..., description="Le texte brut de l'offre d'emploi")
     user_id: int = Field(..., description="ID de l'utilisateur pour récupérer son profil")
     template_id: int = Field(1, description="ID du template CV choisi")
+    generation_options: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Options de génération email : language, tone, include_motivation_letter"
+    )
 
 class MatchRequest(BaseModel):
     user_id: int
@@ -27,15 +31,21 @@ class PipelineResult(BaseModel):
     analyzed_offer: Optional[Dict[str, Any]] = None
     profile_data: Optional[Dict[str, Any]] = None
     skill_gap: Optional[Dict[str, Any]] = None
+    email_draft: Optional[Dict[str, Any]] = None
+    company_intelligence: Optional[Dict[str, Any]] = None
     errors: list = []
+    warnings: list = []
 
 from app.domain.pipeline.workflow import get_offer_pipeline
 
 @router.post(
     "/run-pipeline",
     response_model=PipelineResult,
-    summary="Pipeline complet — Agents 1-3",
-    description="Orchestre l'analyse de l'offre, la récupération du profil et le scoring/skill gap via LangGraph."
+    summary="Pipeline complet — Agents 1-5",
+    description=(
+        "Orchestre l'analyse de l'offre, la récupération du profil, le scoring/skill gap, "
+        "l'intelligence entreprise et la génération du brouillon d'email via LangGraph."
+    ),
 )
 async def run_pipeline(payload: OfferInput) -> PipelineResult:
     """
@@ -45,23 +55,28 @@ async def run_pipeline(payload: OfferInput) -> PipelineResult:
     try:
         pipeline = get_offer_pipeline()
         initial_state = {
-            "raw_offer_text": payload.raw_text,
-            "user_id": payload.user_id,
-            "template_id": payload.template_id,
-            "messages": [],
-            "errors": [],
-            "normalized_offer_skills": [],
-            "normalized_keywords": [],
-            "normalized_profile_skills": []
+            "raw_offer_text":           payload.raw_text,
+            "user_id":                  payload.user_id,
+            "template_id":              payload.template_id,
+            "generation_options":       payload.generation_options,
+            "messages":                 [],
+            "errors":                   [],
+            "warnings":                 [],
+            "normalized_offer_skills":  [],
+            "normalized_keywords":      [],
+            "normalized_profile_skills": [],
         }
-        
+
         final_state = await pipeline.ainvoke(initial_state)
-        
+
         return PipelineResult(
             analyzed_offer=final_state.get("analyzed_offer"),
             profile_data=final_state.get("profile_data"),
             skill_gap=final_state.get("match_result"),
-            errors=final_state.get("errors", [])
+            email_draft=final_state.get("email_draft"),
+            company_intelligence=final_state.get("company_intelligence"),
+            errors=final_state.get("errors", []),
+            warnings=final_state.get("warnings", []),
         )
     except Exception as e:
         logger.error("POST /run-pipeline ❌ — %s", str(e))

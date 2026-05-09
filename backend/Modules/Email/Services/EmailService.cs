@@ -65,6 +65,8 @@ public class EmailService : IEmailService
                 tone                      = dto.Tone,
                 include_motivation_letter = dto.IncludeMotivationLetter,
             },
+            skill_gap            = ctx.SkillGap,
+            company_intelligence = ctx.CompanyIntelligence
         };
 
         _logger.LogInformation(
@@ -628,7 +630,9 @@ public class EmailService : IEmailService
         List<string> PreferredSkills,
         List<string> Missions,
         List<string> Requirements,
-        string? RawText);
+        string? RawText,
+        JsonElement? SkillGap = null,
+        JsonElement? CompanyIntelligence = null);
 
     private async Task<CandidatureContext> BuildCandidatureContextAsync(
         Guid userId,
@@ -684,6 +688,8 @@ public class EmailService : IEmailService
         var preferredSkills = new List<string>();
         var missions        = new List<string>();
         var requirements    = new List<string>();
+        JsonElement? skillGap = null;
+        JsonElement? companyIntelligence = null;
 
         if (offre?.AnalyseJson is not null)
         {
@@ -700,6 +706,10 @@ public class EmailService : IEmailService
                 preferredSkills = ExtractStringList(root, "preferred_skills");
                 missions        = ExtractStringList(root, "missions");
                 requirements    = ExtractStringList(root, "requirements");
+
+                // Extract enrichment if the full pipeline JSON was saved
+                if (root.TryGetProperty("match_result", out var mr)) skillGap = mr;
+                if (root.TryGetProperty("company_intelligence", out var ci)) companyIntelligence = ci;
             }
             catch (Exception ex)
             {
@@ -728,7 +738,9 @@ public class EmailService : IEmailService
             PreferredSkills: preferredSkills,
             Missions:        missions,
             Requirements:    requirements,
-            RawText:         offre?.TexteBrut);
+            RawText:         offre?.TexteBrut,
+            SkillGap:        skillGap,
+            CompanyIntelligence: companyIntelligence);
     }
 
     private static object BuildCandidatePayload(CandidatureContext ctx) => new

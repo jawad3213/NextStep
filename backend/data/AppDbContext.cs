@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Keyword> Keywords => Set<Keyword>();
     public DbSet<CvTemplate> CvTemplates => Set<CvTemplate>();
     public DbSet<CvHistory> CvHistories => Set<CvHistory>();
+    public DbSet<DocumentGenere> DocumentsGeneres => Set<DocumentGenere>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -294,6 +295,53 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(e => new { e.UserId, e.CreatedAt })
                 .HasDatabaseName("ix_cv_history_user_created");
+        });
+
+        // ─── DocumentGenere ───
+        modelBuilder.Entity<DocumentGenere>(entity =>
+        {
+            entity.ToTable("document_genere");
+
+            entity.HasKey(e => e.IdDocument);
+
+            entity.Property(e => e.IdDocument)
+                .HasColumnName("id_document")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.IdCandidature)
+                .HasColumnName("id_candidature")
+                .IsRequired();
+
+            entity.HasIndex(e => e.IdCandidature)
+                .IsUnique();
+
+            entity.Property(e => e.CvContenuIaJson)
+                .HasColumnName("cv_contenu_ia_json")
+                .HasColumnType("jsonb");
+
+            entity.Property(e => e.LettreMotivContenuIa)
+                .HasColumnName("lettre_motiv_contenu_ia");
+
+            entity.Property(e => e.CheminPdfCv)
+                .HasColumnName("chemin_pdf_cv")
+                .HasMaxLength(255);
+
+            entity.Property(e => e.CheminPdfLettre)
+                .HasColumnName("chemin_pdf_lettre")
+                .HasMaxLength(255);
+
+            entity.Property(e => e.Version)
+                .HasColumnName("version")
+                .HasDefaultValue(1);
+
+            entity.Property(e => e.DateGeneration)
+                .HasColumnName("date_generation")
+                .HasDefaultValueSql("now()");
+
+            entity.HasOne(e => e.Candidature)
+                .WithOne()
+                .HasForeignKey<DocumentGenere>(e => e.IdCandidature)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -7,6 +7,8 @@ using NextStep.Shared.Http;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Offer.Repositories;
+using NextStep.data;
+using NextStep.Modules.Candidature.Models;
 
 namespace NextStep.Modules.Offer.Services;
 
@@ -24,6 +26,7 @@ public interface IOfferService
 public class OfferService(
     IOfferRepository repository,
     IAgentHttpClient agentClient,
+    AppDbContext db,
     ILogger<OfferService> logger) : IOfferService
 {
     /// <summary>
@@ -40,11 +43,13 @@ public class OfferService(
     {
         logger.LogInformation("OfferService — Soumission offre par user {UserId}", userId);
 
+        Guid userGuid = Guid.TryParse(userId, out var parsedGuid) ? parsedGuid : Guid.Empty;
+
         // Étape 1 : Persiste l'offre brute
         var offre = new OffreEmploi
         {
             TexteBrut = rawText,
-            UtilisateurId = Guid.Empty, // Sera remplacé par l'ID réel après intégration M1
+            UtilisateurId = userGuid,
         };
         offre = await repository.SaveAsync(offre, ct);
 
@@ -67,6 +72,31 @@ public class OfferService(
             ? ao.GetRawText()
             : "{}";
         await repository.UpdateAnalyseJsonAsync(offre.Id, analyzeJson, ct);
+
+        // Étape 3.1 : Sauvegarde le CV généré par l'IA (dans table document_genere)
+        var candidature = new NextStep.Modules.Candidature.Models.Candidature
+        {
+            IdUtilisateur = userGuid,
+            IdOffre = offre.Id,
+            Statut = "EN_ATTENTE",
+            DateCreation = DateTime.UtcNow
+        };
+        db.Candidatures.Add(candidature);
+
+        var cvDataJson = root.TryGetProperty("cv_data", out var cd)
+            ? cd.GetRawText()
+            : null;
+
+        var documentGenere = new DocumentGenere
+        {
+            IdCandidature = candidature.IdCandidature,
+            CvContenuIaJson = cvDataJson,
+            Version = 1,
+            DateGeneration = DateTime.UtcNow
+        };
+        db.DocumentsGeneres.Add(documentGenere);
+
+        await db.SaveChangesAsync(ct);
 
         // Étape 4 : Construit le DTO de retour
         var dto = MapToDto(offre.Id, root);

@@ -72,3 +72,9 @@ class CVEngineRequest(BaseModel):
     """Requête entrante pour le cv_engine."""
     original_profile: dict
     optimized_cv: dict
+
+class PrepareCvRequest(BaseModel):
+    """Re-creation of the legacy orchestrator payload."""
+    user_id: str
+    template_slug: str
+    offer_data: Optional[dict] = None

@@ -9,6 +9,8 @@ using NextStep.Modules.Cv.Templates;
 using NextStep.Modules.Profile.Services;
 using NextStep.Shared.Storage;
 using NextStep.Shared.Http;
+using NextStep.Modules.Offer.Services;
+using NextStep.Modules.Candidature.Models;
 
 namespace NextStep.Modules.Cv.Services;
 
@@ -185,6 +187,41 @@ public class CvService : ICvService
         var response = await _agentClient.PostAsync<object, CvEngineResult>("/prepare-cv", request);
         
         var data = response.CvJson ?? new CvData();
+
+        // 2.1. Sauvegarde automatique dans document_genere si lié à une offre
+        if (jobId.HasValue && jobId.Value != Guid.Empty)
+        {
+            var candidature = await _db.Candidatures
+                .FirstOrDefaultAsync(c => c.IdUtilisateur == userId && c.IdOffre == jobId.Value);
+
+            if (candidature != null)
+            {
+                var docGenere = await _db.DocumentsGeneres
+                    .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature);
+
+                var jsonString = JsonSerializer.Serialize(data);
+
+                if (docGenere != null)
+                {
+                    docGenere.CvContenuIaJson = jsonString;
+                    docGenere.DateGeneration = DateTime.UtcNow;
+                    docGenere.Version += 1;
+                }
+                else
+                {
+                    docGenere = new DocumentGenere
+                    {
+                        IdCandidature = candidature.IdCandidature,
+                        CvContenuIaJson = jsonString,
+                        Version = 1,
+                        DateGeneration = DateTime.UtcNow
+                    };
+                    _db.DocumentsGeneres.Add(docGenere);
+                }
+
+                await _db.SaveChangesAsync();
+            }
+        }
 
         // 3. Render PDF avec QuestPDF
         var document = CvDocumentFactory.Create(templateId, data);

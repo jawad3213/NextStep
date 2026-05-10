@@ -16,11 +16,12 @@ router = APIRouter(tags=["M2 — Offer Pipeline"])
 
 class OfferInput(BaseModel):
     raw_text: str = Field(..., description="Le texte brut de l'offre d'emploi")
-    user_id: int = Field(..., description="ID de l'utilisateur pour récupérer son profil")
+    user_id: str = Field(..., description="ID de l'utilisateur (UUID) pour récupérer son profil")
     template_id: int = Field(1, description="ID du template CV choisi")
+    offer_id: str = Field(..., description="ID de l'offre d'emploi (UUID) pour sauvegarde DB")
 
 class MatchRequest(BaseModel):
-    user_id: int
+    user_id: str
     analyzed_offer: Dict[str, Any]
 
 class PipelineResult(BaseModel):
@@ -49,6 +50,7 @@ async def run_pipeline(payload: OfferInput) -> PipelineResult:
             "raw_offer_text": payload.raw_text,
             "user_id": payload.user_id,
             "template_id": payload.template_id,
+            "offer_id": payload.offer_id,
             "messages": [],
             "errors": [],
             "normalized_offer_skills": [],

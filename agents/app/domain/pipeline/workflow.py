@@ -97,6 +97,61 @@ async def cv_engine_node(state: PipelineState) -> dict:
         "messages": [AIMessage(content="[Pipeline] CV finalisé via Service", name="orchestrator")],
     }
 
+async def db_persist_node(state: PipelineState) -> dict:
+    """Nœud pour sauvegarder les résultats de l'agent 2 et 4 dans PostgreSQL."""
+    logger.info("Pipeline -- Calling DbPersistNode")
+    
+    from app.core.database import AsyncSessionFactory
+    from app.domain.chatbot.models import OffreAnalysee, ResultatMatching
+    import uuid
+    
+    offer_id = state.get("offer_id")
+    user_id = state.get("user_id")
+    analyzed_offer = state.get("analyzed_offer")
+    match_result = state.get("match_result")
+    
+    if not offer_id or not analyzed_offer:
+        return {"messages": [AIMessage(content="[Pipeline] DB save skipped (missing offer_id)", name="orchestrator")]}
+        
+    try:
+        async with AsyncSessionFactory() as db:
+            o_uuid = uuid.UUID(offer_id)
+            
+            # --- Enregistrement OffreAnalysee ---
+            db.add(OffreAnalysee(
+                id_offre=o_uuid,
+                titre_poste=analyzed_offer.get("titre", ""),
+                entreprise=analyzed_offer.get("entreprise", ""),
+                competences_requises=analyzed_offer.get("competences_requises"),
+                competences_souhaitees=analyzed_offer.get("competences_souhaitees"),
+                keywords_ats=analyzed_offer.get("keywords_ats"),
+                texte_brut=state.get("raw_offer_text")
+            ))
+            
+            # --- Enregistrement ResultatMatching ---
+            if match_result:
+                u_uuid = None
+                if user_id:
+                    try:
+                        u_uuid = uuid.UUID(str(user_id))
+                    except ValueError:
+                        pass
+                
+                if u_uuid:
+                    db.add(ResultatMatching(
+                        id_offre=o_uuid,
+                        id_utilisateur=u_uuid,
+                        score_global=match_result.get("score_matching", 0),
+                        competences_manquantes=match_result.get("competences_manquantes"),
+                        points_forts=match_result.get("competences_matching")
+                    ))
+                    
+            await db.commit()
+            return {"messages": [AIMessage(content="[Pipeline] Résultats sauvegardés en DB", name="orchestrator")]}
+    except Exception as e:
+        logger.error(f"DbPersistNode error: {e}")
+        return {"errors": [f"Erreur sauvegarde DB: {str(e)}"]}
+
 # ─── CONSTRUCTION DU GRAPHE ───────────────────────────────────
 
 def build_offer_pipeline() -> StateGraph:
@@ -107,6 +162,7 @@ def build_offer_pipeline() -> StateGraph:
     workflow.add_node("skill_gap_node",         skill_gap_node)
     workflow.add_node("cv_optimizer_node",      cv_optimizer_node)
     workflow.add_node("cv_engine_node",         cv_engine_node)
+    workflow.add_node("db_persist_node",        db_persist_node)
 
     workflow.set_entry_point("offer_analyzer_node")
 
@@ -114,7 +170,8 @@ def build_offer_pipeline() -> StateGraph:
     workflow.add_edge("profile_retriever_node", "skill_gap_node")
     workflow.add_edge("skill_gap_node",         "cv_optimizer_node")
     workflow.add_edge("cv_optimizer_node",      "cv_engine_node")
-    workflow.add_edge("cv_engine_node",         END)
+    workflow.add_edge("cv_engine_node",         "db_persist_node")
+    workflow.add_edge("db_persist_node",        END)
 
     return workflow.compile()
 

@@ -28,11 +28,12 @@ async def analyze_company(payload: CompanyAnalyzeRequest) -> dict:
     """POST /analyze-company."""
     logger.info("POST /analyze-company — '%s'", payload.company_name)
     try:
-        return await company_service.analyze_company(
+        return await company_service.get_company_intelligence(
             company_name=payload.company_name,
-            offer_data=payload.offer_data,
-            profile_data=payload.profile_data,
-            user_id=payload.user_id,
+            job_title=payload.offer_data.get("titre", "Unknown"),
+            user_id=str(payload.user_id),
+            candidate_cv=payload.profile_data,
+            job_offer=payload.offer_data
         )
     except Exception as e:
         logger.error("POST /analyze-company ❌ — %s", str(e))

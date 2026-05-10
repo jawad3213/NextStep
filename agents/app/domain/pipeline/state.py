@@ -8,8 +8,9 @@ class PipelineState(TypedDict, total=False):
     
     # -- Entrées --
     raw_offer_text: str
-    user_id: int
+    user_id: str
     template_id: int
+    offer_id: str
 
     # -- Données intermédiaires --
     analyzed_offer: Optional[Dict[str, Any]]

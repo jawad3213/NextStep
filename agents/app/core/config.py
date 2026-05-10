@@ -12,9 +12,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 from pydantic_settings import BaseSettings
+import dotenv
 
 logger = logging.getLogger(__name__)
 
+dotenv.load_dotenv()
 
 def find_env_file() -> str:
     """Recherche dynamiquement le fichier .env dans les dossiers parents."""
@@ -46,12 +48,15 @@ AGENT_MODEL_DEFAULTS = {
 
 class Settings(BaseSettings):
     # ─── Base de données ───
-    DATABASE_URL: str = "postgresql+asyncpg://nextstep:nextstep@localhost:5432/nextstep_db"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://admin:admin@localhost:5433/nextstep_db")
+    database_url: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://admin:admin@localhost:5433/nextstep_db")
 
     # ─── LLM Provider ───
-    LLM_PROVIDER: str = "groq"          # "groq" | "openai" | "gemini"
-    GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.1-8b-instant"  # Modèle par défaut (fallback)
+    LLM_PROVIDER: str = "groq"          # "groq" | "openai"
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
+    groq_model: str = "llama-3.3-70b-versatile"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
@@ -65,14 +70,20 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
 
     # ─── Search API ───
-    TAVILY_API_KEY: str = ""
+    TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
+    tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")
 
     # ─── Backend .NET ───
     DOTNET_BACKEND_URL: str = "http://localhost:5000"
+    backend_url: str = "http://localhost:5000"
 
     # ─── LLM settings ───
     LLM_TEMPERATURE: float = 0.1
     LLM_MAX_TOKENS: int = 4096
+    
+    # ─── JWT ───
+    jwt_secret: str = os.getenv("Keycloak__ClientSecret", "secret-keycloak-local")
+    jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
 
     class Config:
         env_file = find_env_file()
@@ -154,4 +165,13 @@ def get_llm(temperature: float | None = None, agent_name: str | None = None):
             api_key=settings.OPENAI_API_KEY,
             temperature=temp,
         )
+
+def get_llm_precise():
+    """Température basse pour extraction structurée."""
+    from langchain_groq import ChatGroq
+    return ChatGroq(
+        model=settings.groq_model,
+        api_key=settings.groq_api_key,
+        temperature=0.0
+    )
 

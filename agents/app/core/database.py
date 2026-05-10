@@ -5,14 +5,27 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import DeclarativeBase
 from pgvector.sqlalchemy import Vector  # noqa: F401 — enregistre le type Vector
 from app.core.config import settings
+import logging
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-)
+logger = logging.getLogger(__name__)
+
+def get_engine():
+    # Convertir l'URL postgres:// en postgresql+asyncpg://
+    url = settings.DATABASE_URL.replace(
+        "postgresql://", "postgresql+asyncpg://"
+    ).replace(
+        "postgres://", "postgresql+asyncpg://"
+    )
+    return create_async_engine(
+        url,
+        echo=False,          # True pour voir les requêtes SQL dans les logs
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,  # Vérifie si la connexion est active avant de l'utiliser
+        pool_recycle=3600,   # Recycle les connexions après 1 heure
+    )
+
+engine = get_engine()
 
 AsyncSessionFactory = async_sessionmaker(
     engine,
@@ -20,13 +33,22 @@ AsyncSessionFactory = async_sessionmaker(
     expire_on_commit=False,
 )
 
-
 class Base(DeclarativeBase):
     """Base commune pour tous les modèles SQLAlchemy."""
     pass
 
-
 async def get_db() -> AsyncSession:  # type: ignore[override]
-    """FastAPI Dependency — session DB async."""
+    """
+    Dependency FastAPI — injecte une session DB dans les routes.
+    Usage dans router.py :
+        async def my_route(db: AsyncSession = Depends(get_db)):
+    """
     async with AsyncSessionFactory() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

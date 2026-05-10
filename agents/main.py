@@ -24,6 +24,7 @@ from app.api.offer_routes import router as offer_router
 from app.api.company_routes import router as company_router
 from app.api.cv_optimizer_routes import router as cv_optimizer_router
 from app.api.cv_engine_routes import router as cv_engine_router
+from app.domain.chatbot.router import router as chatbot_router
 
 # Compatibilité : ancien email_engine (M4 autonome)
 try:
@@ -85,6 +86,7 @@ app.include_router(offer_router, prefix="/offer")
 app.include_router(company_router, prefix="/company")
 app.include_router(cv_optimizer_router)
 app.include_router(cv_engine_router)
+app.include_router(chatbot_router)
 
 
 # ─── Router email_engine M4 (compatibilité) ───────────────────

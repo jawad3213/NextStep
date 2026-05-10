@@ -172,7 +172,7 @@ public class ElegantCvDocument : IDocument
             });
     }
 
-    private static void ContentHeading(ColumnDescriptor col, string title)
+    private void ContentHeading(ColumnDescriptor col, string title)
     {
         col.Item().PaddingTop(SectionGap).Column(h =>
         {

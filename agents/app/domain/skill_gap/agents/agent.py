@@ -56,7 +56,7 @@ async def skill_gap_node(state: SkillGapState) -> dict:
         
     logger.info(f"🎯 Skill Gap Agent — Tentative {current_count + 1} pour {job_offer.get('job_title')}")
     
-    llm = get_llm()
+    llm = get_llm(agent_name="skill_gap")
     if hasattr(llm, "bind"):
         llm = llm.bind(response_format={"type": "json_object"})
         

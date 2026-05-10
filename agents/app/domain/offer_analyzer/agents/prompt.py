@@ -19,7 +19,7 @@ Schéma attendu :
   "competences_requises": ["liste des compétences obligatoires"],
   "competences_souhaitees": ["liste des compétences bonus"],
   "keywords_ats": ["10 à 20 mots-clés ATS"],
-  "annees_experience": "entier ou null",
+  "annees_experience": "string ou null (ex: '3', '5+', '2-3')",
   "niveau_etudes": "string ou null",
   "description_poste": "résumé en 2-3 phrases"
 }}

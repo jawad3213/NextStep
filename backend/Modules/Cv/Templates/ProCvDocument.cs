@@ -110,16 +110,28 @@ public class ProCvDocument : IDocument
             {
                 row.ConstantItem(DateColWidth).Column(dateCol =>
                 {
-                    dateCol.Item().Text(exp.StartDate.ToString("MMM yyyy")).FontSize(8.5f).Bold();
-                    dateCol.Item().PaddingTop(1).Text("PRESENT").FontSize(7).FontColor(Faint);
+                    dateCol.Item().Text(exp.Start).FontSize(8.5f).Bold();
+                    dateCol.Item().PaddingTop(1).Text(exp.End ?? "PRESENT").FontSize(7).FontColor(Faint);
                 });
 
                 row.RelativeItem().Column(descCol =>
                 {
-                    descCol.Item().Text(exp.Position).FontSize(11).Bold();
+                    descCol.Item().Text(exp.Role).FontSize(11).Bold();
                     descCol.Item().Text(exp.Company).FontSize(10).SemiBold().FontColor(NavyMid);
-                    if (!string.IsNullOrWhiteSpace(exp.Description))
-                        descCol.Item().PaddingTop(4).Text(exp.Description).LineHeight(1.5f);
+                    if (exp.Bullets is { Count: > 0 })
+                    {
+                        descCol.Item().PaddingTop(4).Column(bulletsCol =>
+                        {
+                            foreach (var b in exp.Bullets)
+                            {
+                                bulletsCol.Item().PaddingBottom(2).Row(r =>
+                                {
+                                    r.AutoItem().PaddingRight(4).Text("•").FontSize(9f);
+                                    r.RelativeItem().Text(b).FontSize(9f).LineHeight(1.4f);
+                                });
+                            }
+                        });
+                    }
                 });
             });
         }
@@ -170,7 +182,7 @@ public class ProCvDocument : IDocument
             {
                 ec.Item().Text(edu.Degree).FontSize(9).Bold();
                 ec.Item().Text(edu.Institution).FontSize(8.5f).FontColor(NavyMid);
-                ec.Item().Text(edu.StartDate.Year.ToString()).FontSize(8).FontColor(Faint);
+                ec.Item().Text(edu.Year).FontSize(8).FontColor(Faint);
             });
         }
 

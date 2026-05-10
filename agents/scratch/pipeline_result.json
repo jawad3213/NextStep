@@ -1,0 +1,944 @@
+{
+  "analyzed_offer": {
+    "titre": "Développeur Full Stack",
+    "entreprise": "TechVision SAS",
+    "type_contrat": "CDI",
+    "localisation": "Paris 9e",
+    "competences_requises": [
+      "Docker",
+      ".NET 8 / C#",
+      "CI/CD",
+      "DevOps",
+      "Angular 17+",
+      "Scrum",
+      "TypeScript",
+      "Git",
+      "PostgreSQL"
+    ],
+    "competences_souhaitees": [
+      "Cloud Azure ou AWS",
+      "Architectures microservices",
+      "Machine learning / IA",
+      "RabbitMQ ou Kafka",
+      "Entity Framework Core"
+    ],
+    "keywords_ats": [
+      "Azure",
+      "Git",
+      "Docker",
+      "CI/CD",
+      "DevOps",
+      "Microservices",
+      ".NET",
+      "Scrum",
+      "Angular",
+      "IA",
+      "TypeScript",
+      "AWS",
+      "RabbitMQ",
+      "Entity Framework Core",
+      "Kafka",
+      "Machine learning",
+      "C#",
+      "PostgreSQL"
+    ],
+    "annees_experience": "3",
+    "niveau_etudes": null,
+    "description_poste": "Développer de nouvelles fonctionnalités frontend en Angular 17+ et TypeScript, concevoir et implémenter des API REST avec .NET 8 / C#, participer à la conception de la base de données PostgreSQL, mettre en place des tests unitaires et d'intégration, collaborer avec l'équipe UX/UI pour implémenter les maquettes Figma, participer aux code reviews et aux cérémonies agiles (Scrum), contribuer à l'amélioration continue de la CI/CD (GitHub Actions, Docker)"
+  },
+  "profile_data": {
+    "user_id": "a9709404-ae96-4070-91a3-21142ded4139",
+    "nom": "Said",
+    "prenom": "Nichan",
+    "email": "saidnichan6@gmail.com",
+    "titre": "Développeur Full Stack",
+    "resume": "Je suis un développeur Full Stack passionné par la création d'applications web évolutives, l'intégration d'IA et l'automatisation. Je recherche activement un stage PFA pour mettre en pratique mes compétences et acquérir de nouvelles expériences.",
+    "telephone": "+212 713 668 431",
+    "ville": "Salé",
+    "competences": [
+      {
+        "nom": "Java",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "JavaScript/TypeScript",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "C#",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "C",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "PHP",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Node.js",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": ".NET",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Angular",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Vue.js",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "HTML5",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "PostgreSQL",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "MySQL",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Git",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "GitHub",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Kubernetes",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Ansible",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Cloud Computing",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "SonarQube",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "RAG (Retrieval-Augmented Generation)",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "n8n",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Cypress",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Jira",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Arabe",
+        "niveau": 5,
+        "type_competence": "Langue"
+      },
+      {
+        "nom": "Anglais",
+        "niveau": 3,
+        "type_competence": "Langue"
+      },
+      {
+        "nom": "Python",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "SQL",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "C++",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Spring Boot",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Express.js",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Clean Architecture",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "React.js",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Tailwind CSS",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "CSS3",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "MongoDB",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Oracle DB",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "GitLab",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Docker",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Terraform",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Linux",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Virtual Machines",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Keycloak (Auth)",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "OpenAI API",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Vitest",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Jest",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Agile/Scrum",
+        "niveau": 3,
+        "type_competence": "Technical"
+      },
+      {
+        "nom": "Français",
+        "niveau": 4,
+        "type_competence": "Langue"
+      }
+    ],
+    "experiences": [
+      {
+        "titre": "Président du Club",
+        "entreprise": "Club Informatique ENSIAS",
+        "description": "Organisation d'ateliers de programmation, gestion de 50 membres, hackathons.",
+        "date_debut": null,
+        "date_fin": null,
+        "ville": null,
+        "type": "Extracurricular"
+      },
+      {
+        "titre": "Stage Développeur Full-Stack",
+        "entreprise": "Smart Automation Technologie",
+        "description": "Contribuer à l'amélioration et à la refonte d'une plateforme web marketplace en utilisant Angular, développer un chatbot IA basé sur l'approche RAG pour automatiser le support client, mettre en place l'automatisation des workflows avec n8n, collaborer au sein d'une équipe Agile avec gestion du versionning via GitLab.",
+        "date_debut": "2025-07-01",
+        "date_fin": "2025-08-01",
+        "ville": null,
+        "type": "Internship"
+      }
+    ],
+    "formations": [
+      {
+        "diplome": "Cycle d'Ingénieur – Génie Informatique",
+        "etablissement": "Ecole Nationale des Sciences Appliquées (ENSA) Tanger",
+        "annee": 2024,
+        "ville": null
+      },
+      {
+        "diplome": "",
+        "etablissement": "Classes Préparatoires Intégrées",
+        "annee": 2022,
+        "ville": null
+      }
+    ],
+    "certifications": [
+      {
+        "nom": "Oracle Certified Professional : Java SE 17 Developer",
+        "organisme": "Oracle",
+        "date_obtention": null
+      },
+      {
+        "nom": "Agile Project Management – Google (Coursera)",
+        "organisme": "Google",
+        "date_obtention": null
+      }
+    ],
+    "projets": [
+      {
+        "titre": "Roadmap Builder",
+        "description": "Plateforme interactive avec la Clean Architecture et une authentification sécurisée (JWT, Supabase), intégration d'un assistant IA (BMO) pour générer des roadmaps visuelles et gérer les nœuds structurés, mise en place du CI/CD (Vercel, Render) et gestion du projet avec la méthodologie Agile (Jira).",
+        "technologies": [
+          "Node.js",
+          "Express",
+          "React",
+          "PostgreSQL",
+          "IA"
+        ]
+      },
+      {
+        "titre": "FlowCom – Chat Temps Réel",
+        "description": "Application de messagerie similaire à WhatsApp avec gestion du temps réel et notifications, développement des API Backend et intégration d'une base de données NoSQL pour le stockage sécurisé des messages.",
+        "technologies": [
+          "Angular",
+          "Express.js",
+          "MongoDB",
+          "Socket.IO"
+        ]
+      },
+      {
+        "titre": "Soft Skills Evaluation Web App",
+        "description": "Application web pour l'évaluation des compétences sociales, assurance qualité (QA) et réalisation des phases de test unitaires et E2E.",
+        "technologies": [
+          "React",
+          "Cypress",
+          "Vitest"
+        ]
+      }
+    ]
+  },
+  "match_result": {
+    "candidate_name": "Nichan Said",
+    "job_title": "Développeur Full Stack",
+    "relevance_score": 0.78,
+    "matched_skills": [
+      "Docker",
+      ".NET",
+      "TypeScript",
+      "Git",
+      "PostgreSQL",
+      "Angular",
+      "Scrum",
+      "CI/CD"
+    ],
+    "missing_skills": [
+      ".NET 8",
+      "Angular 17+",
+      "DevOps",
+      "RabbitMQ/Kafka",
+      "Entity Framework Core"
+    ],
+    "required_certs": [],
+    "cert_match": false,
+    "experience_years": 0.1,
+    "required_years": 3.0,
+    "experience_gap_years": 2.9,
+    "flag": "critical_gap",
+    "recommendations": [
+      {
+        "type": "course",
+        "title": "Microsoft .NET 8 Development",
+        "description": "Suivre un cours avancé sur .NET 8 pour maîtriser les nouvelles fonctionnalités et aligner les compétences sur la version requise.",
+        "priority": "high"
+      },
+      {
+        "type": "course",
+        "title": "Angular 17+ Advanced Development",
+        "description": "Former à Angular 17+ avec focus sur les améliorations de performance et les fonctionnalités récentes pour couvrir la compétence requise.",
+        "priority": "high"
+      },
+      {
+        "type": "certification",
+        "title": "AWS Certified DevOps Engineer",
+        "description": "Obtenir une certification DevOps (AWS ou Azure) pour renforcer les compétences en automatisation et gestion d'infrastructure.",
+        "priority": "medium"
+      },
+      {
+        "type": "project",
+        "title": "Microservices Architecture with .NET 8",
+        "description": "Créer un projet open-source utilisant .NET 8, Entity Framework Core et RabbitMQ pour démontrer ces compétences techniques.",
+        "priority": "high"
+      },
+      {
+        "type": "cv_content",
+        "title": "Mettre en avant CI/CD et DevOps",
+        "description": "Ajouter des détails concrets sur l'expérience avec GitLab CI/CD et Docker dans les projets pour renforcer l'alignement avec les exigences DevOps.",
+        "priority": "medium"
+      }
+    ],
+    "revision_hints": [
+      "Spécifier les versions exactes de .NET et Angular dans les compétences",
+      "Ajouter des mots-clés 'DevOps' et 'Microservices' dans la description des projets",
+      "Mentionner l'utilisation d'Entity Framework Core dans les expériences ou projets"
+    ]
+  },
+  "cv_optimized_content": {
+    "resume_optimise": {
+      "contenu": "Développeur Full Stack passionné par la création d'applications web évolutives, l'intégration d'IA et l'automatisation, avec expérience dans les technologies telles que Docker, .NET, TypeScript, Git, PostgreSQL, Angular et Scrum.",
+      "justification_rewrite": "Le résumé a été réécrit pour mettre en avant les compétences techniques pertinentes pour l'offre d'emploi, en utilisant des mots-clés tels que 'Full Stack', 'applications web évolutives', 'intégration d'IA' et 'automatisation'."
+    },
+    "experiences_optimisees": [
+      {
+        "justification_reorder": "Cette expérience est placée en premier car elle correspond le plus aux exigences de l'offre d'emploi, notamment en termes de technologies utilisées (Angular, IA, automatisation) et de méthodologie Agile.",
+        "justification_rewrite": "La description a été réécrite pour mettre en avant les réalisations concrètes et les compétences techniques, en utilisant des verbes d'action forts et en intégrant des placeholders pour les métriques.",
+        "titre": "Stage Développeur Full-Stack",
+        "entreprise": "Smart Automation Technologie",
+        "description_optimisee": "- Contribué à l'amélioration et à la refonte d'une plateforme web marketplace en utilisant Angular, avec une augmentation de [X]% des performances et une réduction de [Y] secondes du temps de traitement.\n- Développé un chatbot IA basé sur l'approche RAG pour automatiser le support client, avec [Z] interactions réussies.\n- Mis en place l'automatisation des workflows avec n8n, réduisant les tâches manuelles de [W]%. \n- Collaboré au sein d'une équipe Agile avec gestion du versionning via GitLab, améliorant la qualité du code de [V]%"
+      },
+      {
+        "justification_reorder": "Cette expérience est placée en second car elle montre des compétences en leadership et en organisation, même si elle n'est pas directement liée aux technologies requises pour l'offre d'emploi.",
+        "justification_rewrite": "La description a été réécrite pour mettre en avant les réalisations concrètes et les compétences en leadership, en utilisant des verbes d'action forts et en intégrant des placeholders pour les métriques.",
+        "titre": "Président du Club",
+        "entreprise": "Club Informatique ENSIAS",
+        "description_optimisee": "- Organisé des ateliers de programmation pour [X] participants, avec une évaluation positive de [Y]%. \n- Géré une équipe de [Z] membres, avec une augmentation de [W]% de la participation aux activités.\n- Coordonné des hackathons, avec [V] projets réalisés."
+      }
+    ],
+    "projets_optimises": [
+      {
+        "justification_reorder": "Ce projet est placé en premier car il correspond aux exigences de l'offre d'emploi en termes de technologies (Node.js, React, PostgreSQL, IA) et de méthodologie Agile.",
+        "justification_rewrite": "La description a été réécrite pour mettre en avant les réalisations concrètes et les compétences techniques, en utilisant des verbes d'action forts et en intégrant des placeholders pour les métriques.",
+        "titre": "Roadmap Builder",
+        "description_optimisee": "- Conçu et déployé une plateforme interactive avec la Clean Architecture et une authentification sécurisée (JWT, Supabase), avec [X] utilisateurs actifs.\n- Intégré un assistant IA (BMO) pour générer des roadmaps visuelles, avec [Y]% de satisfaction des utilisateurs.\n- Mis en place le CI/CD (Vercel, Render) et géré le projet avec la méthodologie Agile (Jira), avec [Z] itérations réussies.",
+        "technologies": [
+          "Node.js",
+          "Express",
+          "React",
+          "PostgreSQL",
+          "IA"
+        ]
+      },
+      {
+        "justification_reorder": "Ce projet est placé en second car il montre des compétences en développement d'applications web en temps réel, même si les technologies utilisées ne correspondent pas exactement à celles requises pour l'offre d'emploi.",
+        "justification_rewrite": "La description a été réécrite pour mettre en avant les réalisations concrètes et les compétences techniques, en utilisant des verbes d'action forts et en intégrant des placeholders pour les métriques.",
+        "titre": "FlowCom – Chat Temps Réel",
+        "description_optimisee": "- Développé une application de messagerie similaire à WhatsApp avec gestion du temps réel et notifications, avec [X] utilisateurs actifs.\n- Développé les API Backend et intégré une base de données NoSQL pour le stockage sécurisé des messages, avec [Y]% de réduction des coûts de stockage.",
+        "technologies": [
+          "Angular",
+          "Express.js",
+          "MongoDB",
+          "Socket.IO"
+        ]
+      },
+      {
+        "justification_reorder": "Ce projet est placé en troisième car il montre des compétences en développement web et en assurance qualité, même si les technologies utilisées ne correspondent pas exactement à celles requises pour l'offre d'emploi.",
+        "justification_rewrite": "La description a été réécrite pour mettre en avant les réalisations concrètes et les compétences techniques, en utilisant des verbes d'action forts et en intégrant des placeholders pour les métriques.",
+        "titre": "Soft Skills Evaluation Web App",
+        "description_optimisee": "- Conçu et déployé une application web pour l'évaluation des compétences sociales, avec [X] utilisateurs actifs.\n- Assuré la qualité (QA) et réalisé les phases de test unitaires et E2E, avec [Y]% de couverture de code.",
+        "technologies": [
+          "React",
+          "Cypress",
+          "Vitest"
+        ]
+      }
+    ],
+    "formations_optimisees": [
+      {
+        "justification_reorder": "Cette formation est placée en premier car elle est la plus pertinente pour l'offre d'emploi en termes de domaine d'études (informatique).",
+        "justification_rewrite": "La description n'a pas été modifiée car elle est déjà concise et informative.",
+        "diplome": "Cycle d'Ingénieur – Génie Informatique",
+        "etablissement": "Ecole Nationale des Sciences Appliquées (ENSA) Tanger"
+      },
+      {
+        "justification_reorder": "Cette formation est placée en second car elle est moins pertinente pour l'offre d'emploi en termes de domaine d'études.",
+        "justification_rewrite": "La description n'a pas été modifiée car elle est déjà concise et informative.",
+        "diplome": "",
+        "etablissement": "Classes Préparatoires Intégrées"
+      }
+    ],
+    "certifications_optimisees": [
+      {
+        "justification_reorder": "Cette certification est placée en premier car elle est pertinente pour l'offre d'emploi en termes de technologies (Java).",
+        "justification_rewrite": "La description n'a pas été modifiée car elle est déjà concise et informative.",
+        "nom": "Oracle Certified Professional : Java SE 17 Developer",
+        "organisme": "Oracle"
+      },
+      {
+        "justification_reorder": "Cette certification est placée en second car elle est moins pertinente pour l'offre d'emploi en termes de technologies, mais toujours pertinente pour la méthodologie Agile.",
+        "justification_rewrite": "La description n'a pas été modifiée car elle est déjà concise et informative.",
+        "nom": "Agile Project Management – Google (Coursera)",
+        "organisme": "Google"
+      }
+    ],
+    "competences_reordonnees": [
+      "Docker",
+      ".NET",
+      "TypeScript",
+      "Git",
+      "PostgreSQL",
+      "Angular",
+      "Scrum",
+      "CI/CD",
+      "Java",
+      "JavaScript/TypeScript",
+      "C#",
+      "C",
+      "PHP",
+      "Node.js",
+      ".NET",
+      "Angular",
+      "Vue.js",
+      "HTML5",
+      "PostgreSQL",
+      "MySQL",
+      "Git",
+      "GitHub",
+      "Kubernetes",
+      "Ansible",
+      "Cloud Computing",
+      "SonarQube",
+      "RAG (Retrieval-Augmented Generation)",
+      "n8n",
+      "Cypress",
+      "Jira",
+      "Arabe",
+      "Anglais",
+      "Python",
+      "SQL",
+      "C++",
+      "Spring Boot",
+      "Express.js",
+      "Clean Architecture",
+      "React.js",
+      "Tailwind CSS",
+      "CSS3",
+      "MongoDB",
+      "Oracle DB",
+      "GitLab",
+      "Docker",
+      "Terraform",
+      "Linux",
+      "Virtual Machines",
+      "Keycloak (Auth)",
+      "OpenAI API",
+      "Vitest",
+      "Jest",
+      "Agile/Scrum",
+      "Français"
+    ],
+    "justification_competences": "Les compétences ont été réordonnées pour mettre en avant celles qui sont les plus pertinentes pour l'offre d'emploi, en utilisant les mots-clés de l'offre d'emploi et en plaçant les compétences techniques en premier.",
+    "global_justification": "La stratégie globale adoptée a été de réécrire les descriptions pour mettre en avant les réalisations concrètes et les compétences techniques, en utilisant des verbes d'action forts et en intégrant des placeholders pour les métriques, tout en respectant les règles absolues et en suivant les directives de réécriture."
+  },
+  "cv_engine_result": {
+    "candidate": {
+      "name": "Nichan Said",
+      "email": "saidnichan6@gmail.com",
+      "phone": "+212 713 668 431",
+      "location": "Salé",
+      "linkedIn": null,
+      "gitHub": null,
+      "portfolio": null
+    },
+    "summary": "Développeur Full Stack passionné par la création d'applications web évolutives, l'intégration d'IA et l'automatisation, avec expérience dans les technologies telles que Docker, .NET, TypeScript, Git, PostgreSQL, Angular et Scrum.",
+    "experience": [
+      {
+        "role": "Stage Développeur Full-Stack",
+        "company": "Smart Automation Technologie",
+        "start": "2025-07-01",
+        "end": "2025-08-01",
+        "bullets": [
+          "Contribué à l'amélioration et à la refonte d'une plateforme web marketplace en utilisant Angular, avec une augmentation de [X]% des performances et une réduction de [Y] secondes du temps de traitement.",
+          "Développé un chatbot IA basé sur l'approche RAG pour automatiser le support client, avec [Z] interactions réussies.",
+          "Mis en place l'automatisation des workflows avec n8n, réduisant les tâches manuelles de [W]%.",
+          "Collaboré au sein d'une équipe Agile avec gestion du versionning via GitLab, améliorant la qualité du code de [V]%"
+        ]
+      },
+      {
+        "role": "Président du Club",
+        "company": "Club Informatique ENSIAS",
+        "start": null,
+        "end": null,
+        "bullets": [
+          "Organisé des ateliers de programmation pour [X] participants, avec une évaluation positive de [Y]%.",
+          "Géré une équipe de [Z] membres, avec une augmentation de [W]% de la participation aux activités.",
+          "Coordonné des hackathons, avec [V] projets réalisés."
+        ]
+      }
+    ],
+    "education": [
+      {
+        "degree": "Cycle d'Ingénieur – Génie Informatique",
+        "institution": "Ecole Nationale des Sciences Appliquées (ENSA) Tanger",
+        "year": "2024"
+      },
+      {
+        "degree": "",
+        "institution": "Classes Préparatoires Intégrées",
+        "year": "2022"
+      }
+    ],
+    "skills": [
+      {
+        "name": "Docker",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": ".NET",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": "TypeScript",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": "Git",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": "PostgreSQL",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": "Angular",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": "Scrum",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": "CI/CD",
+        "level": 3,
+        "isMatched": true
+      },
+      {
+        "name": "Java",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "JavaScript/TypeScript",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "C#",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "C",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "PHP",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Node.js",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Vue.js",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "HTML5",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "MySQL",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "GitHub",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Kubernetes",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Ansible",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Cloud Computing",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "SonarQube",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "RAG (Retrieval-Augmented Generation)",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "n8n",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Cypress",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Jira",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Python",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "SQL",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "C++",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Spring Boot",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Express.js",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Clean Architecture",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "React.js",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Tailwind CSS",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "CSS3",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "MongoDB",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Oracle DB",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "GitLab",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Terraform",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Linux",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Virtual Machines",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Keycloak (Auth)",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "OpenAI API",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Vitest",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Jest",
+        "level": 3,
+        "isMatched": false
+      },
+      {
+        "name": "Agile/Scrum",
+        "level": 3,
+        "isMatched": false
+      }
+    ],
+    "projects": [
+      {
+        "title": "Roadmap Builder",
+        "description": null,
+        "bullets": [
+          "Conçu et déployé une plateforme interactive avec la Clean Architecture et une authentification sécurisée (JWT, Supabase), avec [X] utilisateurs actifs.",
+          "Intégré un assistant IA (BMO) pour générer des roadmaps visuelles, avec [Y]% de satisfaction des utilisateurs.",
+          "Mis en place le CI/CD (Vercel, Render) et géré le projet avec la méthodologie Agile (Jira), avec [Z] itérations réussies."
+        ]
+      },
+      {
+        "title": "FlowCom – Chat Temps Réel",
+        "description": null,
+        "bullets": [
+          "Développé une application de messagerie similaire à WhatsApp avec gestion du temps réel et notifications, avec [X] utilisateurs actifs.",
+          "Développé les API Backend et intégré une base de données NoSQL pour le stockage sécurisé des messages, avec [Y]% de réduction des coûts de stockage."
+        ]
+      },
+      {
+        "title": "Soft Skills Evaluation Web App",
+        "description": null,
+        "bullets": [
+          "Conçu et déployé une application web pour l'évaluation des compétences sociales, avec [X] utilisateurs actifs.",
+          "Assuré la qualité (QA) et réalisé les phases de test unitaires et E2E, avec [Y]% de couverture de code."
+        ]
+      }
+    ],
+    "certifications": [
+      "Oracle Certified Professional : Java SE 17 Developer - Oracle",
+      "Agile Project Management – Google (Coursera) - Google"
+    ],
+    "languages": [
+      "Arabe",
+      "Anglais",
+      "Français"
+    ],
+    "activities": [
+      {
+        "title": "Club Informatique ENSIAS",
+        "role": "Président du Club",
+        "description": "Organisation d'ateliers de programmation, gestion de 50 membres, hackathons."
+      }
+    ],
+    "themeColor": null,
+    "fontFamily": null,
+    "atsScore": 45,
+    "matchingScore": 45,
+    "atsCoveragePct": 45.0
+  },
+  "errors": [],
+  "normalized_offer_skills": [
+    "angular 17+",
+    "typescript",
+    ".net 8",
+    "c#",
+    "postgresql",
+    "docker",
+    "git",
+    "ci",
+    "cd",
+    "scrum",
+    "devops"
+  ],
+  "normalized_keywords": [
+    "angular",
+    "typescript",
+    ".net",
+    "c#",
+    "postgresql",
+    "docker",
+    "git",
+    "ci",
+    "cd",
+    "scrum",
+    "devops",
+    "microservices",
+    "rabbitmq",
+    "kafka",
+    "azure",
+    "aws",
+    "entity framework core",
+    "machine learning",
+    "ia"
+  ]
+}

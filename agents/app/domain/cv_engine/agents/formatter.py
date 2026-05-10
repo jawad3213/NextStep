@@ -70,25 +70,29 @@ def build_questpdf_payload(
             bullets=bullets,
         ))
 
-    # 4. Projects — filter by offer relevance
     offer_techs = {s.lower() for s in (offer_skills or [])}
     quest_projects: List[QuestPDFProject] = []
     opt_projects = optimized_cv.get("projets_optimises", [])
+    
+    scored_projects = []
 
     for opt_proj in opt_projects:
         project_techs = {t.lower() for t in opt_proj.get("technologies", [])}
+        score = 0
         if offer_techs:
             matched_techs = project_techs & offer_techs
-            if not matched_techs:
-                # include project but mark as lower priority
-                pass
+            score = len(matched_techs)
 
         bullets = [b.strip().lstrip("-").strip() for b in opt_proj.get("description_optimisee", "").split("\n") if b.strip()]
-        quest_projects.append(QuestPDFProject(
+        scored_projects.append((score, QuestPDFProject(
             title=opt_proj.get("titre", ""),
             description=None,
             bullets=bullets,
-        ))
+        )))
+        
+    # Sort projects by match score descending
+    scored_projects.sort(key=lambda x: x[0], reverse=True)
+    quest_projects = [p[1] for p in scored_projects]
 
     # 5. Educations
     quest_educations: List[QuestPDFEducation] = []
@@ -116,32 +120,58 @@ def build_questpdf_payload(
     # 7. Languages — extracted from competences
     all_competences = original_profile.get("competences", [])
     lang_list: List[str] = []
+    lang_names: set = set()
     non_lang_competences: List[dict] = []
     for comp in all_competences:
         ctype = (comp.get("type_competence") or "").lower().strip()
         if ctype in LANGUAGE_TYPES:
             lang_list.append(comp.get("nom", ""))
+            lang_names.add(comp.get("nom", "").lower().strip())
         else:
             non_lang_competences.append(comp)
 
-    # 8. Skills with matching
+    # 8. Skills with matching and algorithmic sorting
     matched_set = {s.lower().strip() for s in (matched_skills or [])}
-    quest_skills: List[QuestPDFSkill] = []
     opt_skills = optimized_cv.get("competences_reordonnees", [])
+    
     seen: set = set()
+    matched_skills_list: List[QuestPDFSkill] = []
+    other_skills_list: List[QuestPDFSkill] = []
+    
     for skill_name in opt_skills:
         key = skill_name.lower().strip()
-        if key in seen:
+        # Skip duplicates or if it's already considered a language
+        if key in seen or key in lang_names:
             continue
         seen.add(key)
-        quest_skills.append(QuestPDFSkill(
+        
+        is_matched = key in matched_set
+        skill_obj = QuestPDFSkill(
             name=skill_name,
             level=3,
-            is_matched=key in matched_set,
-        ))
+            is_matched=is_matched,
+        )
+        if is_matched:
+            matched_skills_list.append(skill_obj)
+        else:
+            other_skills_list.append(skill_obj)
+            
+    # Algorithms: Matched skills first, then others
+    quest_skills = matched_skills_list + other_skills_list
 
-    # 9. Activities — extract from projets / associations
+    # 9. Activities — extract from experiences (Extracurricular) or projets (association)
     activities: List[QuestPDFActivity] = []
+    
+    # Extract from experiences
+    for exp in original_profile.get("experiences", []):
+        if exp.get("type", "").lower() == "extracurricular":
+            activities.append(QuestPDFActivity(
+                title=exp.get("entreprise", ""),
+                role=exp.get("titre", ""),
+                description=exp.get("description", ""),
+            ))
+            
+    # Extract from projets (legacy or alternative mapping)
     for proj in original_profile.get("projets", []):
         if proj.get("categorie") == "association" or proj.get("type") == "extracurricular":
             activities.append(QuestPDFActivity(

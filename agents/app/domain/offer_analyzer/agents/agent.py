@@ -46,14 +46,16 @@ async def offer_analyzer_node(state: OfferAnalyzerState) -> dict:
         }
 
     try:
-        # Configuration du LLM avec sortie structurée Pydantic
-        llm = get_llm().with_structured_output(AnalyzedOffer)
+        # Configuration du LLM avec sortie structurée Pydantic (temperature 0.0 pour un score déterministe)
+        llm = get_llm(agent_name="offer_analyzer", temperature=0.0).with_structured_output(AnalyzedOffer)
         
         # On peut injecter les erreurs précédentes dans le prompt si c'est un retry
         prev_errors = state.get("errors", [])
         system_msg = SYSTEM_PROMPT
         if prev_errors and current_count > 0:
-            system_msg += f"\n\nIMPORTANT: Tes précédentes tentatives ont échoué avec ces erreurs : {prev_errors}. Corrige-les impérativement."
+            # Escape braces in error messages to avoid LangChain template parsing issues
+            safe_errors = str(prev_errors).replace("{", "{{").replace("}", "}}")
+            system_msg += f"\n\nIMPORTANT: Tes précédentes tentatives ont échoué avec ces erreurs : {safe_errors}. Corrige-les impérativement."
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_msg),
@@ -118,13 +120,19 @@ def offer_validator_node(state: OfferAnalyzerState) -> dict:
     if not data["competences_requises"]:
         current_errors.append("Validator: Aucune compétence obligatoire détectée.")
 
-    # 3. Validation logique
+    # 3. Validation logique — annees_experience (string parsé)
     exp = data.get("annees_experience")
     if exp is not None:
-        try:
-            val = int(exp)
-            if val < 0 or val > 40: data["annees_experience"] = None
-        except ValueError: data["annees_experience"] = None
+        import re
+        match = re.search(r'\d+', str(exp))
+        if match:
+            val = int(match.group())
+            if val < 0 or val > 40:
+                data["annees_experience"] = None
+            else:
+                data["annees_experience"] = str(val)
+        else:
+            data["annees_experience"] = None
 
     # 4. Vérification du contrat
     from app.domain.offer_analyzer.schemas.models import TypeContrat

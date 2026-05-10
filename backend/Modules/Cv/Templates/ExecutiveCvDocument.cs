@@ -147,7 +147,7 @@ public class ExecutiveCvDocument : IDocument
                 {
                     ec.Item().Text(edu.Institution).FontSize(9f).Bold().FontColor(TextDark);
                     ec.Item().Text(edu.Degree).FontSize(8.5f).Italic().FontColor(TextBody);
-                    ec.Item().Text($"{edu.StartDate:MMM yyyy} - {(edu.EndDate.HasValue ? edu.EndDate.Value.ToString("MMM yyyy") : "Present")}").FontSize(8f).FontColor(TextMuted);
+                    ec.Item().Text(edu.Year).FontSize(8f).FontColor(TextMuted);
                 });
             }
         });
@@ -165,16 +165,30 @@ public class ExecutiveCvDocument : IDocument
         SectionHeading(col, "Work Experience", "#F0F0F0");
         foreach (var exp in _data.Experience)
         {
+            var dateStr = exp.End is not null ? $"{exp.Start} – {exp.End}" : $"{exp.Start} – Present";
             col.Item().PaddingTop(12).Column(c =>
             {
                 c.Item().Row(r =>
                 {
-                    r.RelativeItem().Text(exp.Position).FontSize(10f).Bold().FontColor(TextDark);
-                    r.AutoItem().Text($"{exp.StartDate:MMM yyyy} - {(exp.EndDate.HasValue ? exp.EndDate.Value.ToString("MMM yyyy") : "Present")}").FontSize(8.5f).FontColor(TextMuted);
+                    r.RelativeItem().Text(exp.Role).FontSize(10f).Bold().FontColor(TextDark);
+                    r.AutoItem().Text(dateStr).FontSize(8.5f).FontColor(TextMuted);
                 });
                 c.Item().Text(exp.Company).FontSize(9.5f).SemiBold().FontColor(OrangeDark);
-                if (!string.IsNullOrWhiteSpace(exp.Description))
-                    c.Item().PaddingTop(4).Text(exp.Description).FontSize(9f).FontColor(TextBody).LineHeight(1.5f);
+                
+                if (exp.Bullets is { Count: > 0 })
+                {
+                    c.Item().PaddingTop(4).Column(bullets =>
+                    {
+                        foreach (var b in exp.Bullets)
+                        {
+                            bullets.Item().PaddingBottom(2).Row(row =>
+                            {
+                                row.AutoItem().PaddingRight(5).Text("•").FontSize(9f).FontColor(TextBody);
+                                row.RelativeItem().Text(b).FontSize(9f).FontColor(TextBody).LineHeight(1.5f);
+                            });
+                        }
+                    });
+                }
             });
         }
 

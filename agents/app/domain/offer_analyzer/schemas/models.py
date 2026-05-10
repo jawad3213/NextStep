@@ -32,9 +32,9 @@ class AnalyzedOffer(BaseModel):
         default_factory=list, 
         description="10 à 20 mots-clés stratégiques pour l'optimisation ATS (technos, frameworks, outils)"
     )
-    annees_experience: Optional[int] = Field(
+    annees_experience: Optional[str] = Field(
         None, 
-        description="Nombre d'années d'expérience minimum requis"
+        description="Nombre d'années d'expérience minimum requis (ex: '3', '5+', '2-3')"
     )
     niveau_etudes: Optional[str] = Field(
         None, 

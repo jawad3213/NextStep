@@ -71,7 +71,7 @@ async def researcher_node(state: CompanyState) -> dict:
     
     if search_results:
         # 2. Sélection des meilleures URLs via LLM pour la présentation générale
-        llm = get_llm()
+        llm = get_llm(agent_name="company")
         if hasattr(llm, "bind"):
             llm = llm.bind(response_format={"type": "json_object"})
         selector_prompt = ChatPromptTemplate.from_template(_SELECTOR_PROMPT)
@@ -186,7 +186,7 @@ async def analyst_node(state: CompanyState) -> dict:
             
     raw_data_str = "\n".join(formatted_data) if formatted_data else "Aucune donnée collectée."
 
-    llm = get_llm()
+    llm = get_llm(agent_name="company")
     if hasattr(llm, "bind"):
         llm = llm.bind(response_format={"type": "json_object"})
     analyst_prompt = ChatPromptTemplate.from_template(_ANALYST_PROMPT)

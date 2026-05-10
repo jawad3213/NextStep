@@ -23,7 +23,7 @@ async def cv_optimizer_node(state: CVOptimizerState) -> dict:
     logger.info(f"🎯 CV Optimizer Agent — Tentative {current_count + 1}")
     
     # 3. 🌡️ Température très basse pour éviter les hallucinations créatives
-    llm = get_llm(temperature=0.0)
+    llm = get_llm(temperature=0.0, agent_name="cv_optimizer")
     if hasattr(llm, "bind"):
         llm = llm.bind(response_format={"type": "json_object"})
         
@@ -39,7 +39,8 @@ async def cv_optimizer_node(state: CVOptimizerState) -> dict:
     try:
         response = await chain.ainvoke({
             "candidate_cv": json.dumps(candidate_cv, indent=2, ensure_ascii=False),
-            "job_offer": json.dumps(job_offer, indent=2, ensure_ascii=False)
+            "job_offer": json.dumps(job_offer, indent=2, ensure_ascii=False),
+            "match_result": json.dumps(state.get("match_result") or {}, indent=2, ensure_ascii=False)
         })
         
         output_dict = parse_json_markdown(response.content if hasattr(response, "content") else str(response))

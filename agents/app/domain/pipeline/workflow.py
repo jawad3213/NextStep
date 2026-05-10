@@ -71,8 +71,9 @@ async def cv_optimizer_node(state: PipelineState) -> dict:
         return {"errors": ["Données manquantes pour l'optimisation de CV"]}
         
     result = await cv_optimizer_service.optimize_cv(
-        profile_data=state["profile_data"],
-        analyzed_offer=state["analyzed_offer"]
+        candidate_cv=state["profile_data"],
+        job_offer=state["analyzed_offer"],
+        match_result=state.get("match_result")
     )
     
     return {
@@ -87,9 +88,14 @@ async def cv_engine_node(state: PipelineState) -> dict:
     if not state.get("profile_data") or not state.get("cv_optimized_content"):
          return {"errors": ["Données manquantes pour le formatage du CV"]}
          
+    match_result = state.get("match_result", {})
+    matched_skills = match_result.get("matched_skills", []) if match_result else []
+    
     result = await cv_engine_service.format_for_questpdf(
-        profile_data=state["profile_data"],
-        optimized_data=state["cv_optimized_content"]
+        original_profile=state["profile_data"],
+        optimized_cv=state["cv_optimized_content"],
+        matched_skills=matched_skills,
+        offer_skills=state.get("normalized_offer_skills", [])
     )
     
     return {

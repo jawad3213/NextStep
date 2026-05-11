@@ -1,0 +1,63 @@
+<div class="step-content">
+  <h3 class="step-title">Soumettez votre offre d'emploi</h3>
+
+  <!-- Sélecteur URL / Texte -->
+  <div class="input-tabs">
+    <button [class.active]="mode === 'url'"  (click)="mode = 'url'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Coller l'URL
+    </button>
+    <button [class.active]="mode === 'text'" (click)="mode = 'text'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Coller le texte
+    </button>
+  </div>
+
+  <!-- Zone URL -->
+  @if (mode === 'url') {
+    <div class="input-zone">
+      <input
+        class="field"
+        type="url"
+        placeholder="https://www.linkedin.com/jobs/view/..."
+        [(ngModel)]="urlValue"
+      />
+      <div class="field-hint">
+        Supporte : LinkedIn · Indeed · Welcome to the Jungle · Rekrute.ma · Emploi.ma
+      </div>
+    </div>
+  }
+
+  <!-- Zone texte -->
+  @if (mode === 'text') {
+    <div class="input-zone">
+      <textarea
+        class="field textarea"
+        rows="6"
+        placeholder="Collez ici le texte complet de l'offre d'emploi..."
+        [(ngModel)]="textValue"
+      ></textarea>
+      <div class="field-hint">Minimum 50 caractères requis</div>
+    </div>
+  }
+
+  <!-- Erreur -->
+  @if (error) {
+    <div class="error-banner">{{ error }}</div>
+  }
+
+  <!-- Actions -->
+  <div class="step-actions">
+    <button class="btn-cancel" (click)="pipeline.closeFlow()">Annuler</button>
+    <button
+      class="btn-next"
+      [disabled]="!canSubmit"
+      (click)="submit()">
+      @if (pipeline.isLoading()) {
+        <span class="btn-spinner"></span> Analyse en cours...
+      } @else {
+        Analyser l'offre →
+      }
+    </button>
+  </div>
+</div>

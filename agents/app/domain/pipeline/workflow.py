@@ -13,6 +13,7 @@ from app.domain.pipeline.state import PipelineState
 from app.domain.offer_analyzer.service import offer_analyzer_service
 from app.domain.profile_retriever.service import profile_retriever_service
 from app.domain.skill_gap.service import skill_gap_service
+from app.domain.company.service import company_service
 from app.domain.cv_optimizer.service import cv_optimizer_service
 from app.domain.cv_engine.service import cv_engine_service
 
@@ -63,6 +64,28 @@ async def skill_gap_node(state: PipelineState) -> dict:
         "messages": [AIMessage(content="[Pipeline] Skill Gap analysé via Service", name="orchestrator")],
     }
 
+async def company_intelligence_node(state: PipelineState) -> dict:
+    """Nœud appelant le service d'intelligence entreprise."""
+    logger.info("Pipeline -- Calling CompanyService")
+    
+    analyzed_offer = state.get("analyzed_offer")
+    if not analyzed_offer or not analyzed_offer.get("entreprise"):
+         return {"messages": [AIMessage(content="[Pipeline] Pas d'entreprise détectée, intelligence ignorée", name="orchestrator")]}
+         
+    company_name = analyzed_offer.get("entreprise")
+    job_title = analyzed_offer.get("titre", "Poste inconnu")
+    
+    result = await company_service.get_company_intelligence(
+        company_name=company_name,
+        job_title=job_title,
+        user_id=state.get("user_id", "")
+    )
+    
+    return {
+        "company_intelligence": result,
+        "messages": [AIMessage(content="[Pipeline] Intelligence entreprise récupérée", name="orchestrator")],
+    }
+
 async def cv_optimizer_node(state: PipelineState) -> dict:
     """Nœud appelant le service d'optimisation de CV."""
     logger.info("Pipeline -- Calling CvOptimizerService")
@@ -108,7 +131,7 @@ async def db_persist_node(state: PipelineState) -> dict:
     logger.info("Pipeline -- Calling DbPersistNode")
     
     from app.core.database import AsyncSessionFactory
-    from app.domain.chatbot.models import OffreAnalysee, ResultatMatching
+    from app.core.models import OffreAnalysee, ResultatMatching
     import uuid
     
     offer_id = state.get("offer_id")
@@ -152,6 +175,14 @@ async def db_persist_node(state: PipelineState) -> dict:
                         points_forts=match_result.get("competences_matching")
                     ))
                     
+            # --- Enregistrement Company Intelligence ---
+            company_intel = state.get("company_intelligence")
+            if company_intel:
+                try:
+                    await company_service.save_company_intelligence(db, company_intel, offer_id)
+                except Exception as intel_e:
+                    logger.error(f"⚠️ Failed to save company intel: {intel_e}")
+                    
             await db.commit()
             return {"messages": [AIMessage(content="[Pipeline] Résultats sauvegardés en DB", name="orchestrator")]}
     except Exception as e:
@@ -166,6 +197,7 @@ def build_offer_pipeline() -> StateGraph:
     workflow.add_node("offer_analyzer_node",    offer_analyzer_node)
     workflow.add_node("profile_retriever_node", profile_retriever_node)
     workflow.add_node("skill_gap_node",         skill_gap_node)
+    workflow.add_node("company_intelligence_node", company_intelligence_node)
     workflow.add_node("cv_optimizer_node",      cv_optimizer_node)
     workflow.add_node("cv_engine_node",         cv_engine_node)
     workflow.add_node("db_persist_node",        db_persist_node)
@@ -174,7 +206,8 @@ def build_offer_pipeline() -> StateGraph:
 
     workflow.add_edge("offer_analyzer_node",    "profile_retriever_node")
     workflow.add_edge("profile_retriever_node", "skill_gap_node")
-    workflow.add_edge("skill_gap_node",         "cv_optimizer_node")
+    workflow.add_edge("skill_gap_node",         "company_intelligence_node")
+    workflow.add_edge("company_intelligence_node", "cv_optimizer_node")
     workflow.add_edge("cv_optimizer_node",      "cv_engine_node")
     workflow.add_edge("cv_engine_node",         "db_persist_node")
     workflow.add_edge("db_persist_node",        END)

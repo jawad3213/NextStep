@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.domain.company.schemas.state import CompanyState
-from app.domain.company.graph.company_graph import create_company_graph
+from app.domain.company.graph.workflow import create_company_graph
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,6 @@ class CompanyService:
             "messages": [],
             "errors": [],
             "raw_search_results": [],
-            "candidate_cv": candidate_cv,
-            "job_offer": job_offer,
             "pipeline_version": "3.0",
         }
 

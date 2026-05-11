@@ -17,18 +17,18 @@
 # ============================================================
 import logging
 from fastapi import FastAPI
-from resume.router import router as resume_router
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.offer_routes import router as offer_router
 from app.api.company_routes import router as company_router
 from app.api.cv_optimizer_routes import router as cv_optimizer_router
 from app.api.cv_engine_routes import router as cv_engine_router
-from app.domain.chatbot.router import router as chatbot_router
+from app.api.chatbot_routes import router as chatbot_router
+from app.api.resume_routes import router as resume_router
 
 # Compatibilité : ancien email_engine (M4 autonome)
 try:
-    from email_engine.router import router as email_router
+    from app.api.email_routes import router as email_router
     _email_router_available = True
 except ImportError:
     _email_router_available = False

@@ -46,6 +46,9 @@
                   }
                 </span>
                 <span class="label">{{ item.label }}</span>
+                @if (getBadge(item.path); as badge) {
+                  <span class="nav-badge" [ngClass]="badge.variant">{{ badge.label }}</span>
+                }
               </a>
             }
           </div>

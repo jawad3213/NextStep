@@ -35,6 +35,7 @@ public class AgentHttpClient : IAgentHttpClient
         string rawText,
         string userId,
         int templateId,
+        Guid offerId,
         CancellationToken ct = default)
     {
         var payload = new
@@ -42,6 +43,7 @@ public class AgentHttpClient : IAgentHttpClient
             raw_text = rawText,
             user_id = userId,
             template_id = templateId,
+            offer_id = offerId.ToString(),
         };
 
         var json = JsonSerializer.Serialize(payload, JsonOptions);
@@ -49,7 +51,7 @@ public class AgentHttpClient : IAgentHttpClient
 
         _logger.LogInformation("AgentHttpClient — POST /run-pipeline pour user_id={UserId}", userId);
 
-        var response = await _client.PostAsync("/run-pipeline", content, ct);
+        var response = await _client.PostAsync("/offer/run-pipeline", content, ct);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -77,12 +79,13 @@ public class AgentHttpClient : IAgentHttpClient
             raw_text = rawText,
             user_id = userId,
             template_id = 1,
+            offer_id = Guid.NewGuid().ToString(),
         };
 
         var json = JsonSerializer.Serialize(payload, JsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync("/analyze-offer", content, ct);
+        var response = await _client.PostAsync("/offer/analyze-offer", content, ct);
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(ct);

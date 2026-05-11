@@ -1,0 +1,131 @@
+<div class="step-content">
+
+  <!-- Error state -->
+  @if (error) {
+    <div class="error-section">
+      <div class="error-banner">
+        <span class="error-icon">✕</span>
+        <div>
+          <div class="error-title">Erreur pipeline</div>
+          <div class="error-detail">{{ error }}</div>
+        </div>
+      </div>
+      <div class="step-actions">
+        <button class="btn-ghost" (click)="goBack()">← Retour</button>
+        <button class="btn-next" (click)="retry()">Réessayer</button>
+      </div>
+    </div>
+  }
+
+  <!-- Real-time SignalR progress -->
+  @if (pipeline.isLoading() && !error) {
+    <div class="loader-section">
+      <div class="loader-banner">
+        <span class="spinner-lg"></span>
+        <div>
+          <div class="loader-title">Pipeline IA en cours</div>
+          <div class="loader-sub">{{ progress?.label ?? 'Analyse en cours...' }}</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" [style.width.%]="progress?.progressPercent ?? 5"></div>
+          </div>
+          <div class="progress-text">{{ progress?.progressPercent ?? 5 }}%</div>
+        </div>
+      </div>
+      <div class="agent-progress">
+        <div class="agent-row"
+          [class.done]="progress?.agentName === 'db_persist' || progress?.agentName === 'offer_analyzer'"
+          [class.running]="progress?.agentName === 'offer_analyzer'">
+          <span class="agent-icon">{{ (progress?.agentName === 'offer_analyzer') ? '◌' : '✓' }}</span>
+          A1 — Analyse de l'offre
+        </div>
+        <div class="agent-row" [class.done]="true">
+          <span class="agent-icon">✓</span>
+          A2 — Récupération du profil
+        </div>
+        <div class="agent-row" [class.done]="true">
+          <span class="agent-icon">✓</span>
+          A3 — Analyse des compétences
+        </div>
+        <div class="agent-row" [class.done]="true">
+          <span class="agent-icon">✓</span>
+          A4 — Intelligence entreprise
+        </div>
+        <div class="agent-row" [class.done]="true">
+          <span class="agent-icon">✓</span>
+          A5 — Optimisation CV
+        </div>
+        <div class="agent-row" [class.done]="progress?.agentName === 'db_persist'">
+          <span class="agent-icon">{{ progress?.agentName === 'db_persist' ? '◌' : '✓' }}</span>
+          A6 — Génération CV
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Results after pipeline completes -->
+  @if (!pipeline.isLoading() && !error && result) {
+    <h3 class="step-title">Résultats de l'analyse</h3>
+
+    <div class="results-grid">
+      <!-- Score matching -->
+      <div class="result-card">
+        <div class="rc-header">
+          <span class="rc-label">Score de matching</span>
+          <span class="rc-value" [class.good]="result.matchScore >= 70">
+            {{ result.matchScore }}%
+          </span>
+        </div>
+        <div class="match-track">
+          <div class="match-fill" [style.width.%]="result.matchScore"></div>
+        </div>
+      </div>
+
+      <!-- Company Intel -->
+      @if (result.companyName) {
+        <div class="result-card">
+          <div class="rc-header">
+            <span class="rc-label">Company Intel</span>
+            <span class="rating-badge">{{ result.companyCultureScore }}★</span>
+          </div>
+          <div class="company-detail">
+            {{ result.companyName }} · {{ result.companySize }}<br>
+            Salaire estimé : {{ result.companySalaryMin | number }}
+            – {{ result.companySalaryMax | number }} MAD
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Keywords ATS -->
+    <div class="keywords-card">
+      <div class="rc-label" style="margin-bottom:8px">Keywords ATS détectés</div>
+      <div class="keyword-chips">
+        @for (kw of result.keywordsPresent; track kw) {
+          <span class="chip present">{{ kw }}</span>
+        }
+        @for (kw of result.keywordsMissing; track kw) {
+          <span class="chip missing">{{ kw }}</span>
+        }
+      </div>
+      <div class="keywords-legend">
+        <span class="legend-item present">✓ Présent dans votre profil</span>
+        <span class="legend-item missing">✗ Manquant</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="step-actions">
+      <button class="btn-ghost" (click)="goBack()">← Retour</button>
+      <div class="action-group">
+        @if (result.missingSkills.length > 0) {
+          <button class="btn-outline-skill" (click)="goToSkillGap()">
+            Voir Skill Gap ({{ result.missingSkills.length }})
+          </button>
+        }
+        <button class="btn-next" (click)="pipeline.goToStep(3)">
+          Choisir le template →
+        </button>
+      </div>
+    </div>
+  }
+</div>

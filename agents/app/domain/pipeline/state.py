@@ -22,6 +22,7 @@ class PipelineState(TypedDict, total=False):
     normalized_profile_skills: Annotated[list[str], operator.add]
     
     match_result: Optional[Dict[str, Any]]
+    company_intelligence: Optional[Dict[str, Any]]
     
     # -- Sorties Finales (CV) --
     cv_optimized_content: Optional[Dict[str, Any]]

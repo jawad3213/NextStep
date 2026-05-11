@@ -39,9 +39,10 @@ def find_env_file() -> str:
 # Modifie ces valeurs via .env pour personnaliser
 AGENT_MODEL_DEFAULTS = {
     "offer_analyzer":  "llama-3.1-8b-instant",           # Rapide, structured output
-    "skill_gap":       "qwen/qwen3-32b",                 # Puissant, bon pour l'analyse
-    "cv_optimizer":    "llama-3.3-70b-versatile",         # Gros modèle, meilleur pour réécriture
-    "company":         "meta-llama/llama-4-scout-17b-16e-instruct",  # Bon compromis
+    "skill_gap":       "llama-3.1-8b-instant",           # JSON Mode support obligatoire
+    "cv_optimizer":    "llama3-70b-8192",                # Modèle Llama 3 70B alternatif (évite la limite du 3.3)
+    "company":         "llama3-8b-8192",                 # Autre modèle pour la compagnie
+    "resume":          "llama-3.3-70b-versatile",         # Llama 3.3 70B (ultra-précis, pas de limitation grâce à LLM_MAX_TOKENS=2000)
     "default":         "llama-3.1-8b-instant",            # Fallback
 }
 
@@ -49,14 +50,12 @@ AGENT_MODEL_DEFAULTS = {
 class Settings(BaseSettings):
     # ─── Base de données ───
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://admin:admin@localhost:5433/nextstep_db")
-    database_url: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://admin:admin@localhost:5433/nextstep_db")
 
     # ─── LLM Provider ───
     LLM_PROVIDER: str = "groq"          # "groq" | "openai"
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = "llama-3.1-8b-instant"
-    groq_model: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL_PRECISE: str = "llama-3.3-70b-versatile"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
@@ -71,18 +70,16 @@ class Settings(BaseSettings):
 
     # ─── Search API ───
     TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
-    tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")
 
     # ─── Backend .NET ───
     DOTNET_BACKEND_URL: str = "http://localhost:5000"
-    backend_url: str = "http://localhost:5000"
 
     # ─── LLM settings ───
     LLM_TEMPERATURE: float = 0.1
-    LLM_MAX_TOKENS: int = 4096
+    LLM_MAX_TOKENS: int = 2000
     
     # ─── JWT ───
-    jwt_secret: str = os.getenv("Keycloak__ClientSecret", "secret-keycloak-local")
+    JWT_SECRET: str = os.getenv("Keycloak__ClientSecret", "secret-keycloak-local")
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
 
     class Config:
@@ -150,6 +147,7 @@ def get_llm(temperature: float | None = None, agent_name: str | None = None):
             model=model,
             api_key=settings.GROQ_API_KEY,
             temperature=temp,
+            max_tokens=settings.LLM_MAX_TOKENS,
         )
     elif settings.LLM_PROVIDER == "gemini" and settings.GEMINI_API_KEY:
         from langchain_google_genai import ChatGoogleGenerativeAI
@@ -170,8 +168,8 @@ def get_llm_precise():
     """Température basse pour extraction structurée."""
     from langchain_groq import ChatGroq
     return ChatGroq(
-        model=settings.groq_model,
-        api_key=settings.groq_api_key,
-        temperature=0.0
+        model=settings.GROQ_MODEL_PRECISE,
+        api_key=settings.GROQ_API_KEY,
+        temperature=0.0,
+        max_tokens=settings.LLM_MAX_TOKENS,
     )
-

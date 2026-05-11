@@ -140,7 +140,14 @@ export class OffersService {
   offers = signal<JobOffer[]>(this.defaultOffers);
   activeOfferId = signal<string | null>(null);
   
-  // Pipeline-Specific State
+  // UI Panel State
+  searchTerm = signal<string>('');
+  filterContract = signal<string>('');
+  filterStatus = signal<string>('');
+  viewMode = signal<'list' | 'grid'>('list');
+  isSyncing = signal<boolean>(false);
+
+  // Pipeline-Specific State (Legacy/Simulated - can be removed later)
   pipelineRunning = signal<boolean>(false);
   activePipelineStep = signal<number>(0); // 0: Idle, 1: Poste, 2: CV, 3: Analyse, 4: Optimisation (Complete!)
   pipelineLog = signal<{ message: string; type: 'info' | 'success' | 'warning' }[]>([]);

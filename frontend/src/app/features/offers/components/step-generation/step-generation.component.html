@@ -1,0 +1,19 @@
+<div class="step-content">
+  <div class="generation-container">
+    <div class="cube-loader">
+      <div class="cube"></div>
+      <div class="cube"></div>
+      <div class="cube"></div>
+      <div class="cube"></div>
+    </div>
+
+    <h3 class="gen-title">Fabrication de votre candidature</h3>
+    <p class="gen-subtitle">{{ statusText }}</p>
+
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" [style.width.%]="progress"></div>
+    </div>
+    
+    <div class="progress-text">{{ progress }}%</div>
+  </div>
+</div>

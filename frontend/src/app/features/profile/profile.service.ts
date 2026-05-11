@@ -178,6 +178,25 @@ export class ProfileService {
     return firstValueFrom(this.http.put(`${this.apiUrl}/personal-info`, dto));
   }
 
+  private safeIsoDate(dateStr: string | null | undefined): string | null {
+    if (!dateStr) return null;
+    try {
+      const clean = dateStr.trim();
+      if (!clean) return null;
+      const lower = clean.toLowerCase();
+      if (lower.includes('present') || lower.includes('cours') || lower.includes('now') || lower.includes('en cours') || lower === 'null') {
+        return null;
+      }
+      const d = new Date(clean);
+      if (isNaN(d.getTime())) {
+        return null;
+      }
+      return d.toISOString();
+    } catch {
+      return null;
+    }
+  }
+
   async addExperience(exp: Experience, refresh = true) {
     const dateD = exp.startDate ? (exp.startDate.includes('-') ? exp.startDate : exp.startDate + '-01') : null;
     const dateF = exp.endDate ? (exp.endDate.includes('-') ? exp.endDate : exp.endDate + '-01') : null;
@@ -185,8 +204,8 @@ export class ProfileService {
     const dto = {
       entreprise: exp.company,
       poste: exp.title,
-      dateDebut: dateD ? new Date(dateD).toISOString() : null,
-      dateFin: dateF ? new Date(dateF).toISOString() : null,
+      dateDebut: this.safeIsoDate(dateD),
+      dateFin: this.safeIsoDate(dateF),
       missions: exp.description,
       ville: exp.city,
       type: exp.type
@@ -196,12 +215,15 @@ export class ProfileService {
   }
 
   async updateExperience(exp: Experience) {
+    const dateD = exp.startDate ? (exp.startDate.includes('-') ? exp.startDate : exp.startDate + '-01') : null;
+    const dateF = exp.endDate ? (exp.endDate.includes('-') ? exp.endDate : exp.endDate + '-01') : null;
+
     const dto = {
       id: exp.id,
       entreprise: exp.company,
       poste: exp.title,
-      dateDebut: exp.startDate ? new Date(exp.startDate + '-01').toISOString() : null,
-      dateFin: exp.endDate ? new Date(exp.endDate + '-01').toISOString() : null,
+      dateDebut: this.safeIsoDate(dateD),
+      dateFin: this.safeIsoDate(dateF),
       missions: exp.description,
       ville: exp.city,
       type: exp.type
@@ -378,7 +400,7 @@ export class ProfileService {
     const dto = {
       titre: c.name,
       organisation: c.issuer,
-      dateObtention: c.date,
+      dateObtention: this.safeIsoDate(c.date),
       urlCredential: c.verificationUrl
     };
     await firstValueFrom(this.http.post(`${this.apiUrl}/certifications`, dto));
@@ -390,7 +412,7 @@ export class ProfileService {
       id: c.id,
       titre: c.name,
       organisation: c.issuer,
-      dateObtention: c.date,
+      dateObtention: this.safeIsoDate(c.date),
       urlCredential: c.verificationUrl
     };
     await firstValueFrom(this.http.put(`${this.apiUrl}/certifications`, dto));
@@ -544,7 +566,7 @@ export class ProfileService {
       await this.savePersonalInfo(personal);
       this.addParsingEvent('success', 'Profile identity updated', personal.firstName + ' ' + personal.lastName);
 
-      // 2. Experiences
+      // 2. Experiences (Work)
       if (data.experience && Array.isArray(data.experience)) {
         for (const exp of data.experience) {
           this.addParsingEvent('info', 'Mapping experience', exp.entreprise);
@@ -560,6 +582,26 @@ export class ProfileService {
             type: this.mapExperienceType(exp.type || 'Stage')
           }, false);
           this.addParsingEvent('success', 'Experience synced', exp.entreprise);
+        }
+      }
+
+      // 2b. Extracurricular Activities (mapped to Experiences of type Extracurricular)
+      const extracurricularData = data.extracurricular || data.parascolaire;
+      if (extracurricularData && Array.isArray(extracurricularData)) {
+        for (const extra of extracurricularData) {
+          this.addParsingEvent('info', 'Mapping extracurricular activity', extra.organisation || extra.company);
+          await this.addExperience({
+            id: '',
+            company: extra.organisation || extra.company || extra.entreprise || '',
+            title: extra.titre || extra.title || extra.role || extra.poste || 'Activity',
+            startDate: extra.dateDebut || extra.startDate ? (extra.dateDebut || extra.startDate).substring(0, 7) : '',
+            endDate: extra.dateFin || extra.endDate ? (extra.dateFin || extra.endDate).substring(0, 7) : '',
+            city: extra.ville || '',
+            description: extra.description || extra.missions || '',
+            current: !(extra.dateFin || extra.endDate),
+            type: 'Extracurricular'
+          }, false);
+          this.addParsingEvent('success', 'Extracurricular synced', extra.organisation || extra.company);
         }
       }
 
@@ -582,51 +624,91 @@ export class ProfileService {
         }
       }
 
-      // 4. Skills
-      let skillsData = data.skills || data.competences;
+      // 4. Skills & Languages
+      let skillsData = data.skills || data.competences || [];
+      let languagesData = data.languages || data.langues || [];
+      
+      const commonLanguages = [
+        'french', 'français', 'francais', 'english', 'anglais', 'arabic', 'arabe', 
+        'spanish', 'espagnol', 'german', 'allemand', 'italian', 'italien', 'russian', 'russe',
+        'chinese', 'chinois', 'japanese', 'japonais', 'portuguese', 'portugais'
+      ];
+
+      // Process languagesData first
+      if (languagesData && Array.isArray(languagesData)) {
+        for (const lang of languagesData) {
+          const langName = typeof lang === 'string' ? lang : (lang.nom || lang.name || '');
+          if (!langName) continue;
+          const levelStr = typeof lang === 'string' ? 'B2' : (lang.niveau || lang.level || 'B2');
+          
+          await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
+            nom: langName.trim(),
+            niveau: this.mapLevelToInt(levelStr),
+            typeCompetence: 'Langue'
+          }));
+          this.addParsingEvent('success', 'Language added', langName);
+        }
+      }
+
+      // Process skillsData and automatically recognize any missed languages
       if (skillsData && Array.isArray(skillsData)) {
         for (const skill of skillsData) {
           const skillName = typeof skill === 'string' ? skill : (skill.nom || skill.name || '');
           if (!skillName) continue;
-          const typeRaw = (skill.typeCompetence || skill.type || '').toLowerCase();
-          const isLangue = typeRaw.includes('lang') || typeRaw.includes('linguist');
           
-          await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
-            nom: skillName.trim(),
-            niveau: isLangue ? this.mapLevelToInt(skill.niveau || 'B1') : 3,
-            typeCompetence: isLangue ? 'Langue' : (skill.typeCompetence || 'Technical')
-          }));
-          this.addParsingEvent('success', 'Skill added', skillName);
+          const typeRaw = typeof skill === 'string' ? '' : (skill.typeCompetence || skill.type || '').toLowerCase();
+          const isLangue = typeRaw.includes('lang') || 
+                           typeRaw.includes('linguist') || 
+                           commonLanguages.includes(skillName.toLowerCase().trim());
+          
+          if (isLangue) {
+            const levelStr = typeof skill === 'string' ? 'B2' : (skill.niveau || skill.level || 'B2');
+            await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
+              nom: skillName.trim(),
+              niveau: this.mapLevelToInt(levelStr),
+              typeCompetence: 'Langue'
+            }));
+            this.addParsingEvent('success', 'Language added', skillName);
+          } else {
+            await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
+              nom: skillName.trim(),
+              niveau: 3,
+              typeCompetence: (typeof skill !== 'string' && skill.typeCompetence) ? skill.typeCompetence : 'Technical'
+            }));
+            this.addParsingEvent('success', 'Skill added', skillName);
+          }
         }
       }
 
       // 5. Projects
-      if (data.projects && Array.isArray(data.projects)) {
-        for (const p of data.projects) {
+      const projectsData = data.projects || data.projets;
+      if (projectsData && Array.isArray(projectsData)) {
+        for (const p of projectsData) {
           await this.addProject({
             id: '',
-            title: p.titre || p.title || '',
+            title: p.titre || p.title || p.name || '',
             description: p.description || '',
-            stack: p.technologies ? (typeof p.technologies === 'string' ? p.technologies.split(',') : p.technologies) : [],
-            githubUrl: p.lien || '',
-            demoUrl: '',
-            isUniversity: false
+            stack: p.technologies ? (typeof p.technologies === 'string' ? p.technologies.split(',') : p.technologies) : (p.stack ? (typeof p.stack === 'string' ? p.stack.split(',') : p.stack) : []),
+            githubUrl: p.lien || p.githubUrl || p.lienProjet || p.url || '',
+            demoUrl: p.demoUrl || '',
+            isUniversity: p.isUniversity || p.isAcademic || false
           });
-          this.addParsingEvent('success', 'Project synced', p.titre || p.title);
+          this.addParsingEvent('success', 'Project synced', p.titre || p.title || p.name);
         }
       }
 
       // 6. Certifications
-      if (data.certifications && Array.isArray(data.certifications)) {
-        for (const cert of data.certifications) {
+      const certificationsData = data.certifications || data.certification || data.certifs;
+      if (certificationsData && Array.isArray(certificationsData)) {
+        for (const cert of certificationsData) {
           await this.addCertification({
             id: '',
-            name: cert.titre || '',
-            issuer: cert.organisation || '',
-            date: cert.date || '',
-            verificationUrl: cert.lien || ''
+            name: cert.titre || cert.name || cert.title || '',
+            issuer: cert.organisation || cert.issuer || cert.organisme || '',
+            date: cert.date || cert.dateObtention || '',
+            verificationUrl: cert.lien || cert.url || cert.verificationUrl || ''
           });
-          this.addParsingEvent('success', 'Cert synced', cert.titre);
+          this.addParsingEvent('success', 'Cert synced', cert.titre || cert.name || cert.title);
         }
       }
 

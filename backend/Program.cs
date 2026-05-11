@@ -23,6 +23,7 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 builder.Services.AddCors(options =>
@@ -42,6 +43,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters { ValidateAudience = false, ValidateIssuer = false, NameClaimType = "email" };
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async context =>
             {
                 var principal = context.Principal;
@@ -67,6 +75,8 @@ builder.Services.Configure<AgentPythonOptions>(builder.Configuration.GetSection(
 builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IOfferService, OfferService>();
+builder.Services.AddScoped<IPipelineRunnerService, PipelineRunnerService>();
+builder.Services.AddScoped<IPdfGenerationService, PdfGenerationService>();
 builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
 builder.Services.AddScoped<ICandidatureService, CandidatureService>();
 builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
@@ -99,7 +109,21 @@ if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseCors("Angular");
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.Use(async (ctx, next) =>
+{
+    try { await next(); }
+    catch (Exception ex)
+    {
+        ctx.Response.StatusCode = 500;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsync(
+            System.Text.Json.JsonSerializer.Serialize(new { error = ex.Message, type = ex.GetType().Name }));
+    }
+});
+
 app.MapControllers();
+app.MapHub<NextStep.SignalR.PipelineHub>("/hubs/pipeline");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -213,7 +237,7 @@ using (var scope = app.Services.CreateScope())
                 title VARCHAR(200),
                 template_slug VARCHAR(50) NOT NULL,
                 template_name VARCHAR(120),
-                cv_data_json JSONB DEFAULT '{}',
+                cv_data_json JSONB DEFAULT '{{}}',
                 file_url VARCHAR(1000) NOT NULL,
                 object_key VARCHAR(500) NOT NULL,
                 bucket_name VARCHAR(100) NOT NULL,
@@ -226,11 +250,66 @@ using (var scope = app.Services.CreateScope())
         ");
 
         // Add columns if table already exists (safe idempotent migration)
-        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{}'", "updated_at TIMESTAMP" };
+        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{{}}'", "updated_at TIMESTAMP" };
         foreach (var c in histCols)
             await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS {c};");
 
         Console.WriteLine("DEBUG: NUCLEAR REPAIR COMPLETED.");
+
+        // 10. Offers, Candidatures, DocumentGenere and EmailDraft tables
+        Console.WriteLine("DEBUG: REPAIRING OFFERS, CANDIDATURES, DOCUMENTS AND EMAILS...");
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.offres_emploi (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                texte_brut TEXT,
+                analyse_json JSONB DEFAULT '{{}}',
+                date_creation TIMESTAMP DEFAULT now(),
+                utilisateur_id UUID
+            );
+
+            CREATE TABLE IF NOT EXISTS public.candidature (
+                id_candidature UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_utilisateur UUID,
+                id_offre UUID REFERENCES public.offres_emploi(id) ON DELETE CASCADE,
+                date_creation TIMESTAMP DEFAULT now(),
+                inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
+                statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
+            );
+
+            CREATE TABLE IF NOT EXISTS public.document_genere (
+                id_document UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_candidature UUID UNIQUE REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                cv_contenu_ia_json JSONB DEFAULT '{{}}',
+                lettre_motiv_contenu_ia TEXT,
+                chemin_pdf_cv VARCHAR(255),
+                chemin_pdf_lettre VARCHAR(255),
+                version INTEGER DEFAULT 1,
+                date_generation TIMESTAMP DEFAULT now()
+            );
+
+            CREATE TABLE IF NOT EXISTS public.email_draft (
+                id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_candidature UUID REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                type_email VARCHAR(50) DEFAULT 'application',
+                recipient_email VARCHAR(255),
+                objet VARCHAR(255),
+                corps TEXT,
+                langue VARCHAR(10) DEFAULT 'fr',
+                est_approuve BOOLEAN DEFAULT FALSE,
+                est_envoye BOOLEAN DEFAULT FALSE,
+                date_creation TIMESTAMP DEFAULT now(),
+                date_modification TIMESTAMP,
+                date_envoi TIMESTAMP,
+                error_message TEXT
+            );
+        ");
+        Console.WriteLine("DEBUG: OFFERS, CANDIDATURES, DOCUMENTS AND EMAILS REPAIR COMPLETED.");
+
+        // 11. Ensure MinIO Buckets Exist on Startup
+        Console.WriteLine("DEBUG: ENSURING MINIO BUCKETS EXIST...");
+        var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
+        await storageService.EnsureBucketExistsAsync();
+        Console.WriteLine("DEBUG: MINIO BUCKETS OK.");
     }
     catch (Exception ex) { Console.WriteLine($"DEBUG: REPAIR FAILED: {ex.Message}"); }
 }

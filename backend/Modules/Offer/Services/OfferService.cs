@@ -1,9 +1,4 @@
-// ============================================================
-// Modules/Offer/Services/OfferService.cs
-// Logique métier : soumet l'offre au pipeline Python, sauvegarde en DB
-// ============================================================
 using System.Text.Json;
-using NextStep.Shared.Http;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Offer.Repositories;
@@ -14,97 +9,65 @@ namespace NextStep.Modules.Offer.Services;
 
 public interface IOfferService
 {
-    Task<OfferAnalysisDto> SubmitAndAnalyzeAsync(
-        string rawText,
-        int templateId,
-        string userId,
-        CancellationToken ct = default);
-
+    Task<OffreEmploi> SaveOfferAsync(string rawText, string userId, CancellationToken ct = default);
     Task<OfferAnalysisDto?> GetAnalysisAsync(Guid offerId, CancellationToken ct = default);
+    Task SavePipelineResultAsync(Guid offerId, JsonDocument pipelineResult, Guid userId, CancellationToken ct = default);
 }
 
 public class OfferService(
     IOfferRepository repository,
-    IAgentHttpClient agentClient,
     AppDbContext db,
     ILogger<OfferService> logger) : IOfferService
 {
-    /// <summary>
-    /// 1. Sauvegarde l'offre brute en DB
-    /// 2. Lance le pipeline Python (/run-pipeline)
-    /// 3. Met à jour l'offre avec le JSON analyse
-    /// 4. Retourne le DTO complet vers Angular
-    /// </summary>
-    public async Task<OfferAnalysisDto> SubmitAndAnalyzeAsync(
-        string rawText,
-        int templateId,
-        string userId,
-        CancellationToken ct = default)
+    public async Task<OffreEmploi> SaveOfferAsync(string rawText, string userId, CancellationToken ct = default)
     {
-        logger.LogInformation("OfferService — Soumission offre par user {UserId}", userId);
-
         Guid userGuid = Guid.TryParse(userId, out var parsedGuid) ? parsedGuid : Guid.Empty;
 
-        // Étape 1 : Persiste l'offre brute
         var offre = new OffreEmploi
         {
             TexteBrut = rawText,
             UtilisateurId = userGuid,
         };
         offre = await repository.SaveAsync(offre, ct);
+        logger.LogInformation("OfferService — Offre sauvegardée {OfferId}", offre.Id);
+        return offre;
+    }
 
-        // Étape 2 : Appel au pipeline Python
-        JsonDocument pipelineResult;
-        try
-        {
-            pipelineResult = await agentClient.RunPipelineAsync(rawText, userId, templateId, ct);
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogError(ex, "OfferService — Erreur appel pipeline Python");
-            throw new InvalidOperationException("Le service IA est temporairement indisponible.", ex);
-        }
-
+    public async Task SavePipelineResultAsync(Guid offerId, JsonDocument pipelineResult, Guid userId, CancellationToken ct = default)
+    {
         var root = pipelineResult.RootElement;
+        var fullJson = root.GetRawText();
 
-        // Étape 3 : Sauvegarde le JSON d'analyse
-        var analyzeJson = root.TryGetProperty("analyzed_offer", out var ao)
-            ? ao.GetRawText()
-            : "{}";
-        await repository.UpdateAnalyseJsonAsync(offre.Id, analyzeJson, ct);
+        await repository.UpdateAnalyseJsonAsync(offerId, fullJson, ct);
 
-        // Étape 3.1 : Sauvegarde le CV généré par l'IA (dans table document_genere)
         var candidature = new NextStep.Modules.Candidature.Models.Candidature
         {
-            IdUtilisateur = userGuid,
-            IdOffre = offre.Id,
+            IdUtilisateur = userId,
+            IdOffre = offerId,
             Statut = "EN_ATTENTE",
             DateCreation = DateTime.UtcNow
         };
         db.Candidatures.Add(candidature);
+        await db.SaveChangesAsync(ct);
 
         var cvDataJson = root.TryGetProperty("cv_data", out var cd)
             ? cd.GetRawText()
             : null;
 
-        var documentGenere = new DocumentGenere
+        if (cvDataJson != null)
         {
-            IdCandidature = candidature.IdCandidature,
-            CvContenuIaJson = cvDataJson,
-            Version = 1,
-            DateGeneration = DateTime.UtcNow
-        };
-        db.DocumentsGeneres.Add(documentGenere);
+            var documentGenere = new DocumentGenere
+            {
+                IdCandidature = candidature.IdCandidature,
+                CvContenuIaJson = cvDataJson,
+                Version = 1,
+                DateGeneration = DateTime.UtcNow
+            };
+            db.DocumentsGeneres.Add(documentGenere);
+            await db.SaveChangesAsync(ct);
+        }
 
-        await db.SaveChangesAsync(ct);
-
-        // Étape 4 : Construit le DTO de retour
-        var dto = MapToDto(offre.Id, root);
-        logger.LogInformation(
-            "OfferService — ✅ Pipeline terminé : matching={Matching}% ATS={ATS}%",
-            dto.ScoreMatching, dto.ScoreAts);
-
-        return dto;
+        logger.LogInformation("OfferService — Résultats pipeline sauvegardés pour offre {OfferId}", offerId);
     }
 
     public async Task<OfferAnalysisDto?> GetAnalysisAsync(Guid offerId, CancellationToken ct = default)
@@ -117,12 +80,10 @@ public class OfferService(
         return MapToDto(offre.Id, doc.RootElement);
     }
 
-    // ─── Mapping JSON Python → DTO .NET ───
     private static OfferAnalysisDto MapToDto(Guid offerId, JsonElement root)
     {
         var dto = new OfferAnalysisDto { OfferId = offerId };
 
-        // Analyse offre (Agent 1)
         if (root.TryGetProperty("analyzed_offer", out var ao) && ao.ValueKind == JsonValueKind.Object)
         {
             dto.Titre = ao.GetStringOrDefault("titre") ?? "";
@@ -137,7 +98,6 @@ public class OfferService(
             dto.KeywordsAts = ao.GetStringList("keywords_ats");
         }
 
-        // Scoring (Agent 4)
         if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)
         {
             dto.ScoreMatching = mr.GetIntOrDefault("score_matching") ?? 0;
@@ -149,7 +109,6 @@ public class OfferService(
             dto.CompetencesManquantes = mr.GetStringList("competences_manquantes");
         }
 
-        // Erreurs pipeline
         if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)
         {
             dto.Erreurs = [.. errors.EnumerateArray()
@@ -161,8 +120,7 @@ public class OfferService(
     }
 }
 
-// ─── Extensions JSON helper ───
-file static class JsonElementExtensions
+public static class JsonElementExtensions
 {
     public static string? GetStringOrDefault(this JsonElement el, string prop)
         => el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String

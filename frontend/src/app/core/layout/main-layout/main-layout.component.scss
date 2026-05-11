@@ -55,9 +55,12 @@
         .icon-container {
           margin-right: 0;
         }
-        .label {
+        .label, .nav-badge {
           opacity: 0;
           width: 0;
+          padding: 0;
+          margin: 0;
+          overflow: hidden;
         }
       }
 
@@ -225,6 +228,21 @@
         white-space: nowrap;
         overflow: hidden;
         transition: opacity 0.3s ease, width 0.3s ease;
+      }
+      .nav-badge {
+        margin-left: auto;
+        padding: 2px 6px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        transition: opacity 0.3s ease;
+        
+        &.green { background: rgba(52, 168, 83, 0.15); color: #4ADE80; }
+        &.amber { background: rgba(245, 155, 0, 0.15); color: #FBBF24; }
+        &.red { background: rgba(217, 48, 37, 0.15); color: #F87171; }
+        &.blue { background: rgba(26, 145, 240, 0.15); color: #60A5FA; }
       }
       &:hover { background-color: rgba(255, 255, 255, 0.04); color: #F8FAFC; }
       &.active {

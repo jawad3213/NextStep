@@ -4,6 +4,7 @@ import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../auth/services/auth.service';
 import { filter } from 'rxjs';
 import { ProfileService } from '../../../features/profile/profile.service';
+import { PipelineStateService } from '../../../services/pipeline-state.service';
 
 
 @Component({
@@ -23,6 +24,25 @@ export class MainLayoutComponent {
   profileService = inject(ProfileService);
   profile = this.profileService.profile;
   searchQuery = signal('');
+  
+  pipelineState = inject(PipelineStateService);
+
+  getBadge(path: string) {
+    // path is like "/cv" -> we want "cv-builder", or "/company-intel" -> "company-intel"
+    const route = path.replace('/', '');
+    // Map paths to badge IDs used in pipelineState
+    const idMap: Record<string, string> = {
+      'cv': 'cv-builder',
+      'letters': 'email',
+      'company-intel': 'company-intel',
+      'skill-gap': 'skill-gap',
+      'notifications': 'notifications'
+    };
+    const badgeId = idMap[route];
+    if (!badgeId) return null;
+    
+    return this.pipelineState.sidebarBadges().find(b => b.page === badgeId && b.visible);
+  }
 
   // Filtered menu sections based on search query
   filteredMenuSections = computed(() => {

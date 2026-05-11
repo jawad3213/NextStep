@@ -1,0 +1,29 @@
+<div class="step-content">
+  <h3 class="step-title">Choisissez un Template CV</h3>
+  <p class="step-subtitle">Le moteur IA va adapter vos informations selon ce design.</p>
+
+  <div class="template-grid">
+    @for (tpl of templates; track tpl.slug) {
+      <div 
+        class="template-card" 
+        [class.selected]="pipeline.selectedTemplateId() === tpl.slug"
+        (click)="selectTemplate(tpl.slug)">
+        <div class="template-preview" [style.background]="tpl.backgroundColor || '#f0f0f0'">
+          <div class="template-thumb-label">{{ tpl.name }}</div>
+          <div class="selection-indicator">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <div class="template-name">{{ tpl.name }}</div>
+        <div class="template-desc">{{ tpl.description }}</div>
+      </div>
+    }
+  </div>
+
+  <div class="step-actions">
+    <button class="btn-ghost" (click)="pipeline.goToStep(2)">← Retour</button>
+    <button class="btn-next" (click)="next()">
+      Générer les documents →
+    </button>
+  </div>
+</div>

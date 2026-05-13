@@ -1186,3 +1186,16 @@ input:focus-visible {
   max-width: 100%;
   overflow-x: hidden;
 }
+
+.linkedin-import-modal {
+  max-width: 520px !important;
+  
+  input, textarea {
+    font-family: 'Lato', sans-serif !important;
+    
+    &:focus {
+      border-color: #1A91F0 !important;
+      box-shadow: 0 0 0 3px rgba(26, 145, 240, 0.15) !important;
+    }
+  }
+}

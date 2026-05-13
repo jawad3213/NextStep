@@ -1,63 +1,191 @@
-<div class="step-content">
-  <h3 class="step-title">Soumettez votre offre d'emploi</h3>
-
-  <!-- Sélecteur URL / Texte -->
-  <div class="input-tabs">
-    <button [class.active]="mode === 'url'"  (click)="mode = 'url'">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-      Coller l'URL
-    </button>
-    <button [class.active]="mode === 'text'" (click)="mode = 'text'">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      Coller le texte
-    </button>
-  </div>
-
-  <!-- Zone URL -->
-  @if (mode === 'url') {
-    <div class="input-zone">
-      <input
-        class="field"
-        type="url"
-        placeholder="https://www.linkedin.com/jobs/view/..."
-        [(ngModel)]="urlValue"
-      />
-      <div class="field-hint">
-        Supporte : LinkedIn · Indeed · Welcome to the Jungle · Rekrute.ma · Emploi.ma
+<div class="step-submit-container">
+  <!-- Left Side: Interactive Submit console -->
+  <div class="submission-panel">
+    <div class="panel-header">
+      <div class="glow-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="panel-title">Scanner d'Opportunités</h3>
+        <p class="panel-subtitle">Soumettez l'offre pour connecter vos compétences aux filtres ATS.</p>
       </div>
     </div>
-  }
 
-  <!-- Zone texte -->
-  @if (mode === 'text') {
-    <div class="input-zone">
-      <textarea
-        class="field textarea"
-        rows="6"
-        placeholder="Collez ici le texte complet de l'offre d'emploi..."
-        [(ngModel)]="textValue"
-      ></textarea>
-      <div class="field-hint">Minimum 50 caractères requis</div>
+    <!-- Sélecteur URL / Texte (Interactive glass tabs) -->
+    <div class="input-tabs">
+      <button type="button" [class.active]="mode === 'url'" (click)="mode = 'url'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="tab-icon">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+        <span>Lien de l'offre</span>
+      </button>
+      <button type="button" [class.active]="mode === 'text'" (click)="mode = 'text'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="tab-icon">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <span>Texte Brut</span>
+      </button>
     </div>
-  }
 
-  <!-- Erreur -->
-  @if (error) {
-    <div class="error-banner">{{ error }}</div>
-  }
+    <!-- Zone URL -->
+    @if (mode === 'url') {
+      <div class="input-zone animate-fade-in">
+        <div class="input-wrapper">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          <input
+            class="field-input"
+            type="url"
+            placeholder="Coller l'URL (LinkedIn, Indeed, Rekrute, Emploi.ma...)"
+            [(ngModel)]="urlValue"
+          />
+        </div>
+        <div class="field-hint">
+          <span class="pulse-indicator"></span>
+          <span>Sourcing intelligent actif pour les plateformes majeures du marché.</span>
+        </div>
+      </div>
+    }
 
-  <!-- Actions -->
-  <div class="step-actions">
-    <button class="btn-cancel" (click)="pipeline.closeFlow()">Annuler</button>
-    <button
-      class="btn-next"
-      [disabled]="!canSubmit"
-      (click)="submit()">
-      @if (pipeline.isLoading()) {
-        <span class="btn-spinner"></span> Analyse en cours...
-      } @else {
-        Analyser l'offre →
-      }
-    </button>
+    <!-- Zone texte -->
+    @if (mode === 'text') {
+      <div class="input-zone animate-fade-in">
+        <div class="input-wrapper textarea-wrapper">
+          <textarea
+            class="field-textarea"
+            rows="8"
+            placeholder="Collez ici l'intégralité du descriptif du poste (missions, profil recherché, technos...)"
+            [(ngModel)]="textValue"
+          ></textarea>
+        </div>
+        <div class="field-hint">
+          <span class="char-counter" [class.valid]="textValue.trim().length >= 50">
+            {{ textValue.trim().length }} / 50 car. min
+          </span>
+          <span>Recommandé pour les offres issues de documents PDF ou d'emails.</span>
+        </div>
+      </div>
+    }
+
+    <!-- Erreur -->
+    @if (error) {
+      <div class="error-banner animate-slide-up">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="error-icon">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>{{ error }}</span>
+      </div>
+    }
+
+    <!-- Actions -->
+    <div class="step-actions">
+      <button type="button" class="btn-cancel-premium" (click)="pipeline.closeFlow()">
+        Annuler
+      </button>
+      <button
+        type="button"
+        class="btn-submit-premium"
+        [disabled]="!canSubmit"
+        (click)="submit()">
+        @if (pipeline.isLoading()) {
+          <span class="btn-spinner"></span> Extraction IA en cours...
+        } @else {
+          <span>Lancer l'Analyse IA</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="arrow-icon">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Side: AI Scanning Assistant Sidebar (No more boring whitespace!) -->
+  <div class="ai-info-panel">
+    <div class="info-glow-overlay"></div>
+    
+    <div class="ai-brain-visual">
+      <div class="radar-pings">
+        <div class="ping-1"></div>
+        <div class="ping-2"></div>
+      </div>
+      <div class="brain-graphic">
+        <svg viewBox="0 0 100 100" class="brain-svg">
+          <!-- Outer connections -->
+          <path d="M 50,50 L 25,25" class="mesh-line l-1" />
+          <path d="M 50,50 L 75,25" class="mesh-line l-2" />
+          <path d="M 50,50 L 25,75" class="mesh-line l-3" />
+          <path d="M 50,50 L 75,75" class="mesh-line l-4" />
+          <path d="M 50,50 L 15,50" class="mesh-line l-5" />
+          <path d="M 50,50 L 85,50" class="mesh-line l-6" />
+          <!-- Nodes -->
+          <circle cx="50" cy="50" r="10" class="core-node" />
+          <circle cx="25" cy="25" r="5" class="peripheral-node p-1" />
+          <circle cx="75" cy="25" r="5" class="peripheral-node p-2" />
+          <circle cx="25" cy="75" r="5" class="peripheral-node p-3" />
+          <circle cx="75" cy="75" r="5" class="peripheral-node p-4" />
+          <circle cx="15" cy="50" r="5" class="peripheral-node p-5" />
+          <circle cx="85" cy="50" r="5" class="peripheral-node p-6" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="scanning-info-header">
+      <span class="badge-tech">ENGINE ACTIVE</span>
+      <h4 class="info-title">Sourcing & Analyse Sémantique</h4>
+      <p class="info-description">
+        Notre intelligence artificielle scanne l'offre pour en extraire l'architecture de compétences attendue par le recruteur.
+      </p>
+    </div>
+
+    <div class="scanning-tips-list">
+      <div class="tip-card">
+        <div class="tip-icon-box orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div class="tip-body">
+          <h5 class="tip-heading">Scan Mots-Clés</h5>
+          <p class="tip-text">Identification en temps réel des hard & soft skills requises pour optimiser votre score de compatibilité ATS.</p>
+        </div>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <div class="tip-body">
+          <h5 class="tip-heading">Alignement Structurel</h5>
+          <p class="tip-text">Adaptation sur-mesure de l'ordre d'importance et de la formulation de vos expériences professionnelles.</p>
+        </div>
+      </div>
+
+      <div class="tip-card font-tech-only">
+        <div class="tip-icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <div class="tip-body">
+          <h5 class="tip-heading">Diagnostic Instantané</h5>
+          <p class="tip-text">Estimez votre niveau de matching avant même d'avoir envoyé votre dossier de candidature.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

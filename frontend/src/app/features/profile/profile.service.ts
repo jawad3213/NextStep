@@ -540,6 +540,42 @@ export class ProfileService {
     }
   }
 
+  async importLinkedIn(url: string, rawText?: string): Promise<void> {
+    this.parsingEvents.set([]);
+    try {
+      this.addParsingEvent('info', 'Connecting to NextStep AI agents...');
+      
+      const simulateEvents = async () => {
+        const events: {type: 'info' | 'success', msg: string, entity?: string}[] = [
+          { type: 'info', msg: 'Interpreting LinkedIn profile handle...' },
+          { type: 'info', msg: 'Performing deep search on public profiles...' },
+          { type: 'info', msg: 'Synthesizing professional background...' }
+        ];
+
+        for (const e of events) {
+          if (this.parsingEvents().length > 10) break; // Arrêt si fini
+          this.addParsingEvent(e.type, e.msg, e.entity);
+          await new Promise(r => setTimeout(r, 800));
+        }
+      };
+
+      const simulationPromise = simulateEvents();
+
+      const data = await firstValueFrom(
+        this.http.post<any>(`${this.apiUrl}/import-linkedin`, { url, rawText })
+      );
+
+      if (data) {
+        this.addParsingEvent('success', 'LinkedIn Import successful!');
+        await this.processExtractedData(data);
+      }
+    } catch (error) {
+      this.addParsingEvent('info', 'Error during LinkedIn import', 'Process halted');
+      console.error('Erreur lors de l\'import LinkedIn:', error);
+      throw error;
+    }
+  }
+
   private async processExtractedData(data: any): Promise<void> {
     try {
       // Clear existing profile data for a clean import

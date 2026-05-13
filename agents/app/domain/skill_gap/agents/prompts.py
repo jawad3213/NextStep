@@ -28,9 +28,9 @@ Voici les exigences de l'offre d'emploi (Offer) :
    - **Bases de données / SQL** : "PostgreSQL", "MySQL", "Oracle DB", "SQLite" correspondent sémantiquement à la maîtrise générale du "SQL" ou des "Bases de données".
    - **Méthodes de travail** : "Agile/Scrum", "Scrum", "Agile" sont sémantiquement équivalents.
 
-3. **`relevance_score` (Score de pertinence de 0.0 à 1.0)** :
-   Calcule une note reflétant l'adéquation globale (compétences, certifications, années d'expérience).
-   Fais une évaluation sémantique intelligente (ex: "PostgreSQL" correspond sémantiquement à "SQL", "Scikit-Learn" ou "PyTorch" correspond à "Machine Learning").
+3. **`relevance_score` (Note indicative)** :
+   Donne une estimation initiale de la pertinence de 0.0 à 1.0. 
+   Note : Ta valeur sera vérifiée et recalculée par une fonction mathématique Python basée sur les `matched_skills`, `missing_skills` et l'expérience que tu auras extraites. Concentre-toi donc sur l'EXACTITUDE de l'extraction des faits.
 
 4. **`matched_skills` vs `missing_skills`** :
    - `matched_skills` : liste les compétences présentes dans le CV qui correspondent (directement ou sémantiquement) à l'offre.

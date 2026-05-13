@@ -1,12 +1,16 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
-from app.domain.resume.service import extract_text_from_pdf, parse_cv_with_ai
+from pydantic import BaseModel
+from typing import Optional
+from app.domain.resume.service import extract_text_from_pdf, parse_cv_with_ai, parse_linkedin_with_ai
 import json
 import asyncio
 
 router = APIRouter()
+
+class LinkedInRequest(BaseModel):
+    url: Optional[str] = None
+    rawText: Optional[str] = None
 
 @router.post("/parse")
 async def parse_resume(file: UploadFile = File(...)):
@@ -29,3 +33,12 @@ async def parse_resume(file: UploadFile = File(...)):
     except Exception as e:
         print(f"Error parsing resume: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse du CV : {str(e)}")
+
+@router.post("/parse-linkedin")
+async def parse_linkedin_route(payload: LinkedInRequest):
+    try:
+        parsed_json = await parse_linkedin_with_ai(url=payload.url, raw_text=payload.rawText)
+        return parsed_json
+    except Exception as e:
+        print(f"Error parsing LinkedIn: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'import LinkedIn : {str(e)}")

@@ -1,9 +1,17 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, OnInit, OnDestroy, effect } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, takeUntil } from 'rxjs';
 import { OffersService, JobOffer } from './offers.service';
-import { PipelineStateService } from '../../services/pipeline-state.service';
-import { PipelineStepperComponent } from './components/pipeline-stepper/pipeline-stepper.component';
+import { PipelineStateService, PipelineStep } from '../../services/pipeline-state.service';
+import { OfferStepId } from './offers.types';
+import { OffersStepperComponent } from './stepper/offers-stepper.component';
+import { StepSubmitComponent } from './components/step-submit/step-submit.component';
+import { StepAnalysisComponent } from './components/step-analysis/step-analysis.component';
+import { StepTemplateComponent } from './components/step-template/step-template.component';
+import { StepGenerationComponent } from './components/step-generation/step-generation.component';
+import { StepResultsComponent } from './components/step-results/step-results.component';
 
 @Component({
   selector: 'app-offers',
@@ -11,14 +19,60 @@ import { PipelineStepperComponent } from './components/pipeline-stepper/pipeline
   imports: [
     CommonModule,
     FormsModule,
-    PipelineStepperComponent
+    OffersStepperComponent,
+    StepSubmitComponent,
+    StepAnalysisComponent,
+    StepTemplateComponent,
+    StepGenerationComponent,
+    StepResultsComponent
   ],
   templateUrl: './offers.component.html',
   styleUrls: ['./offers.component.scss']
 })
-export class OffersComponent {
+export class OffersComponent implements OnInit, OnDestroy {
   readonly offersService = inject(OffersService);
   readonly pipeline = inject(PipelineStateService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private destroy$ = new Subject<void>();
+
+  steps: { id: OfferStepId; label: string; icon: string }[] = [
+    { id: 'submit', label: 'Offre', icon: 'job' },
+    { id: 'analysis', label: 'Analyse', icon: 'analytics' },
+    { id: 'template', label: 'Template', icon: 'template' },
+    { id: 'generation', label: 'Génération', icon: 'download' },
+    { id: 'results', label: 'Résultats', icon: 'check' }
+  ];
+
+  stepToPipelineMap: Record<OfferStepId, PipelineStep> = {
+    submit: 1,
+    analysis: 2,
+    template: 3,
+    generation: 4,
+    results: 5
+  };
+
+  pipelineToStepMap: Record<PipelineStep, OfferStepId> = {
+    1: 'submit',
+    2: 'analysis',
+    3: 'template',
+    4: 'generation',
+    5: 'results'
+  };
+
+  currentOfferStepId = computed<OfferStepId>(() => {
+    return this.pipelineToStepMap[this.pipeline.currentStep()] || 'submit';
+  });
+
+  offerStepStates = computed<Record<OfferStepId, 'idle' | 'active' | 'done' | 'error'>>(() => {
+    const states: any = {};
+    const pipelineSteps = this.pipeline.steps();
+    for (const [offerStep, pipelineStep] of Object.entries(this.stepToPipelineMap)) {
+      const ps = pipelineSteps[pipelineStep - 1];
+      states[offerStep] = ps ? ps.status : 'idle';
+    }
+    return states;
+  });
 
   // Search & filter panel states
   readonly searchTerm = this.offersService.searchTerm;
@@ -47,6 +101,56 @@ export class OffersComponent {
     });
   });
 
+  currentIndex = computed(() => this.steps.findIndex(s => s.id === this.currentOfferStepId()));
+
+  nextStepName = computed(() => {
+    const nextIdx = this.currentIndex() + 1;
+    return nextIdx < this.steps.length ? this.steps[nextIdx].label : 'Terminer';
+  });
+
+  // Auto-clean URL when pipeline closes from anywhere (e.g., step-submit cancel)
+  private pipelineWatcher = effect(() => {
+    if (!this.pipeline.isFlowOpen()) {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { flow: null, step: null },
+        queryParamsHandling: 'merge'
+      });
+    }
+  });
+
+  ngOnInit() {
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      const flow = params.get('flow');
+      const stepParam = params.get('step');
+      if (flow === 'pipeline') {
+        if (!this.pipeline.isFlowOpen()) {
+          this.pipeline.openFlow();
+        }
+        if (stepParam) {
+          const pipelineStep = Number(stepParam) as PipelineStep;
+          if (pipelineStep >= 1 && pipelineStep <= 5) {
+            this.pipeline.goToStep(pipelineStep);
+          }
+        }
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  syncUrl() {
+    const step = this.pipeline.currentStep();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { flow: 'pipeline', step },
+      queryParamsHandling: 'merge'
+    });
+  }
+
   // SETTERS & STATE TRANSITIONS
   setViewMode(mode: 'list' | 'grid') {
     this.offersService.viewMode.set(mode);
@@ -60,9 +164,53 @@ export class OffersComponent {
     }, 1500);
   }
 
+  // STEP NAVIGATION
+  goToOfferStep(id: OfferStepId) {
+    if (this.pipeline.isLoading()) {
+      return;
+    }
+
+    const pipelineStep = this.stepToPipelineMap[id];
+    if (!pipelineStep) return;
+
+    const currentStepNumber = this.pipeline.currentStep();
+    const targetStepIndex = pipelineStep - 1;
+    const isStepDone = this.pipeline.steps()[targetStepIndex]?.status === 'done';
+
+    // Allow clicking if it is a previous/current step, or if the step is already marked as done
+    if (pipelineStep <= currentStepNumber || isStepDone) {
+      this.pipeline.goToStep(pipelineStep);
+      this.syncUrl();
+    }
+  }
+
+  next() {
+    const nextIdx = this.currentIndex() + 1;
+    if (nextIdx < this.steps.length) {
+      this.goToOfferStep(this.steps[nextIdx].id);
+    }
+  }
+
+  prev() {
+    const prevIdx = this.currentIndex() - 1;
+    if (prevIdx >= 0) {
+      this.goToOfferStep(this.steps[prevIdx].id);
+    }
+  }
+
   // PIPELINE LAUNCH
   openPipeline() {
     this.pipeline.openFlow();
+    this.syncUrl();
+  }
+
+  closePipeline() {
+    this.pipeline.closeFlow();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { flow: null, step: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   // AVATAR BUBBLE BG GRADIENTS

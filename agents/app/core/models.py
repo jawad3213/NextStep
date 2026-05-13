@@ -35,6 +35,7 @@ class IntelEntreprise(Base):
     salaire_max           = Column(Integer, nullable=True)
     devise_salaire        = Column(String(10), default="MAD")
     resume_entreprise     = Column(Text,    nullable=True)
+    actualites            = Column(JSONB,   nullable=True)
     difficulte_entretien  = Column(String(20), default="medium")
     questions_connues     = Column(JSONB,   nullable=True)
     date_collecte         = Column(DateTime, default=datetime.utcnow)

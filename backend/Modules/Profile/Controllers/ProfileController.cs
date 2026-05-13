@@ -256,6 +256,35 @@ namespace NextStep.Modules.Profile.Controllers
                 return StatusCode(500, $"Erreur proxy IA : {ex.Message}");
             }
         }
+
+        [HttpPost("import-linkedin")]
+        public async Task<IActionResult> ImportLinkedIn([FromBody] LinkedInImportDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Aucune donnée fournie.");
+
+            try 
+            {
+                var client = _httpClientFactory.CreateClient();
+                var agentUrl = Environment.GetEnvironmentVariable("PythonAgents__Url") ?? "http://agents-python:8000";
+                
+                var jsonContent = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
+                var response = await client.PostAsync($"{agentUrl}/resume/parse-linkedin", jsonContent);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    return Ok(result); 
+                }
+                
+                var error = await response.Content.ReadAsStringAsync();
+                return StatusCode((int)response.StatusCode, $"Erreur agent IA : {error}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erreur proxy IA : {ex.Message}");
+            }
+        }
         [HttpDelete("clear")]
         public async Task<IActionResult> ClearProfile()
         {

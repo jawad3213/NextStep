@@ -33,7 +33,20 @@ public class OfferAnalysisDto
     public List<string> CompetencesMatching { get; set; } = [];
     public List<string> CompetencesManquantes { get; set; } = [];
 
+    // ─── Agent 4 : Company Intelligence ───
+    public double CompanyCultureScore { get; set; }
+    public int CompanySalaryMin { get; set; }
+    public int CompanySalaryMax { get; set; }
+    public string CompanySize { get; set; } = string.Empty;
+    public List<CompanyNewsItem> CompanyNews { get; set; } = [];
+
     // ─── Métadonnées ───
     public DateTime DateAnalyse { get; set; } = DateTime.UtcNow;
     public List<string> Erreurs { get; set; } = [];
+}
+
+public class CompanyNewsItem
+{
+    public string Title { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty;
 }

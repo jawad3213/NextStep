@@ -2,6 +2,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
+import { OfferApiService } from '../../services/offer-api.service';
 import { environment } from '../../../../../environments/environment';
 
 interface CvTemplateDto {
@@ -28,8 +29,10 @@ interface CvTemplateDto {
 export class StepTemplateComponent implements OnInit {
   pipeline = inject(PipelineStateService);
   private http = inject(HttpClient);
+  private offerApi = inject(OfferApiService);
 
   templates: CvTemplateDto[] = [];
+  isGenerating = false;
 
   ngOnInit(): void {
     this.http.get<CvTemplateDto[]>(`${environment.apiBaseUrl}/cv/templates`)
@@ -52,7 +55,7 @@ export class StepTemplateComponent implements OnInit {
   }
 
   next(): void {
-    this.pipeline.markStepDone(2);
+    this.pipeline.markStepDone(3);
     this.pipeline.goToStep(4);
   }
 }

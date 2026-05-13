@@ -16,6 +16,7 @@
 # main.py                  ← CE FICHIER (monte les routers)
 # ============================================================
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,10 +40,37 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ─── Migration DB au démarrage ─────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("🔄 Vérification des migrations DB...")
+    try:
+        from app.core.database import AsyncSessionFactory
+        from sqlalchemy import text
+        async with AsyncSessionFactory() as db:
+            result = await db.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'intel_entreprise' AND column_name = 'actualites'
+            """))
+            if not result.fetchone():
+                logger.info("📦 Ajout de la colonne 'actualites' à intel_entreprise...")
+                await db.execute(text("""
+                    ALTER TABLE intel_entreprise
+                    ADD COLUMN actualites JSONB
+                """))
+                await db.commit()
+                logger.info("✅ Colonne 'actualites' ajoutée avec succès")
+            else:
+                logger.info("✅ Colonne 'actualites' déjà présente")
+    except Exception as e:
+        logger.warning(f"⚠️ Migration DB ignorée: {e}")
+    yield
+
+
 # ─────────────────────────────────────────────────────────────
 # Application FastAPI
 # ─────────────────────────────────────────────────────────────
-app = FastAPI(
+app = FastAPI(lifespan=lifespan,
     title="NextStep — Agents IA",
     description="""\
 ## Architecture Agents IA (Domain-Driven + LangGraph)

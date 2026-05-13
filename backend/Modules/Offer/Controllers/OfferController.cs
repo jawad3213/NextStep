@@ -62,15 +62,40 @@ public class OfferController(
             {
                 using var scope = scopeFactory.CreateScope();
                 var runner = scope.ServiceProvider.GetRequiredService<IPipelineRunnerService>();
-                await runner.RunPipelineAsync(rawText, userIdStr, templateId, offerId);
+                await runner.StartAnalysisAsync(offerId, rawText, userIdStr, templateId, CancellationToken.None);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Pipeline background task failed for offer {OfferId}", offerId);
+                logger.LogError(ex, "Pipeline [ANALYSIS] task failed for offer {OfferId}", offerId);
             }
         });
 
         return Accepted(new OfferSubmitResponseDto { OfferId = offerId, Status = "processing" });
+    }
+
+    [HttpPost("{id:guid}/resume")]
+    public async Task<IActionResult> Resume(Guid id, [FromBody] ResumePipelineDto dto)
+    {
+        var dbUserId = await GetUserIdAsync();
+        var userIdStr = dbUserId.ToString();
+
+        logger.LogInformation("POST /api/offers/{OfferId}/resume — template={Template}", id, dto.TemplateId);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var runner = scope.ServiceProvider.GetRequiredService<IPipelineRunnerService>();
+                await runner.StartGenerationAsync(id, userIdStr, dto.TemplateId, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Pipeline [GENERATION] task failed for offer {OfferId}", id);
+            }
+        });
+
+        return Accepted(new { OfferId = id, Status = "generating" });
     }
 
     [HttpPost("{id:guid}/generate-pdf")]

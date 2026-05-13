@@ -92,7 +92,7 @@
             <span class="import-split-label">Upload existing resume</span>
           </button>
           <div class="import-split-divider"></div>
-          <button class="import-split-btn disabled" disabled>
+          <button class="import-split-btn" (click)="openLinkedInModal()">
             <svg class="import-linkedin-icon" viewBox="0 0 24 24" fill="#0077b5">
               <path
                 d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
@@ -306,6 +306,81 @@
           </button>
           <button (click)="goToDashboard()" class="btn-zety-link">
             Go to Dashboard
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  }
+
+  <!-- LINKEDIN IMPORT MODAL -->
+  @if (showLinkedInModal()) {
+  <div class="completion-overlay" (click)="closeLinkedInModal()">
+    <div class="completion-modal linkedin-import-modal" (click)="$event.stopPropagation()">
+
+      <!-- Close button -->
+      <button (click)="closeLinkedInModal()" class="modal-close-btn">
+        <mat-icon>close</mat-icon>
+      </button>
+
+      <div class="modal-content-wrapper !items-start !text-left !p-8">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-lg bg-[#EFF6FF] flex items-center justify-center">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="#1A91F0">
+              <path
+                d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+            </svg>
+          </div>
+          <h2 class="modal-headline !m-0 !text-xl">Import from LinkedIn</h2>
+        </div>
+        
+        <p class="text-slate-500 text-sm mb-6 leading-relaxed">
+          Our AI agents will scrape public profile details or parse your pasted profile text to instantly synchronize with your resume sections.
+        </p>
+
+        <div class="w-full space-y-5">
+          <!-- Input Field: LinkedIn URL -->
+          <div class="form-group flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">LinkedIn Profile URL</label>
+            <input 
+              type="text" 
+              placeholder="https://www.linkedin.com/in/your-username"
+              [ngModel]="linkedinUrl()"
+              (ngModelChange)="linkedinUrl.set($event)"
+              class="w-full h-11 px-4 rounded-lg border border-slate-200 text-slate-800 text-sm focus:border-[#1A91F0] focus:outline-none transition-all"
+              style="height: 44px; font-family: 'Lato', sans-serif;"
+            >
+          </div>
+
+          <!-- Divider -->
+          <div class="relative flex py-2 items-center">
+            <div class="flex-grow border-t border-slate-100"></div>
+            <span class="flex-shrink mx-4 text-xs font-bold text-slate-400 uppercase tracking-widest">OR</span>
+            <div class="flex-grow border-t border-slate-100"></div>
+          </div>
+
+          <!-- Textarea Field: Copy-Pasted Text -->
+          <div class="form-group flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Paste Profile Text</label>
+            <textarea 
+              placeholder="Copy everything from your LinkedIn profile page (Ctrl+A, Ctrl+C) and paste it here..."
+              [ngModel]="linkedinRawText()"
+              (ngModelChange)="linkedinRawText.set($event)"
+              class="w-full min-h-[140px] p-4 rounded-lg border border-slate-200 text-slate-800 text-sm focus:border-[#1A91F0] focus:outline-none transition-all custom-scrollbar resize-none"
+              style="font-family: 'Lato', sans-serif;"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions-v2 mt-8">
+          <button (click)="executeLinkedInImport()" class="btn-zety-primary !h-12 !rounded-lg bg-[#1A91F0]">
+            <mat-icon>auto_awesome</mat-icon>
+            Analyze Profile with AI
+          </button>
+          <button (click)="closeLinkedInModal()" class="btn-zety-link !h-10 text-slate-500 hover:text-slate-800">
+            Cancel
           </button>
         </div>
       </div>

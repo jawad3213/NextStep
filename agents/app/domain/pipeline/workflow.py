@@ -23,6 +23,10 @@ logger = logging.getLogger(__name__)
 
 async def offer_analyzer_node(state: PipelineState) -> dict:
     """Nœud appelant le service d'analyse d'offre."""
+    if state.get("analyzed_offer"):
+        logger.info("Pipeline -- Offer already analyzed, skipping")
+        return {}
+        
     logger.info("Pipeline -- Calling OfferAnalyzerService")
     result = await offer_analyzer_service.analyze(state["raw_offer_text"])
     
@@ -36,6 +40,10 @@ async def offer_analyzer_node(state: PipelineState) -> dict:
 
 async def profile_retriever_node(state: PipelineState) -> dict:
     """Nœud appelant le service de récupération de profil."""
+    if state.get("profile_data"):
+        logger.info("Pipeline -- Profile already retrieved, skipping")
+        return {}
+        
     logger.info("Pipeline -- Calling ProfileRetrieverService")
     result = await profile_retriever_service.get_profile(str(state["user_id"]))
     
@@ -47,10 +55,15 @@ async def profile_retriever_node(state: PipelineState) -> dict:
 
 async def skill_gap_node(state: PipelineState) -> dict:
     """Nœud appelant le service de skill gap (ancien scorer)."""
-    logger.info("Pipeline -- Calling SkillGapService")
+    if state.get("match_result"):
+        logger.info("Pipeline -- Skill Gap already analyzed, skipping")
+        return {}
+        
+    logger.info(f"Pipeline -- Calling SkillGapNode for user {state.get('user_id')}")
     
     # On s'assure d'avoir les données nécessaires
     if not state.get("profile_data") or not state.get("analyzed_offer"):
+        logger.warning(f"Pipeline -- SkillGapNode SKIPPED. Profile exists: {bool(state.get('profile_data'))}, Offer exists: {bool(state.get('analyzed_offer'))}")
         return {"errors": ["Données manquantes pour l'analyse d'écart"]}
 
     result = await skill_gap_service.analyze_skill_gap(
@@ -58,8 +71,31 @@ async def skill_gap_node(state: PipelineState) -> dict:
         job_offer=state["analyzed_offer"]
     )
     
+    if not result.skill_gap:
+        logger.error("Pipeline -- SkillGapService returned NO result")
+    
+    match_result = result.skill_gap.model_dump() if result.skill_gap else None
+    if match_result:
+        # Score calculation
+        match_result["score_matching"] = int(match_result.get("relevance_score", 0) * 100)
+        
+        # Skill mapping (for backward compatibility or explicit C# mapping)
+        match_result["competences_matching"] = match_result.get("matched_skills", [])
+        match_result["competences_manquantes"] = match_result.get("missing_skills", [])
+        match_result["recommandations"] = match_result.get("revision_hints", [])
+
+        # Keywords ATS mapping
+        # We take the ATS keywords identified by Agent 1 and check which ones are in matched_skills
+        analyzed_offer = state.get("analyzed_offer") or {}
+        ats_keywords = analyzed_offer.get("keywords_ats", [])
+        
+        matched_skills_set = {s.lower() for s in match_result.get("matched_skills", [])}
+        
+        match_result["keywords_presents"] = [kw for kw in ats_keywords if kw.lower() in matched_skills_set]
+        match_result["keywords_manquants"] = [kw for kw in ats_keywords if kw.lower() not in matched_skills_set]
+
     return {
-        "match_result": result.skill_gap.model_dump() if result.skill_gap else None,
+        "match_result": match_result,
         "errors":       result.errors or [],
         "messages": [AIMessage(content="[Pipeline] Skill Gap analysé via Service", name="orchestrator")],
     }
@@ -207,7 +243,22 @@ def build_offer_pipeline() -> StateGraph:
     workflow.add_edge("offer_analyzer_node",    "profile_retriever_node")
     workflow.add_edge("profile_retriever_node", "skill_gap_node")
     workflow.add_edge("skill_gap_node",         "company_intelligence_node")
-    workflow.add_edge("company_intelligence_node", "cv_optimizer_node")
+    
+    # --- Branchement Conditionnel pour le Split ---
+    def route_after_intel(state: PipelineState):
+        if state.get("only_analysis", False):
+            return "db_persist_node"
+        return "cv_optimizer_node"
+
+    workflow.add_conditional_edges(
+        "company_intelligence_node",
+        route_after_intel,
+        {
+            "db_persist_node": "db_persist_node",
+            "cv_optimizer_node": "cv_optimizer_node"
+        }
+    )
+
     workflow.add_edge("cv_optimizer_node",      "cv_engine_node")
     workflow.add_edge("cv_engine_node",         "db_persist_node")
     workflow.add_edge("db_persist_node",        END)

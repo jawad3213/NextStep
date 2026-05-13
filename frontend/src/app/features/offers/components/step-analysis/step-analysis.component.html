@@ -32,31 +32,95 @@
         </div>
       </div>
       <div class="agent-progress">
+        <!-- A1 -->
         <div class="agent-row"
-          [class.done]="progress?.agentName === 'db_persist' || progress?.agentName === 'offer_analyzer'"
-          [class.running]="progress?.agentName === 'offer_analyzer'">
-          <span class="agent-icon">{{ (progress?.agentName === 'offer_analyzer') ? '◌' : '✓' }}</span>
+          [class.done]="getAgentStatus('offer_analyzer') === 'done'"
+          [class.running]="getAgentStatus('offer_analyzer') === 'running'"
+          [class.todo]="getAgentStatus('offer_analyzer') === 'todo'">
+          <span class="agent-icon">
+            @if (getAgentStatus('offer_analyzer') === 'done') { ✓ }
+            @else if (getAgentStatus('offer_analyzer') === 'running') { <span class="agent-spinner"></span> }
+            @else { ○ }
+          </span>
           A1 — Analyse de l'offre
         </div>
-        <div class="agent-row" [class.done]="true">
-          <span class="agent-icon">✓</span>
+
+        <!-- A2 -->
+        <div class="agent-row"
+          [class.done]="getAgentStatus('profile_retriever') === 'done'"
+          [class.running]="getAgentStatus('profile_retriever') === 'running'"
+          [class.todo]="getAgentStatus('profile_retriever') === 'todo'">
+          <span class="agent-icon">
+            @if (getAgentStatus('profile_retriever') === 'done') { ✓ }
+            @else if (getAgentStatus('profile_retriever') === 'running') { <span class="agent-spinner"></span> }
+            @else { ○ }
+          </span>
           A2 — Récupération du profil
         </div>
-        <div class="agent-row" [class.done]="true">
-          <span class="agent-icon">✓</span>
-          A3 — Analyse des compétences
+
+        <!-- A3 -->
+        <div class="agent-row"
+          [class.done]="getAgentStatus('skill_gap') === 'done'"
+          [class.running]="getAgentStatus('skill_gap') === 'running'"
+          [class.todo]="getAgentStatus('skill_gap') === 'todo'">
+          <span class="agent-icon">
+            @if (getAgentStatus('skill_gap') === 'done') { ✓ }
+            @else if (getAgentStatus('skill_gap') === 'running') { <span class="agent-spinner"></span> }
+            @else { ○ }
+          </span>
+          A3 — Analyse des compétences (Skill Gap)
         </div>
-        <div class="agent-row" [class.done]="true">
-          <span class="agent-icon">✓</span>
-          A4 — Intelligence entreprise
+
+        <!-- A4 -->
+        <div class="agent-row"
+          [class.done]="getAgentStatus('company_intel') === 'done'"
+          [class.running]="getAgentStatus('company_intel') === 'running'"
+          [class.todo]="getAgentStatus('company_intel') === 'todo'">
+          <span class="agent-icon">
+            @if (getAgentStatus('company_intel') === 'done') { ✓ }
+            @else if (getAgentStatus('company_intel') === 'running') { <span class="agent-spinner"></span> }
+            @else { ○ }
+          </span>
+          A4 — Intelligence entreprise (Company Intel)
         </div>
-        <div class="agent-row" [class.done]="true">
-          <span class="agent-icon">✓</span>
-          A5 — Optimisation CV
+
+        <!-- A5 -->
+        <div class="agent-row"
+          [class.done]="getAgentStatus('cv_optimizer') === 'done'"
+          [class.running]="getAgentStatus('cv_optimizer') === 'running'"
+          [class.todo]="getAgentStatus('cv_optimizer') === 'todo'">
+          <span class="agent-icon">
+            @if (getAgentStatus('cv_optimizer') === 'done') { ✓ }
+            @else if (getAgentStatus('cv_optimizer') === 'running') { <span class="agent-spinner"></span> }
+            @else { ○ }
+          </span>
+          A5 — Optimisation du CV
         </div>
-        <div class="agent-row" [class.done]="progress?.agentName === 'db_persist'">
-          <span class="agent-icon">{{ progress?.agentName === 'db_persist' ? '◌' : '✓' }}</span>
-          A6 — Génération CV
+
+        <!-- A6 -->
+        <div class="agent-row"
+          [class.done]="getAgentStatus('cv_engine') === 'done'"
+          [class.running]="getAgentStatus('cv_engine') === 'running'"
+          [class.todo]="getAgentStatus('cv_engine') === 'todo'">
+          <span class="agent-icon">
+            @if (getAgentStatus('cv_engine') === 'done') { ✓ }
+            @else if (getAgentStatus('cv_engine') === 'running') { <span class="agent-spinner"></span> }
+            @else { ○ }
+          </span>
+          A6 — Génération du CV final
+        </div>
+
+        <!-- DB Save -->
+        <div class="agent-row"
+          [class.done]="getAgentStatus('db_persist') === 'done'"
+          [class.running]="getAgentStatus('db_persist') === 'running'"
+          [class.todo]="getAgentStatus('db_persist') === 'todo'">
+          <span class="agent-icon">
+            @if (getAgentStatus('db_persist') === 'done') { ✓ }
+            @else if (getAgentStatus('db_persist') === 'running') { <span class="agent-spinner"></span> }
+            @else { ○ }
+          </span>
+          A7 — Enregistrement des résultats
         </div>
       </div>
     </div>

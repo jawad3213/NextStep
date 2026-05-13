@@ -22,7 +22,7 @@ async def profile_retriever_node(state: ProfileRetrieverState) -> dict:
     """
     logger.info("Agent 2 [Profile Retriever] -- START")
     user_id = state.get("user_id", "")
-
+    
     if not user_id:
         return {
             "errors": ["Agent2: user_id manquant"],

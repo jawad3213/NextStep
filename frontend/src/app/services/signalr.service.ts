@@ -153,7 +153,7 @@ export class SignalRService {
     this.pipeline.currentAgentProgress.set({
       step: data.step,
       agentName: data.agentName ?? '',
-      label: data.step,
+      label: data.message ?? data.step,
       status: data.status === 'running' ? 'running' : 'done',
       progressPercent: data.progressPercent,
     });
@@ -168,7 +168,8 @@ export class SignalRService {
     }
 
     if (data.result) {
-      const r = data.result;
+      const r: any = data.result;
+      console.log('[SignalR] PipelineCompleted result:', JSON.stringify(r, null, 2));
       this.pipeline.setResult({
         offerTitle: r.titre ?? r.offerTitle ?? '',
         companyName: r.entreprise ?? r.companyName ?? '',
@@ -181,7 +182,7 @@ export class SignalRService {
         companySalaryMin: r.companySalaryMin ?? 0,
         companySalaryMax: r.companySalaryMax ?? 0,
         companySize: r.companySize ?? '',
-        companyNews: r.recentNews ?? r.companyNews ?? [],
+        companyNews: (r.companyNews ?? []).map((n: any) => typeof n === 'string' ? { title: n, date: '' } : n),
         missingSkills: r.competencesManquantes ?? r.missingSkills ?? [],
         profileStrengths: r.recommandations ?? r.profileStrengths ?? [],
         skillGaps: (r.skillGaps ?? []).map((g: any) => ({
@@ -189,11 +190,11 @@ export class SignalRService {
         })),
         cvPdfPath: r.cvPdfPath ?? '',
         atsScore: r.scoreAts ?? r.atsScore ?? 0,
-        atsImprovements: r.cvImprovements ?? r.atsImprovements ?? [],
-        emailSubject: r.emailOutput?.subject ?? '',
-        emailBody: r.emailOutput?.body ?? '',
-        recruiterName: r.emailOutput?.recruiterName ?? '',
-        coverLetterContent: r.coverLetterOutput?.content ?? '',
+        atsImprovements: r.atsImprovements ?? r.cv_improvements ?? [],
+        emailSubject: r.emailSubject ?? '',
+        emailBody: r.emailBody ?? '',
+        recruiterName: r.recruiterName ?? '',
+        coverLetterContent: r.coverLetterContent ?? '',
       });
 
       this.pipeline.markStepDone(1);

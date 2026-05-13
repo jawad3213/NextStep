@@ -51,4 +51,7 @@ export class OfferApiService {
       responseType: 'blob'
     });
   }
+  resumePipeline(offerId: string, templateId: number): Observable<any> {
+    return this.http.post(`${this.base}/offers/${offerId}/resume`, { templateId });
+  }
 }

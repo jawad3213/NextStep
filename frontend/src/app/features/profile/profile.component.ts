@@ -294,6 +294,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   // LinkedIn Import State
   showImportBlock = signal(true);
   isImporting = signal(false);
+  showLinkedInModal = signal(false);
+  linkedinUrl = signal('');
+  linkedinRawText = signal('');
 
   parsingEvents = this.profileService.parsingEvents;
 
@@ -341,13 +344,62 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     }
   }
 
-  importLinkedIn() {
-    this.isImporting.set(true);
-    // : Connecter à un vrai endpoint d'import LinkedIn backend
-    console.warn("LinkedIn import is not yet implemented on the backend.");
-    setTimeout(() => {
-      this.isImporting.set(false);
-    }, 1000);
+  openLinkedInModal() {
+    this.linkedinUrl.set('');
+    this.linkedinRawText.set('');
+    this.showLinkedInModal.set(true);
+  }
+
+  closeLinkedInModal() {
+    this.showLinkedInModal.set(false);
+  }
+
+  async executeLinkedInImport() {
+    const url = this.linkedinUrl().trim();
+    const rawText = this.linkedinRawText().trim();
+
+    if (!url && !rawText) {
+      alert("Veuillez entrer une URL LinkedIn ou coller le contenu de votre profil.");
+      return;
+    }
+
+    this.showLinkedInModal.set(false);
+    this.isParsing.set(true);
+    this.isApplyingData.set(false);
+    this.parsingStatus.set('reading');
+    this.parsingProgress.set(10);
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      this.parsingStatus.set('analyzing');
+      this.parsingProgress.set(40);
+
+      // Call our robust backend import via service
+      await this.profileService.importLinkedIn(url, rawText);
+
+      this.parsingStatus.set('structuring');
+      this.parsingProgress.set(90);
+      
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      this.parsingProgress.set(100);
+      this.isParsing.set(false);
+      this.isApplyingData.set(true);
+      
+      setTimeout(() => {
+        this.isApplyingData.set(false);
+        this.showToast.set(true);
+        setTimeout(() => this.showToast.set(false), 3000);
+      }, 2000);
+
+    } catch (error) {
+      console.error('LinkedIn import failed', error);
+      this.isParsing.set(false);
+      this.isApplyingData.set(false);
+      alert("Une erreur s'est produite lors de l'import. Veuillez réessayer ou copier-coller directement le texte de votre profil.");
+    } finally {
+      this.parsingProgress.set(0);
+    }
   }
 
   // Formation Methods

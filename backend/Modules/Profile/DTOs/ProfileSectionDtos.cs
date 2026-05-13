@@ -92,4 +92,10 @@ namespace NextStep.Modules.Profile.DTOs
         public List<CompetenceDto> Competences { get; set; } = new();
         public List<CertificationDto> Certifications { get; set; } = new();
     }
+
+    public class LinkedInImportDto
+    {
+        public string? Url { get; set; }
+        public string? RawText { get; set; }
+    }
 }

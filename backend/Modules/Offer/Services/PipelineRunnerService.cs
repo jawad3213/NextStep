@@ -8,7 +8,8 @@ namespace NextStep.Modules.Offer.Services;
 
 public interface IPipelineRunnerService
 {
-    Task RunPipelineAsync(string rawText, string userId, int templateId, Guid offerId, CancellationToken ct = default);
+    Task StartAnalysisAsync(Guid offerId, string rawText, string userId, int templateId, CancellationToken ct);
+    Task StartGenerationAsync(Guid offerId, string userId, int templateId, CancellationToken ct);
 }
 
 public class PipelineRunnerService : IPipelineRunnerService
@@ -33,54 +34,138 @@ public class PipelineRunnerService : IPipelineRunnerService
         _logger = logger;
     }
 
-    public async Task RunPipelineAsync(string rawText, string userId, int templateId, Guid offerId, CancellationToken ct = default)
+    public async Task StartAnalysisAsync(Guid offerId, string rawText, string userId, int templateId, CancellationToken ct)
     {
-        _logger.LogInformation("PipelineRunner — Starting pipeline for offer {OfferId}", offerId);
+        _logger.LogInformation("PipelineRunner — [ANALYSIS] Starting for offer {OfferId}", offerId);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromMinutes(10));
+        var pipelineCt = cts.Token;
 
         try
         {
-            await SendProgress(offerId, "analyzing_offer", "running", 5, "Analyse de l'offre par IA...", "offer_analyzer");
+            await SendProgress(offerId, "analyzing_offer", "running", 10, "Analyse initiale...", "offer_analyzer");
+            var keepAliveTask = SendKeepAliveAsync(offerId, pipelineCt);
 
             using var scope = _scopeFactory.CreateScope();
             var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
 
-            var pipelineResult = await agentClient.RunPipelineAsync(rawText, userId, templateId, offerId, ct);
+            // Part 1: ONLY Analysis
+            var result = await agentClient.RunPipelineAsync(rawText, userId, templateId, offerId, onlyAnalysis: true, ct: pipelineCt);
 
-            var root = pipelineResult.RootElement;
+            cts.Cancel();
+            try { await keepAliveTask; } catch (OperationCanceledException) { }
 
-            await SendProgress(offerId, "saving_results", "running", 90, "Sauvegarde des résultats...", "db_persist");
-
+            // Save to DB
             var offerService = scope.ServiceProvider.GetRequiredService<IOfferService>();
             Guid userGuid = Guid.TryParse(userId, out var pg) ? pg : Guid.Empty;
-            await offerService.SavePipelineResultAsync(offerId, pipelineResult, userGuid, CancellationToken.None);
+            await offerService.SavePipelineResultAsync(offerId, result, userGuid, CancellationToken.None);
 
-            var dto = await offerService.GetAnalysisAsync(offerId, CancellationToken.None) ?? MapToDto(offerId, root);
+            var dto = await offerService.GetAnalysisAsync(offerId, CancellationToken.None);
+            
+            await SendProgress(offerId, "analyzing_offer", "completed", 100, "Analyse terminée. Choisissez un template.", "db_persist");
 
-            await SendProgress(offerId, "saving_results", "completed", 100, "Pipeline terminé avec succès", "db_persist");
-
-            var completedEvent = new PipelineCompletedDto
-            {
-                OfferId = offerId,
-                Status = "completed",
-                Result = dto
-            };
-
+            var completedEvent = new PipelineCompletedDto { OfferId = offerId, Status = "completed", Result = dto };
             await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", completedEvent, CancellationToken.None);
-
-            _logger.LogInformation("PipelineRunner — ✅ Pipeline done for offer {OfferId}", offerId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "PipelineRunner — ❌ Pipeline failed for offer {OfferId}", offerId);
+            _logger.LogError(ex, "PipelineRunner [ANALYSIS] — ❌ Error for {OfferId}", offerId);
+            await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", new PipelineCompletedDto { OfferId = offerId, Status = "error" });
+        }
+    }
 
-            var errorEvent = new PipelineCompletedDto
-            {
-                OfferId = offerId,
-                Status = "error",
-                Error = ex.Message
+    public async Task StartGenerationAsync(Guid offerId, string userId, int templateId, CancellationToken ct)
+    {
+        _logger.LogInformation("PipelineRunner — [GENERATION] Starting for offer {OfferId}", offerId);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromMinutes(10));
+        var pipelineCt = cts.Token;
+
+        try
+        {
+            await SendProgress(offerId, "generating_cv", "running", 10, "Génération du CV optimisé...", "cv_optimizer");
+            var keepAliveTask = SendKeepAliveAsync(offerId, pipelineCt);
+
+            using var scope = _scopeFactory.CreateScope();
+            var offerService = scope.ServiceProvider.GetRequiredService<IOfferService>();
+            var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
+
+            // 1. Retrieve current analysis from DB
+            var offer = await offerService.GetOfferWithAnalysisAsync(offerId, CancellationToken.None);
+            if (offer == null || string.IsNullOrEmpty(offer.AnalyseJson)) throw new Exception("Analysis data missing in DB");
+
+            using var doc = JsonDocument.Parse(offer.AnalyseJson);
+            var root = doc.RootElement;
+
+            // 2. Prepare resume data for the agent
+            var resumeData = new {
+                analyzed_offer = root.TryGetProperty("analyzed_offer", out var ao) ? JsonSerializer.Deserialize<object>(ao.GetRawText()) : null,
+                profile_data = root.TryGetProperty("profile_data", out var pd) ? JsonSerializer.Deserialize<object>(pd.GetRawText()) : null,
+                match_result = root.TryGetProperty("match_result", out var mr) ? JsonSerializer.Deserialize<object>(mr.GetRawText()) : null,
+                company_intelligence = root.TryGetProperty("company_intelligence", out var ci) ? JsonSerializer.Deserialize<object>(ci.GetRawText()) : null
             };
 
-            await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineError", errorEvent, CancellationToken.None);
+            // 3. Run Pipeline with RESUME data and only_analysis=false
+            var result = await agentClient.RunPipelineAsync(offer.TexteBrut ?? "", userId, templateId, offerId, onlyAnalysis: false, resumeData: resumeData, ct: pipelineCt);
+
+            cts.Cancel();
+            try { await keepAliveTask; } catch (OperationCanceledException) { }
+
+            // 4. Save Final Result
+            Guid userGuid = Guid.TryParse(userId, out var pg) ? pg : Guid.Empty;
+            await offerService.SavePipelineResultAsync(offerId, result, userGuid, CancellationToken.None);
+
+            var dto = await offerService.GetAnalysisAsync(offerId, CancellationToken.None);
+            
+            await SendProgress(offerId, "generating_cv", "completed", 100, "CV généré avec succès !", "db_persist");
+
+            var completedEvent = new PipelineCompletedDto { OfferId = offerId, Status = "completed", Result = dto };
+            await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", completedEvent, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PipelineRunner [GENERATION] — ❌ Error for {OfferId}", offerId);
+            await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", new PipelineCompletedDto { OfferId = offerId, Status = "error" });
+        }
+    }
+
+    /// <summary>
+    /// Sends periodic keep-alive progress events every 15 seconds so the frontend
+    /// knows the pipeline is still running and does not display a timeout error.
+    /// </summary>
+    private async Task SendKeepAliveAsync(Guid offerId, CancellationToken ct)
+    {
+        var steps = new[]
+        {
+            (15, "Analyse de l'offre en cours...", "offer_analyzer"),
+            (25, "Récupération du profil candidat...", "profile_retriever"),
+            (40, "Analyse des compétences...", "skill_gap"),
+            (55, "Intelligence entreprise en cours...", "company_intel"),
+            (70, "Optimisation du CV...", "cv_optimizer"),
+            (80, "Génération du CV final...", "cv_engine"),
+        };
+
+        try
+        {
+            foreach (var (pct, msg, agent) in steps)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), ct);
+                await SendProgress(offerId, "pipeline_running", "running", pct, msg, agent);
+            }
+
+            // After all named steps, keep sending heartbeats every 20s
+            var heartbeat = 85;
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(20), ct);
+                if (heartbeat < 89) heartbeat++;
+                await SendProgress(offerId, "pipeline_running", "running", heartbeat,
+                    "Finalisation en cours...", "db_persist");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when pipeline completes — silently exit
         }
     }
 
@@ -110,7 +195,7 @@ public class PipelineRunnerService : IPipelineRunnerService
             dto.TypeContrat = ao.GetStringOrDefault("type_contrat");
             dto.Localisation = ao.GetStringOrDefault("localisation");
             dto.DescriptionPoste = ao.GetStringOrDefault("description_poste");
-            dto.AnneesExperience = ao.GetIntOrDefault("annees_experience");
+            dto.AnneesExperience = ao.GetStringAsIntOrDefault("annees_experience");
             dto.NiveauEtudes = ao.GetStringOrDefault("niveau_etudes");
             dto.CompetencesRequises = ao.GetStringList("competences_requises");
             dto.CompetencesSouhaitees = ao.GetStringList("competences_souhaitees");
@@ -131,6 +216,43 @@ public class PipelineRunnerService : IPipelineRunnerService
         if (root.TryGetProperty("skill_gap", out var sg) && sg.ValueKind == JsonValueKind.Object)
         {
             dto.ScoreMatching = sg.GetIntOrDefault("score_matching") ?? dto.ScoreMatching;
+            dto.ScoreAts = sg.GetIntOrDefault("score_ats") ?? dto.ScoreAts;
+            dto.KeywordsPresents = sg.GetStringList("keywords_presents").Count > 0 ? sg.GetStringList("keywords_presents") : dto.KeywordsPresents;
+            dto.KeywordsManquants = sg.GetStringList("keywords_manquants").Count > 0 ? sg.GetStringList("keywords_manquants") : dto.KeywordsManquants;
+            dto.Recommandations = sg.GetStringList("recommandations").Count > 0 ? sg.GetStringList("recommandations") : dto.Recommandations;
+            dto.CompetencesMatching = sg.GetStringList("competences_matching").Count > 0 ? sg.GetStringList("competences_matching") : dto.CompetencesMatching;
+            dto.CompetencesManquantes = sg.GetStringList("competences_manquantes").Count > 0 ? sg.GetStringList("competences_manquantes") : dto.CompetencesManquantes;
+        }
+
+        if (root.TryGetProperty("company_intelligence", out var ci) && ci.ValueKind == JsonValueKind.Object)
+        {
+            var intelligence = ci.GetPropertyOrNull("intelligence");
+            if (intelligence.HasValue)
+            {
+                var culture = intelligence.Value.GetPropertyOrNull("culture");
+                if (culture.HasValue)
+                {
+                    dto.CompanyCultureScore = culture.Value.GetDoubleOrDefault("glassdoor_rating") ?? culture.Value.GetDoubleOrDefault("culture_score") ?? 0;
+                }
+
+                var salaries = intelligence.Value.GetPropertyOrNull("salaries");
+                if (salaries.HasValue && salaries.Value.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var s in salaries.Value.EnumerateArray())
+                    {
+                        dto.CompanySalaryMin = s.GetIntOrDefault("min_salary") ?? dto.CompanySalaryMin;
+                        dto.CompanySalaryMax = s.GetIntOrDefault("max_salary") ?? dto.CompanySalaryMax;
+                    }
+                }
+
+                var actualites = intelligence.Value.GetPropertyOrNull("actualites");
+                if (actualites.HasValue && actualites.Value.ValueKind == JsonValueKind.Array)
+                {
+                    dto.CompanyNews = [.. actualites.Value.EnumerateArray()
+                        .Where(a => a.ValueKind == JsonValueKind.String)
+                        .Select(a => new CompanyNewsItem { Title = a.GetString() ?? "", Date = "" })];
+                }
+            }
         }
 
         if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)

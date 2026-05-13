@@ -61,22 +61,30 @@ class CompanyService:
     ) -> dict:
         """
         Stocke les données d'intelligence générées par l'agent dans la table PostgreSQL 'intel_entreprise'.
-        Calcule dynamiquement le salaire min/max de l'offre et convertit les listes au format JSONB.
+        Utilise l'ORM SQLAlchemy pour rester synchro avec le modèle.
         """
+        from app.core.models import IntelEntreprise
+
         intel = intelligence_data.get("intelligence", {})
         if not intel:
             logger.warning("⚠️ Aucune donnée d'intelligence trouvée pour la sauvegarde.")
             return {}
 
         company_name = intel.get("nom", "Inconnu")
-        logger.info(f"💾 Sauvegarde de l'intelligence pour '{company_name}' dans PostgreSQL...")
+        logger.info(f"💾 Sauvegarde de l'intelligence pour '{company_name}' dans PostgreSQL (ORM)...")
 
-        # 1. Extraction dynamique des salaires globaux (min de junior, max de senior)
+        offer_uuid = None
+        if id_offre:
+            try:
+                import uuid
+                offer_uuid = uuid.UUID(str(id_offre))
+            except ValueError:
+                pass
+
         salaries = intel.get("salaries", [])
         salaire_min = None
         salaire_max = None
         devise_salaire = "MAD"
-
         if salaries:
             try:
                 valid_mins = [s.get("min_salary") for s in salaries if s.get("min_salary") is not None]
@@ -89,67 +97,29 @@ class CompanyService:
             except Exception as e:
                 logger.error(f"⚠️ Erreur lors du calcul des tranches salariales: {e}")
 
-        # 2. Préparation des JSONB
-        actualites_json = json.dumps(intel.get("actualites", []))
-        questions_json = json.dumps(intel.get("interview_questions", []))
-
-        # 3. Requête SQL brute robuste de sauvegarde
-        query = text("""
-            INSERT INTO intel_entreprise (
-                nom_entreprise,
-                id_offre,
-                note_glassdoor,
-                score_culture,
-                salaire_min,
-                salaire_max,
-                devise_salaire,
-                actualites,
-                resume_entreprise,
-                difficulte_entretien,
-                questions_connues
-            ) VALUES (
-                :nom_entreprise,
-                :id_offre,
-                :note_glassdoor,
-                :score_culture,
-                :salaire_min,
-                :salaire_max,
-                :devise_salaire,
-                :actualites,
-                :resume_entreprise,
-                :difficulte_entretien,
-                :questions_connues
-            )
-            RETURNING id, date_collecte;
-        """)
-
-        params = {
-            "nom_entreprise": company_name,
-            "id_offre": id_offre if id_offre else None,
-            "note_glassdoor": intel.get("culture", {}).get("glassdoor_rating"),
-            "score_culture": intel.get("culture", {}).get("culture_score"),
-            "salaire_min": salaire_min,
-            "salaire_max": salaire_max,
-            "devise_salaire": devise_salaire,
-            "actualites": actualites_json,
-            "resume_entreprise": intel.get("summary"),
-            "difficulte_entretien": intel.get("interview_difficulty", "medium"),
-            "questions_connues": questions_json
-        }
+        row = IntelEntreprise(
+            nom_entreprise=company_name,
+            id_offre=offer_uuid,
+            note_glassdoor=intel.get("culture", {}).get("glassdoor_rating"),
+            salaire_min=salaire_min,
+            salaire_max=salaire_max,
+            devise_salaire=devise_salaire,
+            resume_entreprise=intel.get("summary"),
+            actualites=intel.get("actualites", []),
+            difficulte_entretien=intel.get("interview_difficulty", "medium"),
+            questions_connues=intel.get("interview_questions", []),
+        )
 
         try:
-            result = await db.execute(query, params)
+            db.add(row)
             await db.commit()
-            row = result.fetchone()
-            if row:
-                logger.info(f"✅ Intelligence stockée avec succès ! ID: {row[0]}")
-                return {"id": str(row[0]), "date_collecte": str(row[1])}
+            await db.refresh(row)
+            logger.info(f"✅ Intelligence stockée avec succès ! ID: {row.id}")
+            return {"id": str(row.id), "date_collecte": str(row.date_collecte)}
         except Exception as e:
             await db.rollback()
-            logger.error(f"❌ Erreur critique lors de l'insertion PostgreSQL : {e}")
+            logger.error(f"❌ Erreur ORM lors de l'insertion PostgreSQL : {e}")
             raise e
-
-        return {}
 
 
 # ── Singleton ─────────────────────────────────────────────────

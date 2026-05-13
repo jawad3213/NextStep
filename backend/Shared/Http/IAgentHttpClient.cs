@@ -9,6 +9,8 @@ public interface IAgentHttpClient
         string userId,
         int templateId,
         Guid offerId,
+        bool onlyAnalysis = false,
+        object? resumeData = null,
         CancellationToken ct = default);
     Task<JsonDocument> AnalyzeOfferAsync(string rawText, string userId, CancellationToken ct = default);
     Task<bool> IsHealthyAsync(CancellationToken ct = default);

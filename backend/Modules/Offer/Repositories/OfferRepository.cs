@@ -12,6 +12,7 @@ public interface IOfferRepository
 {
     Task<OffreEmploi> SaveAsync(OffreEmploi offre, CancellationToken ct = default);
     Task<OffreEmploi?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<OffreEmploi?> GetByIdWithAnalysisAsync(Guid id, CancellationToken ct = default);
     Task UpdateAnalyseJsonAsync(Guid id, string analyseJson, CancellationToken ct = default);
 }
 
@@ -25,6 +26,9 @@ public class OfferRepository(AppDbContext db) : IOfferRepository
     }
 
     public async Task<OffreEmploi?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await db.OffresEmploi.FirstOrDefaultAsync(o => o.Id == id, ct);
+
+    public async Task<OffreEmploi?> GetByIdWithAnalysisAsync(Guid id, CancellationToken ct = default)
         => await db.OffresEmploi.FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public async Task UpdateAnalyseJsonAsync(Guid id, string analyseJson, CancellationToken ct = default)

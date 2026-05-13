@@ -87,18 +87,17 @@ jobs:
       - name: "✅ Vérifier les imports critiques"
         run: |
           python -c "
-          from app.domain.offer.schemas.state import OfferState
-          from app.domain.offer.agents.offer_analyzer import offer_analyzer_node
-          from app.domain.offer.agents.profile_retriever import profile_retriever_node
-          from app.domain.offer.agents.normalizer import normalizer_node, normalize_skills
-          from app.domain.offer.agents.scorer import scorer_node
-          from app.domain.job.agents.cv_formatter import cv_formatter_node
-          from app.domain.job.agents.email_composer import email_composer_node
-          from app.domain.company.agents.company_analyzer import company_analyzer_node
-          from app.domain.offer.graph.workflow import build_offer_workflow
-          g = build_offer_workflow()
-          print('✅ Tous les imports et le graphe LangGraph OK')
+          from app.domain.offer_analyzer.schemas.state import OfferAnalyzerState
+          from app.domain.offer_analyzer.agents.agent import offer_analyzer_node
+          from app.domain.profile_retriever.agents.agent import profile_retriever_node
+          from app.domain.pipeline.workflow import build_offer_pipeline
+          from app.core.utils.normalizer import normalize_skills
+          
+          # Vérification de la création du graphe (Architecture Service-Based)
+          g = build_offer_pipeline()
+          print('✅ Architecture Domain-Driven (Service-Based) OK')
           "
+
 
       # ── Tests unitaires ─────────────────────────────────────
       - name: "🧪 Tests unitaires — Normalizer"

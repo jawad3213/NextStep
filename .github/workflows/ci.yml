@@ -281,8 +281,28 @@ jobs:
           echo "**Commit :** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Déclenché par :** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
-      - name: "❌ Échouer si les agents Python échouent"
+      - name: ❌ Échouer si les agents Python échouent
         if: needs.ci-agents.result == 'failure'
         run: |
           echo "❌ Les tests Python ont échoué — voir les logs ci-dessus"
           exit 1
+
+# =============================================================================
+# JOB 6 — SonarQube Analysis (Professional Integrated Stage)
+# =============================================================================
+  sonarqube-analysis:
+    name: "🔍 SonarQube Analysis"
+    runs-on: ubuntu-latest
+    needs: [ci-agents, ci-frontend, ci-backend]
+    if: always() && (needs.ci-agents.result == 'success' || needs.ci-frontend.result == 'success' || needs.ci-backend.result == 'success')
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🔍 SonarQube Scan"
+        uses: SonarSource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

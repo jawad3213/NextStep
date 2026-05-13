@@ -1,0 +1,44 @@
+---
+- name: Configuration des VMs NextStep
+  hosts: all
+  become: yes
+  tasks:
+    - name: Installation de Docker
+      apt:
+        name: 
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: Assurer que Docker est lancé
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+- name: Déploiement App sur VM1
+  hosts: app
+  tasks:
+    - name: Copier les fichiers Docker
+      copy:
+        src: ../docker/vm1/
+        dest: /home/vagrant/app/
+    
+    - name: Lancer Docker Compose
+      command: docker-compose up -d
+      args:
+        chdir: /home/vagrant/app/
+
+- name: Déploiement Data sur VM2
+  hosts: data
+  tasks:
+    - name: Copier les fichiers Docker
+      copy:
+        src: ../docker/vm2/
+        dest: /home/vagrant/data/
+    
+    - name: Lancer Docker Compose
+      command: docker-compose up -d
+      args:
+        chdir: /home/vagrant/data/

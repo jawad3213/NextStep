@@ -12,6 +12,10 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Sécurité : Création d'un utilisateur non-privilégié
+RUN useradd -m nextstep && chown -R nextstep:nextstep /app
+USER nextstep
+
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

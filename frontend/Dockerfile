@@ -13,15 +13,20 @@ RUN npm run build --configuration=production
 # Stage 2: Serve the application using Nginx
 FROM nginx:alpine
 
+# Sécurité : On crée un utilisateur non-root pour Nginx
+RUN touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
+
+USER nginx
+
 # Copy the custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the built application from the build stage.
-# Note: The Angular application builder outputs client assets to the "browser" subfolder.
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 
-# Expose port 80
-EXPOSE 80
+# Expose port 8080 (non-root)
+EXPOSE 8080
 
 # Start Nginx
 CMD ["nginx", "-g", "daemon off;"]

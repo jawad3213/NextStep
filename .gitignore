@@ -66,3 +66,18 @@ git-commit.ps1
 
 
 .specify/
+
+# Infrastructure & Secrets
+.env
+.env.prod
+.env.local
+.terraform/
+.vagrant/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.tfvars.json
+.terraform.lock.hcl
+
+# Vagrant
+vagrant-*.log

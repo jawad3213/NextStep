@@ -1,0 +1,28 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-22.04"
+
+  # VM 1 : Application & Auth
+  config.vm.define "vm1" do |vm1|
+    vm1.vm.hostname = "nextstep-app"
+    vm1.vm.network "private_network", ip: "192.168.56.10"
+    vm1.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus = 2
+    vb.name = "nextstep-vm1"
+    end
+  end
+
+  # VM 2 : Data, Monitoring & Sonar
+  config.vm.define "vm2" do |vm2|
+    vm2.vm.hostname = "nextstep-data"
+    vm2.vm.network "private_network", ip: "192.168.56.11"
+    vm2.vm.provider "virtualbox" do |vb|
+      vb.memory = "4096"
+      vb.cpus = 2
+    vb.name = "nextstep-vm2"
+    end
+  end
+end

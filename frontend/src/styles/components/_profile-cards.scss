@@ -5,8 +5,8 @@
   width: 100%;
   border: 1.5px dashed vars.$color-info;
   border-radius: vars.$radius-xl;
-  padding: 16px;
-  margin-bottom: 24px;
+  padding: 12px;
+  margin-bottom: 20px;
   color: vars.$color-info;
   font-weight: 600;
   font-size: 15px;
@@ -25,7 +25,7 @@
 .education-card {
   background: vars.$color-bg-elevated;
   border: 1px solid vars.$color-border-default;
-  border-radius: vars.$radius-xl;
+  border-radius: vars.$radius-lg;
   overflow: hidden;
   display: flex;
   transition: box-shadow vars.$duration-default vars.$ease-default;
@@ -41,12 +41,12 @@
 
 .number-badge {
   background: vars.$color-info-tint;
-  width: 48px;
+  width: 42px;
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 16px;
+  padding-top: 14px;
   border-right: 1px solid vars.$color-border-default;
 
   @media (max-width: vars.$bp-md) {
@@ -60,7 +60,7 @@
   span {
     font-weight: 700;
     color: vars.$color-info;
-    font-size: 16px;
+    font-size: 14px;
 
     @media (max-width: vars.$bp-md) {
       display: none;

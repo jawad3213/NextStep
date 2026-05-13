@@ -1,0 +1,315 @@
+<aside
+  class="fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-gray-200 bg-white px-5 text-gray-900 shadow-sm transition-all duration-300 ease-in-out"
+  [ngClass]="{
+    'w-[290px]': (isExpanded$ | async) || (isMobileOpen$ | async) || (isHovered$ | async),
+    'w-[90px]': !((isExpanded$ | async) || (isMobileOpen$ | async) || (isHovered$ | async)),
+    'translate-x-0': isMobileOpen$ | async,
+    '-translate-x-full': !(isMobileOpen$ | async),
+    'xl:translate-x-0': true
+  }"
+  (mouseenter)="onSidebarMouseEnter()"
+  (mouseleave)="sidebarService.setHovered(false)"
+>
+  <div
+    class="relative py-6"
+    [ngClass]="{
+      'px-0': !((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)),
+      'px-2': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)
+    }"
+  >
+    <a
+      routerLink="/dashboard"
+      class="flex min-w-0 items-center"
+      [ngClass]="{
+        'justify-start gap-3 px-2': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async),
+        'justify-center mx-auto': !((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async))
+      }"
+    >
+      <img
+        src="/N__3_-removebg-preview.png"
+        alt="NextStep"
+        class="h-14 w-14 object-contain flex-shrink-0"
+      />
+
+      @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+        <div class="min-w-0 flex flex-col text-left leading-none">
+          <p class="truncate text-lg font-semibold tracking-tight text-gray-900">NextStep</p>
+          <p class="truncate text-[10px] uppercase tracking-[0.24em] text-gray-400 mt-1">Career Navigation</p>
+        </div>
+      }
+    </a>
+
+    @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+      <div class="absolute right-0 top-4 flex items-center gap-2">
+        <button
+          type="button"
+          class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 xl:hidden"
+          (click)="closeMobileSidebar()"
+          aria-label="Close sidebar"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none">
+            <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+          </svg>
+        </button>
+      </div>
+    }
+  </div>
+
+  <div class="flex min-h-0 flex-1 flex-col">
+    <div class="no-scrollbar min-h-0 flex-1 overflow-y-auto">
+      <nav class="mb-6">
+      <div class="flex flex-col gap-4">
+        <div>
+          <h2
+            class="mb-4 flex text-xs uppercase leading-5 text-gray-400"
+            [ngClass]="{
+              'xl:justify-center': !((isExpanded$ | async) || (isHovered$ | async)),
+              'justify-start': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)
+            }"
+          >
+            @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+              Menu
+            } @else {
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <path d="M6 12H6.01M12 12H12.01M18 12H18.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></path>
+              </svg>
+            }
+          </h2>
+
+          <ul class="flex flex-col gap-1">
+            @for (nav of navItems; track nav.name; let i = $index) {
+              <li>
+                @if (nav.subItems) {
+                  <button
+                    type="button"
+                    (click)="toggleSubmenu('main', i)"
+                    class="menu-item group cursor-pointer"
+                    [class.menu-item-active]="openSubmenu === 'main-' + i"
+                    [class.menu-item-inactive]="openSubmenu !== 'main-' + i"
+                    [ngClass]="{
+                      'xl:justify-center': !((isExpanded$ | async) || (isHovered$ | async)),
+                      'xl:justify-start': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)
+                    }"
+                  >
+                    <span
+                      class="menu-item-icon-size"
+                      [class.menu-item-icon-active]="openSubmenu === 'main-' + i"
+                      [class.menu-item-icon-inactive]="openSubmenu !== 'main-' + i"
+                      [innerHTML]="nav.icon | safeHtml"
+                    ></span>
+
+                    @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+                      <span class="menu-item-text">{{ nav.name }}</span>
+
+                      <svg
+                        class="ml-auto h-5 w-5 transition-transform duration-200"
+                        [ngClass]="{ 'rotate-180 text-brand-500': openSubmenu === 'main-' + i }"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                      >
+                        <path d="M4.79175 7.396L10.0001 12.6043L15.2084 7.396" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    }
+                  </button>
+
+                  <div
+                    class="overflow-hidden transition-all duration-300"
+                    [id]="'main-' + i"
+                    [style.display]="((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) ? 'block' : 'none'"
+                    [ngStyle]="{
+                      height: openSubmenu === 'main-' + i ? (subMenuHeights['main-' + i] || 0) + 'px' : '0px'
+                    }"
+                  >
+                    <ul class="ml-9 mt-2 space-y-1">
+                      @for (subItem of nav.subItems; track subItem.path) {
+                        <li>
+                          <a
+                            [routerLink]="subItem.path"
+                            class="menu-dropdown-item group"
+                            [ngClass]="{
+                              'menu-dropdown-item-inactive': !isActive(subItem.path),
+                              'menu-dropdown-item-active': isActive(subItem.path)
+                            }"
+                          >
+                            {{ subItem.name }}
+
+                            @if (getBadge(subItem.path); as badge) {
+                              <span
+                                class="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                                [ngClass]="{
+                                  'bg-emerald-100 text-emerald-700': badge.variant === 'green',
+                                  'bg-amber-100 text-amber-700': badge.variant === 'amber',
+                                  'bg-red-100 text-red-700': badge.variant === 'red',
+                                  'bg-sky-100 text-sky-700': badge.variant === 'blue'
+                                }"
+                              >
+                                {{ badge.label }}
+                              </span>
+                            }
+                          </a>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                } @else if (nav.path) {
+                  <a
+                    [routerLink]="nav.path"
+                    class="menu-item group"
+                    routerLinkActive="menu-item-active"
+                    [ngClass]="{
+                      'menu-item-inactive': !isActive(nav.path),
+                      'xl:justify-center': !((isExpanded$ | async) || (isHovered$ | async)),
+                      'xl:justify-start': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)
+                    }"
+                  >
+                    <span
+                      class="menu-item-icon-size"
+                      [ngClass]="{
+                        'menu-item-icon-active': isActive(nav.path),
+                        'menu-item-icon-inactive': !isActive(nav.path)
+                      }"
+                      [innerHTML]="nav.icon | safeHtml"
+                    ></span>
+
+                    @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+                      <span class="menu-item-text">{{ nav.name }}</span>
+                    }
+                  </a>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+
+        <div>
+          <h2
+            class="mb-4 flex text-xs uppercase leading-5 text-gray-400"
+            [ngClass]="{
+              'xl:justify-center': !((isExpanded$ | async) || (isHovered$ | async)),
+              'justify-start': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)
+            }"
+          >
+            @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+              Others
+            } @else {
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <path d="M6 12H6.01M12 12H12.01M18 12H18.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></path>
+              </svg>
+            }
+          </h2>
+
+          <ul class="flex flex-col gap-1">
+            @for (nav of othersItems; track nav.name; let i = $index) {
+              <li>
+                @if (nav.subItems) {
+                  <button
+                    type="button"
+                    (click)="toggleSubmenu('others', i)"
+                    class="menu-item group cursor-pointer"
+                    [class.menu-item-active]="openSubmenu === 'others-' + i"
+                    [class.menu-item-inactive]="openSubmenu !== 'others-' + i"
+                    [ngClass]="{
+                      'xl:justify-center': !((isExpanded$ | async) || (isHovered$ | async)),
+                      'xl:justify-start': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)
+                    }"
+                  >
+                    <span
+                      class="menu-item-icon-size"
+                      [class.menu-item-icon-active]="openSubmenu === 'others-' + i"
+                      [class.menu-item-icon-inactive]="openSubmenu !== 'others-' + i"
+                      [innerHTML]="nav.icon | safeHtml"
+                    ></span>
+
+                    @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+                      <span class="menu-item-text">{{ nav.name }}</span>
+
+                      <svg
+                        class="ml-auto h-5 w-5 transition-transform duration-200"
+                        [ngClass]="{ 'rotate-180 text-brand-500': openSubmenu === 'others-' + i }"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                      >
+                        <path d="M4.79175 7.396L10.0001 12.6043L15.2084 7.396" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    }
+                  </button>
+
+                  <div
+                    class="overflow-hidden transition-all duration-300"
+                    [id]="'others-' + i"
+                    [style.display]="((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) ? 'block' : 'none'"
+                    [ngStyle]="{
+                      height: openSubmenu === 'others-' + i ? (subMenuHeights['others-' + i] || 0) + 'px' : '0px'
+                    }"
+                  >
+                    <ul class="ml-9 mt-2 space-y-1">
+                      @for (subItem of nav.subItems; track subItem.path) {
+                        <li>
+                          <a
+                            [routerLink]="subItem.path"
+                            class="menu-dropdown-item group"
+                            [ngClass]="{
+                              'menu-dropdown-item-inactive': !isActive(subItem.path),
+                              'menu-dropdown-item-active': isActive(subItem.path)
+                            }"
+                          >
+                            {{ subItem.name }}
+
+                            @if (getBadge(subItem.path); as badge) {
+                              <span
+                                class="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                                [ngClass]="{
+                                  'bg-emerald-100 text-emerald-700': badge.variant === 'green',
+                                  'bg-amber-100 text-amber-700': badge.variant === 'amber',
+                                  'bg-red-100 text-red-700': badge.variant === 'red',
+                                  'bg-sky-100 text-sky-700': badge.variant === 'blue'
+                                }"
+                              >
+                                {{ badge.label }}
+                              </span>
+                            }
+                          </a>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                } @else if (nav.path) {
+                  <a
+                    [routerLink]="nav.path"
+                    class="menu-item group"
+                    routerLinkActive="menu-item-active"
+                    [ngClass]="{
+                      'menu-item-inactive': !isActive(nav.path),
+                      'xl:justify-center': !((isExpanded$ | async) || (isHovered$ | async)),
+                      'xl:justify-start': (isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)
+                    }"
+                  >
+                    <span
+                      class="menu-item-icon-size"
+                      [ngClass]="{
+                        'menu-item-icon-active': isActive(nav.path),
+                        'menu-item-icon-inactive': !isActive(nav.path)
+                      }"
+                      [innerHTML]="nav.icon | safeHtml"
+                    ></span>
+
+                    @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+                      <span class="menu-item-text">{{ nav.name }}</span>
+                    }
+                  </a>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+      </nav>
+    </div>
+
+    @if ((isExpanded$ | async) || (isHovered$ | async) || (isMobileOpen$ | async)) {
+      <div class="shrink-0 border-t border-gray-200 py-5">
+        <app-sidebar-widget />
+      </div>
+    }
+  </div>
+</aside>

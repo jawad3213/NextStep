@@ -1,5 +1,5 @@
 <div class="horizontal-stepper-container">
-  <div class="w-full px-8 flex items-center justify-between">
+  <div class="w-full px-4 md:px-6 flex items-center justify-between gap-4">
     
     <!-- Connected Node Stepper -->
     <nav class="node-stepper-wrapper">
@@ -24,7 +24,7 @@
               @if (isComplete(step.id) && currentStep() !== step.id) {
                 <mat-icon class="node-icon">check</mat-icon>
               } @else {
-                <span class="node-number">{{ i + 1 }}</span>
+                <mat-icon class="node-icon step-icon">{{ step.icon }}</mat-icon>
               }
             </div>
             <span class="node-label">{{ step.label }}</span>
@@ -33,34 +33,15 @@
       </div>
     </nav>
 
-    <!-- Pro Strength Meter (Segmented Linear Design) -->
-    <div class="pro-strength-widget hidden lg:flex" 
-         [class.status-low]="completionPercentage() < 50"
-         [class.status-mid]="completionPercentage() >= 50 && completionPercentage() < 85"
-         [class.status-high]="completionPercentage() >= 85">
-      
-      <div class="widget-content">
-        <div class="strength-header">
-          <span class="title">Profile Strength</span>
-          <span class="percentage">{{ completionPercentage() }}%</span>
-        </div>
-        
-        <div class="meter-track">
-          <div class="meter-fill" [style.width.%]="completionPercentage()"></div>
-          <div class="meter-milestones">
-            <div class="m-dot" [class.active]="completionPercentage() >= 33"></div>
-            <div class="m-dot" [class.active]="completionPercentage() >= 66"></div>
-            <div class="m-dot" [class.active]="completionPercentage() >= 100"></div>
-          </div>
-        </div>
-
-        <div class="status-indicator">
-          <mat-icon class="indicator-icon">
-            {{ completionPercentage() === 100 ? 'verified' : completionPercentage() >= 85 ? 'stars' : 'ads_click' }}
-          </mat-icon>
-          <span class="status-text">{{ completionPercentage() === 100 ? 'All Star' : completionPercentage() >= 50 ? 'Intermediate' : 'Beginner' }}</span>
-        </div>
-      </div>
+    <!-- Import Card — Zety-style two-column split -->
+    <div class="flex items-center h-[42px] border border-slate-200 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] shrink-0 hidden md:flex">
+      <button class="px-5 h-full text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors" (click)="uploadResume.emit()">
+        Upload existing resume
+      </button>
+      <div class="w-px h-6 bg-slate-200 shrink-0"></div>
+      <button class="px-5 h-full text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors" (click)="importLinkedIn.emit()">
+        Import LinkedIn profile
+      </button>
     </div>
 
   </div>

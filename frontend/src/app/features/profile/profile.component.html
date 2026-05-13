@@ -54,61 +54,16 @@
   </div>
   }
 
+  <input #fileInput type="file" (change)="onFileImported($event)" accept=".pdf,.doc,.docx" hidden>
+  
   <!-- CENTER: FOCUS INPUT AREA -->
   <main class="focus-area">
-    <!-- Header with progress -->
-    <header
-      class="focus-header shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 md:px-8 py-4 flex items-center z-10">
-      <div class="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        <div class="flex flex-col">
-          <nav class="breadcrumb hidden md:flex">
-            <span class="text-slate-400 text-xs font-medium">Profile</span>
-            <mat-icon class="text-slate-400 !text-[14px] !w-[14px] !h-[14px] mx-1">chevron_right</mat-icon>
-            <span class="text-indigo-600 text-xs font-medium">{{
-              currentStep() === 'coordonnees' ? 'Contact Info' :
-              currentStep() === 'formation' ? 'Education' :
-              currentStep() === 'experience' ? 'Experience' :
-              currentStep() === 'competences' ? 'Skills' :
-              currentStep() === 'resume' ? 'Summary' :
-              currentStep() === 'projets' ? 'Projects' : 'Certifications'
-              }}</span>
-          </nav>
-          <h2 class="section-title text-xl md:text-2xl font-bold text-slate-900 leading-tight mt-1">
-            {{
-            currentStep() === 'coordonnees' ? 'Personal Details' :
-            currentStep() === 'formation' ? 'Your Education' :
-            currentStep() === 'experience' ? 'Work Experience' :
-            currentStep() === 'competences' ? 'Skills & Languages' :
-            currentStep() === 'resume' ? 'Profile Summary' :
-            currentStep() === 'projets' ? 'Completed Projects' : 'Certifications'
-            }}
-          </h2>
-        </div>
-
-        <!-- Import Card (Zety-style two-column) -->
-        <div class="import-card-split">
-          <button class="import-split-btn" (click)="fileInput.click()">
-            <mat-icon class="import-split-icon">upload_file</mat-icon>
-            <span class="import-split-label">Upload existing resume</span>
-          </button>
-          <div class="import-split-divider"></div>
-          <button class="import-split-btn" (click)="openLinkedInModal()">
-            <svg class="import-linkedin-icon" viewBox="0 0 24 24" fill="#0077b5">
-              <path
-                d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-            </svg>
-            <span class="import-split-label">Import LinkedIn profile</span>
-          </button>
-        </div>
-
-
-      </div>
-      <input #fileInput type="file" (change)="onFileImported($event)" accept=".pdf,.doc,.docx" hidden>
-    </header>
-
     <!-- HORIZONTAL STEPPER -->
     <div class="stepper-wrapper shrink-0">
-      <app-profile-stepper></app-profile-stepper>
+      <app-profile-stepper
+        (uploadResume)="fileInput.click()"
+        (importLinkedIn)="openLinkedInModal()">
+      </app-profile-stepper>
     </div>
 
     <!-- Scrollable Form Container -->
@@ -186,24 +141,7 @@
         </app-experience>
         }
 
-        @if (currentStep() === 'projets') {
-        <app-projects [projects]="profile().projets" [extracurriculars]="extracurriculars()"
-          [isAddingProject]="isAddingProject()" [isAddingExtracurricular]="isAddingExtracurricular()"
-          [newProject]="newProject()" [newExtracurricular]="newExtracurricular()"
-          [sectionTitle]="getSectionTitle('projets', 'ACADEMIC & PERSONAL PROJECTS')"
-          [isEditingTitle]="editingSection() === 'projets'" [activeTab]="activeProjectTab()"
-          [extraTitle]="getSectionTitle('extraCurricular', 'EXTRACURRICULAR ACTIVITIES & VOLUNTEERING')"
-          [isEditingExtraTitle]="editingSection() === 'extraCurricular'"
-          (tabChange)="onProjectTabChange($event)" (addToggle)="toggleAddProject()" (save)="saveProject()"
-          (updateNew)="updateNewItem('project', $event.field, $event.value)" (edit)="editItem($event, 'project')"
-          (duplicate)="duplicateItem($event, 'project')" (delete)="deleteItem($event, 'projets')"
-          (reorder)="drop($event, 'projets')" (addToggleExtra)="toggleAddExtracurricular()"
-          (saveExtra)="saveExtracurricular()" (updateNewExtra)="updateNewExtracurricular($event.field, $event.value)"
-          (editExtra)="editExtracurricular($event)" (deleteExtra)="deleteExtracurricular($event)"
-          (titleEditStart)="startEditingSection('projets')" (titleEditSave)="updateSectionTitle('projets', $event)"
-          (extraTitleEditStart)="startEditingSection('extraCurricular')" (extraTitleEditSave)="updateSectionTitle('extraCurricular', $event)">
-        </app-projects>
-        }
+
         @if (currentStep() === 'competences') {
         <app-skills [skills]="profile().skills" [languages]="profile().languages" [newLanguage]="newLanguage()"
           [activeTab]="activeSkillsTab()" [sectionTitle]="getSectionTitle('competences', 'Skills & Languages')"
@@ -247,7 +185,7 @@
 
     <!-- NAVIGATION FOOTER -->
     <div
-      class="bg-white border-t border-slate-200 shrink-0 px-12 py-4 flex items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]"
+      class="mt-auto bg-white border-t border-slate-200 shrink-0 px-12 py-4 flex items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]"
       [class.px-4]="true" [class.md:px-12]="true">
       <button (click)="prev()" [disabled]="currentIndex() === 0"
         class="flex items-center gap-2 text-slate-500 font-semibold hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm md:text-base">

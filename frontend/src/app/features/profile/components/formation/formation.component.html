@@ -1,25 +1,25 @@
 <div class="form-step-wrapper animate-fade-slide-up">
   <!-- Education summary Header -->
   <div class="flex justify-between items-center mb-4">
-    <h2 class="text-[24px] font-bold text-slate-900">Education summary</h2>
-    <button class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">
+    <h2 class="text-xl font-semibold text-slate-900">Education summary</h2>
+    <button class="profile-ta-text-btn">
       <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">lightbulb_outline</mat-icon> Tips
     </button>
   </div>
 
   <!-- Surface Container -->
-  <div class="bg-white rounded-[16px] p-6 border border-slate-200">
+  <div class="profile-ta-surface">
     <div class="flex items-center gap-4 mb-5">
       @if (isEditingTitle) {
         <div class="flex items-center gap-2 animate-scale-up">
           <input #titleInput [value]="sectionTitle" 
                  (keydown.enter)="titleEditSave.emit(titleInput.value)"
                  (blur)="titleEditSave.emit(titleInput.value)"
-                 class="text-[14px] font-black text-[#1A91F0] border-b-2 border-[#1A91F0] outline-none bg-transparent uppercase tracking-wider px-1">
+                 class="text-[14px] font-black text-brand-500 border-b-2 border-brand-500 outline-none bg-transparent uppercase tracking-wider px-1">
         </div>
       } @else {
         <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">{{ sectionTitle }}</h3>
-        <button (click)="titleEditStart.emit()" class="text-[13px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">Rename</button>
+        <button (click)="titleEditStart.emit()" class="profile-ta-text-btn !h-auto !px-0 !py-0 text-[13px]">Rename</button>
       }
     </div>
 
@@ -44,7 +44,7 @@
               <span>{{ i + 1 }}</span>
             </div>
             <!-- Content -->
-            <div class="p-5 flex-1">
+            <div class="p-4 flex-1">
               <div class="flex flex-col md:flex-row justify-between items-start gap-3 mb-2">
                 <h4 class="font-bold text-slate-900 text-[15px] md:text-[16px] flex-1 leading-tight">
                   {{ getDegreeLabel(edu.degree) }} - <span class="font-semibold text-slate-800">{{ edu.institution }}</span> <span class="text-slate-500 font-normal">| {{ edu.specialization }}</span>
@@ -67,7 +67,7 @@
 
     <!-- ADD FORM -->
     @if (isAddingFormation) {
-      <div class="theme-card animate-fade-slide-up relative mt-2 !mb-0">
+      <div class="profile-ta-form-block animate-fade-slide-up relative mt-2 !mb-0">
         <button class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-50 transition-colors" (click)="addToggle.emit()">
           <mat-icon>close</mat-icon>
         </button>
@@ -80,7 +80,7 @@
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">school</mat-icon>
               <input type="text" placeholder="School Name" [ngModel]="newFormation.institution" (ngModelChange)="onUpdateNewItem('institution', $event)"
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+                     class="profile-ta-input profile-ta-input-with-icon">
             </div>
           </div>
           <div class="field-group">
@@ -88,7 +88,7 @@
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">location_on</mat-icon>
               <input type="text" placeholder="Fes" [ngModel]="newFormation.city" (ngModelChange)="onUpdateNewItem('city', $event)"
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+                     class="profile-ta-input profile-ta-input-with-icon">
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 pointer-events-none z-10">workspace_premium</mat-icon>
               <select [ngModel]="newFormation.degree" (ngModelChange)="onUpdateNewItem('degree', $event)"
-                      class="w-full h-[52px] pl-11 pr-10 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all appearance-none cursor-pointer">
+                      class="profile-ta-select profile-ta-select-with-icon">
                 <option value="">Select</option>
                 <option value="licence">Bachelor's Degree</option>
                 <option value="master">Master's Degree</option>
@@ -114,7 +114,7 @@
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 pointer-events-none z-10">emoji_events</mat-icon>
               <select [ngModel]="newFormation.mention" (ngModelChange)="onUpdateNewItem('mention', $event)"
-                      class="w-full h-[52px] pl-11 pr-10 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all appearance-none cursor-pointer">
+                      class="profile-ta-select profile-ta-select-with-icon">
                 <option value="Passable">Pass</option>
                 <option value="Bien">Good</option>
                 <option value="Très bien">Very Good</option>
@@ -131,7 +131,7 @@
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">menu_book</mat-icon>
               <input type="text" placeholder="Accountant" [ngModel]="newFormation.specialization" (ngModelChange)="onUpdateNewItem('specialization', $event)"
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all">
+                     class="profile-ta-input profile-ta-input-with-icon">
             </div>
           </div>
           <div class="field-group">
@@ -139,7 +139,7 @@
             <div class="flex gap-4">
               <div class="relative flex-1">
                 <select [ngModel]="newFormation.startYear" (ngModelChange)="onUpdateNewItem('startYear', $event)"
-                        class="w-full h-[52px] px-4 pr-10 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all appearance-none cursor-pointer">
+                        class="profile-ta-select">
                   <option value="">Year</option>
                   <option value="2024">2024</option>
                   <option value="2023">2023</option>
@@ -150,7 +150,7 @@
               </div>
               <div class="relative flex-1">
                 <select [ngModel]="newFormation.endYear" (ngModelChange)="onUpdateNewItem('endYear', $event)"
-                        class="w-full h-[52px] px-4 pr-10 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all appearance-none cursor-pointer">
+                        class="profile-ta-select">
                   <option value="">Year</option>
                   <option value="2024">2024</option>
                   <option value="2025">2025</option>
@@ -164,8 +164,8 @@
 
         <!-- Form specific actions -->
         <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
-          <button class="btn-text !text-slate-500 hover:!bg-slate-100" (click)="addToggle.emit()">Cancel</button>
-          <button class="btn-primary-next" (click)="save.emit()">Save</button>
+          <button class="profile-ta-secondary-btn" (click)="addToggle.emit()">Cancel</button>
+          <button class="profile-ta-primary-btn" (click)="save.emit()">Save</button>
         </div>
       </div>
     }

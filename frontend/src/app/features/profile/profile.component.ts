@@ -93,13 +93,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   profileCompletion = computed(() => {
     const p = this.profile();
     let filled = 0;
-    const total = 7;
+    const total = 6;
     if (p.personal?.firstName || p.personal?.lastName) filled++;
     if (p.education?.length > 0) filled++;
     if (p.experience?.length > 0) filled++;
     if (p.skills?.length > 0) filled++;
     if (p.resume) filled++;
-    if (p.projets?.length > 0) filled++;
     if (p.certifications?.length > 0) filled++;
     return { filled, total, percent: Math.round((filled / total) * 100) };
   });
@@ -174,7 +173,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     { id: 'formation', label: 'Education' },
     { id: 'competences', label: 'Skills' },
     { id: 'resume', label: 'Summary' },
-    { id: 'projets', label: 'Projects' },
     { id: 'certifications', label: 'Certifications' }
   ];
 

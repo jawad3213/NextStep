@@ -1,13 +1,13 @@
 variable "vm1_ip" {
   description = "IP address for the application VM"
   type        = string
-  default     = "192.168.56.10"
+  default     = "192.168.77.10"
 }
 
 variable "vm2_ip" {
   description = "IP address for the data/monitoring VM"
   type        = string
-  default     = "192.168.56.11"
+  default     = "192.168.77.11"
 }
 
 variable "ansible_inventory_path" {

@@ -43,8 +43,8 @@ foreach ($Image in $Images) {
     
     # On force le build de l'étape "production" (Ultra-Light)
     docker build --target production `
-                 -t "$ImageName:latest" `
-                 -t "$ImageName:$Version" `
+                 -t "${ImageName}:latest" `
+                 -t "${ImageName}:${Version}" `
                  "$SourcePath"
 
     if ($LASTEXITCODE -ne 0) {
@@ -53,8 +53,8 @@ foreach ($Image in $Images) {
     }
 
     Write-Host "Pushing to Docker Hub (Tags: latest, $Version)..." -ForegroundColor Green
-    docker push "$ImageName:latest"
-    docker push "$ImageName:$Version"
+    docker push "${ImageName}:latest"
+    docker push "${ImageName}:${Version}"
 }
 
 Write-Host "✅ Terminé ! Tes images versionnées sont sur Docker Hub." -ForegroundColor Cyan

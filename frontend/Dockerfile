@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build --configuration=production
 
 # Stage 2: Serve the application using Nginx
-FROM nginx:alpine
+FROM nginx:alpine AS production
 
 # Sécurité : On crée un utilisateur non-root pour Nginx
 RUN touch /var/run/nginx.pid && \

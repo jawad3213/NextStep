@@ -7,22 +7,44 @@ Vagrant.configure("2") do |config|
   # VM 1 : Application & Auth
   config.vm.define "vm1" do |vm1|
     vm1.vm.hostname = "nextstep-app"
-    vm1.vm.network "private_network", ip: "192.168.56.10"
+    vm1.vm.network "private_network", ip: "192.168.77.10"
+    
+    # Configuration VirtualBox
     vm1.vm.provider "virtualbox" do |vb|
       vb.memory = "2048"
       vb.cpus = 2
-    vb.name = "nextstep-vm1"
+      vb.gui = true
+      vb.name = "nextstep-vm1"
+    end
+
+    # Configuration VMware
+    vm1.vm.provider "vmware_desktop" do |v|
+      v.gui = true
+      v.ssh_info_public = true
+      v.vmx["memsize"] = "2048"
+      v.vmx["numvcpus"] = "2"
     end
   end
 
   # VM 2 : Data, Monitoring & Sonar
   config.vm.define "vm2" do |vm2|
     vm2.vm.hostname = "nextstep-data"
-    vm2.vm.network "private_network", ip: "192.168.56.11"
+    vm2.vm.network "private_network", ip: "192.168.77.11"
+    
+    # Configuration VirtualBox
     vm2.vm.provider "virtualbox" do |vb|
       vb.memory = "4096"
       vb.cpus = 2
-    vb.name = "nextstep-vm2"
+      vb.gui = true
+      vb.name = "nextstep-vm2"
+    end
+
+    # Configuration VMware
+    vm2.vm.provider "vmware_desktop" do |v|
+      v.gui = true
+      v.ssh_info_public = true
+      v.vmx["memsize"] = "4096"
+      v.vmx["numvcpus"] = "2"
     end
   end
 end

@@ -1,5 +1,5 @@
-<div class="horizontal-stepper-container" [class.hidden]="!isPipelineOpen()">
-  <div class="w-full px-8 flex items-center justify-between">
+<div class="horizontal-stepper-container">
+  <div class="w-full px-4 md:px-6 flex items-center justify-center gap-4">
     <nav class="node-stepper-wrapper">
       <div class="stepper-progress-bar">
         <div class="stepper-track"></div>
@@ -19,9 +19,9 @@
           >
             <div class="node-circle">
               @if (isStepComplete(step.id) && !isStepActive(step.id)) {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="check-icon"><polyline points="20 6 9 17 4 12"/></svg>
+                <mat-icon class="node-icon">check</mat-icon>
               } @else {
-                <span class="node-number">{{ i + 1 }}</span>
+                <mat-icon class="node-icon step-icon">{{ step.icon }}</mat-icon>
               }
             </div>
             <span class="node-label">{{ step.label }}</span>

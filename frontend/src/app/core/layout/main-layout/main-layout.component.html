@@ -84,10 +84,10 @@
             <button
               type="button"
               (click)="toggleProfileMenu()"
-              class="flex items-center gap-3 rounded-full border border-transparent bg-white pl-1 pr-1.5 py-1 shadow-sm transition hover:border-gray-200 hover:bg-gray-50 sm:pr-3"
+              class="flex items-center text-gray-700 transition hover:text-gray-900"
               aria-label="Open user menu"
             >
-              <span class="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#E8F0FF] text-sm font-semibold text-[#1E3A8A]">
+              <span class="mr-3 flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#E8F0FF] text-sm font-semibold text-[#1E3A8A]">
                 @if (userPhoto()) {
                   <img
                     [src]="userPhoto()!"
@@ -99,14 +99,14 @@
                 }
               </span>
 
-              <span class="hidden text-left md:block">
-                <span class="block max-w-[132px] truncate text-lg font-semibold text-slate-800">
+              <span class="text-left block mr-1">
+                <span class="block max-w-[132px] truncate text-sm font-medium text-gray-700">
                   {{ userShortName() }}
                 </span>
               </span>
 
               <svg
-                class="hidden h-5 w-5 text-slate-500 transition-transform md:block"
+                class="hidden h-5 w-5 text-gray-500 transition-transform md:block"
                 [ngClass]="{ 'rotate-180': isProfileMenuOpen() }"
                 viewBox="0 0 18 20"
                 fill="none"
@@ -183,7 +183,7 @@
     <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div
         class="w-full min-w-0 flex-1"
-        [ngClass]="(isProfileRoute$ | async) ? 'h-full max-w-none p-0' : 'mx-auto max-w-7xl p-4 md:p-6'"
+        [ngClass]="(isFullBleedRoute$ | async) ? 'h-full max-w-none p-0' : 'mx-auto max-w-7xl p-4 md:p-6'"
       >
         <router-outlet></router-outlet>
       </div>

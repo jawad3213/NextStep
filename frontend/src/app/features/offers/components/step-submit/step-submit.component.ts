@@ -29,6 +29,12 @@ export class StepSubmitComponent implements OnDestroy {
     return false;
   }
 
+  get wordCount(): number {
+    const trimmed = this.textValue.trim();
+    if (!trimmed) return 0;
+    return trimmed.split(/\s+/).length;
+  }
+
   submit(): void {
     this.error = '';
     this.pipeline.pipelineError.set(null);

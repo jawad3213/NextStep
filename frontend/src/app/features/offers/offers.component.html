@@ -1,209 +1,35 @@
-<div class="offers-layout" [class.pipeline-active]="pipeline.isFlowOpen()">
+<div class="offers-layout h-full flex flex-col">
+  <div class="stepper-wrapper shrink-0">
+    <app-offers-stepper
+      [steps]="steps"
+      [currentStep]="currentOfferStepId()"
+      [stepStates]="offerStepStates()"
+      (stepClick)="goToOfferStep($any($event))"
+    ></app-offers-stepper>
+  </div>
 
-  <!-- ==================== LIST VIEW (no pipeline) ==================== -->
-  @if (!pipeline.isFlowOpen()) {
-    <!-- HEADER / TITLE BAR -->
-    <header class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">Mes Opportunités</h1>
-        <p class="page-subtitle">Suivez et optimisez vos candidatures pour passer les filtres ATS.</p>
-      </div>
-      <div class="header-right">
-        <button class="btn-sync" [class.syncing]="isSyncing()" (click)="triggerGlobalSync()" title="Synchroniser l'état">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sync-icon"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-        <button class="btn-primary" (click)="openPipeline()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Nouvelle Candidature
-        </button>
-      </div>
-    </header>
-
-    <!-- FILTERS BAR -->
-    <section class="filters-bar">
-      <div class="search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" placeholder="Rechercher un poste, une entreprise, un tag..." [(ngModel)]="searchTerm" />
-      </div>
-      <div class="filters-group">
-        <div class="filter-select-wrapper">
-          <select [(ngModel)]="filterContract">
-            <option value="">Tous les contrats</option>
-            <option value="CDI">CDI</option>
-            <option value="CDD">CDD</option>
-            <option value="Stage">Stage / PFE</option>
-            <option value="Freelance">Freelance</option>
-          </select>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="filter-select-wrapper">
-          <select [(ngModel)]="filterStatus">
-            <option value="">Tous les statuts</option>
-            <option value="non_traitee">Non traitée</option>
-            <option value="analyse_en_cours">Analyse IA...</option>
-            <option value="analysee">Analysée</option>
-            <option value="cv_genere">Candidature prête</option>
-          </select>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="view-toggles">
-        <button [class.active]="viewMode() === 'list'" (click)="setViewMode('list')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-        </button>
-        <button [class.active]="viewMode() === 'grid'" (click)="setViewMode('grid')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        </button>
-      </div>
-    </section>
-
-    <!-- OFFERS LIST/GRID -->
-    <section class="offers-content" [class.list-view]="viewMode() === 'list'" [class.grid-view]="viewMode() === 'grid'">
-      @if (filteredOffers().length === 0) {
-        <div class="empty-state">
-          <div class="empty-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </div>
-          <h3>Aucune offre trouvée</h3>
-          <p>Essayez de modifier vos filtres ou ajoutez une nouvelle offre.</p>
-          <button class="btn-primary" (click)="openPipeline()">Ajouter une offre</button>
-        </div>
-      } @else {
-        @for (offer of filteredOffers(); track offer.id) {
-          <div class="offer-card">
-            <div class="card-header">
-              <div class="company-brand">
-                <div class="company-logo" [style.background]="getBubbleGradient(offer.company)">
-                  {{ getInitials(offer.company) }}
-                </div>
-                <div class="title-block">
-                  <h3 class="offer-title">{{ offer.title }}</h3>
-                  <p class="company-name">{{ offer.company }} <span class="dot-separator">•</span> {{ offer.location }}</p>
-                </div>
-              </div>
-              <div class="status-badge" [ngClass]="offer.status">
-                @if (offer.status === 'non_traitee') { <span class="dot"></span> À analyser }
-                @if (offer.status === 'analyse_en_cours') { <span class="spinner"></span> IA en cours }
-                @if (offer.status === 'analysee') { <span class="dot"></span> Analysée }
-                @if (offer.status === 'cv_genere') { <span class="dot"></span> Prête }
-              </div>
-            </div>
-            <div class="card-body">
-              @if (offer.matchingScore !== undefined) {
-                <div class="score-block">
-                  <div class="score-header">
-                    <span class="label">Match ATS</span>
-                    <span class="value" [class.excellent]="offer.matchingScore >= 80" [class.good]="offer.matchingScore >= 60 && offer.matchingScore < 80" [class.poor]="offer.matchingScore < 60">{{ offer.matchingScore }}%</span>
-                  </div>
-                  <div class="score-bar-bg">
-                    <div class="score-bar-fill" [style.width.%]="offer.matchingScore" [class.excellent]="offer.matchingScore >= 80" [class.good]="offer.matchingScore >= 60 && offer.matchingScore < 80" [class.poor]="offer.matchingScore < 60"></div>
-                  </div>
-                </div>
-              } @else {
-                <div class="score-block placeholder">
-                  <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/>
-                    <path d="m14 7 3 3"/>
-                    <path d="M5 6v4"/>
-                    <path d="M19 14v4"/>
-                    <path d="M10 2v2"/>
-                    <path d="M7 8H3"/>
-                    <path d="M21 16h-4"/>
-                    <path d="M11 3H9"/>
-                  </svg>
-                  <p>Aucune analyse IA effectuée. Lancez le scanner pour estimer votre compatibilité.</p>
-                </div>
-              }
-            </div>
-            <div class="card-footer">
-              <div class="tags">
-                <span class="tag contract">{{ offer.contractType }}</span>
-                @for (tag of offer.tags.slice(0, 3); track tag) {
-                  <span class="tag">{{ tag }}</span>
-                }
-                @if (offer.tags.length > 3) {
-                  <span class="tag more">+{{ offer.tags.length - 3 }}</span>
-                }
-              </div>
-              <div class="actions">
-                <button class="btn-ghost-sm" title="Supprimer">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        }
-      }
-    </section>
-  }
-
-  <!-- ==================== PIPELINE VIEW (stepper active) ==================== -->
-  @if (pipeline.isFlowOpen()) {
-    <main class="focus-area">
-      <!-- Header -->
-      <header class="focus-header shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 md:px-8 py-4 flex items-center z-10">
-        <div class="w-full flex items-center justify-between gap-3">
-          <div class="flex flex-col">
-            <nav class="breadcrumb hidden md:flex">
-              <button (click)="closePipeline()" class="back-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="back-icon"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-              </button>
-              <span class="text-slate-400 text-xs font-medium">Offers</span>
-              <svg class="text-slate-400 !w-[14px] !h-[14px] mx-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              <span class="text-indigo-600 text-xs font-medium">Nouvelle Candidature</span>
-            </nav>
-            <h2 class="section-title text-xl md:text-2xl font-bold text-slate-900 leading-tight mt-1">
-              {{
-                currentOfferStepId() === 'submit' ? 'Soumettre l\'offre' :
-                currentOfferStepId() === 'analysis' ? 'Analyse IA' :
-                currentOfferStepId() === 'template' ? 'Choix du Template' :
-                currentOfferStepId() === 'generation' ? 'Génération du CV' : 'Résultats'
-              }}
-            </h2>
-          </div>
-        </div>
-      </header>
-
-      <!-- Stepper -->
-      <div class="stepper-wrapper shrink-0">
-        <app-offers-stepper
-          [steps]="steps"
-          [currentStep]="currentOfferStepId()"
-          [stepStates]="offerStepStates()"
-          [isPipelineOpen]="pipeline.isFlowOpen()"
-          [stepClick]="goToOfferStep.bind(this)"
-        />
-      </div>
-
-      <!-- Step Content -->
-      <div class="form-scroll-container overflow-y-auto px-4 md:px-12 py-6 md:py-10 custom-scrollbar relative">
-        <div class="form-content max-w-5xl mx-auto w-full">
-          @if (currentOfferStepId() === 'submit') { <app-step-submit /> }
-          @if (currentOfferStepId() === 'analysis') { <app-step-analysis /> }
-          @if (currentOfferStepId() === 'template') { <app-step-template /> }
-          @if (currentOfferStepId() === 'generation') { <app-step-generation /> }
-          @if (currentOfferStepId() === 'results') { <app-step-results /> }
-        </div>
-      </div>
-
-      <!-- Navigation Footer -->
-      <div class="bg-white border-t border-slate-200 shrink-0 px-4 md:px-8 py-4 flex items-center justify-between z-20">
-        @if (currentOfferStepId() !== 'submit' && currentOfferStepId() !== 'results') {
-          <button (click)="prev()" class="flex items-center gap-2 text-slate-500 font-semibold hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm md:text-base">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="!w-4 !h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            <span class="hidden sm:inline">Précédent</span>
-          </button>
-        } @else {
-          <div></div>
-        }
-
-        @if (currentOfferStepId() !== 'results') {
-          <button (click)="closePipeline()" class="text-sm text-slate-400 hover:text-slate-600 transition-colors font-medium">
-            Fermer
-          </button>
+  <!-- Scrollable Page Content -->
+  <div class="flex-1 overflow-auto bg-gray-50/50">
+    <div class="max-w-[1200px] mx-auto px-4 md:px-12 py-8 lg:py-12">
+      <div class="step-content-container">
+        @switch (currentOfferStepId()) {
+          @case ('submit') {
+            <app-step-submit></app-step-submit>
+          }
+          @case ('analysis') {
+            <app-step-analysis></app-step-analysis>
+          }
+          @case ('template') {
+            <app-step-template></app-step-template>
+          }
+          @case ('generation') {
+            <app-step-generation></app-step-generation>
+          }
+          @case ('results') {
+            <app-step-results></app-step-results>
+          }
         }
       </div>
-    </main>
-  }
-
+    </div>
+  </div>
 </div>

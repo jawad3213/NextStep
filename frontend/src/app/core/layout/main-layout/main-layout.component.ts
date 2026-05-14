@@ -31,10 +31,13 @@ export class MainLayoutComponent {
   readonly isExpanded$ = this.sidebarService.isExpanded$;
   readonly isMobileOpen$ = this.sidebarService.isMobileOpen$;
   readonly isHovered$ = this.sidebarService.isHovered$;
-  readonly isProfileRoute$ = this.router.events.pipe(
+  readonly isFullBleedRoute$ = this.router.events.pipe(
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),
     startWith(null),
-    map(() => this.router.url.startsWith('/profile'))
+    map(() => {
+      const url = this.router.url;
+      return url.startsWith('/profile') || url.startsWith('/offers');
+    })
   );
   readonly headerState$ = this.router.events.pipe(
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),

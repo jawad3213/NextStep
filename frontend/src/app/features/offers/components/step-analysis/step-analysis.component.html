@@ -1,194 +1,296 @@
-<div class="step-content">
-
-  <!-- Error state -->
+<div class="analysis-shell">
   @if (error) {
     <div class="error-section">
       <div class="error-banner">
-        <span class="error-icon">✕</span>
+        <span class="error-icon">!</span>
         <div>
-          <div class="error-title">Erreur pipeline</div>
+          <div class="error-title">Erreur pendant l analyse</div>
           <div class="error-detail">{{ error }}</div>
         </div>
       </div>
+
       <div class="step-actions">
-        <button class="btn-ghost" (click)="goBack()">← Retour</button>
-        <button class="btn-next" (click)="retry()">Réessayer</button>
+        <button class="btn-ghost" (click)="goBack()">Retour</button>
+        <button class="btn-next" (click)="retry()">Reessayer</button>
       </div>
     </div>
   }
 
-  <!-- Real-time SignalR progress -->
   @if (pipeline.isLoading() && !error) {
-    <div class="loader-section">
-      <div class="loader-banner">
-        <span class="spinner-lg"></span>
-        <div>
-          <div class="loader-title">Pipeline IA en cours</div>
-          <div class="loader-sub">{{ progress?.label ?? 'Analyse en cours...' }}</div>
+    <section class="loading-stage">
+      <div class="loading-card">
+        <div class="loading-card__spinner">
+          <span class="spinner-lg"></span>
+        </div>
+
+        <div class="loading-card__body">
+          <div class="loading-card__eyebrow">Analyse IA en cours</div>
+          <h3 class="loading-card__title">Traitement de l offre et du skill gap</h3>
+          <p class="loading-card__text">
+            {{ progress?.label ?? 'Analyse en cours...' }}
+          </p>
+
           <div class="progress-bar-container">
             <div class="progress-bar-fill" [style.width.%]="progress?.progressPercent ?? 5"></div>
           </div>
           <div class="progress-text">{{ progress?.progressPercent ?? 5 }}%</div>
         </div>
       </div>
-      <div class="agent-progress">
-        <!-- A1 -->
-        <div class="agent-row"
-          [class.done]="getAgentStatus('offer_analyzer') === 'done'"
-          [class.running]="getAgentStatus('offer_analyzer') === 'running'"
-          [class.todo]="getAgentStatus('offer_analyzer') === 'todo'">
-          <span class="agent-icon">
-            @if (getAgentStatus('offer_analyzer') === 'done') { ✓ }
-            @else if (getAgentStatus('offer_analyzer') === 'running') { <span class="agent-spinner"></span> }
-            @else { ○ }
-          </span>
-          A1 — Analyse de l'offre
-        </div>
 
-        <!-- A2 -->
-        <div class="agent-row"
-          [class.done]="getAgentStatus('profile_retriever') === 'done'"
-          [class.running]="getAgentStatus('profile_retriever') === 'running'"
-          [class.todo]="getAgentStatus('profile_retriever') === 'todo'">
-          <span class="agent-icon">
-            @if (getAgentStatus('profile_retriever') === 'done') { ✓ }
-            @else if (getAgentStatus('profile_retriever') === 'running') { <span class="agent-spinner"></span> }
-            @else { ○ }
-          </span>
-          A2 — Récupération du profil
-        </div>
+      <div class="agent-timeline">
+        @for (agent of agentStages; track agent.key) {
+          <div
+            class="agent-row"
+            [class.done]="getAgentStatus(agent.key) === 'done'"
+            [class.running]="getAgentStatus(agent.key) === 'running'"
+            [class.todo]="getAgentStatus(agent.key) === 'todo'">
+            <div class="agent-row__icon">
+              @if (getAgentStatus(agent.key) === 'done') {
+                <span>✓</span>
+              } @else if (getAgentStatus(agent.key) === 'running') {
+                <span class="agent-spinner"></span>
+              } @else {
+                <span>○</span>
+              }
+            </div>
 
-        <!-- A3 -->
-        <div class="agent-row"
-          [class.done]="getAgentStatus('skill_gap') === 'done'"
-          [class.running]="getAgentStatus('skill_gap') === 'running'"
-          [class.todo]="getAgentStatus('skill_gap') === 'todo'">
-          <span class="agent-icon">
-            @if (getAgentStatus('skill_gap') === 'done') { ✓ }
-            @else if (getAgentStatus('skill_gap') === 'running') { <span class="agent-spinner"></span> }
-            @else { ○ }
-          </span>
-          A3 — Analyse des compétences (Skill Gap)
-        </div>
-
-        <!-- A4 -->
-        <div class="agent-row"
-          [class.done]="getAgentStatus('company_intel') === 'done'"
-          [class.running]="getAgentStatus('company_intel') === 'running'"
-          [class.todo]="getAgentStatus('company_intel') === 'todo'">
-          <span class="agent-icon">
-            @if (getAgentStatus('company_intel') === 'done') { ✓ }
-            @else if (getAgentStatus('company_intel') === 'running') { <span class="agent-spinner"></span> }
-            @else { ○ }
-          </span>
-          A4 — Intelligence entreprise (Company Intel)
-        </div>
-
-        <!-- A5 -->
-        <div class="agent-row"
-          [class.done]="getAgentStatus('cv_optimizer') === 'done'"
-          [class.running]="getAgentStatus('cv_optimizer') === 'running'"
-          [class.todo]="getAgentStatus('cv_optimizer') === 'todo'">
-          <span class="agent-icon">
-            @if (getAgentStatus('cv_optimizer') === 'done') { ✓ }
-            @else if (getAgentStatus('cv_optimizer') === 'running') { <span class="agent-spinner"></span> }
-            @else { ○ }
-          </span>
-          A5 — Optimisation du CV
-        </div>
-
-        <!-- A6 -->
-        <div class="agent-row"
-          [class.done]="getAgentStatus('cv_engine') === 'done'"
-          [class.running]="getAgentStatus('cv_engine') === 'running'"
-          [class.todo]="getAgentStatus('cv_engine') === 'todo'">
-          <span class="agent-icon">
-            @if (getAgentStatus('cv_engine') === 'done') { ✓ }
-            @else if (getAgentStatus('cv_engine') === 'running') { <span class="agent-spinner"></span> }
-            @else { ○ }
-          </span>
-          A6 — Génération du CV final
-        </div>
-
-        <!-- DB Save -->
-        <div class="agent-row"
-          [class.done]="getAgentStatus('db_persist') === 'done'"
-          [class.running]="getAgentStatus('db_persist') === 'running'"
-          [class.todo]="getAgentStatus('db_persist') === 'todo'">
-          <span class="agent-icon">
-            @if (getAgentStatus('db_persist') === 'done') { ✓ }
-            @else if (getAgentStatus('db_persist') === 'running') { <span class="agent-spinner"></span> }
-            @else { ○ }
-          </span>
-          A7 — Enregistrement des résultats
-        </div>
+            <div class="agent-row__content">
+              <div class="agent-row__title">{{ agent.title }}</div>
+              <div class="agent-row__detail">{{ agent.detail }}</div>
+            </div>
+          </div>
+        }
       </div>
-    </div>
+    </section>
   }
 
-  <!-- Results after pipeline completes -->
   @if (!pipeline.isLoading() && !error && result) {
-    <h3 class="step-title">Résultats de l'analyse</h3>
+    <div class="analysis-page">
+      <section class="hero-card">
+        <div class="hero-card__top">
+          <div class="hero-card__identity">
+            <div class="hero-card__logo">
+              {{ headlineCompany.slice(0, 2).toUpperCase() }}
+            </div>
 
-    <div class="results-grid">
-      <!-- Score matching -->
-      <div class="result-card">
-        <div class="rc-header">
-          <span class="rc-label">Score de matching</span>
-          <span class="rc-value" [class.good]="result.matchScore >= 70">
-            {{ result.matchScore }}%
-          </span>
-        </div>
-        <div class="match-track">
-          <div class="match-fill" [style.width.%]="result.matchScore"></div>
-        </div>
-      </div>
-
-      <!-- Company Intel -->
-      @if (result.companyName) {
-        <div class="result-card">
-          <div class="rc-header">
-            <span class="rc-label">Company Intel</span>
-            <span class="rating-badge">{{ result.companyCultureScore }}★</span>
+            <div>
+              <h2 class="hero-card__title">{{ headlineTitle }}</h2>
+              <div class="hero-card__meta">
+                <span>{{ headlineCompany }}</span>
+                <span class="meta-dot">•</span>
+                <span>{{ headlineLocation }}</span>
+                <span class="meta-dot">•</span>
+                <span class="hero-card__badge">Analyse terminee</span>
+              </div>
+            </div>
           </div>
-          <div class="company-detail">
-            {{ result.companyName }} · {{ result.companySize }}<br>
-            Salaire estimé : {{ result.companySalaryMin | number }}
-            – {{ result.companySalaryMax | number }} MAD
-          </div>
-        </div>
-      }
-    </div>
 
-    <!-- Keywords ATS -->
-    <div class="keywords-card">
-      <div class="rc-label" style="margin-bottom:8px">Keywords ATS détectés</div>
-      <div class="keyword-chips">
-        @for (kw of result.keywordsPresent; track kw) {
-          <span class="chip present">{{ kw }}</span>
-        }
-        @for (kw of result.keywordsMissing; track kw) {
-          <span class="chip missing">{{ kw }}</span>
-        }
-      </div>
-      <div class="keywords-legend">
-        <span class="legend-item present">✓ Présent dans votre profil</span>
-        <span class="legend-item missing">✗ Manquant</span>
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="step-actions">
-      <button class="btn-ghost" (click)="goBack()">← Retour</button>
-      <div class="action-group">
-        @if (result.missingSkills.length > 0) {
-          <button class="btn-outline-skill" (click)="goToSkillGap()">
-            Voir Skill Gap ({{ result.missingSkills.length }})
+          <button class="hero-card__cta" (click)="continueToTemplate()">
+            Choisir le template
           </button>
-        }
-        <button class="btn-next" (click)="pipeline.goToStep(3)">
-          Choisir le template →
-        </button>
+        </div>
+
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <span class="hero-stat__label">Type de contrat</span>
+            <span class="hero-stat__value">{{ contractType }}</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat__label">Experience demandee</span>
+            <span class="hero-stat__value">{{ experienceLabel }}</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat__label">Competences match</span>
+            <span class="hero-stat__value">{{ matchingSkillsCount }}</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat__label">Skill gaps</span>
+            <span class="hero-stat__value">{{ missingSkillsCount }}</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="analysis-layout">
+        <div class="analysis-main">
+          <section class="panel panel--summary">
+            <div class="panel__eyebrow">Resume de l IA</div>
+            <p class="panel__summary-text">{{ analysisSummary }}</p>
+          </section>
+
+          <section class="section-header">
+            <span class="section-header__icon">◎</span>
+            <h3>Analyse des competences</h3>
+          </section>
+
+          <div class="skills-grid">
+            <article class="panel">
+              <div class="panel__heading">
+                <h4>Competences techniques</h4>
+                <span class="panel__tag">TECH STACK</span>
+              </div>
+
+              <div class="skill-list">
+                @for (skill of technicalSkills; track skill.name) {
+                  <div class="skill-item" [class.is-matched]="skill.status === 'matched'" [class.is-partial]="skill.status === 'partial'" [class.is-missing]="skill.status === 'missing'">
+                    <span class="skill-item__name">{{ skill.name }}</span>
+                    <span class="skill-item__icon">{{ getSkillIcon(skill.status) }}</span>
+                  </div>
+                }
+
+                @if (technicalSkills.length === 0) {
+                  <div class="empty-state">Aucune competence technique structuree n a ete retournee.</div>
+                }
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel__heading">
+                <h4>Soft skills et contexte</h4>
+                <span class="panel__tag">FIT</span>
+              </div>
+
+              <div class="skill-list">
+                @for (skill of softSkills; track skill.name) {
+                  <div class="skill-item" [class.is-matched]="skill.status === 'matched'" [class.is-partial]="skill.status === 'partial'" [class.is-missing]="skill.status === 'missing'">
+                    <span class="skill-item__name">{{ skill.name }}</span>
+                    <span class="skill-item__icon">{{ getSkillIcon(skill.status) }}</span>
+                  </div>
+                }
+
+                @if (softSkills.length === 0) {
+                  <div class="empty-state">Les signaux soft skills sont encore faibles dans cette offre.</div>
+                }
+              </div>
+            </article>
+          </div>
+
+          <section class="panel">
+            <div class="panel__heading panel__heading--stacked">
+              <h4>Mots cles detectes</h4>
+              <span class="panel__subtext">Present, manquant et attendu par l offre</span>
+            </div>
+
+            <div class="keyword-cloud">
+              @for (keyword of keywordCloud; track keyword.label) {
+                <span class="keyword-chip" [class.is-matched]="keyword.tone === 'matched'" [class.is-missing]="keyword.tone === 'missing'" [class.is-neutral]="keyword.tone === 'neutral'" [class.size-sm]="keyword.size === 'sm'" [class.size-md]="keyword.size === 'md'" [class.size-lg]="keyword.size === 'lg'">
+                  {{ keyword.label }}
+                </span>
+              }
+            </div>
+          </section>
+
+          <section class="recommendations-section">
+            <h3 class="recommendations-section__title">Recommandations strategiques</h3>
+
+            <div class="recommendations-grid">
+              @for (recommendation of recommendationInsights; track recommendation.text) {
+                <article class="recommendation-card" [class.accent-amber]="recommendation.accent === 'amber'" [class.accent-red]="recommendation.accent === 'red'" [class.accent-blue]="recommendation.accent === 'blue'">
+                  <div class="recommendation-card__title">{{ recommendation.title }}</div>
+                  <p>{{ recommendation.text }}</p>
+                </article>
+              }
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel__heading panel__heading--between">
+              <h4>Texte original de l offre</h4>
+              <button class="text-toggle" (click)="toggleOfferText()">{{ offerToggleLabel }}</button>
+            </div>
+
+            <div class="offer-text" [class.is-collapsed]="!showFullOfferText">
+              {{ originalOfferPreview }}
+            </div>
+          </section>
+        </div>
+
+        <aside class="analysis-sidebar">
+          <section class="score-card">
+            <h4 class="score-card__title">Matching score</h4>
+
+            <div class="score-ring">
+              <svg viewBox="0 0 180 180" class="score-ring__svg">
+                <circle cx="90" cy="90" r="70" class="score-ring__track"></circle>
+                <circle
+                  cx="90"
+                  cy="90"
+                  r="70"
+                  class="score-ring__value"
+                  [class.score-green]="scoreAccent === 'green'"
+                  [class.score-amber]="scoreAccent === 'amber'"
+                  [class.score-red]="scoreAccent === 'red'"
+                  [style.stroke-dashoffset]="scoreRingOffset"></circle>
+              </svg>
+
+              <div class="score-ring__center">
+                <span class="score-ring__number">{{ score }}%</span>
+                <span class="score-ring__label">{{ scoreLabel }}</span>
+              </div>
+            </div>
+
+            <div class="score-breakdown">
+              <div class="score-breakdown__row">
+                <span>Couverture competences</span>
+                <strong>{{ matchingSkillsCount }} / {{ totalSkillCount || 1 }}</strong>
+              </div>
+              <div class="mini-bar">
+                <div class="mini-bar__fill is-green" [style.width.%]="skillsCoveragePercent"></div>
+              </div>
+
+              <div class="score-breakdown__row">
+                <span>Optimisation ATS</span>
+                <strong>{{ atsScore }}%</strong>
+              </div>
+              <div class="mini-bar">
+                <div class="mini-bar__fill is-blue" [style.width.%]="atsScore"></div>
+              </div>
+            </div>
+
+            <div class="score-metrics">
+              <div>
+                <strong>{{ matchingSkillsCount }}</strong>
+                <span>Match</span>
+              </div>
+              <div>
+                <strong>{{ missingSkillsCount }}</strong>
+                <span>Gaps</span>
+              </div>
+              <div>
+                <strong>{{ partialSkillsCount }}</strong>
+                <span>Partiel</span>
+              </div>
+            </div>
+
+            <button class="score-card__button" (click)="continueToTemplate()">
+              Continuer vers le template
+            </button>
+          </section>
+
+          <section class="support-card">
+            <h5>{{ companySupportTitle }}</h5>
+            <p>{{ companySupportText }}</p>
+
+            @if (companyNews.length > 0) {
+              <div class="support-card__news">
+                @for (item of companyNews; track item.title) {
+                  <div class="support-card__news-item">
+                    <strong>{{ item.title }}</strong>
+                    @if (item.date) {
+                      <span>{{ item.date }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            } @else {
+              <a class="support-card__link" (click)="continueToTemplate()">Passer a l etape suivante</a>
+            }
+          </section>
+        </aside>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn-ghost" (click)="goBack()">Retour a l offre</button>
+        <button class="btn-next" (click)="continueToTemplate()">Choisir le template</button>
       </div>
     </div>
   }

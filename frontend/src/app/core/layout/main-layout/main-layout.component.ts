@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
-import { filter, map, startWith } from 'rxjs';
+import { catchError, filter, map, of, startWith, switchMap } from 'rxjs';
 import { AuthService } from '../../auth/services/auth.service';
 import { ProfileService } from '../../../features/profile/profile.service';
 import { PipelineStateService } from '../../../services/pipeline-state.service';
+import { OnboardingService } from '../../../services/onboarding.service';
 import { AppSidebarComponent } from '../../../shared/layout/app-sidebar/app-sidebar.component';
 import { SidebarService } from '../../../shared/services/sidebar.service';
 import { ThemeService } from '../../../shared/services/theme.service';
@@ -22,10 +23,12 @@ type HeaderState = {
   styleUrl: './main-layout.component.scss'
 })
 export class MainLayoutComponent {
+  private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   readonly sidebarService = inject(SidebarService);
   readonly router = inject(Router);
   readonly authService = inject(AuthService);
   readonly profileService = inject(ProfileService);
+  readonly onboardingService = inject(OnboardingService);
   readonly pipelineState = inject(PipelineStateService);
   readonly themeService = inject(ThemeService);
   readonly isExpanded$ = this.sidebarService.isExpanded$;
@@ -43,6 +46,23 @@ export class MainLayoutComponent {
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),
     startWith(null),
     map(() => this.buildHeaderState(this.router.url))
+  );
+  readonly showSidebar$ = this.router.events.pipe(
+    filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+    startWith(null),
+    switchMap(() =>
+      this.onboardingService.getStatus().pipe(
+        map((status) => {
+          const isProfileRoute = this.router.url.startsWith('/profile');
+          const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
+          
+          // Sidebar remains hidden if we're forcing the profile stepper or they haven't done soft onboarding
+          const isForcedStepper = isProfileRoute && !profileUnlocked && status.profileScore < 30;
+          return !(!status.onboardingCompleted || isForcedStepper);
+        }),
+        catchError(() => of(true))
+      )
+    )
   );
   readonly isProfileMenuOpen = signal(false);
   readonly theme = this.themeService.theme;

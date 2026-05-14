@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Offer.Repositories;
@@ -38,25 +39,53 @@ public class OfferService(
     {
         var root = pipelineResult.RootElement;
         var fullJson = root.GetRawText();
+        var offerExists = await db.OffresEmploi.AnyAsync(o => o.Id == offerId, ct);
+
+        if (!offerExists)
+        {
+            throw new InvalidOperationException($"Offer {offerId} not found before pipeline persistence.");
+        }
 
         await repository.UpdateAnalyseJsonAsync(offerId, fullJson, ct);
-
-        var candidature = new NextStep.Modules.Candidature.Models.Candidature
-        {
-            IdUtilisateur = userId,
-            IdOffre = offerId,
-            Statut = "EN_ATTENTE",
-            DateCreation = DateTime.UtcNow
-        };
-        db.Candidatures.Add(candidature);
-        await db.SaveChangesAsync(ct);
 
         var cvDataJson = root.TryGetProperty("cv_data", out var cd)
             ? cd.GetRawText()
             : null;
 
+        // Analysis-only runs should only persist the offer analysis.
+        // We create candidature/documents once the generation phase returns cv_data.
         if (cvDataJson != null)
         {
+            var candidature = await db.Candidatures
+                .FirstOrDefaultAsync(c =>
+                    c.IdOffre == offerId &&
+                    c.IdUtilisateur == userId,
+                    ct);
+
+            if (candidature == null)
+            {
+                candidature = new NextStep.Modules.Candidature.Models.Candidature
+                {
+                    IdUtilisateur = userId,
+                    IdOffre = offerId,
+                    Statut = "EN_ATTENTE",
+                    DateCreation = DateTime.UtcNow
+                };
+                db.Candidatures.Add(candidature);
+                await db.SaveChangesAsync(ct);
+            }
+
+            var existingDocument = await db.DocumentsGeneres
+                .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature, ct);
+
+            if (existingDocument != null)
+            {
+                existingDocument.CvContenuIaJson = cvDataJson;
+                existingDocument.Version += 1;
+                existingDocument.DateGeneration = DateTime.UtcNow;
+            }
+            else
+            {
             var documentGenere = new DocumentGenere
             {
                 IdCandidature = candidature.IdCandidature,
@@ -64,7 +93,9 @@ public class OfferService(
                 Version = 1,
                 DateGeneration = DateTime.UtcNow
             };
-            db.DocumentsGeneres.Add(documentGenere);
+                db.DocumentsGeneres.Add(documentGenere);
+            }
+
             await db.SaveChangesAsync(ct);
         }
 
@@ -201,8 +232,13 @@ public class OfferService(
 
             if (allSkills.Count == 0)
             {
-                // Si on n'a pas le profil, on ne peut pas matcher
-                dto.Recommandations = dto.CompetencesRequises.Select(r => $"Ajouter '{r}' Ã  votre profil").ToList();
+                // If profile data is unavailable, all required skills should be treated as missing.
+                dto.ScoreMatching = 0;
+                dto.CompetencesMatching = [];
+                dto.CompetencesManquantes = dto.CompetencesRequises.ToList();
+                dto.KeywordsPresents = [];
+                dto.KeywordsManquants = dto.CompetencesRequises.ToList();
+                dto.Recommandations = dto.CompetencesRequises.Select(r => $"Ajouter '{r}' à votre profil").ToList();
             }
             else
             {
@@ -329,3 +365,4 @@ public static class JsonElementExtensions
     public static JsonElement? GetPropertyOrNull(this JsonElement el, string prop)
         => el.TryGetProperty(prop, out var v) ? v : null;
 }
+

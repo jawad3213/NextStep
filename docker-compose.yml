@@ -68,7 +68,7 @@ services:
     container_name: nextstep-api
     restart: always
     working_dir: /src
-    command: dotnet watch run --urls "http://0.0.0.0:5000"
+    command: dotnet run --urls "http://0.0.0.0:5000"
     env_file:
       - .env
     environment:

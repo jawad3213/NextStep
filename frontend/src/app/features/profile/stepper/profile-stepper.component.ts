@@ -24,6 +24,7 @@ export class ProfileStepperComponent {
     { id: 'experience', label: 'Experience', icon: 'business_center' },
     { id: 'formation', label: 'Education', icon: 'school' },
     { id: 'competences', label: 'Skills', icon: 'psychology' },
+    { id: 'projets', label: 'Projects', icon: 'rocket_launch' },
     { id: 'resume', label: 'Summary', icon: 'description' },
     { id: 'certifications', label: 'Certifications', icon: 'workspace_premium' }
   ];

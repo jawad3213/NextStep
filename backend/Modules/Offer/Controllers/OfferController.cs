@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Identity.Services;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Services;
+using NextStep.Shared.Http;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace NextStep.Modules.Offer.Controllers;
 
@@ -13,7 +15,6 @@ namespace NextStep.Modules.Offer.Controllers;
 [Produces("application/json")]
 public class OfferController(
     IOfferService offerService,
-    IPipelineRunnerService pipelineRunner,
     IPdfGenerationService pdfGenService,
     IServiceScopeFactory scopeFactory,
     IUserService userService,
@@ -47,30 +48,82 @@ public class OfferController(
             return BadRequest(ModelState);
 
         var dbUserId = await GetUserIdAsync();
-        var rawText = dto.RawText;
-        var templateId = dto.TemplateId;
         var userIdStr = dbUserId.ToString();
 
-        logger.LogInformation("POST /api/offers/submit — user={UserId}", dbUserId);
+        logger.LogInformation("POST /api/offers/submit - user={UserId}", dbUserId);
 
-        var offre = await offerService.SaveOfferAsync(rawText, userIdStr);
+        // Step 1 only stores the offer. The three-agent analysis is launched
+        // explicitly from step 2 through the analyze-sync endpoint.
+        var offre = await offerService.SaveOfferAsync(dto.RawText, userIdStr);
         var offerId = offre.Id;
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                using var scope = scopeFactory.CreateScope();
-                var runner = scope.ServiceProvider.GetRequiredService<IPipelineRunnerService>();
-                await runner.StartAnalysisAsync(offerId, rawText, userIdStr, templateId, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Pipeline [ANALYSIS] task failed for offer {OfferId}", offerId);
-            }
-        });
+        return Accepted(new OfferSubmitResponseDto { OfferId = offerId, Status = "saved" });
+    }
 
-        return Accepted(new OfferSubmitResponseDto { OfferId = offerId, Status = "processing" });
+    [HttpPost("{id:guid}/analyze-sync")]
+    [ProducesResponseType(typeof(OfferAnalysisDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> AnalyzeSync(Guid id, [FromBody] ResumePipelineDto dto, CancellationToken ct)
+    {
+        var dbUserId = await GetUserIdAsync();
+        var userIdStr = dbUserId.ToString();
+
+        logger.LogInformation("POST /api/offers/{OfferId}/analyze-sync - user={UserId}", id, dbUserId);
+
+        try
+        {
+            // 1. Retrieve the existing offer
+            var offre = await offerService.GetOfferWithAnalysisAsync(id, ct);
+            if (offre == null)
+            {
+                return NotFound(new { error = "Offer not found." });
+            }
+
+            var rawText = offre.TexteBrut ?? "";
+            // 2. Call the 3 python agents (strictly Analyze Offer -> Retrieve Profile -> Match)
+            using var scope = scopeFactory.CreateScope();
+            var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
+
+            // a) Agent 1: Offer Analysis
+            var analyzeDoc = await agentClient.AnalyzeOfferAsync(rawText, userIdStr, ct);
+            var analyzedOffer = analyzeDoc.RootElement.GetProperty("analyzed_offer");
+
+            // b) Agents 2 & 3: Profile Retriever & Skill Gap Match
+            var matchDoc = await agentClient.MatchProfileAsync(userIdStr, analyzedOffer, ct);
+
+            // Merge the results to save into DB
+            var combinedDict = new Dictionary<string, object>
+            {
+                { "analyzed_offer", JsonSerializer.Deserialize<object>(analyzedOffer.GetRawText())! },
+                { "match_result", JsonSerializer.Deserialize<object>(matchDoc.RootElement.GetRawText())! }
+            };
+            if (matchDoc.RootElement.TryGetProperty("profile_data", out var profileDataEl))
+            {
+                combinedDict["profile_data"] = JsonSerializer.Deserialize<object>(profileDataEl.GetRawText())!;
+            }
+            var combinedJson = JsonSerializer.Serialize(combinedDict);
+            using var agentResponse = JsonDocument.Parse(combinedJson);
+
+            // 3. Store the response in the DB
+            await offerService.SavePipelineResultAsync(id, agentResponse, dbUserId, ct);
+
+            // 4. Give the response to the frontend
+            var analysisDto = await offerService.GetAnalysisAsync(id, ct);
+
+            if (analysisDto == null)
+            {
+                return StatusCode(500, new { error = "Failed to retrieve analysis after saving." });
+            }
+
+            return Ok(analysisDto);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Synchronous analysis failed for offer {OfferId} / user {UserId}", id, dbUserId);
+            return StatusCode(500, new { error = ex.Message });
+        }
     }
 
     [HttpPost("{id:guid}/resume")]
@@ -79,7 +132,7 @@ public class OfferController(
         var dbUserId = await GetUserIdAsync();
         var userIdStr = dbUserId.ToString();
 
-        logger.LogInformation("POST /api/offers/{OfferId}/resume — template={Template}", id, dto.TemplateId);
+        logger.LogInformation("POST /api/offers/{OfferId}/resume - template={Template}", id, dto.TemplateId);
 
         _ = Task.Run(async () =>
         {
@@ -107,7 +160,7 @@ public class OfferController(
         CancellationToken ct)
     {
         var dbUserId = await GetUserIdAsync();
-        logger.LogInformation("POST /api/offers/{OfferId}/generate-pdf — template={Template}", id, dto.TemplateId);
+        logger.LogInformation("POST /api/offers/{OfferId}/generate-pdf - template={Template}", id, dto.TemplateId);
 
         try
         {

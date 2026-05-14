@@ -126,6 +126,21 @@ async def match_profile(payload: MatchRequest) -> dict:
             candidate_cv=profile_data,
             job_offer=payload.analyzed_offer
         )
-        return gap_res.model_dump() if gap_res else {}
+        result = gap_res.model_dump() if gap_res else {}
+
+        if result:
+            result["score_matching"] = int(result.get("relevance_score", 0) * 100)
+            result["competences_matching"] = result.get("matched_skills", [])
+            result["competences_manquantes"] = result.get("missing_skills", [])
+            result["recommandations"] = result.get("revision_hints", [])
+
+            ats_keywords = (payload.analyzed_offer or {}).get("keywords_ats", [])
+            matched_set = {s.lower() for s in result.get("matched_skills", [])}
+            result["keywords_presents"] = [kw for kw in ats_keywords if kw.lower() in matched_set]
+            result["keywords_manquants"] = [kw for kw in ats_keywords if kw.lower() not in matched_set]
+
+        # Keep profile_data in response so the .NET backend can persist it and apply deterministic fallback.
+        result["profile_data"] = profile_data or {}
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

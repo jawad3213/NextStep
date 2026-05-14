@@ -109,6 +109,30 @@ public class AgentHttpClient : IAgentHttpClient
         return JsonDocument.Parse(responseJson);
     }
 
+    /// <summary>
+    /// Appelle POST /match — Agents 2-3 uniquement (Matching profil ↔ offre).
+    /// </summary>
+    public async Task<JsonDocument> MatchProfileAsync(
+        string userId,
+        JsonElement analyzedOffer,
+        CancellationToken ct = default)
+    {
+        var payload = new Dictionary<string, object>
+        {
+            ["user_id"] = userId,
+            ["analyzed_offer"] = JsonSerializer.Deserialize<object>(analyzedOffer.GetRawText(), JsonOptions)!
+        };
+
+        var json = JsonSerializer.Serialize(payload, JsonOptions);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("/offer/match", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync(ct);
+        return JsonDocument.Parse(responseJson);
+    }
+
     /// <summary>Health check des agents Python.</summary>
     public async Task<bool> IsHealthyAsync(CancellationToken ct = default)
     {

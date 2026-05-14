@@ -11,6 +11,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { ProfileService } from './profile.service';
 import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
+import { OnboardingService } from '../../services/onboarding.service';
 
 type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 
@@ -22,6 +23,7 @@ import { CertificationsComponent } from './components/certifications/certificati
 import { ExperienceComponent } from './components/experience/experience.component';
 import { FormationComponent } from './components/formation/formation.component';
 import { SkillsComponent } from './components/skills/skills.component';
+import { ProjectsComponent } from './components/projects/projects.component';
 import { ResumeComponent } from './components/resume/resume.component';
 
 
@@ -40,6 +42,7 @@ import { ResumeComponent } from './components/resume/resume.component';
     ExperienceComponent,
     FormationComponent,
     SkillsComponent,
+    ProjectsComponent,
     ResumeComponent,
     FormsModule,
     ReactiveFormsModule
@@ -49,7 +52,9 @@ import { ResumeComponent } from './components/resume/resume.component';
   encapsulation: ViewEncapsulation.None
 })
 export class UserProfileComponent implements OnInit, OnDestroy {
+  private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   profileService = inject(ProfileService);
+  private onboardingService = inject(OnboardingService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   
@@ -58,6 +63,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   
   ngOnInit() {
     this.profileService.refreshProfile();
+    this.refreshOnboardingStatus();
 
     // Recover step from URL query params
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
@@ -67,9 +73,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Professional Debounced Auto-save logic
+    // Save on blur with a short debounce to coalesce rapid blur events
     this.autoSave$.pipe(
-      debounceTime(1500),
+      debounceTime(300),
       takeUntil(this.destroy$)
     ).subscribe(() => {
       this.save();
@@ -87,17 +93,19 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   lastSaved = signal<Date | null>(new Date());
   showToast = signal(false);
   showCompletionModal = signal(false);
+  isForcedOnboarding = signal(false);
   private lastSavedSnapshot: string = '';
 
   // Profile completion stats for the finish modal
   profileCompletion = computed(() => {
     const p = this.profile();
     let filled = 0;
-    const total = 6;
+    const total = 7;
     if (p.personal?.firstName || p.personal?.lastName) filled++;
     if (p.education?.length > 0) filled++;
     if (p.experience?.length > 0) filled++;
     if (p.skills?.length > 0) filled++;
+    if (p.projets?.length > 0) filled++;
     if (p.resume) filled++;
     if (p.certifications?.length > 0) filled++;
     return { filled, total, percent: Math.round((filled / total) * 100) };
@@ -128,12 +136,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newExperience = signal<Experience>({
     id: '', title: '', company: '', city: '', 
     startDate: '', endDate: '', current: false, 
-    type: 'Internship', description: ''
+    type: 'Internship', description: '', taches: []
   });
 
   newProject = signal<Project>({
     id: '', title: '', description: '', stack: [], 
-    githubUrl: '', demoUrl: '', isUniversity: false
+    githubUrl: '', demoUrl: '', isUniversity: false, taches: []
   });
 
   newCertification = signal<Certification>({
@@ -146,7 +154,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newExtracurricular = signal<Experience>({
     id: '', title: '', company: '', city: '',
     startDate: '', endDate: '', current: false,
-    type: 'Extracurricular', description: ''
+    type: 'Extracurricular', description: '', taches: []
   });
 
   activeProjectTab = signal<'projects' | 'extracurriculars'>('projects');
@@ -172,6 +180,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     { id: 'experience', label: 'Experience' },
     { id: 'formation', label: 'Education' },
     { id: 'competences', label: 'Skills' },
+    { id: 'projets', label: 'Projects' },
     { id: 'resume', label: 'Summary' },
     { id: 'certifications', label: 'Certifications' }
   ];
@@ -209,8 +218,22 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   async finishProfile() {
-    await this.save();
-    this.showCompletionModal.set(true);
+    if (this.isForcedOnboarding()) {
+      await this.profileService.flushOnboardingData();
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    } else {
+      await this.save();
+    }
+    this.isForcedOnboarding.set(false);
+    this.profileService.isOnboarding.set(false);
+    localStorage.setItem(this.profileUnlockedKey, 'true');
+    this.showCompletionModal.set(false);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { step: 'coordonnees' },
+      queryParamsHandling: 'merge'
+    });
   }
 
   goToDashboard() {
@@ -238,7 +261,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     const currentPersonal = { ...this.profile().personal };
     (currentPersonal as any)[field] = value;
     this.profileService.updateProfile({ personal: currentPersonal });
-    this.autoSave$.next();
+  }
+
+  onFieldBlur(field: string, value: any) {
+    const currentPersonal = { ...this.profile().personal };
+    (currentPersonal as any)[field] = value;
+    this.profileService.updateProfile({ personal: currentPersonal });
   }
 
   togglePreview() {
@@ -246,9 +274,15 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   async save() {
-    const currentData = JSON.stringify(this.profile().personal);
+    if (this.isForcedOnboarding()) return;
+
+    const snapshot = {
+      personal: this.profile().personal,
+      resume: this.profile().resume,
+      sectionTitles: this.profile().sectionTitles
+    };
+    const currentData = JSON.stringify(snapshot);
     
-    // DIRTY CHECK: Only save if data has actually changed
     if (currentData === this.lastSavedSnapshot) {
       console.log('No changes detected, skipping save.');
       return;
@@ -257,7 +291,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     this.isSaving.set(true);
     try {
       await this.profileService.savePersonalInfo(this.profile().personal);
-      this.lastSavedSnapshot = currentData; // Update snapshot after successful save
+      this.lastSavedSnapshot = currentData;
       this.lastSaved.set(new Date());
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -274,11 +308,17 @@ export class UserProfileComponent implements OnInit, OnDestroy {
         this.newFormation.update(v => ({ ...v, [field]: value }));
         break;
       case 'experience':
+        if (field === 'taches' && typeof value === 'string') {
+          value = value.split(/\r?\n/).map(s => s.trim()).filter(s => s !== '');
+        }
         this.newExperience.update(v => ({ ...v, [field]: value }));
         break;
       case 'project':
         if (field === 'stack' && typeof value === 'string') {
           value = value.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+        if (field === 'taches' && typeof value === 'string') {
+          value = value.split(/\r?\n/).map(s => s.trim()).filter(s => s !== '');
         }
         this.newProject.update(v => ({ ...v, [field]: value }));
         break;
@@ -297,9 +337,44 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   linkedinRawText = signal('');
 
   parsingEvents = this.profileService.parsingEvents;
+  importSummary = this.profileService.lastImportSummary;
+  parsingStageCopy = computed(() => {
+    switch (this.parsingStatus()) {
+      case 'analyzing':
+        return {
+          headline: 'AI Extraction Engine',
+          description: 'We are analyzing the structure of your resume and grouping it by profile step.'
+        };
+      case 'structuring':
+        return {
+          headline: 'Preparing Your Profile',
+          description: 'The extracted information is being organized so each profile section can be filled automatically.'
+        };
+      default:
+        return {
+          headline: 'AI Extraction Engine',
+          description: 'Our agents are scanning your document for key experiences and skills.'
+        };
+    }
+  });
+  importSummaryCards = computed(() => {
+    const summary = this.importSummary();
+    if (!summary) return [];
+
+    return [
+      { key: 'contact', label: 'Contact fields', count: summary.personalFields },
+      { key: 'experience', label: 'Experience', count: summary.experienceCount },
+      { key: 'education', label: 'Education', count: summary.educationCount },
+      { key: 'skills', label: 'Skills', count: summary.skillCount + summary.languageCount },
+      { key: 'projects', label: 'Projects', count: summary.projectCount },
+      { key: 'certifications', label: 'Certifications', count: summary.certificationCount },
+      { key: 'summary', label: 'Summary', count: summary.hasSummary ? 1 : 0 }
+    ];
+  });
 
   async onFileImported(event: any) {
-    const file = event.target?.files?.[0] || (event.target as HTMLInputElement)?.files?.[0];
+    const input = event.target as HTMLInputElement;
+    const file = event.target?.files?.[0] || input?.files?.[0];
     if (!file) return;
 
     this.isParsing.set(true);
@@ -315,6 +390,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
       // Actual Import call (emits events into parsingEvents signal)
       await this.profileService.importResume(file);
+      this.refreshOnboardingStatus();
 
       this.parsingStatus.set('structuring');
       this.parsingProgress.set(90);
@@ -339,6 +415,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isApplyingData.set(false);
     } finally {
       this.parsingProgress.set(0);
+      if (input) {
+        input.value = '';
+      }
     }
   }
 
@@ -373,6 +452,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
       // Call our robust backend import via service
       await this.profileService.importLinkedIn(url, '');
+      this.refreshOnboardingStatus();
 
       this.parsingStatus.set('structuring');
       this.parsingProgress.set(90);
@@ -444,7 +524,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.newExperience.set({
         id: '', title: '', company: '', city: '', 
         startDate: '', endDate: '', current: false, 
-        type: 'Internship', description: ''
+        type: 'Internship', description: '', taches: []
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -471,7 +551,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isAddingProject.set(false);
       this.newProject.set({
         id: '', title: '', description: '', stack: [], 
-        githubUrl: '', demoUrl: '', isUniversity: false
+        githubUrl: '', demoUrl: '', isUniversity: false, taches: []
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -503,7 +583,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.newExtracurricular.set({
         id: '', title: '', company: '', city: '', 
         startDate: '', endDate: '', current: false, 
-        type: 'Extracurricular', description: ''
+        type: 'Extracurricular', description: '', taches: []
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -653,7 +733,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   // Resume Methods
   updateResume(text: string) {
     this.profileService.updateProfile({ resume: text });
-    this.autoSave$.next();
+  }
+
+  onResumeBlur() {
   }
 
   async generateAIResume() {
@@ -800,5 +882,26 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.profileService.updateProfile({ [type]: currentArray });
       this.autoSave$.next();
     }
+  }
+
+  private refreshOnboardingStatus() {
+    const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
+    if (profileUnlocked) {
+      this.isForcedOnboarding.set(false);
+      this.profileService.isOnboarding.set(false);
+      return;
+    }
+
+    this.onboardingService.getStatus().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (status) => {
+        const isForced = !status.onboardingCompleted || status.profileScore < 30;
+        this.isForcedOnboarding.set(isForced);
+        this.profileService.isOnboarding.set(isForced);
+      },
+      error: () => {
+        this.isForcedOnboarding.set(false);
+        this.profileService.isOnboarding.set(false);
+      }
+    });
   }
 }

@@ -70,6 +70,7 @@ export class SkillsComponent {
 
   getLanguageBadgeColor(level: string): string {
     switch(level) {
+      case 'Native':
       case 'Natif': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case 'C2':
       case 'C1': return 'bg-blue-100 text-blue-700 border-blue-200';

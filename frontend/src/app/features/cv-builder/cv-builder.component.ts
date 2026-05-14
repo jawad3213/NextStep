@@ -38,8 +38,8 @@ interface CvData {
   education: { degree: string; institution: string; year: string }[];
   skills: { name: string; level: number; isMatched: boolean }[];
   projects: { title: string; description: string; bullets: string[] }[];
-  certifications: { name: string; issuer: string; date: string }[];
-  languages: { name: string; level: string }[];
+  certifications: string[];
+  languages: string[];
   activities: { title: string; role: string; description: string }[];
   themeColor: string;
   fontFamily: string;
@@ -222,6 +222,39 @@ interface CvData {
               </div>
             }
 
+            @if (previewData()!.education.length > 0) {
+              <div class="cv-section">
+                <h4>Formation</h4>
+                @for (edu of previewData()!.education; track edu.degree + edu.institution) {
+                  <div class="cv-entry">
+                    <div class="entry-header">
+                      <strong>{{ edu.degree }}</strong> — {{ edu.institution }}
+                      <span class="entry-date">{{ edu.year }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (previewData()!.projects.length > 0) {
+              <div class="cv-section">
+                <h4>Projets</h4>
+                @for (prj of previewData()!.projects; track prj.title) {
+                  <div class="cv-entry">
+                    <div class="entry-header">
+                      <strong>{{ prj.title }}</strong>
+                    </div>
+                    @if (prj.description) { <p class="cv-project-desc">{{ prj.description }}</p> }
+                    @if (prj.bullets && prj.bullets.length > 0) {
+                      <ul>
+                        @for (b of prj.bullets; track b) { <li>{{ b }}</li> }
+                      </ul>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
             @if (previewData()!.skills.length > 0) {
               <div class="cv-section">
                 <h4>Competences</h4>
@@ -233,6 +266,43 @@ interface CvData {
                     </div>
                   }
                 </div>
+              </div>
+            }
+
+            @if (previewData()!.certifications && previewData()!.certifications.length > 0) {
+              <div class="cv-section">
+                <h4>Certifications</h4>
+                <ul class="cv-bullets-flat">
+                  @for (cert of previewData()!.certifications; track cert) {
+                    <li>{{ cert }}</li>
+                  }
+                </ul>
+              </div>
+            }
+
+            @if (previewData()!.languages && previewData()!.languages.length > 0) {
+              <div class="cv-section">
+                <h4>Langues</h4>
+                <div class="languages-grid">
+                  @for (lang of previewData()!.languages; track lang) {
+                    <span class="lang-chip">{{ lang }}</span>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (previewData()!.activities && previewData()!.activities.length > 0) {
+              <div class="cv-section">
+                <h4>Activites Extra-professionnelles</h4>
+                @for (act of previewData()!.activities; track act.title) {
+                  <div class="cv-entry">
+                    <div class="entry-header">
+                      <strong>{{ act.title }}</strong>
+                      @if (act.role) { <span> — {{ act.role }}</span> }
+                    </div>
+                    @if (act.description) { <p class="cv-project-desc">{{ act.description }}</p> }
+                  </div>
+                }
               </div>
             }
           </div>
@@ -309,6 +379,10 @@ interface CvData {
     .cv-contact { font-size: 13px; color: #616161; margin: 0 0 12px; }
     .cv-summary { font-size: 13px; color: #424242; line-height: 1.6; margin: 0; }
     .cv-entry { margin-bottom: 16px; .entry-header { font-size: 13px; color: #212121; margin-bottom: 4px; .entry-date { float: right; color: #616161; font-weight: 400; } } ul { margin: 4px 0 0; padding-left: 20px; li { font-size: 12px; color: #424242; line-height: 1.5; } } }
+    .cv-project-desc { font-size: 12px; color: #616161; margin: 4px 0 2px; font-style: italic; }
+    .cv-bullets-flat { margin: 4px 0 0; padding-left: 20px; li { font-size: 12px; color: #424242; margin-bottom: 4px; } }
+    .languages-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .lang-chip { padding: 4px 10px; background: #F5F7FA; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 12px; color: #334155; font-weight: 500; }
     .skills-grid { display: flex; flex-wrap: wrap; gap: 8px; }
     .skill-item { padding: 4px 10px; background: #F1F5F9; border-radius: 4px; font-size: 12px; color: #424242; display: flex; align-items: center; gap: 6px; &.matched { background: #E6F4EA; border: 1px solid #34A853; } .match-badge { font-size: 9px; font-weight: 700; color: #34A853; } }
 
@@ -494,8 +568,8 @@ const mockPreviewData: CvData = {
     { name: 'TypeScript', level: 5, isMatched: true },
   ],
   projects: [{ title: 'E-commerce App', description: 'Plateforme e-commerce full-stack', bullets: ['Architecture microservices', 'Paiement Stripe intégré'] }],
-  certifications: [{ name: 'AWS Cloud Practitioner', issuer: 'Amazon', date: '2023-06' }],
-  languages: [{ name: 'Français', level: 'Natif' }, { name: 'Anglais', level: 'C1' }],
+  certifications: ['AWS Cloud Practitioner - Amazon'],
+  languages: ['Français - Natif', 'Anglais - C1'],
   activities: [{ title: 'Club Robotique', role: 'Membre', description: 'Participation à des compétitions nationales' }],
   themeColor: '#0C1986',
   fontFamily: 'Lato',

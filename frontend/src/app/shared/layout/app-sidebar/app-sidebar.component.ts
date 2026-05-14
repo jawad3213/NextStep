@@ -3,6 +3,7 @@ import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
+import { AuthService } from '../../../core/auth/services/auth.service';
 import { ProfileService } from '../../../features/profile/profile.service';
 import { PipelineStateService } from '../../../services/pipeline-state.service';
 import { SafeHtmlPipe } from '../../pipe/safe-html.pipe';
@@ -32,6 +33,7 @@ export class AppSidebarComponent {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
 
+  readonly authService = inject(AuthService);
   readonly sidebarService = inject(SidebarService);
   readonly profileService = inject(ProfileService);
   readonly pipelineState = inject(PipelineStateService);
@@ -168,6 +170,10 @@ export class AppSidebarComponent {
         }
       }
     }
+  }
+
+  logout(): void {
+    this.authService.logout();
   }
 
   private measureSubmenuHeight(key: string): void {

@@ -26,7 +26,16 @@ from app.core.config import get_llm
 
 logger = logging.getLogger(__name__)
 
-from .schemas import ResumeParsedSchema
+from .schemas import ResumeParsedSchema, normalize_language_level
+
+def _normalize_language_levels(data: dict) -> dict:
+    """Post-processes language entries to normalize level descriptors."""
+    languages = data.get("languages", [])
+    if isinstance(languages, list):
+        for lang in languages:
+            if isinstance(lang, dict):
+                lang["niveau"] = normalize_language_level(lang.get("niveau"))
+    return data
 
 async def parse_cv_with_ai(cv_text: str) -> dict:
     """
@@ -54,10 +63,13 @@ async def parse_cv_with_ai(cv_text: str) -> dict:
         # 2. Validation de type et complétion via Pydantic
         try:
             validated = ResumeParsedSchema(**parsed_data)
-            return validated.model_dump()
+            result = validated.model_dump()
         except Exception as pydantic_err:
             logger.warning(f"⚠️ Validation Pydantic partielle (utilisation du fallback brut) : {pydantic_err}")
-            return parsed_data
+            result = parsed_data
+            
+        # 3. Normalisation des niveaux de langue (mapping français -> CECRL / standard)
+        return _normalize_language_levels(result)
             
     except Exception as e:
         logger.error(f"❌ Erreur critique lors de l'appel ou du parsing du CV : {e}")
@@ -195,5 +207,5 @@ Retourne un JSON valide respectant le schéma ResumeParsedSchema.
         # Toujours retourner un objet valide pour éviter le crash 500 du frontend
         return {
             "personal": {"nom": nom if 'nom' in locals() else "", "prenom": prenom if 'prenom' in locals() else "Utilisateur", "email": "", "telephone": "", "ville": "", "pays": "", "titrePoste": "", "resumeProfessionnel": ""},
-            "experience": [], "education": [], "projects": [], "extracurricular": [], "certifications": [], "skills": []
+            "experience": [], "education": [], "projects": [], "extracurricular": [], "certifications": [], "skills": [], "languages": []
         }

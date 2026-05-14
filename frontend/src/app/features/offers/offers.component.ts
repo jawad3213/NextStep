@@ -39,11 +39,11 @@ export class OffersComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   steps: { id: OfferStepId; label: string; icon: string }[] = [
-    { id: 'submit', label: 'Offer', icon: 'description' },
-    { id: 'analysis', label: 'Analysis', icon: 'analytics' },
+    { id: 'submit', label: 'Offre', icon: 'description' },
+    { id: 'analysis', label: 'Skill Gap', icon: 'analytics' },
     { id: 'template', label: 'Template', icon: 'palette' },
     { id: 'generation', label: 'Generation', icon: 'auto_awesome' },
-    { id: 'results', label: 'Results', icon: 'verified' }
+    { id: 'results', label: 'Resultats', icon: 'verified' }
   ];
 
   stepToPipelineMap: Record<OfferStepId, PipelineStep> = {

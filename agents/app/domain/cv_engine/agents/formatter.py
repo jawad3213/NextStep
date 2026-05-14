@@ -52,13 +52,23 @@ def build_questpdf_payload(
 
         start_date = None
         end_date = None
+        orig_tasks = []
         for orig_exp in original_exps:
             if orig_exp.get("titre", "").strip().lower() == opt_title.strip().lower():
                 start_date = orig_exp.get("date_debut")
                 end_date = orig_exp.get("date_fin")
+                orig_tasks = orig_exp.get("taches") or orig_exp.get("tasks") or []
                 break
 
-        bullets = [b.strip().lstrip("-").strip() for b in opt_desc.split("\n") if b.strip()]
+        bullets = []
+        if orig_tasks:
+            if isinstance(orig_tasks, list):
+                bullets = [str(t).strip() for t in orig_tasks if t]
+            elif isinstance(orig_tasks, str):
+                bullets = [b.strip().lstrip("-").strip() for b in orig_tasks.split("\n") if b.strip()]
+
+        if not bullets:
+            bullets = [b.strip().lstrip("-").strip() for b in opt_desc.split("\n") if b.strip()]
         if not bullets and opt_desc:
             bullets = [opt_desc]
 
@@ -73,20 +83,38 @@ def build_questpdf_payload(
     offer_techs = {s.lower() for s in (offer_skills or [])}
     quest_projects: List[QuestPDFProject] = []
     opt_projects = optimized_cv.get("projets_optimises", [])
+    original_projs = original_profile.get("projets", [])
     
     scored_projects = []
 
     for opt_proj in opt_projects:
+        opt_title = opt_proj.get("titre", "")
         project_techs = {t.lower() for t in opt_proj.get("technologies", [])}
         score = 0
         if offer_techs:
             matched_techs = project_techs & offer_techs
             score = len(matched_techs)
 
-        bullets = [b.strip().lstrip("-").strip() for b in opt_proj.get("description_optimisee", "").split("\n") if b.strip()]
+        # Match with original project to get taches
+        orig_tasks = []
+        for orig_p in original_projs:
+            if orig_p.get("titre", "").strip().lower() == opt_title.strip().lower():
+                orig_tasks = orig_p.get("taches") or orig_p.get("tasks") or []
+                break
+
+        bullets = []
+        if orig_tasks:
+            if isinstance(orig_tasks, list):
+                bullets = [str(t).strip() for t in orig_tasks if t]
+            elif isinstance(orig_tasks, str):
+                bullets = [b.strip().lstrip("-").strip() for b in orig_tasks.split("\n") if b.strip()]
+
+        if not bullets:
+            bullets = [b.strip().lstrip("-").strip() for b in opt_proj.get("description_optimisee", "").split("\n") if b.strip()]
+
         scored_projects.append((score, QuestPDFProject(
-            title=opt_proj.get("titre", ""),
-            description=None,
+            title=opt_title,
+            description=opt_proj.get("description_optimisee", ""),
             bullets=bullets,
         )))
         

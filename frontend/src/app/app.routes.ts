@@ -21,43 +21,53 @@ export const routes: Routes = [
     children: [
       {
         path: 'profile',
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/profile/profile.component').then(m => m.UserProfileComponent)
       },
       { path: 'dashboard', component: DashboardComponent, canActivate: [onboardingGuard] },
       { 
         path: 'offers', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
       },
       { 
         path: 'cv', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/cv-builder/cv-builder.component').then(m => m.CvBuilderComponent) 
       },
       { 
         path: 'letters', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/letters/letters.component').then(m => m.LettersComponent) 
       },
       { 
         path: 'applications', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
       },
       { 
         path: 'company-intel', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent) 
       },
       { 
         path: 'skill-gap', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/skill-gap/skill-gap.component').then(m => m.SkillGapComponent) 
       },
       { 
         path: 'chatbot', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/chatbot/chatbot.component').then(m => m.ChatbotComponent) 
       },
       { 
         path: 'notifications', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/notifications/notifications.component').then(m => m.NotificationsComponent) 
       },
       { 
         path: 'settings', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
       },
     ]

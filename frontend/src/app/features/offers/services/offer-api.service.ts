@@ -23,6 +23,34 @@ export interface PdfGenerateResponse {
   status: string;
 }
 
+export interface OfferAnalysisResponse {
+  offerId: string;
+  titre: string;
+  entreprise: string | null;
+  typeContrat: string | null;
+  localisation: string | null;
+  competencesRequises: string[];
+  competencesSouhaitees: string[];
+  keywordsAts: string[];
+  anneesExperience: number | null;
+  niveauEtudes: string | null;
+  descriptionPoste: string | null;
+  scoreMatching: number;
+  scoreAts: number;
+  keywordsPresents: string[];
+  keywordsManquants: string[];
+  recommandations: string[];
+  competencesMatching: string[];
+  competencesManquantes: string[];
+  companyCultureScore: number;
+  companySalaryMin: number;
+  companySalaryMax: number;
+  companySize: string;
+  companyNews: { title: string; date: string }[];
+  dateAnalyse: string;
+  erreurs: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class OfferApiService {
   private http = inject(HttpClient);
@@ -32,6 +60,17 @@ export class OfferApiService {
     return this.http.post<OfferSubmitResponse>(
       `${this.base}/offers/submit`,
       payload
+    );
+  }
+
+  /**
+   * Step 1 — Fire ONLY the 3 agents (Offer Analysis + Profile Retriever + Skill Gap)
+   * POST /api/offers/{id}/analyze-sync
+   */
+  analyzeSync(offerId: string, templateId: number = 1): Observable<OfferAnalysisResponse> {
+    return this.http.post<OfferAnalysisResponse>(
+      `${this.base}/offers/${offerId}/analyze-sync`,
+      { templateId }
     );
   }
 

@@ -27,11 +27,22 @@ export interface SidebarBadge {
 }
 
 export interface PipelineResult {
-  // Sorties A2 — Analyse offre
+  // ─── Agent 1 : Analyse offre (OfferAnalyzerService) ───
   offerTitle: string;
   companyName: string;
   contractType: string;
+  location?: string;
+  requiredSkills: string[];
+  preferredSkills: string[];
+  experienceYears?: number;
+  educationLevel?: string;
+
+  // ─── Agent 2 : Récupération profil (ProfileRetrieverService) ───
+  // (profil interne — pas de champs UI directs, alimente Agent 3)
+
+  // ─── Agent 3 : Skill Gap (SkillGapService) ───
   matchScore: number;           // 0-100
+  atsScore: number;             // 0-100
   matchBreakdown: {
     skills: number;
     experience: number;
@@ -39,27 +50,22 @@ export interface PipelineResult {
   };
   keywordsPresent: string[];
   keywordsMissing: string[];
+  matchingSkills: string[];
+  missingSkills: string[];
+  recommendations: string[];
 
-  // Sorties A3 — Company Intel
+  // ─── Données entreprise (Agent 4 — pas dans Step 1) ───
   companyCultureScore: number;
   companySalaryMin: number;
   companySalaryMax: number;
   companySize: string;
   companyNews: { title: string; date: string }[];
 
-  // Sorties A4 — Profile Matching
-  missingSkills: string[];
+  // ─── Données avancées (Steps suivants) ───
   profileStrengths: string[];
-
-  // Sorties A5 — Skill Gap
   skillGaps: { skill: string; priority: string; weeks: number }[];
-
-  // Sorties A6 — CV
   cvPdfPath: string;
-  atsScore: number;
   atsImprovements: string[];
-
-  // Sorties A7 — Email
   emailSubject: string;
   emailBody: string;
   recruiterName: string;
@@ -77,7 +83,7 @@ export class PipelineStateService {
 
   readonly steps = signal<StepState[]>([
     { status: 'idle', label: 'Offre' },
-    { status: 'idle', label: 'Analyse' },
+    { status: 'idle', label: 'Skill Gap' },
     { status: 'idle', label: 'Template' },
     { status: 'idle', label: 'Génération' },
     { status: 'idle', label: 'Résultats' },

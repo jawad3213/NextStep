@@ -1211,6 +1211,7 @@ input:focus-visible {
 
 .linkedin-import-modal {
   max-width: 520px !important;
+  border-radius: 16px !important;
   
   input, textarea {
     font-family: 'Lato', sans-serif !important;
@@ -1220,4 +1221,24 @@ input:focus-visible {
       box-shadow: 0 0 0 3px rgba(26, 145, 240, 0.15) !important;
     }
   }
+}
+
+.linkedin-modal-field {
+  font-size: 14px !important;
+  font-weight: 500;
+  color: #0f172a;
+  border-color: #dbe2ea !important;
+}
+
+.linkedin-modal-field::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.linkedin-modal-submit {
+  width: 100%;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+  box-shadow: 0 8px 20px rgba(26, 145, 240, 0.25);
 }

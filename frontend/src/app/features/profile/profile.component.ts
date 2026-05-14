@@ -17,7 +17,7 @@ type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 // Sub-components
 import { ProfileStepperComponent } from './stepper/profile-stepper.component';
 import { PersonalInfoComponent } from './components/personal-info/personal-info.component';
-import { ProjectsComponent } from './components/projects/projects.component';
+
 import { CertificationsComponent } from './components/certifications/certifications.component';
 import { ExperienceComponent } from './components/experience/experience.component';
 import { FormationComponent } from './components/formation/formation.component';
@@ -35,7 +35,7 @@ import { ResumeComponent } from './components/resume/resume.component';
     DragDropModule,
     ProfileStepperComponent,
     PersonalInfoComponent,
-    ProjectsComponent,
+
     CertificationsComponent,
     ExperienceComponent,
     FormationComponent,
@@ -354,10 +354,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
   async executeLinkedInImport() {
     const url = this.linkedinUrl().trim();
-    const rawText = this.linkedinRawText().trim();
 
-    if (!url && !rawText) {
-      alert("Veuillez entrer une URL LinkedIn ou coller le contenu de votre profil.");
+    if (!url) {
+      alert("Veuillez entrer votre URL LinkedIn.");
       return;
     }
 
@@ -373,7 +372,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.parsingProgress.set(40);
 
       // Call our robust backend import via service
-      await this.profileService.importLinkedIn(url, rawText);
+      await this.profileService.importLinkedIn(url, '');
 
       this.parsingStatus.set('structuring');
       this.parsingProgress.set(90);
@@ -394,7 +393,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       console.error('LinkedIn import failed', error);
       this.isParsing.set(false);
       this.isApplyingData.set(false);
-      alert("Une erreur s'est produite lors de l'import. Veuillez réessayer ou copier-coller directement le texte de votre profil.");
+      alert("Une erreur s'est produite lors de l'import. Veuillez reessayer avec une URL LinkedIn valide.");
     } finally {
       this.parsingProgress.set(0);
     }

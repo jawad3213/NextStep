@@ -2,6 +2,7 @@ import { Component, inject, computed, OnInit, OnDestroy, effect } from '@angular
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 import { Subject, takeUntil } from 'rxjs';
 import { OffersService, JobOffer } from './offers.service';
 import { PipelineStateService, PipelineStep } from '../../services/pipeline-state.service';
@@ -19,6 +20,7 @@ import { StepResultsComponent } from './components/step-results/step-results.com
   imports: [
     CommonModule,
     FormsModule,
+    MatIconModule,
     OffersStepperComponent,
     StepSubmitComponent,
     StepAnalysisComponent,
@@ -37,11 +39,11 @@ export class OffersComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   steps: { id: OfferStepId; label: string; icon: string }[] = [
-    { id: 'submit', label: 'Offre', icon: 'job' },
-    { id: 'analysis', label: 'Analyse', icon: 'analytics' },
-    { id: 'template', label: 'Template', icon: 'template' },
-    { id: 'generation', label: 'Génération', icon: 'download' },
-    { id: 'results', label: 'Résultats', icon: 'check' }
+    { id: 'submit', label: 'Offer', icon: 'description' },
+    { id: 'analysis', label: 'Analysis', icon: 'analytics' },
+    { id: 'template', label: 'Template', icon: 'palette' },
+    { id: 'generation', label: 'Generation', icon: 'auto_awesome' },
+    { id: 'results', label: 'Results', icon: 'verified' }
   ];
 
   stepToPipelineMap: Record<OfferStepId, PipelineStep> = {

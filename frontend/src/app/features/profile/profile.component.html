@@ -66,6 +66,23 @@
       </app-profile-stepper>
     </div>
 
+    <!-- Import actions placed after stepper, aligned right -->
+    <div class="flex justify-end px-4 md:px-12 pt-4 pb-2 shrink-0">
+      <div class="flex items-center h-[42px] border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm md:flex">
+        <button class="px-5 h-full flex items-center gap-2 text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors" (click)="fileInput.click()">
+          <mat-icon class="text-[18px] w-[18px] h-[18px] flex items-center justify-center">upload_file</mat-icon>
+          Upload existing resume
+        </button>
+        <div class="w-px h-6 bg-slate-200 shrink-0"></div>
+        <button class="px-5 h-full flex items-center gap-2 text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors" (click)="openLinkedInModal()">
+          <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+          </svg>
+          Import LinkedIn profile
+        </button>
+      </div>
+    </div>
+
     <!-- Scrollable Form Container -->
     <div class="form-scroll-container overflow-y-auto px-4 md:px-12 py-6 md:py-10 custom-scrollbar relative">
       
@@ -188,7 +205,7 @@
       class="mt-auto bg-white border-t border-slate-200 shrink-0 px-12 py-4 flex items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]"
       [class.px-4]="true" [class.md:px-12]="true">
       <button (click)="prev()" [disabled]="currentIndex() === 0"
-        class="flex items-center gap-2 text-slate-500 font-semibold hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm md:text-base">
+        class="flex items-center gap-2 text-slate-500 font-semibold hover:text-lslate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm md:text-base">
         <mat-icon>arrow_back</mat-icon>
         <span class="hidden sm:inline">Previous</span>
       </button>
@@ -274,7 +291,7 @@
         </div>
         
         <p class="text-slate-500 text-sm mb-6 leading-relaxed">
-          Our AI agents will scrape public profile details or parse your pasted profile text to instantly synchronize with your resume sections.
+          Our AI agent will extract your public profile details and instantly synchronize your resume sections.
         </p>
 
         <div class="w-full space-y-5">
@@ -286,34 +303,15 @@
               placeholder="https://www.linkedin.com/in/your-username"
               [ngModel]="linkedinUrl()"
               (ngModelChange)="linkedinUrl.set($event)"
-              class="w-full h-11 px-4 rounded-lg border border-slate-200 text-slate-800 text-sm focus:border-[#1A91F0] focus:outline-none transition-all"
-              style="height: 44px; font-family: 'Lato', sans-serif;"
+              class="linkedin-modal-field w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm focus:border-[#1A91F0] focus:outline-none transition-all"
+              style="height: 44px;"
             >
-          </div>
-
-          <!-- Divider -->
-          <div class="relative flex py-2 items-center">
-            <div class="flex-grow border-t border-slate-100"></div>
-            <span class="flex-shrink mx-4 text-xs font-bold text-slate-400 uppercase tracking-widest">OR</span>
-            <div class="flex-grow border-t border-slate-100"></div>
-          </div>
-
-          <!-- Textarea Field: Copy-Pasted Text -->
-          <div class="form-group flex flex-col gap-1.5">
-            <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Paste Profile Text</label>
-            <textarea 
-              placeholder="Copy everything from your LinkedIn profile page (Ctrl+A, Ctrl+C) and paste it here..."
-              [ngModel]="linkedinRawText()"
-              (ngModelChange)="linkedinRawText.set($event)"
-              class="w-full min-h-[140px] p-4 rounded-lg border border-slate-200 text-slate-800 text-sm focus:border-[#1A91F0] focus:outline-none transition-all custom-scrollbar resize-none"
-              style="font-family: 'Lato', sans-serif;"
-            ></textarea>
           </div>
         </div>
 
         <!-- Actions -->
         <div class="modal-actions-v2 mt-8">
-          <button (click)="executeLinkedInImport()" class="btn-zety-primary !h-12 !rounded-lg bg-[#1A91F0]">
+          <button (click)="executeLinkedInImport()" class="btn-zety-primary linkedin-modal-submit !h-11 !rounded-xl bg-[#1A91F0]">
             <mat-icon>auto_awesome</mat-icon>
             Analyze Profile with AI
           </button>

@@ -1,5 +1,5 @@
 <div class="horizontal-stepper-container">
-  <div class="w-full px-4 md:px-6 flex items-center justify-between gap-4">
+  <div class="w-full px-4 md:px-6 flex items-center justify-center gap-4">
     
     <!-- Connected Node Stepper -->
     <nav class="node-stepper-wrapper">
@@ -32,17 +32,6 @@
         }
       </div>
     </nav>
-
-    <!-- Import Card — Zety-style two-column split -->
-    <div class="flex items-center h-[42px] border border-slate-200 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] shrink-0 hidden md:flex">
-      <button class="px-5 h-full text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors" (click)="uploadResume.emit()">
-        Upload existing resume
-      </button>
-      <div class="w-px h-6 bg-slate-200 shrink-0"></div>
-      <button class="px-5 h-full text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors" (click)="importLinkedIn.emit()">
-        Import LinkedIn profile
-      </button>
-    </div>
 
   </div>
 </div>

@@ -62,6 +62,7 @@ export class AppSidebarComponent {
       icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M8 6.25H16C17.5188 6.25 18.75 7.48122 18.75 9V17C18.75 18.5188 17.5188 19.75 16 19.75H8C6.48122 19.75 5.25 18.5188 5.25 17V9C5.25 7.48122 6.48122 6.25 8 6.25Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 6.25V5.5C9 4.25736 10.0074 3.25 11.25 3.25H12.75C13.9926 3.25 15 4.25736 15 5.5V6.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5.25 11.25H18.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
       subItems: [
         { name: 'Offers', path: '/offers' },
+        { name: 'Offres récentes', path: '/offers-recent' },
         { name: 'Applications', path: '/applications' }
       ]
     },

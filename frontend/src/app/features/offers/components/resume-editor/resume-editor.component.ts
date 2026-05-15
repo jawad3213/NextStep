@@ -1,12 +1,15 @@
-import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, effect } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
 
 export interface Candidate {
   name: string;
   email: string;
   phone: string;
   location: string;
+  title: string;
+  photoUrl: string | null;
   linkedIn: string | null;
   gitHub: string | null;
   portfolio: string | null;
@@ -55,7 +58,7 @@ export interface CvGeneratedSchema {
 @Component({
   selector: 'app-resume-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   providers: [DatePipe],
   templateUrl: './resume-editor.component.html',
   styleUrls: ['./resume-editor.component.scss']
@@ -63,12 +66,28 @@ export interface CvGeneratedSchema {
 export class ResumeEditorComponent {
   @Input() templateId: string = 'modern';
   @Output() back = new EventEmitter<void>();
+  @Output() continue = new EventEmitter<void>();
 
   // DYNAMIC CHOSEN MODEL
   readonly activeTemplate = signal<string>('modern');
 
   // SIMULATED OPTIMIZATION LOADING
   readonly isImproving = signal<boolean>(false);
+
+  // Section visibility toggles
+  readonly sectionVisibility = signal<any>({
+    summary: true,
+    experience: true,
+    projects: true,
+    education: true,
+    skills: true,
+    certifications: true,
+    languages: true,
+  });
+
+  // Draft saved indicator
+  readonly lastSaved = signal<string | null>(null);
+  private saveTimeout: any = null;
 
   // SEED THE EXACT RESUME DATA RETURNED BY AGENTS
   readonly cvData = signal<CvGeneratedSchema>({
@@ -77,6 +96,8 @@ export class ResumeEditorComponent {
       email: "saidnichan6@gmail.com",
       phone: "+212 713 668 431",
       location: "Salé",
+      title: "Développeur Full Stack",
+      photoUrl: null,
       linkedIn: "linkedin.com/in/saidnichan",
       gitHub: "github.com/saidnichan",
       portfolio: "saidnichan.dev"
@@ -166,11 +187,7 @@ export class ResumeEditorComponent {
   });
 
   // ACTIVE ACCORDION SECTION STATE
-  readonly activeSection = signal<string | null>('coordonnees'); // Expand coordinates by default
-
-  ngOnInit() {
-    this.activeTemplate.set(this.templateId);
-  }
+  readonly activeSection = signal<string | null>('coordonnees');
 
   toggleSection(section: string) {
     if (this.activeSection() === section) {
@@ -370,6 +387,150 @@ export class ResumeEditorComponent {
     }));
   }
 
+  // ── Auto-save to localStorage ──
+  private autoSave = effect(() => {
+    this.cvData();
+    clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => {
+      localStorage.setItem('nextstep_cv_draft', JSON.stringify(this.cvData()));
+      localStorage.setItem('nextstep_cv_visibility', JSON.stringify(this.sectionVisibility()));
+      this.lastSaved.set(new Date().toLocaleTimeString());
+    }, 1000);
+  });
+
+  ngOnInit() {
+    this.activeTemplate.set(this.templateId);
+    const saved = localStorage.getItem('nextstep_cv_draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        this.cvData.set(parsed);
+      } catch {}
+    }
+    const savedVis = localStorage.getItem('nextstep_cv_visibility');
+    if (savedVis) {
+      try {
+        this.sectionVisibility.set(JSON.parse(savedVis));
+      } catch {}
+    }
+  }
+
+  // ── Drag-and-drop reorder ──
+  dropExperience(event: CdkDragDrop<any[]>): void {
+    const items = [...this.cvData().experience];
+    moveItemInArray(items, event.previousIndex, event.currentIndex);
+    this.cvData.update(d => ({ ...d, experience: items }));
+  }
+
+  dropProjects(event: CdkDragDrop<any[]>): void {
+    const items = [...this.cvData().projects];
+    moveItemInArray(items, event.previousIndex, event.currentIndex);
+    this.cvData.update(d => ({ ...d, projects: items }));
+  }
+
+  dropEducation(event: CdkDragDrop<any[]>): void {
+    const items = [...this.cvData().education];
+    moveItemInArray(items, event.previousIndex, event.currentIndex);
+    this.cvData.update(d => ({ ...d, education: items }));
+  }
+
+  dropSkills(event: CdkDragDrop<any[]>): void {
+    const items = [...this.cvData().skills];
+    moveItemInArray(items, event.previousIndex, event.currentIndex);
+    this.cvData.update(d => ({ ...d, skills: items }));
+  }
+
+  // ── Section visibility toggles ──
+  toggleSectionVisibility(key: string): void {
+    this.sectionVisibility.update(v => ({ ...v, [key]: !v[key] }));
+  }
+
+  // ── Bullet management ──
+  addExperienceBullet(expIndex: number): void {
+    this.cvData.update(data => {
+      const exp = [...data.experience];
+      exp[expIndex] = { ...exp[expIndex], bullets: [...exp[expIndex].bullets, 'Nouvelle réalisation...'] };
+      return { ...data, experience: exp };
+    });
+  }
+
+  removeExperienceBullet(expIndex: number, bulletIndex: number): void {
+    this.cvData.update(data => {
+      const exp = [...data.experience];
+      exp[expIndex] = { ...exp[expIndex], bullets: exp[expIndex].bullets.filter((_, i) => i !== bulletIndex) };
+      return { ...data, experience: exp };
+    });
+  }
+
+  addProjectBullet(projIndex: number): void {
+    this.cvData.update(data => {
+      const projs = [...data.projects];
+      projs[projIndex] = { ...projs[projIndex], bullets: [...projs[projIndex].bullets, 'Nouvelle description...'] };
+      return { ...data, projects: projs };
+    });
+  }
+
+  removeProjectBullet(projIndex: number, bulletIndex: number): void {
+    this.cvData.update(data => {
+      const projs = [...data.projects];
+      projs[projIndex] = { ...projs[projIndex], bullets: projs[projIndex].bullets.filter((_, i) => i !== bulletIndex) };
+      return { ...data, projects: projs };
+    });
+  }
+
+  // ── Duplicate entry ──
+  duplicateExperience(index: number): void {
+    this.cvData.update(data => {
+      const exp = [...data.experience];
+      exp.splice(index + 1, 0, { ...exp[index], role: exp[index].role + ' (copie)' });
+      return { ...data, experience: exp };
+    });
+  }
+
+  duplicateEducation(index: number): void {
+    this.cvData.update(data => {
+      const edu = [...data.education];
+      edu.splice(index + 1, 0, { ...edu[index], degree: edu[index].degree + ' (copie)' });
+      return { ...data, education: edu };
+    });
+  }
+
+  duplicateProject(index: number): void {
+    this.cvData.update(data => {
+      const projs = [...data.projects];
+      projs.splice(index + 1, 0, { ...projs[index], title: projs[index].title + ' (copie)' });
+      return { ...data, projects: projs };
+    });
+  }
+
+  // ── Photo upload ──
+  onPhotoUpload(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.cvData.update(d => ({
+        ...d,
+        candidate: { ...d.candidate, photoUrl: reader.result as string }
+      }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removePhoto(): void {
+    this.cvData.update(d => ({
+      ...d,
+      candidate: { ...d.candidate, photoUrl: null }
+    }));
+  }
+
+  // ── Reset draft ──
+  resetDraft(): void {
+    localStorage.removeItem('nextstep_cv_draft');
+    localStorage.removeItem('nextstep_cv_visibility');
+    window.location.reload();
+  }
+
   // SIMULATE AI WORKFLOW ENHANCEMENT
   improveSummaryWithAi() {
     if (this.isImproving()) return;
@@ -392,5 +553,16 @@ export class ResumeEditorComponent {
 
   getBubbleGradient(): string {
     return 'linear-gradient(135deg, #1A91F0 0%, #0d5ca1 100%)';
+  }
+
+  formatDate(date: string): string {
+    if (!date || date === 'Présent') return date;
+    // Handle YYYY-MM format
+    const parts = date.split('-');
+    if (parts.length === 2) {
+      const months = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+      return months[parseInt(parts[1]) - 1] + ' ' + parts[0];
+    }
+    return date;
   }
 }

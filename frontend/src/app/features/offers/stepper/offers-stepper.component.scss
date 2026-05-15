@@ -63,7 +63,7 @@
     top: 0;
     left: 0;
     bottom: 0;
-    background: #465fff;
+    background: #465FFF;
     transition: width 0.4s ease-in-out;
   }
 }
@@ -142,35 +142,26 @@
 
   &.completed {
     .node-circle {
-      background: #465fff;
-      border-color: #465fff;
+      background: #465FFF;
+      border-color: #465FFF;
       box-shadow: 0 8px 18px rgba(70, 95, 255, 0.18);
     }
     .node-label {
-      color: #1E293B;
+      color: #0F172A;
     }
   }
 
   &.active {
     .node-circle {
-      border-color: #465fff;
+      border-color: #465FFF;
       box-shadow: 0 0 0 5px rgba(70, 95, 255, 0.14);
       
-      .node-number {
-        color: #465fff;
-      }
-
-      .step-icon {
-        color: #465fff;
-      }
+      .node-number { color: #465FFF; }
+      .step-icon { color: #465FFF; }
     }
     .node-label {
-      color: #465fff;
+      color: #465FFF;
       font-weight: 700;
-      
-      @media (max-width: 768px) {
-        font-weight: 800;
-      }
     }
   }
 

@@ -42,7 +42,7 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./keycloak-theme/nextstep:/opt/keycloak/themes/nextstep
+      - ./keycloak-theme:/opt/keycloak/themes
       - ./keycloak-config:/opt/keycloak/data/import
     networks:
       - nextstep-network

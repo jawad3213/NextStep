@@ -4,21 +4,13 @@
   margin: 0 auto;
   animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 
-  // SVG support and icon limits inside analysis-report view
   svg {
     display: inline-block;
     vertical-align: middle;
   }
 
-  .icon-sm {
-    width: 16px;
-    height: 16px;
-  }
-
-  .icon-md {
-    width: 20px;
-    height: 20px;
-  }
+  .icon-sm { width: 16px; height: 16px; }
+  .icon-md { width: 20px; height: 20px; }
 }
 
 .report-header {
@@ -33,28 +25,24 @@
     gap: 8px;
     background: none;
     border: none;
-    color: var(--color-primary);
+    color: #465fff;
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
     padding: 0;
     transition: transform 0.2s ease;
 
-    &:hover {
-      transform: translateX(-4px);
-    }
+    &:hover { transform: translateX(-4px); }
   }
 
   .report-title-section {
     h1 {
       margin: 0 0 4px 0;
-      color: #0c1a30;
+      color: #0F172A;
       font-size: 28px;
       font-weight: 800;
     }
-    p {
-      margin: 0;
-    }
+    p { margin: 0; }
   }
 }
 
@@ -64,9 +52,7 @@
   gap: 24px;
   margin-bottom: 32px;
 
-  @media (max-width: 992px) {
-    grid-template-columns: 1fr;
-  }
+  @media (max-width: 992px) { grid-template-columns: 1fr; }
 }
 
 .metrics-column, .details-column {
@@ -77,21 +63,19 @@
 
 .analysis-card {
   background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
   padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.02);
 
-  &.text-center {
-    text-align: center;
-  }
+  &.text-center { text-align: center; }
 
   .report-card-title {
     margin: 0 0 16px 0;
     font-size: 16px;
     font-weight: 700;
-    color: #1e293b;
-    border-bottom: 1px solid #f1f5f9;
+    color: #1E293B;
+    border-bottom: 1px solid #F1F5F9;
     padding-bottom: 12px;
   }
 }
@@ -494,46 +478,46 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #E2E8F0;
   padding-top: 20px;
   margin-top: 32px;
 
   .btn-secondary {
     background: #ffffff;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #CBD5E1;
     color: #475569;
     padding: 10px 20px;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover {
-      background: #f8fafc;
-      border-color: #94a3b8;
+      background: #F8FAFC;
+      border-color: #94A3B8;
     }
   }
 
   .btn-primary {
-    background: var(--color-primary);
+    background: #465FFF;
     color: #ffffff;
     border: none;
     padding: 10px 24px;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(26, 145, 240, 0.2);
+    box-shadow: 0 2px 4px rgba(70, 95, 255, 0.2);
     transition: all 0.2s ease;
 
     &:hover {
-      box-shadow: 0 4px 12px rgba(26, 145, 240, 0.3);
+      box-shadow: 0 4px 12px rgba(70, 95, 255, 0.3);
       transform: translateY(-1px);
     }
 
     &.orange-btn-accent {
-      background: #ea580c;
+      background: #EA580C;
       &:hover {
         box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
       }

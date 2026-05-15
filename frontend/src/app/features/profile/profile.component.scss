@@ -143,7 +143,7 @@
 
     &:focus {
       outline: none;
-      border-color: var(--color-primary);
+      border-color: vars.$color-brand;
       box-shadow: 0 0 0 3px rgba(26, 145, 240, 0.2); // Zety Primary with opacity
     }
   }
@@ -282,8 +282,8 @@
 
 .btn-secondary {
   background: white;
-  color: var(--color-primary, #1A91F0);
-  border: 2px solid var(--color-primary, #1A91F0);
+  color: vars.$color-brand;
+  border: 2px solid vars.$color-brand;
   padding: 10px 24px;
   border-radius: 8px;
   font-weight: 700;
@@ -371,7 +371,7 @@
 // FOCUS OUTLINES FOR ACCESSIBILITY
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid vars.$color-brand;
   outline-offset: 2px;
 }
 
@@ -767,7 +767,7 @@ input:focus-visible {
 .core-dot {
   width: 56px;
   height: 56px;
-  background: var(--color-primary);
+  background: vars.$color-brand;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -788,7 +788,7 @@ input:focus-visible {
   position: absolute;
   width: 100%;
   height: 100%;
-  border: 2px solid var(--color-primary);
+  border: 2px solid vars.$color-brand;
   border-radius: 50%;
   opacity: 0;
   animation: pulseIn 3s cubic-bezier(0.21, 0.53, 0.56, 0.8) infinite;
@@ -814,7 +814,7 @@ input:focus-visible {
 
 .loader-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), #8B5CF6, var(--color-primary));
+  background: linear-gradient(90deg, vars.$color-brand, #8B5CF6, vars.$color-brand);
   background-size: 200% 100%;
   border-radius: 100px;
   transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);

@@ -1,0 +1,43 @@
+<div class="flex h-full flex-col">
+  <!-- Back button + stepper -->
+  <div class="flex items-center border-b border-gray-200 bg-white px-4 py-2 md:px-6">
+    <button (click)="backToList()"
+      class="mr-4 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900">
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+      Retour
+    </button>
+  </div>
+
+  <div class="shrink-0 border-b border-gray-200">
+    <app-offers-stepper
+      [steps]="steps"
+      [currentStep]="currentStepId()"
+      [stepStates]="stepStates()"
+      (stepClick)="goToStep($any($event))"
+    />
+  </div>
+
+  <div class="min-h-0 flex-1 bg-[#f8f9ff] flex flex-col">
+    @switch (currentStepId()) {
+      @case ('submit') {
+        <div class="mx-auto max-w-[1000px] w-full px-4 py-6 md:px-8 md:py-10 overflow-y-auto">
+          <app-step-submit />
+        </div>
+      }
+      @case ('analysis') {
+        <div class="mx-auto max-w-[1000px] w-full px-4 py-6 md:px-8 md:py-10 overflow-y-auto">
+          <app-step-analysis />
+        </div>
+      }
+      @case ('template') { <app-step-template /> }
+      @case ('generation') {
+        <app-step-generation />
+      }
+      @case ('results') {
+        <div class="mx-auto max-w-[1000px] w-full px-4 py-6 md:px-8 md:py-10 overflow-y-auto">
+          <app-step-results />
+        </div>
+      }
+    }
+  </div>
+</div>

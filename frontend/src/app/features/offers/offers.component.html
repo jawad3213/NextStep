@@ -1,35 +1,196 @@
-<div class="offers-layout h-full flex flex-col">
-  <div class="stepper-wrapper shrink-0">
-    <app-offers-stepper
-      [steps]="steps"
-      [currentStep]="currentOfferStepId()"
-      [stepStates]="offerStepStates()"
-      (stepClick)="goToOfferStep($any($event))"
-    ></app-offers-stepper>
+<div class="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 lg:p-5 pt-1 md:pt-2">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-gray-900">Historique des analyses</h1>
+    <p class="mt-0.5 text-xs text-slate-500">Suivez l'avancement de toutes vos analyses d'offres d'emploi</p>
   </div>
 
-  <!-- Scrollable Page Content -->
-  <div class="flex-1 overflow-auto bg-gray-50/50">
-    <div class="max-w-[1200px] mx-auto px-4 md:px-12 py-8 lg:py-12">
-      <div class="step-content-container">
-        @switch (currentOfferStepId()) {
-          @case ('submit') {
-            <app-step-submit></app-step-submit>
-          }
-          @case ('analysis') {
-            <app-step-analysis></app-step-analysis>
-          }
-          @case ('template') {
-            <app-step-template></app-step-template>
-          }
-          @case ('generation') {
-            <app-step-generation></app-step-generation>
-          }
-          @case ('results') {
-            <app-step-results></app-step-results>
-          }
-        }
+  <!-- Start New Analysis -->
+  <section class="mb-6 w-full" data-purpose="start-new-analysis">
+    <div class="rounded-2xl border border-slate-200 bg-gray-50 p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Démarrer une nouvelle analyse</h2>
+          <p class="mt-0.5 text-xs text-slate-500">Analysez une nouvelle opportunité en quelques secondes</p>
+        </div>
+        <a routerLink="/offers/analyze"
+          class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 no-underline transition-colors hover:bg-slate-50">
+          <span class="material-symbols-outlined text-sm">add</span>
+          Nouvelle analyse
+        </a>
       </div>
     </div>
+  </section>
+
+  <!-- Filter Bar -->
+  <div class="mb-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+    <div class="flex w-full items-center gap-3 sm:w-auto">
+      <div class="relative w-full sm:w-72">
+        <input (input)="onSearchInput($any($event.target).value)"
+          placeholder="Rechercher une offre, une entreprise..."
+          class="w-full rounded-xl border-slate-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm transition-all focus:bg-white"
+        />
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-base text-slate-400">search</span>
+      </div>
+    </div>
+    <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+      <select (change)="onSortChange($any($event.target).value)"
+        class="cursor-pointer rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-brand-500">
+        <option value="date">Plus récentes</option>
+        <option value="score">Score</option>
+        <option value="company">Entreprise A-Z</option>
+        <option value="step">Avancement</option>
+      </select>
+      <select (change)="onFilterStatusChange($any($event.target).value)"
+        class="cursor-pointer rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-brand-500">
+        <option value="">Tous les statuts</option>
+        <option value="non_traitee">Non traitée</option>
+        <option value="analysee">Analysée</option>
+        <option value="cv_genere">CV Généré</option>
+      </select>
+    </div>
   </div>
+
+  <!-- Analysis List -->
+  @if (paginatedOffers.length > 0) {
+    <div [@cardAnimation]="paginatedOffers.length" class="space-y-3">
+      @for (offer of paginatedOffers; track offer.id) {
+        <div class="group relative rounded-2xl border bg-white p-4 transition-all hover:shadow-md"
+          [class]="offer.expired ? 'border-slate-100 bg-slate-50/50 opacity-75' : (offer.urgent ? 'border-2 border-amber-100' : 'border-slate-200')">
+
+          <div class="flex flex-col gap-4 md:flex-row md:items-center">
+            <!-- Left: Avatar + Info -->
+            <div class="flex min-w-0 flex-1 items-center gap-4">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white"
+                [style.background]="getBubbleGradient(offer.company)">
+                {{ offer.initials }}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <a [routerLink]="['/offers', offer.id]"
+                    class="truncate text-base font-bold text-gray-900 no-underline transition-colors hover:text-brand-500">
+                    {{ offer.title }}
+                  </a>
+                  @if (offer.urgent) {
+                    <span class="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">Urgent</span>
+                  }
+                </div>
+                <div class="flex items-center gap-2 text-sm text-slate-500">
+                  <span>{{ offer.company }}</span>
+                  @if (offer.location) {
+                    <span class="h-1 w-1 rounded-full bg-slate-300"></span>
+                    <span>{{ offer.location }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Score + Status -->
+            <div class="flex shrink-0 items-center gap-4 md:gap-6">
+              @if (offer.matchingScore !== undefined) {
+                <div class="flex flex-col items-end">
+                  <span class="font-mono text-xl font-bold leading-none" [class]="offer.matchingScore >= 70 ? 'text-green-600' : (offer.matchingScore >= 50 ? 'text-amber-500' : 'text-red-500')">
+                    {{ offer.matchingScore }}%
+                  </span>
+                  <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Match</span>
+                </div>
+              }
+
+              <div class="hidden lg:block">
+                <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold"
+                  [class]="getStatusColor(offer.status)">
+                  <span class="h-1.5 w-1.5 rounded-full" [class]="'bg-' + (offer.status === 'cv_genere' ? 'green' : offer.status === 'analysee' ? 'blue' : 'slate') + '-500'"></span>
+                  {{ getStatusLabel(offer.status) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step Progress -->
+          <div class="mt-4 flex items-center gap-0">
+            @for (step of steps; track step.number; let last = $last) {
+              <div class="flex items-center">
+                <div class="flex flex-col items-center">
+                  <div class="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-all"
+                    [class]="
+                      step.number <= offer.currentStep
+                        ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/30'
+                        : step.number === offer.currentStep + 1 && offer.currentStep > 0
+                          ? 'ring-2 ring-brand-500 bg-white text-brand-500'
+                          : 'bg-slate-100 text-slate-400'
+                    ">
+                    @if (step.number <= offer.currentStep) {
+                      <span class="material-symbols-outlined text-sm">check</span>
+                    } @else {
+                      {{ step.number }}
+                    }
+                  </div>
+                  <span class="mt-1 text-[9px] font-medium tracking-tight"
+                    [class]="step.number <= offer.currentStep ? 'text-brand-600' : 'text-slate-400'">
+                    {{ step.label }}
+                  </span>
+                </div>
+                @if (!last) {
+                  <div class="mx-1 mt-[-1.25rem] h-px w-6 md:w-10"
+                    [class]="step.number < offer.currentStep ? 'bg-brand-300' : 'bg-slate-200'">
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Footer: Date + Actions -->
+          <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+            <div class="flex items-center gap-3 text-[11px] text-slate-400">
+              <span class="material-symbols-outlined text-[14px]">schedule</span>
+              {{ getRecencyLabel(offer.createdAt) }}
+              @if (offer.daysLeft !== undefined && !offer.expired) {
+                <span class="font-mono" [class]="offer.urgent ? 'font-bold text-amber-600' : ''">{{ offer.daysLeft }}j restants</span>
+              }
+            </div>
+
+            <div class="flex items-center gap-2">
+              @if (getNextAction(offer); as action) {
+                <a [routerLink]="action.link"
+                  class="flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-1.5 text-xs font-bold text-white transition-all hover:bg-brand-600 no-underline">
+                  {{ action.label }}
+                  <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+              }
+              <a [routerLink]="['/offers', offer.id]"
+                class="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:border-slate-300 no-underline">
+                <span class="material-symbols-outlined text-[14px]">info</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      }
+    </div>
+
+    @if (hasMore) {
+      <div class="mt-6 text-center">
+        <button (click)="loadMore()"
+          class="cursor-pointer rounded-xl border border-slate-200 bg-white px-8 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:border-brand-300 hover:text-brand-500">
+          Charger plus ({{ filteredOffers.length - paginatedOffers.length }} restantes)
+        </button>
+      </div>
+    }
+  } @else {
+    <!-- Empty State -->
+    <div class="flex flex-col items-center justify-center py-20 text-center">
+      <span class="material-symbols-outlined text-6xl text-slate-200">analytics</span>
+      <h3 class="mt-4 text-lg font-bold text-slate-500">Aucune analyse</h3>
+      <p class="mt-1 max-w-xs text-sm text-slate-400">
+        Vous n'avez encore lancé aucune analyse. Soumettez une offre pour commencer.
+      </p>
+      <a routerLink="/offers/analyze"
+        class="mt-6 flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 px-6 py-3 font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 no-underline">
+        <span class="material-symbols-outlined text-sm">add</span>
+        Nouvelle analyse
+      </a>
+    </div>
+  }
+
 </div>

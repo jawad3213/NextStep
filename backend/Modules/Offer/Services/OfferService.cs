@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Models;
@@ -195,84 +196,86 @@ public class OfferService(
             }
         }
 
-        // ── Fallback déterministe si skill_gap est vide/absent ──
-        if (dto.ScoreMatching == 0 && dto.CompetencesMatching.Count == 0 && dto.CompetencesRequises.Count > 0)
+                // Deterministic fallback if skill_gap is empty/weak.
+        if (dto.ScoreMatching == 0 || dto.ScoreAts == 0 || dto.CompetencesMatching.Count == 0)
         {
-            var allSkills = new List<string>();
-            var matched = new List<string>();
-            var missing = new List<string>();
+            var targets = dto.CompetencesRequises
+                .Concat(dto.CompetencesSouhaitees)
+                .Concat(dto.KeywordsAts)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            if (root.TryGetProperty("profile_data", out var pd) && pd.ValueKind == JsonValueKind.Object)
+            if (targets.Count > 0 && root.TryGetProperty("profile_data", out var pd) && pd.ValueKind == JsonValueKind.Object)
             {
-                var comps = pd.GetPropertyOrNull("competences");
-                if (comps.HasValue && comps.Value.ValueKind == JsonValueKind.Array)
+                var evidenceTokens = ExtractProfileTokens(pd);
+                var matched = new List<string>();
+                var missing = new List<string>();
+                var partial = new List<string>();
+
+                foreach (var target in targets)
                 {
-                    foreach (var c in comps.Value.EnumerateArray())
+                    var normalizedTarget = NormalizeSkill(target);
+                    if (string.IsNullOrWhiteSpace(normalizedTarget)) continue;
+
+                    var best = 0.0;
+                    foreach (var token in evidenceTokens)
                     {
-                        var nom = c.GetStringOrDefault("nom");
-                        if (nom != null) allSkills.Add(nom.ToLowerInvariant().Trim());
+                        var simScore = ComputeSkillSimilarity(normalizedTarget, token);
+                        if (simScore > best) best = simScore;
                     }
+
+                    if (best >= 0.82) matched.Add(target);
+                    else if (best >= 0.58) partial.Add(target);
+                    else missing.Add(target);
                 }
 
-                var rawSkills = pd.GetPropertyOrNull("skills");
-                if (rawSkills.HasValue && rawSkills.Value.ValueKind == JsonValueKind.Array)
+                var weightedMatched = matched.Count + (0.5 * partial.Count);
+                var score = (int)Math.Round((weightedMatched / Math.Max(1, targets.Count)) * 100);
+                score = Math.Min(98, Math.Max(0, score));
+
+                if (dto.ScoreMatching == 0 || dto.CompetencesMatching.Count == 0)
                 {
-                    foreach (var s in rawSkills.Value.EnumerateArray())
-                    {
-                        if (s.ValueKind == JsonValueKind.String)
-                            allSkills.Add(s.GetString()!.ToLowerInvariant().Trim());
-                        else if (s.ValueKind == JsonValueKind.Object)
-                        {
-                            var n = s.GetStringOrDefault("nom") ?? s.GetStringOrDefault("name");
-                            if (n != null) allSkills.Add(n.ToLowerInvariant().Trim());
-                        }
-                    }
-                }
-            }
-
-            if (allSkills.Count == 0)
-            {
-                // If profile data is unavailable, all required skills should be treated as missing.
-                dto.ScoreMatching = 0;
-                dto.CompetencesMatching = [];
-                dto.CompetencesManquantes = dto.CompetencesRequises.ToList();
-                dto.KeywordsPresents = [];
-                dto.KeywordsManquants = dto.CompetencesRequises.ToList();
-                dto.Recommandations = dto.CompetencesRequises.Select(r => $"Ajouter '{r}' � votre profil").ToList();
-            }
-            else
-            {
-                foreach (var req in dto.CompetencesRequises)
-                {
-                    var reqLower = req.ToLowerInvariant().Trim();
-                    var reqWords = reqLower.Split(new[] { ' ', '-', '/', '(', ')' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    bool found = allSkills.Any(s =>
-                        s == reqLower
-                        || s.Contains(reqLower)
-                        || reqLower.Contains(s)
-                        || reqWords.Any(w => w.Length > 2 && s.Contains(w))
-                        || reqWords.Any(w => w.Length > 2 && s.Split(new[] { ' ', '-', '/', '(', ')' }, StringSplitOptions.RemoveEmptyEntries).Contains(w))
-                    );
-
-                    if (found)
-                        matched.Add(req);
-                    else
-                        missing.Add(req);
-                }
-
-                if (matched.Count + missing.Count > 0)
-                {
-                    dto.ScoreMatching = (int)Math.Round((double)matched.Count / (matched.Count + missing.Count) * 100);
+                    dto.ScoreMatching = score;
                     dto.CompetencesMatching = matched;
-                    dto.CompetencesManquantes = missing;
-                    dto.KeywordsPresents = matched;
-                    dto.KeywordsManquants = missing;
-                    dto.Recommandations = missing.Select(m => $"Ajouter '{m}' à votre profil").ToList();
+                    dto.CompetencesManquantes = missing.Concat(partial).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                }
+
+                if (dto.KeywordsPresents.Count == 0) dto.KeywordsPresents = matched;
+                if (dto.KeywordsManquants.Count == 0) dto.KeywordsManquants = missing.Concat(partial).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                if (dto.ScoreAts == 0)
+                {
+                    var atsTargets = dto.KeywordsAts.Count > 0 ? dto.KeywordsAts : targets;
+                    var atsPresent = atsTargets.Count(k => matched.Any(m => NormalizeSkill(m) == NormalizeSkill(k)));
+                    var atsPartial = atsTargets.Count(k => partial.Any(p => NormalizeSkill(p) == NormalizeSkill(k)));
+                    var atsWeighted = atsPresent + (0.5 * atsPartial);
+                    dto.ScoreAts = Math.Min(98, Math.Max(0, (int)Math.Round((atsWeighted / Math.Max(1, atsTargets.Count)) * 100)));
+                }
+
+                if (dto.Recommandations.Count == 0)
+                {
+                    dto.Recommandations = missing
+                        .Take(5)
+                        .Select(m => $"Ajouter une preuve de '{m}' dans vos projets/experiences (impact, stack, resultat).")
+                        .ToList();
                 }
             }
         }
 
+        // ATS fallback consistency: if ATS keywords lists are empty but matches exist,
+        // infer ATS coverage from matched skills and ATS keywords.
+        if (dto.KeywordsPresents.Count == 0 && dto.KeywordsAts.Count > 0 && dto.CompetencesMatching.Count > 0)
+        {
+            var matchedNorm = dto.CompetencesMatching.Select(NormalizeSkill).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            dto.KeywordsPresents = dto.KeywordsAts.Where(k => matchedNorm.Contains(NormalizeSkill(k))).ToList();
+            dto.KeywordsManquants = dto.KeywordsAts.Where(k => !matchedNorm.Contains(NormalizeSkill(k))).ToList();
+
+            if (dto.ScoreAts <= 5)
+            {
+                dto.ScoreAts = (int)Math.Round((double)dto.KeywordsPresents.Count / Math.Max(1, dto.KeywordsAts.Count) * 100);
+            }
+        }
         if (root.TryGetProperty("company_intelligence", out var ci) && ci.ValueKind == JsonValueKind.Object)
         {
             var intelligence = ci.ValueKind == JsonValueKind.Object && ci.TryGetProperty("intelligence", out var i) ? i : ci;
@@ -310,6 +313,113 @@ public class OfferService(
         }
 
         return dto;
+    }
+
+
+    private static List<string> ExtractProfileTokens(JsonElement profileData)
+    {
+        var bag = new List<string>();
+
+        var comps = profileData.GetPropertyOrNull("competences");
+        if (comps.HasValue && comps.Value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var c in comps.Value.EnumerateArray())
+            {
+                var nom = c.GetStringOrDefault("nom") ?? c.GetStringOrDefault("name");
+                if (!string.IsNullOrWhiteSpace(nom)) bag.Add(nom!);
+            }
+        }
+
+        var rawSkills = profileData.GetPropertyOrNull("skills");
+        if (rawSkills.HasValue && rawSkills.Value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var s in rawSkills.Value.EnumerateArray())
+            {
+                if (s.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(s.GetString())) bag.Add(s.GetString()!);
+                else if (s.ValueKind == JsonValueKind.Object)
+                {
+                    var n = s.GetStringOrDefault("nom") ?? s.GetStringOrDefault("name");
+                    if (!string.IsNullOrWhiteSpace(n)) bag.Add(n!);
+                }
+            }
+        }
+
+        ExtractTextFields(profileData.GetPropertyOrNull("experiences"), new[] { "poste", "position", "titre", "description", "technologies", "missions" }, bag);
+        ExtractTextFields(profileData.GetPropertyOrNull("projets"), new[] { "nom", "title", "description", "technologies", "stack", "outils" }, bag);
+        ExtractTextFields(profileData.GetPropertyOrNull("projects"), new[] { "nom", "title", "description", "technologies", "stack", "outils" }, bag);
+
+        var resume = profileData.GetStringOrDefault("resume_professionnel") ?? profileData.GetStringOrDefault("resume") ?? profileData.GetStringOrDefault("summary");
+        if (!string.IsNullOrWhiteSpace(resume)) bag.Add(resume!);
+
+        return bag.Select(NormalizeSkill).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private static void ExtractTextFields(JsonElement? arr, string[] fields, List<string> bag)
+    {
+        if (!arr.HasValue || arr.Value.ValueKind != JsonValueKind.Array) return;
+        foreach (var item in arr.Value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            foreach (var field in fields)
+            {
+                var value = item.GetStringOrDefault(field);
+                if (!string.IsNullOrWhiteSpace(value)) bag.Add(value!);
+            }
+        }
+    }
+
+    private static readonly Dictionary<string, string[]> SkillSynonyms = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["javascript"] = new[] { "js", "ecmascript", "node", "nodejs", "node.js" },
+        ["typescript"] = new[] { "ts" },
+        ["react"] = new[] { "reactjs", "react.js", "nextjs", "next.js" },
+        ["angular"] = new[] { "angularjs" },
+        ["vue"] = new[] { "vuejs", "vue.js", "nuxt", "nuxtjs" },
+        ["python"] = new[] { "fastapi", "django", "flask" },
+        ["dotnet"] = new[] { ".net", "aspnet", "asp.net", "csharp", "c#" },
+        ["java"] = new[] { "spring", "springboot", "spring boot" },
+        ["postgresql"] = new[] { "postgres", "psql" },
+        ["mongodb"] = new[] { "mongo" },
+        ["docker"] = new[] { "container", "containers", "kubernetes", "k8s" },
+        ["ci/cd"] = new[] { "github actions", "gitlab ci", "jenkins", "pipeline" },
+        ["ai"] = new[] { "ml", "machine learning", "llm", "nlp", "chatbot", "rag" }
+    };
+
+    private static string NormalizeSkill(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        var lower = value.ToLowerInvariant();
+        lower = Regex.Replace(lower, @"[^\w\s\+#\.\/-]", " ");
+        lower = Regex.Replace(lower, @"\s+", " ").Trim();
+        return lower;
+    }
+
+    private static bool AreSynonyms(string left, string right)
+    {
+        if (left == right) return true;
+        foreach (var kv in SkillSynonyms)
+        {
+            var family = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { kv.Key };
+            foreach (var s in kv.Value) family.Add(NormalizeSkill(s));
+            if (family.Contains(left) && family.Contains(right)) return true;
+        }
+        return false;
+    }
+
+    private static double ComputeSkillSimilarity(string target, string evidence)
+    {
+        if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(evidence)) return 0;
+        if (target == evidence) return 1.0;
+        if (AreSynonyms(target, evidence)) return 0.95;
+        if (evidence.Contains(target) || target.Contains(evidence)) return 0.8;
+
+        var targetWords = target.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var evidenceWords = evidence.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var overlap = targetWords.Intersect(evidenceWords, StringComparer.OrdinalIgnoreCase).Count();
+        if (overlap == 0) return 0;
+
+        var jaccard = (double)overlap / Math.Max(1, targetWords.Union(evidenceWords, StringComparer.OrdinalIgnoreCase).Count());
+        return Math.Min(0.78, 0.45 + jaccard * 0.5);
     }
 
     public async Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid offerId, CancellationToken ct = default)
@@ -365,4 +475,10 @@ public static class JsonElementExtensions
     public static JsonElement? GetPropertyOrNull(this JsonElement el, string prop)
         => el.TryGetProperty(prop, out var v) ? v : null;
 }
+
+
+
+
+
+
 

@@ -899,8 +899,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
         this.profileService.isOnboarding.set(isForced);
       },
       error: () => {
-        this.isForcedOnboarding.set(false);
-        this.profileService.isOnboarding.set(false);
+        // API unavailable — assume forced onboarding so user stays on the stepper
+        this.isForcedOnboarding.set(true);
+        this.profileService.isOnboarding.set(true);
       }
     });
   }

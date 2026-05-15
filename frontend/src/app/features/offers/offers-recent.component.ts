@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-import { MOCK_OFFERS, OfferCard, ANALYSIS_STEPS } from './offers-data';
+import { MOCK_OFFERS, OfferCard } from './offers-data';
 
 @Component({
-  selector: 'app-offers',
+  selector: 'app-offers-recent',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
-  templateUrl: './offers.component.html',
+  templateUrl: './offers-recent.component.html',
   styleUrl: './offers.component.scss',
   animations: [
     trigger('cardAnimation', [
@@ -24,18 +24,21 @@ import { MOCK_OFFERS, OfferCard, ANALYSIS_STEPS } from './offers-data';
     ])
   ]
 })
-export class OffersComponent {
-  readonly steps = ANALYSIS_STEPS;
+export class OffersRecentComponent {
   readonly offers: OfferCard[] = MOCK_OFFERS;
 
   readonly searchTerm = signal('');
+  readonly filterContract = signal('');
   readonly filterStatus = signal('');
-  readonly sortBy = signal<'date' | 'score' | 'company' | 'step'>('date');
+  readonly sortBy = signal<'date' | 'score' | 'company' | 'daysLeft'>('date');
+  readonly viewMode = signal<'list' | 'grid'>('list');
+
+  readonly pageSize = signal(6);
   readonly currentPage = signal(1);
-  readonly pageSize = signal(10);
 
   get filteredOffers(): OfferCard[] {
     const search = this.searchTerm().trim().toLowerCase();
+    const contract = this.filterContract();
     const status = this.filterStatus();
     const sort = this.sortBy();
 
@@ -45,15 +48,18 @@ export class OffersComponent {
         o.company.toLowerCase().includes(search) ||
         o.location.toLowerCase().includes(search) ||
         o.tags.some(t => t.toLowerCase().includes(search));
+
+      const matchContract = !contract || o.tags.some(t => t.toLowerCase().includes(contract.toLowerCase()));
       const matchStatus = !status || o.status === status;
-      return matchSearch && matchStatus;
+
+      return matchSearch && matchContract && matchStatus;
     });
 
     result.sort((a, b) => {
       switch (sort) {
         case 'score': return (b.matchingScore ?? 0) - (a.matchingScore ?? 0);
         case 'company': return a.company.localeCompare(b.company);
-        case 'step': return (b.currentStep ?? 0) - (a.currentStep ?? 0);
+        case 'daysLeft': return (a.daysLeft ?? 0) - (b.daysLeft ?? 0);
         case 'date': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
     });
@@ -75,7 +81,12 @@ export class OffersComponent {
   }
 
   onSortChange(value: string): void {
-    this.sortBy.set(value as 'date' | 'score' | 'company' | 'step');
+    this.sortBy.set(value as 'date' | 'score' | 'company' | 'daysLeft');
+    this.currentPage.set(1);
+  }
+
+  onFilterContractChange(value: string): void {
+    this.filterContract.set(value);
     this.currentPage.set(1);
   }
 
@@ -88,41 +99,13 @@ export class OffersComponent {
     this.currentPage.update(p => p + 1);
   }
 
-  getStatusLabel(status: OfferCard['status']): string {
-    switch (status) {
-      case 'cv_genere': return 'CV Généré';
-      case 'analysee': return 'Analysée';
-      case 'non_traitee': return 'Non traitée';
-    }
-  }
-
-  getStatusColor(status: OfferCard['status']): string {
-    switch (status) {
-      case 'cv_genere': return 'bg-green-100 text-green-700';
-      case 'analysee': return 'bg-blue-100 text-blue-600';
-      case 'non_traitee': return 'bg-slate-100 text-slate-500';
-    }
-  }
-
-  getNextAction(offer: OfferCard): { label: string; link: string } | null {
-    if (offer.expired) return null;
-    if (offer.currentStep === 0) return { label: 'Lancer l\'analyse', link: '/offers/analyze' };
-    if (offer.currentStep <= 2) return { label: 'Continuer l\'analyse', link: '/offers/analyze' };
-    if (offer.currentStep === 3) return { label: 'Choisir le template', link: '/offers/analyze' };
-    if (offer.currentStep === 4) return { label: 'Générer le CV', link: '/offers/analyze' };
-    return { label: 'Voir les résultats', link: `/offers/${offer.id}` };
-  }
-
   getRecencyLabel(date: Date): string {
     const now = new Date();
     const diff = now.getTime() - new Date(date).getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Aujourd'hui";
-    if (days === 1) return 'Hier';
-    if (days < 7) return `Il y a ${days} jours`;
-    const weeks = Math.floor(days / 7);
-    if (weeks === 1) return 'Il y a 1 semaine';
-    return `Il y a ${weeks} semaines`;
+    if (days === 0) return "Ajouté aujourd'hui";
+    if (days === 1) return 'Ajouté hier';
+    return `Ajouté il y a ${days} jours`;
   }
 
   getBubbleGradient(company: string): string {
@@ -137,5 +120,21 @@ export class OffersComponent {
     let sum = 0;
     for (let i = 0; i < company.length; i++) sum += company.charCodeAt(i);
     return colors[sum % colors.length];
+  }
+
+  getScoreClass(score: number): string {
+    if (score >= 70) return 'text-green-600';
+    if (score >= 50) return 'text-amber-500';
+    return 'text-red-500';
+  }
+
+  getStatusConfig(status: OfferCard['status']): { bg: string; text: string; dot: string } {
+    const map: Record<string, { bg: string; text: string; dot: string }> = {
+      cv_genere: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
+      analysee: { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
+      non_traitee: { bg: 'bg-slate-100', text: 'text-slate-500', dot: 'bg-slate-400' },
+    };
+    const key = status as string;
+    return map[key] || map['non_traitee'];
   }
 }

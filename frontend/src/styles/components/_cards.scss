@@ -2,21 +2,21 @@
 
 .card {
   background: #FFFFFF;
-  border: 1px solid #E2E8F0; /* Darker border for better contrast */
+  border: 1px solid #E2E8F0;
   border-radius: 16px;
-  padding: 32px;
+  padding: 24px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.02);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 
   &:hover {
-    border-color: vars.$color-primary;
-    box-shadow: 0 10px 25px -5px rgba(12, 25, 134, 0.1), 0 8px 10px -6px rgba(12, 25, 134, 0.05);
+    border-color: vars.$brand-300;
+    box-shadow: 0 10px 25px -5px rgba(70, 95, 255, 0.1), 0 8px 10px -6px rgba(70, 95, 255, 0.05);
     transform: translateY(-2px);
   }
 
   &.card-accent {
-    border-left: 4px solid vars.$color-primary;
+    border-left: 4px solid vars.$brand-500;
   }
 }
 

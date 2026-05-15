@@ -31,6 +31,10 @@ export class AuthService {
     return this.keycloak.login();
   }
 
+  register() {
+    return this.keycloak.register();
+  }
+
   /**
    * Log in directly with Google (bypasses the Keycloak login selection)
    * This implements Step 3 of the integration guide.

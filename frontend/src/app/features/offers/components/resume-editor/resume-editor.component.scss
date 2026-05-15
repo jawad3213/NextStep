@@ -1,17 +1,10 @@
 .resume-workspace {
-  // Local brand colors safety definitions to avoid parent-container styling discrepancies
-  --color-primary: #1A91F0;
-  --color-primary-hover: #0F6EBB;
-  --color-primary-active: #0A5A9C;
-  --color-primary-tint: #E8F4FD;
-  --color-primary-pale: #F0F8FF;
-
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: #f1f5f9;
   overflow: hidden;
-  font-family: 'Lato', sans-serif;
 
   // SVG support and icon limits inside resume editor view
   svg {
@@ -128,23 +121,47 @@
   }
 
   .nav-right {
-    .btn-primary {
-      background: var(--color-primary);
-      color: #ffffff;
-      border: none;
-      padding: 8px 18px;
-      border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .btn-secondary {
+      background: #ffffff;
+      border: 1px solid #CBD5E1;
+      color: #475569;
+      padding: 8px 16px;
+      border-radius: 8px;
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 2px 4px rgba(26, 145, 240, 0.2);
       transition: all 0.2s ease;
 
       &:hover {
-        box-shadow: 0 4px 12px rgba(26, 145, 240, 0.3);
+        background: #F8FAFC;
+        border-color: #94A3B8;
+      }
+    }
+
+    .btn-primary {
+      background: #465FFF;
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 4px rgba(70, 95, 255, 0.2);
+      transition: all 0.2s ease;
+
+      &:hover {
+        box-shadow: 0 4px 12px rgba(70, 95, 255, 0.3);
         transform: translateY(-1px);
       }
     }
@@ -351,6 +368,280 @@
       color: #475569;
     }
   }
+}
+
+/* AUTO-SAVE BADGE */
+.badge-saved {
+  background: #E8F4FD;
+  color: #1A91F0;
+  border: 1px solid #B8DCFA;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.btn-ghost-nav {
+  background: none;
+  border: 1px solid #E2E8F0;
+  color: #64748B;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s;
+  &:hover { background: #F1F5F9; color: #0F172A; }
+}
+
+/* ── DRAG HANDLE ── */
+.drag-handle {
+  cursor: grab;
+  color: #94A3B8;
+  font-size: 14px;
+  letter-spacing: 2px;
+  padding: 0 4px;
+  user-select: none;
+  &:active { cursor: grabbing; }
+}
+.drag-handle-sm {
+  cursor: grab;
+  color: #94A3B8;
+  font-size: 12px;
+  padding-right: 4px;
+  user-select: none;
+  &:active { cursor: grabbing; }
+}
+
+/* ── SUB-ITEM ACTIONS ── */
+.sub-item-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-duplicate {
+  background: none;
+  border: none;
+  color: #64748B;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  &:hover { background: #F1F5F9; color: #1A91F0; }
+}
+
+/* ── BULLETS EDITOR ── */
+.bullets-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.bullet-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+
+  textarea {
+    flex: 1;
+    height: auto;
+    padding: 8px 12px;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    font-size: 12px;
+    resize: vertical;
+    &:focus { outline: none; border-color: #1A91F0; box-shadow: 0 0 0 3px rgba(26,145,240,0.15); }
+  }
+
+  .btn-delete {
+    margin-top: 4px;
+  }
+}
+
+.btn-add-bullet {
+  background: none;
+  border: 1px dashed #CBD5E1;
+  color: #64748B;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { border-color: #1A91F0; color: #1A91F0; background: #F0F8FF; }
+}
+
+/* ── SKILL LEVEL SELECT ── */
+.skill-level-select {
+  width: 70px;
+  padding: 0 4px;
+  height: 34px;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  font-size: 11px;
+  background: white;
+  cursor: pointer;
+  &:focus { outline: none; border-color: #1A91F0; }
+}
+
+/* ── PHOTO UPLOAD ── */
+.photo-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.photo-preview-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #E2E8F0;
+}
+
+.photo-input {
+  font-size: 12px;
+}
+
+/* ── VISIBILITY TOGGLES ── */
+.visibility-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #465FFF;
+  }
+
+  &:hover { color: #0F172A; }
+}
+
+/* ── CHAR COUNT ── */
+.char-count {
+  font-size: 10px;
+  color: #94A3B8;
+  text-align: right;
+  margin-top: 2px;
+}
+
+/* ── SKILL STARS IN PREVIEW ── */
+.skill-stars {
+  display: block;
+  font-size: 8px;
+  color: #F59E0B;
+  letter-spacing: 1px;
+}
+
+.skill-stars-sm {
+  font-size: 8px;
+  color: #F59E0B;
+  margin-left: 2px;
+}
+
+/* ── PREVIEW PHOTO ── */
+.preview-photo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255,255,255,0.2);
+  margin-bottom: 8px;
+}
+
+.preview-photo-circle {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 8px;
+}
+
+.preview-photo-circle-sm {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.elegant-photo-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.classic-photo-row {
+  display: flex;
+  justify-content: center;
+}
+
+/* ── ELEGANT BULLETS ── */
+.elegant-bullets {
+  margin: 4px 0 0 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.5;
+  li { margin-bottom: 3px; }
+}
+
+/* ── LANG ITEM ── */
+.lang-item {
+  font-size: 11px;
+  color: #CBD5E1;
+}
+
+/* ── SOCIAL ROW ── */
+.classic-social-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: 10px;
+  color: #475569;
+  margin-top: 4px;
+}
+
+/* ── CDK DRAG STYLES ── */
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  opacity: 0.9;
+  background: white;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+  border: 2px dashed #CBD5E1;
+  min-height: 60px;
+  border-radius: 8px;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.cdk-drop-list-dragging .cdk-drag {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
 }
 
 /* BUTTON CONTROLS */

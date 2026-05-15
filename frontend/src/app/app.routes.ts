@@ -8,7 +8,11 @@ import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { OnboardingComponent } from './features/onboarding/onboarding.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '', redirectTo: 'offers', pathMatch: 'full' },
+  {
+    path: 'signup',
+    loadComponent: () => import('./features/signup/signup.component').then(m => m.SignupComponent),
+  },
   {
     path: 'onboarding',
     component: OnboardingComponent,
@@ -25,10 +29,26 @@ export const routes: Routes = [
         loadComponent: () => import('./features/profile/profile.component').then(m => m.UserProfileComponent)
       },
       { path: 'dashboard', component: DashboardComponent, canActivate: [onboardingGuard] },
+      {
+        path: 'offers/analyze',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offer-pipeline.component').then(m => m.OfferPipelineComponent)
+      },
+      {
+        path: 'offers/:id',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offer-detail.component').then(m => m.OfferDetailComponent)
+      },
       { 
         path: 'offers', 
+        pathMatch: 'full',
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
+      },
+      { 
+        path: 'offers-recent', 
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offers-recent.component').then(m => m.OffersRecentComponent) 
       },
       { 
         path: 'cv', 

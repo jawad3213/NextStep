@@ -39,7 +39,7 @@ export class MainLayoutComponent {
     startWith(null),
     map(() => {
       const url = this.router.url;
-      return url.startsWith('/profile') || url.startsWith('/offers');
+      return url.startsWith('/profile') || url.startsWith('/offers') || url.startsWith('/onboarding');
     })
   );
   readonly headerState$ = this.router.events.pipe(
@@ -53,11 +53,14 @@ export class MainLayoutComponent {
     switchMap(() =>
       this.onboardingService.getStatus().pipe(
         map((status) => {
-          const isProfileRoute = this.router.url.startsWith('/profile');
+          const url = this.router.url;
+          const isOnboardingRoute = url.startsWith('/onboarding');
+          const isProfileRoute = url.startsWith('/profile');
           const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
           
-          // Sidebar remains hidden if we're forcing the profile stepper or they haven't done soft onboarding
-          const isForcedStepper = isProfileRoute && !profileUnlocked && status.profileScore < 30;
+          // Sidebar remains hidden on onboarding page or if the profile hasn't been explicitly unlocked (Finish clicked)
+          if (isOnboardingRoute) return false;
+          const isForcedStepper = isProfileRoute && !profileUnlocked;
           return !(!status.onboardingCompleted || isForcedStepper);
         }),
         catchError(() => of(true))
@@ -148,6 +151,10 @@ export class MainLayoutComponent {
     const parsedUrl = this.router.parseUrl(url);
     const primaryPath = parsedUrl.root.children['primary']?.segments.map((segment) => segment.path) ?? [];
     const page = primaryPath[0] ?? 'dashboard';
+
+    if (page === 'onboarding') {
+      return { eyebrow: 'Welcome / Getting Started', title: 'Tell Us About Yourself' };
+    }
 
     if (page === 'profile') {
       const step = parsedUrl.queryParams['step'] ?? 'coordonnees';

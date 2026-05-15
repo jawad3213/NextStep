@@ -412,6 +412,10 @@ export class ProfileService {
   }
 
   // --- Langues (mapped to Competences in DB) ---
+  private normalizeDiacritics(s: string): string {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
   mapLevelToInt(level: string): number {
     const mapping: Record<string, number> = { 
       'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6, 'Native': 7,
@@ -423,14 +427,15 @@ export class ProfileService {
       'Intermédiaire': 3, 'Débutant': 1,
       'Lu écrit parlé': 5, 'Lu, écrit, parlé': 5,
       'Bonne maîtrise': 5, 'Notions': 1, 'Scolaire': 3,
-      'Élémentaire': 1, 'Elementaire': 1, 'Professionnel': 6
+      'Élémentaire': 1, 'Elementaire': 1, 'Professionnel': 6,
+      'Maternel': 7
     };
-    const clean = (level || '').trim();
+    const clean = this.normalizeDiacritics((level || '').replace(/\s*\(.*?\)\s*/g, '').trim()).toUpperCase();
     const caseInsensitiveMap: Record<string, number> = {};
     for (const key in mapping) {
-      caseInsensitiveMap[key.toUpperCase()] = mapping[key];
+      caseInsensitiveMap[this.normalizeDiacritics(key).toUpperCase()] = mapping[key];
     }
-    return caseInsensitiveMap[clean.toUpperCase()] || 3; 
+    return caseInsensitiveMap[clean] || 3; 
   }
 
   mapIntToLevel(val: number): string {
@@ -611,26 +616,43 @@ export class ProfileService {
   }
 
   /**
-   * Calcul du pourcentage de complétion du profil (Granulaire)
+   * Calcul du pourcentage de complétion du profil (equilibre par etape)
+   * Chaque section du stepper a un poids significatif. Aucune section
+   * ne peut etre ignoree sans descendre sous le seuil de 85%.
    */
   completionPercentage = computed(() => {
     const p = this.profile();
     let score = 0;
     
-    // 1. Personal Info (Total: 20%)
-    if (p.personal.firstName) score += 5;
-    if (p.personal.lastName) score += 5;
-    if (p.personal.email) score += 5;
-    if (p.personal.phone) score += 2.5;
-    if (p.personal.jobTitle) score += 2.5;
+    // 1. Contact Info (12%) — equilibre sur plusieurs champs
+    if (p.personal.firstName) score += 2;
+    if (p.personal.lastName) score += 2;
+    if (p.personal.email) score += 2;
+    if (p.personal.phone) score += 2;
+    if (p.personal.jobTitle) score += 2;
+    if (p.personal.city) score += 1;
+    if (p.personal.country) score += 1;
     
-    if (p.education.length > 0) score += 10;
-    if (p.experience.length > 0) score += 15;
-    if (p.skills.length > 0) score += 10;
-    if (p.languages.length > 0) score += 10;
-    if (p.resume && p.resume.length > 50) score += 15;
-    if (p.projets.length > 0) score += 10;
-    if (p.certifications.length > 0) score += 10;
+    // 2. Education (14%)
+    if (p.education.length > 0) score += 14;
+    
+    // 3. Experience (14%)
+    if (p.experience.length > 0) score += 14;
+    
+    // 4. Skills (16%) — poids fort: indispensable pour depasser 85%
+    if (p.skills.length > 0) score += 16;
+    
+    // 5. Languages (4%) — bonus, ne compense pas un manque de competences
+    if (p.languages.length > 0) score += 4;
+    
+    // 6. Projects (14%)
+    if (p.projets.length > 0) score += 14;
+    
+    // 7. Resume (14%)
+    if (p.resume && p.resume.length > 50) score += 14;
+    
+    // 8. Certifications (12%)
+    if (p.certifications.length > 0) score += 12;
 
     return Math.min(score, 100);
   });
@@ -648,6 +670,28 @@ export class ProfileService {
       default: return false;
     }
   }
+
+  readonly stepLabels: Record<ProfileStepId, string> = {
+    coordonnees: 'Contact Info',
+    experience: 'Experience',
+    formation: 'Education',
+    competences: 'Skills & Languages',
+    projets: 'Projects',
+    resume: 'Summary',
+    certifications: 'Certifications'
+  };
+
+  missingSections = computed(() => {
+    const p = this.profile();
+    const result: { id: ProfileStepId; label: string }[] = [];
+    const steps: ProfileStepId[] = ['coordonnees', 'experience', 'formation', 'competences', 'projets', 'resume', 'certifications'];
+    for (const id of steps) {
+      if (!this.isSectionComplete(id)) {
+        result.push({ id, label: this.stepLabels[id] });
+      }
+    }
+    return result;
+  });
 
   updateProfile(newData: Partial<Profile>) {
     this.profile.update(current => ({ ...current, ...newData }));
@@ -784,8 +828,34 @@ export class ProfileService {
   private isKnownLanguage(value: string): boolean {
     return [
       'french', 'francais', 'français', 'english', 'anglais', 'arabic', 'arabe',
-      'spanish', 'espagnol', 'german', 'allemand', 'italian', 'italien', 'russian', 'russe',
-      'chinese', 'chinois', 'japanese', 'japonais', 'portuguese', 'portugais'
+      'spanish', 'espagnol', 'german', 'allemand', 'italian', 'italien',
+      'russian', 'russe', 'chinese', 'chinois', 'japanese', 'japonais',
+      'portuguese', 'portugais', 'dutch', 'néerlandais', 'nederlands', 'flamand',
+      'turkish', 'turc', 'korean', 'coréen', 'polish', 'polonais',
+      'swedish', 'suédois', 'danish', 'danois', 'norwegian', 'norvégien',
+      'finnish', 'finnois', 'greek', 'grec', 'hebrew', 'hébreu',
+      'hindi', 'bengali', 'bengalais', 'thai', 'thaïlandais',
+      'vietnamese', 'vietnamien', 'indonesian', 'indonésien',
+      'malay', 'malais', 'romanian', 'roumain', 'czech', 'tchèque',
+      'hungarian', 'hongrois', 'ukrainian', 'ukrainien',
+      'catalan', 'serbian', 'serbe', 'croate', 'croatian',
+      'bulgarian', 'bulgare', 'slovak', 'slovaque', 'slovenian', 'slovène',
+      'lithuanian', 'lituanien', 'latvian', 'letton', 'estonian', 'estonien',
+      'icelandic', 'islandais', 'swahili',
+      'tagalog', 'filipino', 'persian', 'farsi', 'persan',
+      'urdu', 'tamil', 'tamoul', 'telugu', 'marathi',
+      'gujarati', 'kannada', 'malayalam', 'burmese', 'birman',
+      'khmer', 'cambodgien', 'lao', 'laotien', 'mongolian', 'mongol',
+      'nepali', 'népalais', 'sinhala', 'cinghalais',
+      'amharic', 'amharique', 'georgian', 'géorgien', 'armenian', 'arménien',
+      'azerbaijani', 'azerbaïdjanais', 'kazakh', 'uzbek', 'ouzbek',
+      'turkmen', 'turkmène', 'albanian', 'albanais',
+      'bosnian', 'bosnien', 'macedonian', 'macédonien',
+      'welsh', 'gallois', 'irish', 'irlandais', 'gaelic', 'gaélique',
+      'maltese', 'maltais', 'luxembourgish', 'luxembourgeois',
+      'esperanto', 'espéranto', 'dari', 'pashto', 'pashtou',
+      'somalian', 'somali', 'hausa', 'yoruba', 'igbo',
+      'zulu', 'xhosa', 'afrikaans', 'tigrinya', 'tigrigna'
     ].includes(value.trim().toLowerCase());
   }
 
@@ -872,13 +942,13 @@ export class ProfileService {
       (entry) => `${entry.institution}|${entry.degree}|${entry.startYear}|${entry.endYear}`
     );
 
-    const explicitLanguages = this.readImportArray(source, ['languages', 'langues']).map((entry: any) => ({
+    const explicitLanguages = this.readImportArray(source, ['languages', 'langues', 'langue', 'language']).map((entry: any) => ({
       id: '',
-      name: typeof entry === 'string' ? entry.trim() : this.readImportValue(entry, ['nom', 'name', 'language']),
+      name: typeof entry === 'string' ? entry.trim() : this.readImportValue(entry, ['nom', 'name', 'language', 'langue']),
       level: typeof entry === 'string' ? 'B2' : (this.readImportValue(entry, ['niveau', 'level', 'proficiency']) || 'B2')
     })).filter((entry) => entry.name);
 
-    const skillLikeEntries = this.readImportArray(source, ['skills', 'competences', 'competencies']);
+    const skillLikeEntries = this.readImportArray(source, ['skills', 'competences', 'compétences', 'competencies', 'competency', 'skill']);
     const normalizedSkills = skillLikeEntries.map((entry: any) => ({
       name: typeof entry === 'string' ? entry.trim() : this.readImportValue(entry, ['nom', 'name', 'skill']),
       rawType: typeof entry === 'string' ? '' : this.readImportValue(entry, ['typeCompetence', 'type', 'category']),
@@ -1141,104 +1211,16 @@ export class ProfileService {
         this.addParsingEvent('success', 'Skill added', skill.name);
       }
 
-      const skillsData: any[] = [];
-      const languagesData: any[] = [];
-      
-      const commonLanguages = [
-        'french', 'français', 'francais', 'english', 'anglais', 'arabic', 'arabe', 
-        'spanish', 'espagnol', 'german', 'allemand', 'italian', 'italien', 'russian', 'russe',
-        'chinese', 'chinois', 'japanese', 'japonais', 'portuguese', 'portugais'
-      ];
-
-      // Process languagesData first
-      if (languagesData && Array.isArray(languagesData)) {
-        for (const lang of languagesData) {
-          const langName = typeof lang === 'string' ? lang : (lang.nom || lang.name || '');
-          if (!langName) continue;
-          const levelStr = typeof lang === 'string' ? 'B2' : (lang.niveau || lang.level || 'B2');
-          
-          await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
-            nom: langName.trim(),
-            niveau: this.mapLevelToInt(levelStr),
-            typeCompetence: 'Langue'
-          }));
-          this.addParsingEvent('success', 'Language added', langName);
-        }
-      }
-
-      // Process skillsData and automatically recognize any missed languages
-      if (skillsData && Array.isArray(skillsData)) {
-        for (const skill of skillsData) {
-          const skillName = typeof skill === 'string' ? skill : (skill.nom || skill.name || '');
-          if (!skillName) continue;
-          
-          const typeRaw = typeof skill === 'string' ? '' : (skill.typeCompetence || skill.type || '').toLowerCase();
-          const isLangue = typeRaw.includes('lang') || 
-                           typeRaw.includes('linguist') || 
-                           commonLanguages.includes(skillName.toLowerCase().trim());
-          
-          if (isLangue) {
-            const levelStr = typeof skill === 'string' ? 'B2' : (skill.niveau || skill.level || 'B2');
-            await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
-              nom: skillName.trim(),
-              niveau: this.mapLevelToInt(levelStr),
-              typeCompetence: 'Langue'
-            }));
-            this.addParsingEvent('success', 'Language added', skillName);
-          } else {
-            await firstValueFrom(this.http.post(`${this.apiUrl}/competences`, {
-              nom: skillName.trim(),
-              niveau: 3,
-              typeCompetence: (typeof skill !== 'string' && skill.typeCompetence) ? skill.typeCompetence : 'Technical'
-            }));
-            this.addParsingEvent('success', 'Skill added', skillName);
-          }
-        }
-      }
-
       for (const project of data.projects) {
         this.addParsingEvent('info', 'Mapping project', project.title);
         await this.addProject(project, false);
         this.addParsingEvent('success', 'Project synced', project.title);
       }
 
-      // 5. Projects
-      const projectsData: any[] = [];
-      if (projectsData && Array.isArray(projectsData)) {
-        for (const p of projectsData) {
-          await this.addProject({
-            id: '',
-            title: p.titre || p.title || p.name || '',
-            description: p.description || '',
-          stack: p.technologies ? (typeof p.technologies === 'string' ? p.technologies.split(',') : p.technologies) : (p.stack ? (typeof p.stack === 'string' ? p.stack.split(',') : p.stack) : []),
-          githubUrl: p.lien || p.githubUrl || p.lienProjet || p.url || '',
-          demoUrl: p.demoUrl || '',
-          isUniversity: p.isUniversity || p.isAcademic || false,
-          taches: p.taches || []
-          });
-          this.addParsingEvent('success', 'Project synced', p.titre || p.title || p.name);
-        }
-      }
-
       for (const cert of data.certifications) {
         this.addParsingEvent('info', 'Mapping certification', cert.name);
         await this.addCertification(cert, false);
         this.addParsingEvent('success', 'Cert synced', cert.name);
-      }
-
-      // 6. Certifications
-      const certificationsData: any[] = [];
-      if (certificationsData && Array.isArray(certificationsData)) {
-        for (const cert of certificationsData) {
-          await this.addCertification({
-            id: '',
-            name: cert.titre || cert.name || cert.title || '',
-            issuer: cert.organisation || cert.issuer || cert.organisme || '',
-            date: cert.date || cert.dateObtention || '',
-            verificationUrl: cert.lien || cert.url || cert.verificationUrl || ''
-          });
-          this.addParsingEvent('success', 'Cert synced', cert.titre || cert.name || cert.title);
-        }
       }
 
       this.addParsingEvent('success', 'Profile fully synchronized!');

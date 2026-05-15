@@ -14,15 +14,15 @@ export const routes: Routes = [
     loadComponent: () => import('./features/signup/signup.component').then(m => m.SignupComponent),
   },
   {
-    path: 'onboarding',
-    component: OnboardingComponent,
-    canActivate: [authGuard, alreadyOnboardedGuard],
-  },
-  {
     path: '',
     component: MainLayoutComponent,
     canActivate: [authGuard],
     children: [
+      {
+        path: 'onboarding',
+        component: OnboardingComponent,
+        canActivate: [alreadyOnboardedGuard],
+      },
       {
         path: 'profile',
         canActivate: [onboardingGuard],

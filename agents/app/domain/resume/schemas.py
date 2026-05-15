@@ -53,9 +53,9 @@ class CertificationSchema(BaseModel):
     lien: Optional[str] = Field(None, description="Lien de validation ou null")
 
 FRENCH_LEVEL_MAP = {
-    "maternelle": "Maternelle", "langue maternelle": "Maternelle", "langue-maternelle": "Maternelle",
-    "natif": "Maternelle", "native": "Maternelle", "natif": "Maternelle",
-    "bilingue": "Maternelle", "bilingual": "Maternelle",
+    "maternelle": "Maternelle", "maternel": "Maternelle",
+    "langue maternelle": "Maternelle", "langue-maternelle": "Maternelle",
+    "natif": "Maternelle", "native": "Maternelle",
     "courant": "Courant", "fluent": "Courant",
     "bonne maitrise": "Courant", "bonne maîtrise": "Courant",
     "lu ecrit parle": "Courant", "lu, ecrit, parle": "Courant",
@@ -70,10 +70,12 @@ FRENCH_LEVEL_MAP = {
     "professionnel": "C2", "proficient": "C2",
 }
 
+import re
+
 def normalize_language_level(level: object) -> str:
     if level is None or not isinstance(level, str) or not level.strip():
         return "Intermédiaire"
-    clean = level.strip().lower()
+    clean = re.sub(r'\s*\(.*?\)\s*', '', level.strip()).lower().strip()
     return FRENCH_LEVEL_MAP.get(clean, level.strip())
 
 class LanguageSchema(BaseModel):

@@ -11,7 +11,6 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { ProfileService } from './profile.service';
 import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
-import { OnboardingService } from '../../services/onboarding.service';
 
 type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 
@@ -54,7 +53,6 @@ import { ResumeComponent } from './components/resume/resume.component';
 export class UserProfileComponent implements OnInit, OnDestroy {
   private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   profileService = inject(ProfileService);
-  private onboardingService = inject(OnboardingService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   
@@ -94,6 +92,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   showToast = signal(false);
   showCompletionModal = signal(false);
   isForcedOnboarding = signal(false);
+  toastMessage = signal('Changes saved');
+  showInsufficientToast = signal(false);
   private lastSavedSnapshot: string = '';
 
   // Profile completion stats for the finish modal
@@ -158,7 +158,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   });
 
   activeProjectTab = signal<'projects' | 'extracurriculars'>('projects');
-  activeSkillsTab = signal<'skills' | 'languages'>('skills');
   
   private breakpointObserver = inject(BreakpointObserver);
 
@@ -170,6 +169,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
   profile = this.profileService.profile;
   currentStep = this.profileService.currentStep;
+  completionPercentage = this.profileService.completionPercentage;
+  missingSections = this.profileService.missingSections;
 
   // Split experiences
   workExperiences = computed(() => this.profile().experience.filter((e: any) => e.type !== 'Extracurricular'));
@@ -212,7 +213,15 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     if (nextIdx < this.steps.length) {
       this.goToStep(this.steps[nextIdx].id);
     } else {
-      // Last step → Finish
+      if (this.completionPercentage() < 85) {
+        this.toastMessage.set('Complete at least 85% of your profile to continue');
+        this.showToast.set(true);
+        setTimeout(() => {
+          this.showToast.set(false);
+          this.toastMessage.set('Changes saved');
+        }, 4000);
+        return;
+      }
       await this.finishProfile();
     }
   }
@@ -390,7 +399,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
       // Actual Import call (emits events into parsingEvents signal)
       await this.profileService.importResume(file);
-      this.refreshOnboardingStatus();
 
       this.parsingStatus.set('structuring');
       this.parsingProgress.set(90);
@@ -452,7 +460,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
       // Call our robust backend import via service
       await this.profileService.importLinkedIn(url, '');
-      this.refreshOnboardingStatus();
 
       this.parsingStatus.set('structuring');
       this.parsingProgress.set(90);
@@ -886,23 +893,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
   private refreshOnboardingStatus() {
     const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
-    if (profileUnlocked) {
-      this.isForcedOnboarding.set(false);
-      this.profileService.isOnboarding.set(false);
-      return;
-    }
-
-    this.onboardingService.getStatus().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (status) => {
-        const isForced = !status.onboardingCompleted || status.profileScore < 30;
-        this.isForcedOnboarding.set(isForced);
-        this.profileService.isOnboarding.set(isForced);
-      },
-      error: () => {
-        // API unavailable — assume forced onboarding so user stays on the stepper
-        this.isForcedOnboarding.set(true);
-        this.profileService.isOnboarding.set(true);
-      }
-    });
+    const forced = !profileUnlocked;
+    this.isForcedOnboarding.set(forced);
+    this.profileService.isOnboarding.set(forced);
   }
 }

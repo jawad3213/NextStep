@@ -28,12 +28,32 @@ logger = logging.getLogger(__name__)
 
 from .schemas import ResumeParsedSchema, normalize_language_level
 
+FRENCH_KEY_MAP = {
+    "langues": "languages", "langue": "languages",
+    "competences": "skills", "compétences": "skills", "competencies": "skills",
+    "experiences": "experience", "expériences": "experience",
+    "formations": "education", "formation": "education",
+    "projets": "projects", "projet": "projects",
+    "certificats": "certifications",
+    "parascolaire": "extracurricular", "extrascolaire": "extracurricular",
+    "informations personnelles": "personal",
+}
+
+def _normalize_keys(data: dict) -> dict:
+    """Renames common French root keys to their English equivalents."""
+    for fr_key, en_key in FRENCH_KEY_MAP.items():
+        if fr_key in data and en_key not in data:
+            data[en_key] = data.pop(fr_key)
+    return data
+
 def _normalize_language_levels(data: dict) -> dict:
     """Post-processes language entries to normalize level descriptors."""
     languages = data.get("languages", [])
     if isinstance(languages, list):
         for lang in languages:
             if isinstance(lang, dict):
+                if "niveau" not in lang and "level" in lang:
+                    lang["niveau"] = lang.pop("level")
                 lang["niveau"] = normalize_language_level(lang.get("niveau"))
     return data
 
@@ -68,8 +88,8 @@ async def parse_cv_with_ai(cv_text: str) -> dict:
             logger.warning(f"⚠️ Validation Pydantic partielle (utilisation du fallback brut) : {pydantic_err}")
             result = parsed_data
             
-        # 3. Normalisation des niveaux de langue (mapping français -> CECRL / standard)
-        return _normalize_language_levels(result)
+        # 3. Normalisation des clés françaises -> anglais + niveaux de langue
+        return _normalize_language_levels(_normalize_keys(result))
             
     except Exception as e:
         logger.error(f"❌ Erreur critique lors de l'appel ou du parsing du CV : {e}")

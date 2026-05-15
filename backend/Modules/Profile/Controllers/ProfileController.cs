@@ -239,13 +239,12 @@ namespace NextStep.Modules.Profile.Controllers
                 using var stream = file.OpenReadStream();
                 content.Add(new StreamContent(stream), "file", file.FileName);
                 
-                // On attend la réponse complète (plus stable pour le proxy)
                 var response = await client.PostAsync($"{agentUrl}/resume/parse", content);
                 
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadAsStringAsync();
-                    return Ok(result); 
+                    return Content(result, "application/json"); 
                 }
                 
                 var error = await response.Content.ReadAsStringAsync();
@@ -274,7 +273,7 @@ namespace NextStep.Modules.Profile.Controllers
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadAsStringAsync();
-                    return Ok(result); 
+                    return Content(result, "application/json"); 
                 }
                 
                 var error = await response.Content.ReadAsStringAsync();

@@ -32,32 +32,27 @@ export class SkillsComponent {
   @Output() updateNewLanguage = new EventEmitter<{field: string, value: any}>();
 
   languageLevels = [
-    { value: 'A1', label: 'Beginner' },
-    { value: 'A2', label: 'Elementary' },
-    { value: 'B1', label: 'Intermediate' },
-    { value: 'B2', label: 'Upper-Intermediate' },
-    { value: 'C1', label: 'Advanced' },
-    { value: 'C2', label: 'Proficient' },
+    { value: 'A1', label: 'A1' },
+    { value: 'A2', label: 'A2' },
+    { value: 'B1', label: 'B1' },
+    { value: 'B2', label: 'B2' },
+    { value: 'C1', label: 'C1' },
+    { value: 'C2', label: 'C2' },
     { value: 'Native', label: 'Native' }
   ];
 
   popularLanguages = [
-    'English', 'French', 'Spanish', 'German', 'Arabic', 'Chinese', 'Italian', 'Portuguese', 'Russian', 'Japanese'
+    'English', 'Anglais', 'French', 'Français', 'Spanish', 'Espagnol',
+    'German', 'Allemand', 'Arabic', 'Arabe', 'Chinese', 'Chinois',
+    'Italian', 'Italien', 'Portuguese', 'Portugais', 'Russian', 'Russe',
+    'Japanese', 'Japonais', 'Dutch', 'Néerlandais', 'Turkish', 'Turc',
+    'Korean', 'Coréen', 'Polish', 'Polonais', 'Swedish', 'Suédois',
+    'Danish', 'Danois', 'Norwegian', 'Norvégien', 'Finnish', 'Finnois',
+    'Greek', 'Grec', 'Hebrew', 'Hébreu', 'Hindi', 'Bengali', 'Thai',
+    'Vietnamese', 'Vietnamien', 'Indonesian', 'Indonésien'
   ];
 
-  @Input() activeTab: 'skills' | 'languages' = 'skills';
-  @Input() sectionTitle: string = 'Skills & Languages';
-  @Input() isEditingTitle: boolean = false;
-  
   @Input() langTitle: string = 'Languages';
-  @Input() isEditingLangTitle: boolean = false;
-
-  @Output() tabChange = new EventEmitter<'skills' | 'languages'>();
-  @Output() titleEditStart = new EventEmitter<void>();
-  @Output() titleEditSave = new EventEmitter<string>();
-
-  @Output() langTitleEditStart = new EventEmitter<void>();
-  @Output() langTitleEditSave = new EventEmitter<string>();
 
   isSkillSelected(skillName: string): boolean {
     if (!this.skills || !skillName) return false;

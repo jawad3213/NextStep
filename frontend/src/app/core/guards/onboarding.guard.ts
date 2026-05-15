@@ -18,7 +18,7 @@ export const onboardingGuard: CanActivateFn = (route, state) => {
       const isProfileRoute = state.url.startsWith('/profile');
       if (!isProfileRoute) {
         const profileUnlocked = localStorage.getItem(profileUnlockedKey) === 'true';
-        if (!profileUnlocked && status.profileScore < 30) {
+        if (!profileUnlocked) {
           return router.parseUrl('/profile?step=coordonnees');
         }
       }

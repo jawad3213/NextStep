@@ -1,230 +1,181 @@
 <div class="form-step-wrapper animate-fade-slide-up">
-  <!-- Section Header with Rename Logic -->
-  <div class="flex justify-between items-end mb-5">
-    <div class="flex-1">
-      @if (isEditingTitle) {
-        <div class="flex items-center gap-2 group">
-          <input #titleInput [value]="sectionTitle" 
-                 (keydown.enter)="titleEditSave.emit(titleInput.value)"
-                 (blur)="titleEditSave.emit(titleInput.value)"
-                 class="text-xl font-semibold text-slate-900 border-b-2 border-brand-500 outline-none bg-transparent w-full max-w-md">
-          <mat-icon class="text-brand-500 animate-pulse">check_circle</mat-icon>
-        </div>
-      } @else {
-        <div class="flex items-center gap-3 group cursor-pointer" (click)="titleEditStart.emit()">
-          <h2 class="text-xl font-semibold text-slate-900">{{ sectionTitle }}</h2>
-          <mat-icon class="text-slate-300 group-hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100 !text-[20px]">edit</mat-icon>
-        </div>
-      }
-      <p class="text-slate-500 text-[14px] font-medium mt-1">Highlight your expertise and linguistic proficiency.</p>
-    </div>
-  </div>
-
   <!-- Surface Container -->
   <div class="profile-ta-surface">
     
-    <!-- SMART TAB SWITCHER -->
-    <div class="profile-ta-tab-shell mb-5">
-      <button 
-        (click)="tabChange.emit('skills')"
-        [class.profile-ta-tab-active]="activeTab === 'skills'"
-        class="profile-ta-tab flex items-center gap-2">
-        <mat-icon class="!text-[18px] !w-[18px] !h-[18px]">bolt</mat-icon>
-        Skills
-      </button>
-      <button 
-        (click)="tabChange.emit('languages')"
-        [class.profile-ta-tab-active]="activeTab === 'languages'"
-        class="profile-ta-tab flex items-center gap-2">
-        <mat-icon class="!text-[18px] !w-[18px] !h-[18px]">public</mat-icon>
-        Languages
-      </button>
-    </div>
+    <!-- SKILLS SECTION -->
+    <div class="mb-8">
+      <div class="flex items-center gap-2 mb-4">
+        <mat-icon class="!text-[20px] !w-5 !h-5 text-brand-500">psychology</mat-icon>
+        <h3 class="text-[15px] font-black uppercase tracking-wider">Skills</h3>
+      </div>
 
-    @if (activeTab === 'skills') {
-      <!-- SKILLS VIEW -->
-      <div class="animate-fade-in">
-        <!-- SKILL INPUT -->
-        <div class="relative mb-6">
-          <div class="flex items-center gap-3 rounded-lg border border-gray-300 bg-white p-1.5 pl-4 shadow-sm transition-all focus-within:border-brand-300 focus-within:ring-2 focus-within:ring-brand-500/10">
-            <mat-icon class="text-slate-400">search</mat-icon>
-            <input 
-              #skillInput
-              type="text" 
-              (input)="onSkillInput.emit($event)"
-              (keydown.enter)="addCustomSkill.emit({name: skillInput.value, category: 'Technical', inputElement: skillInput})"
-              placeholder="Search or add a skill (e.g., Python, Figma...)" 
-              class="h-11 flex-1 border-none bg-transparent text-sm font-medium text-gray-700 outline-none placeholder:text-gray-400">
-            
-            <button (click)="addCustomSkill.emit({name: skillInput.value, category: 'Technical', inputElement: skillInput})"
-                    class="profile-ta-primary-btn shrink-0 px-4 md:px-5 text-sm">
-              Add Skill
-            </button>
-          </div>
-
-          <!-- AUTOCOMPLETE DROPDOWN -->
-          @if (filteredSuggestions.length > 0) {
-            <div class="absolute top-[110%] left-0 w-full bg-white border border-[#EEEEEE] rounded-lg shadow-xl z-50 overflow-hidden animate-scale-up">
-              <div class="p-2 border-b border-[#F5F5F5] bg-slate-50">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-3">Suggestions</span>
-              </div>
-              <div class="max-h-[300px] overflow-y-auto">
-                @for (suggestion of filteredSuggestions; track suggestion.name) {
-                  <div (click)="selectSuggestion.emit({suggestion: suggestion, inputElement: skillInput})"
-                       class="px-4 py-3 hover:bg-brand-50 hover:text-brand-500 cursor-pointer flex items-center justify-between group transition-colors border-b border-[#F5F5F5] last:border-none">
-                    <div class="flex items-center gap-3">
-                      <span class="font-bold text-[15px]">{{ suggestion.name }}</span>
-                      <span class="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ suggestion.category }}</span>
-                    </div>
-                    <mat-icon class="!text-[18px] !w-4 !h-4 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all">add_circle</mat-icon>
-                  </div>
-                }
-              </div>
-            </div>
-          }
+      <!-- SKILL INPUT -->
+      <div class="relative mb-4">
+        <div class="flex items-center gap-3 rounded-lg border border-gray-300 bg-white p-1.5 pl-4 shadow-sm transition-all focus-within:border-brand-300 focus-within:ring-2 focus-within:ring-brand-500/10">
+          <mat-icon class="text-slate-400">search</mat-icon>
+          <input 
+            #skillInput
+            type="text" 
+            (input)="onSkillInput.emit($event)"
+            (keydown.enter)="addCustomSkill.emit({name: skillInput.value, category: 'Technical', inputElement: skillInput})"
+            placeholder="Search or add a skill (e.g., Python, Figma...)" 
+            class="h-11 flex-1 border-none bg-transparent text-sm font-medium text-gray-700 outline-none placeholder:text-gray-400">
+          
+          <button (click)="addCustomSkill.emit({name: skillInput.value, category: 'Technical', inputElement: skillInput})"
+                  class="profile-ta-primary-btn shrink-0 px-4 md:px-5 text-sm">
+            Add Skill
+          </button>
         </div>
 
-        <!-- MY SKILLS GRID -->
-        @if (skills.length > 0) {
-          <div class="mb-6">
-            <div class="flex items-center gap-2 mb-4 text-[#212121]">
-              <mat-icon class="!text-[20px] !w-5 !h-5 text-brand-500">verified</mat-icon>
-              <h3 class="text-[15px] font-black uppercase tracking-wider">My Skills</h3>
+        <!-- AUTOCOMPLETE DROPDOWN -->
+        @if (filteredSuggestions.length > 0) {
+          <div class="absolute top-[110%] left-0 w-full bg-white border border-[#EEEEEE] rounded-lg shadow-xl z-50 overflow-hidden animate-scale-up">
+            <div class="p-2 border-b border-[#F5F5F5] bg-slate-50">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-3">Suggestions</span>
             </div>
-            
-            <div class="flex flex-wrap gap-2.5" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="reorder.emit($event)">
-              @for (skill of skills; track skill.id) {
-                <div class="group bg-white border border-slate-200 rounded-lg pl-4 pr-2 py-2 flex items-center gap-3 hover:border-brand-200 hover:shadow-[0_2px_8px_rgba(70,95,255,0.12)] transition-all cursor-move" cdkDrag>
-                  <div *cdkDragPlaceholder class="drag-placeholder !w-[80px] !h-[38px]"></div>
-                  <span class="text-[13px] font-bold text-slate-700">{{ skill.name }}</span>
-                  <button (click)="removeSkill.emit(skill.id)" class="text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center">
-                    <mat-icon class="!text-[16px] !w-4 !h-4">close</mat-icon>
-                  </button>
+            <div class="max-h-[300px] overflow-y-auto">
+              @for (suggestion of filteredSuggestions; track suggestion.name) {
+                <div (click)="selectSuggestion.emit({suggestion: suggestion, inputElement: skillInput})"
+                     class="px-4 py-3 hover:bg-brand-50 hover:text-brand-500 cursor-pointer flex items-center justify-between group transition-colors border-b border-[#F5F5F5] last:border-none">
+                  <div class="flex items-center gap-3">
+                    <span class="font-bold text-[15px]">{{ suggestion.name }}</span>
+                    <span class="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ suggestion.category }}</span>
+                  </div>
+                  <mat-icon class="!text-[18px] !w-4 !h-4 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all">add_circle</mat-icon>
                 </div>
               }
             </div>
           </div>
         }
-
-        <!-- RECOMMENDATIONS -->
-        <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
-          <div class="flex items-center gap-2 mb-4">
-            <mat-icon class="text-amber-500 !text-[20px] !w-5 !h-5">lightbulb</mat-icon>
-            <h3 class="text-[13px] font-bold text-slate-800 uppercase tracking-wider">Recommendations</h3>
-          </div>
-          
-          <div class="space-y-4">
-            @for (cat of predefinedSkills; track cat.category) {
-              <div>
-                <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-                  {{ cat.category }}
-                </h4>
-                <div class="flex flex-wrap gap-2">
-                  @for (item of cat.items; track item) {
-                    @if (!isSkillSelected(item)) {
-                      <button (click)="addSkill.emit({name: item, category: cat.category})"
-                              class="bg-white border border-slate-200 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-500 px-3 py-1.5 rounded-md text-[12px] font-semibold text-slate-600 transition-all hover:shadow-sm">
-                        + {{ item }}
-                      </button>
-                    }
-                  }
-                </div>
-              </div>
-            }
-          </div>
-        </div>
       </div>
-    } @else {
-      <!-- LANGUAGES VIEW -->
-      <div class="animate-fade-in">
-        <!-- ADD LANGUAGE FORM -->
-        <div class="flex items-center gap-4 mb-5">
-          @if (isEditingLangTitle) {
-            <div class="flex items-center gap-2 animate-scale-up">
-              <input #titleInputLang [value]="langTitle" 
-                     (keydown.enter)="langTitleEditSave.emit(titleInputLang.value)"
-                     (blur)="langTitleEditSave.emit(titleInputLang.value)"
-                     class="text-[14px] font-black text-brand-500 border-b-2 border-brand-500 outline-none bg-transparent uppercase tracking-wider px-1">
-            </div>
-          } @else {
-            <div class="flex items-center gap-3 group cursor-pointer" (click)="langTitleEditStart.emit()">
-              <h3 class="text-[16px] font-bold text-slate-900 uppercase tracking-wide">{{ langTitle }}</h3>
-              <mat-icon class="text-slate-300 group-hover:text-[#1A91F0] transition-colors opacity-0 group-hover:opacity-100 !text-[18px]">edit</mat-icon>
-            </div>
-          }
-        </div>
 
-        <div class="profile-ta-form-block mb-6 shadow-sm">
-          <div class="flex flex-col lg:flex-row gap-6 items-start">
-            <div class="flex-1 w-full">
-              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Language Name</label>
-              <div class="relative">
-                <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-400">translate</mat-icon>
-                <input type="text" list="popularLangs" placeholder="Select or type..." 
-                       [ngModel]="newLanguage.name" (ngModelChange)="onUpdateNewLanguage('name', $event)"
-                       class="profile-ta-input profile-ta-input-with-icon cursor-pointer bg-white shadow-sm">
-                <mat-icon class="absolute right-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-400 pointer-events-none">arrow_drop_down</mat-icon>
-                <datalist id="popularLangs">
-                  @for (lang of popularLanguages; track lang) {
-                    <option [value]="lang"></option>
-                  }
-                </datalist>
-              </div>
-            </div>
-            
-            <div class="flex-[2] w-full">
-              <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Proficiency</label>
-              <div class="flex flex-wrap gap-2">
-                @for (lvl of languageLevels; track lvl.value) {
-                  <button 
-                    (click)="onUpdateNewLanguage('level', lvl.value)"
-                    [class.active-level]="newLanguage.level === lvl.value"
-                    class="profile-ta-segment-btn !flex-none !px-4 !py-2.5 text-[13px] font-bold">
-                    {{ lvl.label }}
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="w-full lg:w-auto lg:pt-6">
-              <button (click)="addLanguage.emit()"
-                      [disabled]="!newLanguage.name"
-                      class="profile-ta-primary-btn w-full shrink-0 px-5 font-medium lg:w-auto">
-                <mat-icon>add</mat-icon> Add
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- LANGUAGES GRID -->
-        @if (languages.length > 0) {
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            @for (lang of languages; track lang.id) {
-              <div class="bg-white border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-brand-200 hover:shadow-md transition-all group">
-                <div class="flex items-center gap-4">
-                  <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl border border-blue-100 text-[#1A91F0]">
-                    <mat-icon>public</mat-icon>
-                  </div>
-                  <div>
-                    <h4 class="text-[16px] font-black text-slate-900">{{ lang.name }}</h4>
-                    <div class="mt-1 inline-block px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider border {{ getLanguageBadgeColor(lang.level) }}">
-                      {{ lang.level }}
-                    </div>
-                  </div>
-                </div>
-                <button (click)="removeLanguage.emit(lang.id)" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100">
-                  <mat-icon class="!text-[20px]">delete_outline</mat-icon>
+      <!-- MY SKILLS GRID -->
+      @if (skills.length > 0) {
+        <div class="mb-4">
+          <h4 class="text-[13px] font-bold text-slate-600 uppercase tracking-wider mb-3">My Skills</h4>
+          <div class="flex flex-wrap gap-2.5" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="reorder.emit($event)">
+            @for (skill of skills; track skill.id) {
+              <div class="group bg-white border border-slate-200 rounded-lg pl-4 pr-2 py-2 flex items-center gap-3 hover:border-brand-200 hover:shadow-[0_2px_8px_rgba(70,95,255,0.12)] transition-all cursor-move" cdkDrag>
+                <div *cdkDragPlaceholder class="drag-placeholder !w-[80px] !h-[38px]"></div>
+                <span class="text-[13px] font-bold text-slate-700">{{ skill.name }}</span>
+                <button (click)="removeSkill.emit(skill.id)" class="text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center">
+                  <mat-icon class="!text-[16px] !w-4 !h-4">close</mat-icon>
                 </button>
               </div>
             }
           </div>
-        } @else {
-          <div class="profile-ta-empty-state">
-            <mat-icon class="!w-10 !h-10 !text-[40px] text-slate-200 mb-3">translate</mat-icon>
-            <p class="text-slate-400 font-bold">No languages added yet.</p>
-          </div>
-        }
+        </div>
+      }
+
+      <!-- RECOMMENDATIONS -->
+      <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
+        <div class="flex items-center gap-2 mb-4">
+          <mat-icon class="text-amber-500 !text-[20px] !w-5 !h-5">lightbulb</mat-icon>
+          <h3 class="text-[13px] font-bold text-slate-800 uppercase tracking-wider">Recommendations</h3>
+        </div>
+        
+        <div class="space-y-4">
+          @for (cat of predefinedSkills; track cat.category) {
+            <div>
+              <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                {{ cat.category }}
+              </h4>
+              <div class="flex flex-wrap gap-2">
+                @for (item of cat.items; track item) {
+                  @if (!isSkillSelected(item)) {
+                    <button (click)="addSkill.emit({name: item, category: cat.category})"
+                            class="bg-white border border-slate-200 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-500 px-3 py-1.5 rounded-md text-[12px] font-semibold text-slate-600 transition-all hover:shadow-sm">
+                      + {{ item }}
+                    </button>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
       </div>
-    }
+    </div>
+
+    <!-- DIVIDER -->
+    <div class="border-t border-gray-200 my-6"></div>
+
+    <!-- LANGUAGES SECTION -->
+    <div>
+      <div class="flex items-center gap-2 mb-4">
+        <mat-icon class="!text-[20px] !w-5 !h-5 text-brand-500">public</mat-icon>
+        <h3 class="text-[15px] font-black uppercase tracking-wider">{{ langTitle }}</h3>
+      </div>
+
+      <div class="profile-ta-form-block mb-6 shadow-sm">
+        <div class="flex flex-col lg:flex-row gap-6 items-start">
+          <div class="flex-1 w-full">
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Language Name</label>
+            <div class="relative">
+              <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-400">translate</mat-icon>
+              <input type="text" list="popularLangs" placeholder="Select or type..." 
+                     [ngModel]="newLanguage.name" (ngModelChange)="onUpdateNewLanguage('name', $event)"
+                     class="profile-ta-input profile-ta-input-with-icon cursor-pointer bg-white shadow-sm">
+              <mat-icon class="absolute right-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-400 pointer-events-none">arrow_drop_down</mat-icon>
+              <datalist id="popularLangs">
+                @for (lang of popularLanguages; track lang) {
+                  <option [value]="lang"></option>
+                }
+              </datalist>
+            </div>
+          </div>
+          
+          <div class="flex-[2] w-full">
+            <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Proficiency</label>
+            <div class="flex flex-wrap gap-2">
+              @for (lvl of languageLevels; track lvl.value) {
+                <button 
+                  (click)="onUpdateNewLanguage('level', lvl.value)"
+                  [class.active-level]="newLanguage.level === lvl.value"
+                  class="profile-ta-segment-btn !flex-none !px-4 !py-2.5 text-[13px] font-bold">
+                  {{ lvl.label }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="w-full lg:w-auto lg:pt-6">
+            <button (click)="addLanguage.emit()"
+                    [disabled]="!newLanguage.name"
+                    class="profile-ta-primary-btn w-full shrink-0 px-5 font-medium lg:w-auto">
+              <mat-icon>add</mat-icon> Add
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LANGUAGES GRID -->
+      @if (languages.length > 0) {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          @for (lang of languages; track lang.id) {
+            <div class="bg-white border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-brand-200 hover:shadow-md transition-all group">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl border border-blue-100 text-[#1A91F0]">
+                  <mat-icon>public</mat-icon>
+                </div>
+                <div>
+                  <h4 class="text-[16px] font-black text-slate-900">{{ lang.name }}</h4>
+                  <div class="mt-1 inline-block px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider border {{ getLanguageBadgeColor(lang.level) }}">
+                    {{ lang.level }}
+                  </div>
+                </div>
+              </div>
+              <button (click)="removeLanguage.emit(lang.id)" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100">
+                <mat-icon class="!text-[20px]">delete_outline</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="profile-ta-empty-state">
+          <mat-icon class="!w-10 !h-10 !text-[40px] text-slate-200 mb-3">translate</mat-icon>
+          <p class="text-slate-400 font-bold">No languages added yet.</p>
+        </div>
+      }
+    </div>
   </div>
 </div>

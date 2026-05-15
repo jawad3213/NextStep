@@ -117,7 +117,7 @@
   }
 
   .profile-ta-segment-btn-active {
-    @apply border-brand-500 bg-brand-500 text-white shadow-sm;
+    @apply border-brand-500 bg-brand-500 text-white shadow-sm hover:bg-brand-600 hover:text-white;
   }
 
   .profile-ta-tab-shell {

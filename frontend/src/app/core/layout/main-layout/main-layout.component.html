@@ -43,7 +43,7 @@
             </div>
           }
 
-          @if ((showSidebar$ | async) && (headerState$ | async); as headerState) {
+          @if (headerState$ | async; as headerState) {
             <div class="min-w-0">
               <h1 class="truncate text-lg font-semibold text-gray-900 md:text-[22px] leading-tight">
                 {{ headerState.title }}

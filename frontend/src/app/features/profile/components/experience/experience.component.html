@@ -29,6 +29,13 @@
       </button>
     }
 
+    @if (experiences.length === 0 && !isCreatingExperience()) {
+      <div class="flex items-center gap-2 px-4 py-2.5 mb-5 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
+        <mat-icon class="!text-[18px] !w-[18px] !h-[18px] text-amber-500">business_center</mat-icon>
+        <span>No experience added yet — <button (click)="addToggle.emit()" class="underline font-semibold hover:text-amber-900">add your first experience</button> to strengthen your profile.</span>
+      </div>
+    }
+
     <!-- EXPERIENCE LIST (Existing items) -->
     @if (experiences.length > 0) {
       <div class="space-y-4" cdkDropList (cdkDropListDropped)="reorder.emit($event)">
@@ -107,7 +114,7 @@
           <div class="field-group">
             <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Position / Title</label>
             <div class="relative">
-              <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">work_outline</mat-icon>
+              <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">business_center</mat-icon>
               <input type="text" placeholder="ex: Software Engineer" [ngModel]="newExperience.title" (ngModelChange)="onUpdateNewItem('title', $event)"
                      class="profile-ta-input profile-ta-input-with-icon">
             </div>

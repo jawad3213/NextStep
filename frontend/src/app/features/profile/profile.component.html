@@ -105,6 +105,24 @@
       </div>
     }
 
+    @if (isForcedOnboarding() && missingSections().length > 0) {
+      <div class="px-4 md:px-12 py-0 shrink-0">
+        <div class="mx-auto max-w-5xl">
+          <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+            <mat-icon class="!text-[18px] !w-[18px] !h-[18px] text-amber-500">info</mat-icon>
+            <span class="font-medium">Missing:</span>
+            @for (section of missingSections(); track section.id; let last = $last) {
+              <button (click)="goToStep(section.id)"
+                class="underline font-semibold hover:text-amber-900 transition-colors whitespace-nowrap">
+                {{ section.label }}
+              </button>
+              @if (!last) { <span class="text-amber-400">•</span> }
+            }
+          </div>
+        </div>
+      </div>
+    }
+
     <!-- Scrollable Form Container -->
     <div class="form-scroll-container overflow-y-auto px-4 md:px-12 py-6 md:py-10 custom-scrollbar relative">
       
@@ -199,21 +217,15 @@
 
         @if (currentStep() === 'competences') {
         <app-skills [skills]="profile().skills" [languages]="profile().languages" [newLanguage]="newLanguage()"
-          [activeTab]="activeSkillsTab()" [sectionTitle]="getSectionTitle('competences', 'Skills & Languages')"
-          [isEditingTitle]="editingSection() === 'competences'" [predefinedSkills]="predefinedSkills"
+          [predefinedSkills]="predefinedSkills"
           [langTitle]="getSectionTitle('languages', 'Languages')"
-          [isEditingLangTitle]="editingSection() === 'languages'"
-          [filteredSuggestions]="filteredSuggestions()" (tabChange)="activeSkillsTab.set($event)"
+          [filteredSuggestions]="filteredSuggestions()"
           (onSkillInput)="onSkillInput($event)"
           (addCustomSkill)="addCustomSkill($event.name, $event.category, $event.inputElement)"
           (addSkill)="addSkill($event.name, $event.category)" (removeSkill)="deleteItem($event, 'skills')"
           (selectSuggestion)="selectSuggestion($event.suggestion, $event.inputElement)"
           (reorder)="drop($event, 'skills')" (addLanguage)="saveLanguage()" (removeLanguage)="removeLanguage($event)"
-          (updateNewLanguage)="updateNewLanguage($event.field, $event.value)"
-          (titleEditStart)="startEditingSection('competences')"
-          (titleEditSave)="updateSectionTitle('competences', $event)"
-          (langTitleEditStart)="startEditingSection('languages')"
-          (langTitleEditSave)="updateSectionTitle('languages', $event)">
+          (updateNewLanguage)="updateNewLanguage($event.field, $event.value)">
         </app-skills>
         }
 
@@ -285,6 +297,17 @@
           <span class="hidden sm:inline">Previous</span>
         </button>
 
+        <div class="flex-1 max-w-xs mx-4">
+          <div class="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+            <span>Profile completion</span>
+            <span>{{ completionPercentage() }}%</span>
+          </div>
+          <div class="h-2 rounded-full bg-gray-200">
+            <div class="h-2 rounded-full bg-brand-500 transition-all duration-300"
+              [style.width.%]="completionPercentage()"></div>
+          </div>
+        </div>
+
         <button (click)="next()" class="btn-primary-next !px-6 md:!px-8 !py-2.5 md:!py-3 !text-sm md:!text-base">
           <span class="max-w-[120px] md:max-w-none truncate">
             {{ currentIndex() === steps.length - 1 ? 'Finish' : (isMobile() ? 'Next' : 'Next: ' + nextStepName()) }}
@@ -296,9 +319,13 @@
 
     <!-- TOAST NOTIFICATION -->
     @if (showToast()) {
-    <div class="toast-notification animate-fade-slide-up">
-      <mat-icon class="text-emerald-500">check_circle</mat-icon>
-      <span>Changes saved</span>
+    <div class="toast-notification animate-fade-slide-up"
+      [class.!bg-amber-50]="toastMessage() !== 'Changes saved'">
+      <mat-icon [class.text-amber-500]="toastMessage() !== 'Changes saved'"
+        [class.text-emerald-500]="toastMessage() === 'Changes saved'">
+        {{ toastMessage() === 'Changes saved' ? 'check_circle' : 'info' }}
+      </mat-icon>
+      <span>{{ toastMessage() }}</span>
     </div>
     }
 

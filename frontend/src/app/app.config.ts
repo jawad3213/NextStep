@@ -15,7 +15,7 @@ import {
 // ← L'intercepteur qui envoie le JWT 
 } from 'keycloak-angular'; 
 
-const apiTokenCondition = createInterceptorCondition<IncludeBearerTokenCondition>({  urlPattern: /^http:\/\/localhost:5000\/api\/.*/i, 
+const apiTokenCondition = createInterceptorCondition<IncludeBearerTokenCondition>({  urlPattern: /^http:\/\/127.0.0.1:5000\/api\/.*/i, 
   bearerPrefix: 'Bearer', 
 }); 
 export const appConfig: ApplicationConfig = { 

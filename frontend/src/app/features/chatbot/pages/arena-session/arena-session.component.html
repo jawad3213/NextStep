@@ -1,0 +1,355 @@
+<div class="arena-layout">
+  <!-- HEADER -->
+  <header class="arena-top">
+    <div class="arena-header-left">
+      <button class="back-btn" (click)="back()">
+        <span class="back-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        </span>
+        <span>Leave</span>
+      </button>
+      <div class="session-info">
+        <span class="emoji">{{ domainEmoji() }}</span>
+        <div class="meta">
+          <h2>{{ config.domain | titlecase }} Arena</h2>
+          <span class="subtitle">{{ levelLabel() }} &bull; {{ config.duration_minutes }} min &bull; {{ langFlag() }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <nav class="arena-tabs">
+      <button class="tab-btn" [class.active]="activeTab() === 'questions'" (click)="setTab('questions')">
+        <span class="tab-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        </span> Prep &amp; Questions
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'interview'" (click)="setTab('interview')">
+        <span class="tab-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+        </span> Live Interview
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'salary'" (click)="setTab('salary')">
+        <span class="tab-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+        </span> Salary Data
+      </button>
+    </nav>
+  </header>
+
+  <!-- TAB 1: PREPARATION & QUESTIONS -->
+  <div class="tab-content" *ngIf="activeTab() === 'questions'">
+    <div class="prep-layout">
+      <!-- Left: Questions Bank -->
+      <div class="q-bank card">
+        <div class="card-header">
+          <h3>Real Company Questions</h3>
+          <p>Common questions for this role and level.</p>
+        </div>
+
+        <div class="q-filters">
+          <button [class.active]="filterType() === 'all'" (click)="setFilter('all')">All ({{questions().length}})</button>
+          <button [class.active]="filterType() === 'technical'" (click)="setFilter('technical')">Technical ({{qCount('technical')}})</button>
+          <button [class.active]="filterType() === 'behavioral'" (click)="setFilter('behavioral')">Behavioral ({{qCount('behavioral')}})</button>
+        </div>
+
+        <div class="q-list">
+          <div class="loading-state" *ngIf="loadingQs()">
+            <div class="spinner"></div>
+            <p>Gathering latest market questions...</p>
+          </div>
+
+          <div class="q-item" *ngFor="let q of filteredQs()">
+            <div class="q-top">
+              <span class="q-type" [ngClass]="q.type">{{ q.type }}</span>
+              <span class="q-source" *ngIf="q.company_specific">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22"></line><line x1="15" y1="22" x2="15" y2="22"></line><line x1="9" y1="6" x2="9" y2="6"></line><line x1="15" y1="6" x2="15" y2="6"></line><line x1="9" y1="10" x2="9" y2="10"></line><line x1="15" y1="10" x2="15" y2="10"></line><line x1="9" y1="14" x2="9" y2="14"></line><line x1="15" y1="14" x2="15" y2="14"></line><line x1="9" y1="18" x2="9" y2="18"></line><line x1="15" y1="18" x2="15" y2="18"></line></svg>
+                Company Specific
+              </span>
+            </div>
+            <p class="q-text">{{ q.question }}</p>
+            <button class="q-tip-btn" (click)="toggleTip(q.id)">
+              {{ expandedTip() === q.id ? 'Hide advice' : 'Show advice' }}
+            </button>
+            <div class="q-tip" *ngIf="expandedTip() === q.id">
+              <div class="tip-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              </div>
+              <p>{{ q.tip }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: AI Assistant -->
+      <div class="ai-assistant card">
+        <div class="card-header">
+          <h3>🤖 AI Prep Assistant</h3>
+          <p>Ask for answer frameworks, hints, or technical explanations.</p>
+        </div>
+
+        <div class="chat-area" #chatScroll>
+          <div class="msg" *ngFor="let m of chatMessages()" [ngClass]="m.role">
+            <div class="msg-avatar">
+              <svg *ngIf="m.role === 'ai'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+              <svg *ngIf="m.role === 'user'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </div>
+            <div class="msg-bubble">{{ m.content }}</div>
+          </div>
+          <div class="msg ai typing" *ngIf="chatLoading()">
+            <div class="msg-avatar">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+            </div>
+            <div class="msg-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          </div>
+        </div>
+
+        <div class="chat-input-box">
+          <div class="suggestions" *ngIf="chatMessages().length === 0">
+            <button (click)="suggest('How should I structure my introduction?')">Structure my intro</button>
+            <button (click)="suggest('What is the STAR method?')">STAR method</button>
+          </div>
+          <div class="input-row">
+            <input type="text" [(ngModel)]="chatInput" placeholder="Ask AI assistant..." (keydown)="onChatKey($event)">
+            <button class="send-btn" (click)="sendChat()" [disabled]="!chatInput.trim() || chatLoading()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: LIVE INTERVIEW -->
+  <div class="tab-content" *ngIf="activeTab() === 'interview'">
+
+    <!-- Not started -->
+    <div class="center-state" *ngIf="!sessionStarted() && !showResults()">
+      <div class="start-card">
+        <div class="start-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+        </div>
+        <h2>Ready for the Arena?</h2>
+        <p>The AI will act as a senior recruiter. It will ask questions, follow up on your answers, and evaluate your performance.</p>
+
+        <div class="rules">
+          <div class="rule">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            You have {{ config.duration_minutes }} minutes
+          </div>
+          <div class="rule">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Use the STAR method
+          </div>
+          <div class="rule">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            You can stop anytime
+          </div>
+        </div>
+
+        <button class="btn-primary-large" (click)="startInterview()" [disabled]="isLoadingStart()">
+          <span *ngIf="!isLoadingStart()">Enter Arena</span>
+          <span *ngIf="isLoadingStart()">Connecting...</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Interview -->
+    <div class="interview-layout" *ngIf="sessionStarted() && !showResults()">
+
+      <!-- ── INTERVIEW HEADER BAR ── -->
+      <div class="iv-header">
+
+        <!-- Recruiter Identity -->
+        <div class="iv-recruiter">
+          <div class="iv-avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+            <span class="iv-online-dot"></span>
+          </div>
+          <div class="iv-recruiter-text">
+            <span class="iv-name">Senior AI Recruiter</span>
+            <span class="iv-status">
+              <span class="live-dot"></span> Live Session
+            </span>
+          </div>
+        </div>
+
+        <!-- SVG Circular Timer -->
+        <div class="iv-timer" [class.iv-timer--warning]="isWarning()">
+          <svg class="iv-timer__ring" viewBox="0 0 100 100" width="90" height="90">
+            <!-- Background track -->
+            <circle class="iv-ring-bg" cx="50" cy="50" r="42"/>
+            <!-- Animated progress arc -->
+            <circle
+              class="iv-ring-progress"
+              cx="50" cy="50" r="42"
+              [style.stroke-dashoffset]="timerDashOffset()"
+            />
+          </svg>
+          <div class="iv-timer__center">
+            <span class="iv-timer__digits">{{ timerDisplay() }}</span>
+            <span class="iv-timer__label">restant</span>
+          </div>
+        </div>
+
+        <!-- End Button -->
+        <button class="iv-end-btn" (click)="endEarly()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+          End Session
+        </button>
+      </div>
+
+      <!-- ── CHAT AREA ── -->
+      <div class="iv-chat" #interviewScroll>
+        <div class="iv-msg" *ngFor="let m of interviewMsgs()" [ngClass]="m.role">
+          <div class="iv-msg__av" *ngIf="m.role === 'ai'">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+          </div>
+          <div class="iv-msg__bubble">{{ m.content }}</div>
+        </div>
+        <div class="iv-msg ai" *ngIf="aiTyping()">
+          <div class="iv-msg__av">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+          </div>
+          <div class="iv-msg__bubble iv-msg__bubble--typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        </div>
+      </div>
+
+      <!-- ── INPUT ── -->
+      <div class="iv-input-bar">
+        <div class="iv-input-wrap">
+          <textarea
+            #msgInput
+            [(ngModel)]="userInput"
+            placeholder="Type your answer... (Shift+Enter for new line, Enter to send)"
+            (keydown)="onMsgKey($event)"
+            rows="2"
+          ></textarea>
+        </div>
+        <button class="iv-send-btn" (click)="sendMessage()" [disabled]="!userInput.trim() || aiTyping()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-layout" *ngIf="showResults()">
+      <div class="eval-loading" *ngIf="isEvaluating()">
+        <div class="spinner lg"></div>
+        <h2>Analyzing your performance...</h2>
+        <p>Evaluating STAR method, technical accuracy, and confidence.</p>
+      </div>
+
+      <div class="eval-dashboard fade-in" *ngIf="!isEvaluating() && feedback()">
+        <div class="score-card" [style.border-color]="scoreColor()">
+          <div class="score-circle" [style.color]="scoreColor()">{{ finalScore() }}</div>
+          <div class="score-meta">
+            <h2>{{ scoreLabel() }}</h2>
+            <p>Based on {{ interviewMsgs().length / 2 | number:'1.0-0' }} interactions</p>
+          </div>
+          <button class="btn-secondary ml-auto" (click)="restart()">Practice Again</button>
+        </div>
+
+        <div class="eval-grid">
+          <div class="eval-col">
+            <div class="card bg-green">
+              <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                Strengths
+              </h3>
+              <ul>
+                <li *ngFor="let s of feedback()?.strengths">{{ s }}</li>
+              </ul>
+            </div>
+            <div class="card bg-red">
+              <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>
+                Areas to Improve
+              </h3>
+              <ul>
+                <li *ngFor="let i of feedback()?.improvements">{{ i }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card dimensions-card">
+            <h3>Skill Breakdown</h3>
+            <div class="dim-row" *ngFor="let d of feedback()?.dimensions">
+              <div class="dim-info">
+                <span class="dim-name">{{ d.name }}</span>
+                <span class="dim-score">{{ d.score }}/10</span>
+              </div>
+              <div class="dim-bar">
+                <div class="dim-fill" [style.width.%]="d.score * 10"></div>
+              </div>
+              <p class="dim-comment">{{ d.comment }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-20 coaching-card">
+          <h3>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            Recruiter's Coaching Tips
+          </h3>
+          <ul>
+            <li *ngFor="let tip of feedback()?.coaching_tips">{{ tip }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TAB 3: SALARY COACH -->
+  <div class="tab-content" *ngIf="activeTab() === 'salary'">
+    <div class="salary-redirect">
+      <div class="orb orb--blue"></div>
+      <div class="orb orb--gold"></div>
+
+      <div class="sr-icon-wrap">
+        <span class="sr-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+        </span>
+      </div>
+
+      <div class="sr-eyebrow">AI Module</div>
+      <h2 class="sr-title">Salary Coach</h2>
+      <p class="sr-desc">
+        Discover your real market value, master negotiation scripts,
+        and practice with an AI recruiter in real-time.
+      </p>
+
+      <div class="sr-features">
+        <span class="sr-feat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          Live market data
+        </span>
+        <span class="sr-feat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          Custom scripts
+        </span>
+        <span class="sr-feat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+          Negotiation quiz
+        </span>
+        <span class="sr-feat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+          Interactive AI Coach
+        </span>
+      </div>
+
+      <button class="sr-btn" (click)="goToSalaryCoach()">
+        <span>Access Salary Coach</span>
+        <span class="sr-btn__arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </span>
+      </button>
+
+      <p class="sr-note">
+        Based on your profile: {{ config.domain | titlecase }} &middot; {{ levelLabel() }}
+      </p>
+    </div>
+  </div>
+
+</div>

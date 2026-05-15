@@ -35,6 +35,7 @@ public class AgentHttpClient : IAgentHttpClient
         string rawText,
         string userId,
         int templateId,
+        string offerId,
         CancellationToken ct = default)
     {
         var payload = new
@@ -42,6 +43,7 @@ public class AgentHttpClient : IAgentHttpClient
             raw_text = rawText,
             user_id = userId,
             template_id = templateId,
+            offer_id = offerId
         };
 
         var json = JsonSerializer.Serialize(payload, JsonOptions);

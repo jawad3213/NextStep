@@ -62,6 +62,7 @@ class FreeChatRequest(BaseModel):
 
 class StartInterviewRequest(BaseModel):
     """Tab 2 — Démarrer la session mock interview."""
+    session_id: Optional[str] = None
     mode: Literal["offer", "arena"]
     offer_id: Optional[str] = None
     arena_config: Optional[ArenaConfigSchema] = None
@@ -118,6 +119,7 @@ class QuestionOut(BaseModel):
 class QuestionsResponse(BaseModel):
     """Réponse de POST /questions."""
     status: str = "ok"
+    session_id: str | None = None
     mode: str
     total: int
     questions: list[QuestionOut]

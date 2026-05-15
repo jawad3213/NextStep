@@ -57,7 +57,7 @@ public class OfferService(
         JsonDocument pipelineResult;
         try
         {
-            pipelineResult = await agentClient.RunPipelineAsync(rawText, userId, templateId, ct);
+            pipelineResult = await agentClient.RunPipelineAsync(rawText, userId, templateId, offre.Id.ToString(), ct);
         }
         catch (HttpRequestException ex)
         {

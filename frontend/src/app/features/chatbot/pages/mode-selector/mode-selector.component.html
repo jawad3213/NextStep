@@ -1,0 +1,207 @@
+<div class="ms-page">
+
+  <!-- SELECTOR VIEW -->
+  <div *ngIf="view() === 'selector'">
+    <header class="selector-header">
+      <span class="selector-eyebrow">AI Insights</span>
+      <h1 class="selector-title">Interview Preparation</h1>
+      <p class="selector-desc">Train smart. Master every interview with AI-powered simulations, real company questions, and personalized coaching.</p>
+    </header>
+
+    <div class="mode-grid">
+      <div class="mode-card mode-card--offer" (click)="selectMode('offer')">
+        <div class="mode-card__glow"></div>
+        <div class="mode-card__top">
+          <div class="mode-icon mode-icon--blue">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          </div>
+          <span class="mode-tag mode-tag--blue">OFFER LINKED</span>
+        </div>
+        <h3 class="mode-card__title">Offer-Based Mode</h3>
+        <p class="mode-card__desc">Prepare for a specific job application. AI uses your offer, CV, and company intelligence.</p>
+        <ul class="mode-card__features">
+          <li><span class="feat-dot feat-dot--blue"></span> Tailored to your target company</li>
+          <li><span class="feat-dot feat-dot--blue"></span> Uses your CV context</li>
+        </ul>
+        <div class="mode-card__cta mode-card__cta--blue">Select Mode <span class="cta-arrow">→</span></div>
+      </div>
+
+      <div class="mode-card mode-card--arena" (click)="selectMode('arena')">
+        <div class="mode-card__glow"></div>
+        <div class="mode-card__top">
+          <div class="mode-icon mode-icon--gold">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          </div>
+          <span class="mode-tag mode-tag--gold">NO OFFER NEEDED</span>
+        </div>
+        <h3 class="mode-card__title mode-card__title--gold">Arena Mode</h3>
+        <p class="mode-card__desc">Practice anytime. Choose your field, level, and language. Train like a pro, 24/7.</p>
+        <ul class="mode-card__features">
+          <li><span class="feat-dot feat-dot--gold"></span> 100+ simulated scenarios</li>
+          <li><span class="feat-dot feat-dot--gold"></span> Instant STAR feedback</li>
+        </ul>
+        <div class="mode-card__cta mode-card__cta--gold">Select Mode <span class="cta-arrow">→</span></div>
+      </div>
+    </div>
+    
+    <p class="selector-note">Choose Arena Mode to practice immediately without uploading a job offer.</p>
+
+    <!-- ZONE: PAST SESSIONS -->
+    <section class="past-sessions-zone">
+      <h2 class="zone-title">📂 Past Sessions</h2>
+      <div class="history-grid" *ngIf="pastSessions().length > 0; else noHistory">
+        <div class="history-item" *ngFor="let s of pastSessions()">
+          <div class="h-item__top">
+            <span class="h-item__label">
+              {{ s.mode === 'arena' ? '🏟️ Arena' : '📋 Offer' }} &bull; {{ s.domain | titlecase }} &bull; {{ s.level | titlecase }}
+            </span>
+          </div>
+          <div class="h-item__bottom">
+            <div class="h-item__meta">
+              Score : <span [class.text-gold]="(s.scoreEntretien ?? 0) < 70" [class.text-green]="(s.scoreEntretien ?? 0) >= 70">{{ s.scoreEntretien ?? '--' }}/100</span>
+              &nbsp;&bull;&nbsp; {{ s.dateSession | date:'d MMM yyyy' }}
+            </div>
+            <button class="h-item__btn" (click)="viewDetails(s)">[View report]</button>
+          </div>
+        </div>
+      </div>
+      <ng-template #noHistory>
+        <div class="no-history-box"><p>No sessions found yet.</p></div>
+      </ng-template>
+    </section>
+  </div>
+
+  <!-- ARENA CONFIGURATION VIEW -->
+  <div class="arena-view" *ngIf="view() === 'arena'">
+    <header class="arena-header">
+      <button class="arena-back" (click)="backToSelector()">
+        <span class="back-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        </span>
+        <span>Back</span>
+      </button>
+      <div><div class="arena-eyebrow">ARENA MODE</div><h2 class="arena-title">Configure Session</h2></div>
+    </header>
+
+    <div class="stepper-layout">
+      <!-- SIDEBAR STEPPER -->
+      <aside class="stepper-nav">
+        <div class="stepper-line"></div>
+        <div *ngFor="let step of steps" class="stepper-item" 
+             [class.stepper-item--current]="stepState(step.key) === 'current'"
+             [class.stepper-item--done]="stepState(step.key) === 'done'"
+             [class.stepper-item--locked]="stepState(step.key) === 'locked'"
+             (click)="goToStep(step.key)">
+          <div class="stepper-dot">
+            <ng-container *ngIf="stepState(step.key) === 'done'">✓</ng-container>
+            <ng-container *ngIf="stepState(step.key) !== 'done'">{{ steps.indexOf(step) + 1 }}</ng-container>
+          </div>
+          <div class="stepper-text">
+            <span class="stepper-label">{{ step.label }}</span>
+            <span class="stepper-summary" *ngIf="stepState(step.key) === 'done'">{{ stepSummary(step.key) }}</span>
+            <span class="stepper-current-label" *ngIf="stepState(step.key) === 'current'">In progress</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONFIG PANEL -->
+      <main class="step-panel">
+        <ng-container *ngIf="currentStep() === 'domain'">
+          <h3 class="step-heading">What's your field?</h3>
+          <p class="step-sub">The AI will use domain-specific questions, vocabulary, and scenarios.</p>
+          <div class="domain-grid">
+            <button *ngFor="let d of domains" class="domain-btn" [class.domain-btn--sel]="selectedDomain() === d.key" (click)="pickDomain(d.key)">
+              <span class="domain-emoji">{{ d.emoji }}</span><span class="domain-name">{{ d.name }}</span>
+            </button>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="currentStep() === 'level'">
+          <h3 class="step-heading">Your seniority level</h3>
+          <p class="step-sub">This adjusts question depth, expected answers, and evaluation criteria.</p>
+          <div class="level-grid">
+            <button *ngFor="let l of levels" class="level-btn" [class.level-btn--sel]="selectedLevel() === l.key" (click)="pickLevel(l.key)">
+              <div class="level-title">{{ l.label }}</div><div class="level-desc">{{ l.desc }}</div>
+            </button>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="currentStep() === 'duration'">
+          <h3 class="step-heading">How long do you have?</h3>
+          <p class="step-sub">We'll fit the right number of questions within your session.</p>
+          <div class="duration-grid">
+            <button *ngFor="let dur of durations" class="duration-btn" [class.duration-btn--sel]="selectedDuration() === dur.value" (click)="pickDuration(dur.value)">
+              <div class="dur-val">{{ dur.label }}</div><div class="dur-unit">{{ dur.unit }}</div>
+            </button>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="currentStep() === 'language'">
+          <h3 class="step-heading">Interview language</h3>
+          <p class="step-sub">The AI recruiter will speak, think, and evaluate in this language.</p>
+          <div class="lang-grid">
+            <button *ngFor="let lang of languages" class="lang-btn" [class.lang-btn--sel]="selectedLanguage() === lang.key" (click)="pickLanguage(lang.key)">
+              <span class="lang-flag">{{ lang.flag }}</span><span class="lang-name">{{ lang.name }}</span>
+            </button>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="currentStep() === 'focus'">
+          <h3 class="step-heading">Focus areas <span class="optional">(optional)</span></h3>
+          <p class="step-sub">Select the topics you want to drill. Skip to let the AI balance them automatically.</p>
+          <div class="focus-chips">
+            <button *ngFor="let area of focusPool()" class="focus-chip" [class.focus-chip--sel]="selectedFocus().includes(area)" (click)="toggleFocus(area)">{{ area }}</button>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="currentStep() === 'ready'">
+          <div *ngIf="!isLaunching()">
+            <h3 class="step-heading">Your session is ready</h3>
+            <p class="step-sub">Review your setup. The AI recruiter is configured and waiting.</p>
+            <div class="summary-card">
+              <div class="summary-row"><span class="summary-key">Domain</span><span class="summary-val">{{ summaryDomain()?.name }}</span></div>
+              <div class="summary-row"><span class="summary-key">Level</span><span class="summary-val">{{ summaryLevel()?.label }}</span></div>
+              <div class="summary-row"><span class="summary-key">Duration</span><span class="summary-val">{{ selectedDuration() }} min</span></div>
+              <div class="summary-row"><span class="summary-key">Language</span><span class="summary-val">{{ summaryLanguage()?.name }}</span></div>
+            </div>
+            <button class="launch-btn" (click)="launch()">
+              <div class="launch-pulse"></div> Start Arena Interview
+            </button>
+          </div>
+
+          <div class="launching" *ngIf="isLaunching()">
+            <div class="launching-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+            <h3>Launching your session...</h3>
+            <p>AI recruiter is getting ready for you.</p>
+            <div class="launch-dots"><span></span><span></span><span></span></div>
+          </div>
+        </ng-container>
+
+        <!-- NAVIGATION FOOTER -->
+        <div class="step-nav" *ngIf="currentStep() !== 'ready' && !isLaunching()">
+          <button class="btn-ghost" (click)="back()" [disabled]="currentStep() === 'domain'">← Back</button>
+          <div class="step-counter">Step {{ stepIndex() + 1 }} of {{ steps.length }}</div>
+          <button class="btn-next" (click)="next()" [disabled]="!canContinue()">{{ currentStep() === 'focus' ? 'Skip / Next' : 'Next →' }}</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- REPORT MODAL -->
+  <div class="modal-overlay" *ngIf="showDetails()" (click)="closeDetails()">
+    <div class="report-modal" (click)="$event.stopPropagation()">
+      <button class="modal-close" (click)="closeDetails()">×</button>
+      <div class="report-header">
+        <div class="report-header__score"><div class="big-score">{{ selectedSession()?.global_score }}<small>/100</small></div></div>
+        <div class="report-header__info"><h2>Interview Performance</h2><p>{{ selectedSession()?.domain }} &bull; {{ selectedSession()?.level }} &bull; {{ selectedSession()?.date | date:'mediumDate' }}</p></div>
+      </div>
+      <div class="modal-body">
+        <div class="report-section"><h3>Analysis</h3><div class="dimensions-list"><div class="dim-item" *ngFor="let d of selectedSession()?.dimensions"><span>{{ d.name }}</span>: {{ d.score }}/100<div class="dim-bar"><div class="dim-bar__fill" [style.width.%]="d.score"></div></div></div></div></div>
+        <div class="f-grid"><div class="f-box f-box--green"><h3>Strengths</h3><ul><li *ngFor="let s of selectedSession()?.strengths">{{ s }}</li></ul></div><div class="f-box f-box--orange"><h3>Improvements</h3><ul><li *ngFor="let i of selectedSession()?.improvements">{{ i }}</li></ul></div></div>
+        <div class="coaching-box-modal"><h3>💡 Coaching Tips</h3><ul><li *ngFor="let t of selectedSession()?.coaching_tips">{{ t }}</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

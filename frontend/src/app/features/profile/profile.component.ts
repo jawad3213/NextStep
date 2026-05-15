@@ -1,13 +1,9 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy, ViewEncapsulation } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-import { map } from 'rxjs/operators';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { ProfileService } from './profile.service';
 import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
@@ -50,22 +46,12 @@ import { ResumeComponent } from './components/resume/resume.component';
 })
 export class UserProfileComponent implements OnInit, OnDestroy {
   profileService = inject(ProfileService);
-  private router = inject(Router);
-  private route = inject(ActivatedRoute);
   
   private readonly destroy$ = new Subject<void>();
   private readonly autoSave$ = new Subject<void>();
   
   ngOnInit() {
     this.profileService.refreshProfile();
-
-    // Recover step from URL query params
-    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      const stepId = params.get('step') as ProfileStepId;
-      if (stepId && this.steps.some(s => s.id === stepId)) {
-        this.profileService.setStep(stepId);
-      }
-    });
 
     // Professional Debounced Auto-save logic
     this.autoSave$.pipe(
@@ -86,23 +72,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isSaving = signal(false);
   lastSaved = signal<Date | null>(new Date());
   showToast = signal(false);
-  showCompletionModal = signal(false);
-  private lastSavedSnapshot: string = '';
-
-  // Profile completion stats for the finish modal
-  profileCompletion = computed(() => {
-    const p = this.profile();
-    let filled = 0;
-    const total = 7;
-    if (p.personal?.firstName || p.personal?.lastName) filled++;
-    if (p.education?.length > 0) filled++;
-    if (p.experience?.length > 0) filled++;
-    if (p.skills?.length > 0) filled++;
-    if (p.resume) filled++;
-    if (p.projets?.length > 0) filled++;
-    if (p.certifications?.length > 0) filled++;
-    return { filled, total, percent: Math.round((filled / total) * 100) };
-  });
   
   // Section States
   isAddingFormation = signal(false);
@@ -110,11 +79,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isAddingProject = signal(false);
   isAddingCertification = signal(false);
   isGeneratingAI = signal(false);
-  isParsing = signal(false);
-  isApplyingData = signal(false);
-  parsingStatus = signal<'reading' | 'analyzing' | 'structuring'>('reading');
-  parsingProgress = signal(0);
-  terminalFeed = signal<{timestamp: string, status: string, message: string}[]>([]);
   editingSection = signal<SectionTitleKey | null>(null);
   skillSearchQuery = signal('');
   filteredSuggestions = signal<{name: string, category: string}[]>([]);
@@ -129,7 +93,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newExperience = signal<Experience>({
     id: '', title: '', company: '', city: '', 
     startDate: '', endDate: '', current: false, 
-    type: 'Internship', description: ''
+    type: 'Stage', description: ''
   });
 
   newProject = signal<Project>({
@@ -140,38 +104,14 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newCertification = signal<Certification>({
     id: '', name: '', issuer: '', date: '', verificationUrl: ''
   });
-
-  newLanguage = signal<any>({ id: '', name: '', level: 'B1' });
-
-  isAddingExtracurricular = signal(false);
-  newExtracurricular = signal<Experience>({
-    id: '', title: '', company: '', city: '',
-    startDate: '', endDate: '', current: false,
-    type: 'Extracurricular', description: ''
-  });
-
-  activeProjectTab = signal<'projects' | 'extracurriculars'>('projects');
-  activeSkillsTab = signal<'skills' | 'languages'>('skills');
   
-  private breakpointObserver = inject(BreakpointObserver);
-
-  isMobile = toSignal(
-    this.breakpointObserver.observe([Breakpoints.Handset, Breakpoints.TabletPortrait])
-      .pipe(map(result => result.matches)),
-    { initialValue: false }
-  );
-
   profile = this.profileService.profile;
   currentStep = this.profileService.currentStep;
-
-  // Split experiences
-  workExperiences = computed(() => this.profile().experience.filter((e: any) => e.type !== 'Extracurricular'));
-  extracurriculars = computed(() => this.profile().experience.filter((e: any) => e.type === 'Extracurricular'));
   
   steps: { id: ProfileStepId, label: string }[] = [
     { id: 'coordonnees', label: 'Contact Info' },
-    { id: 'experience', label: 'Experience' },
     { id: 'formation', label: 'Education' },
+    { id: 'experience', label: 'Experience' },
     { id: 'competences', label: 'Skills' },
     { id: 'resume', label: 'Summary' },
     { id: 'projets', label: 'Projects' },
@@ -191,47 +131,21 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   // Step Logic
   goToStep(id: ProfileStepId) {
     this.profileService.setStep(id);
-    // Update URL query params without reloading
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { step: id },
-      queryParamsHandling: 'merge'
-    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async next() {
     const nextIdx = this.currentIndex() + 1;
     if (nextIdx < this.steps.length) {
+      await this.save(); // Save before changing step
       this.goToStep(this.steps[nextIdx].id);
-    } else {
-      // Last step → Finish
-      await this.finishProfile();
     }
-  }
-
-  async finishProfile() {
-    await this.save();
-    this.showCompletionModal.set(true);
-  }
-
-  goToDashboard() {
-    this.showCompletionModal.set(false);
-    this.router.navigate(['/dashboard']);
-  }
-
-  goToOffers() {
-    this.showCompletionModal.set(false);
-    this.router.navigate(['/cv']);
-  }
-
-  dismissCompletionModal() {
-    this.showCompletionModal.set(false);
   }
 
   async prev() {
     const prevIdx = this.currentIndex() - 1;
     if (prevIdx >= 0) {
+      await this.save(); // Save before changing step
       this.goToStep(this.steps[prevIdx].id);
     }
   }
@@ -248,18 +162,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   async save() {
-    const currentData = JSON.stringify(this.profile().personal);
-    
-    // DIRTY CHECK: Only save if data has actually changed
-    if (currentData === this.lastSavedSnapshot) {
-      console.log('No changes detected, skipping save.');
-      return;
-    }
-
     this.isSaving.set(true);
     try {
       await this.profileService.savePersonalInfo(this.profile().personal);
-      this.lastSavedSnapshot = currentData; // Update snapshot after successful save
       this.lastSaved.set(new Date());
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -294,52 +199,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   // LinkedIn Import State
   showImportBlock = signal(true);
   isImporting = signal(false);
-
-  parsingEvents = this.profileService.parsingEvents;
-
-  async onFileImported(event: any) {
-    const file = event.target?.files?.[0] || (event.target as HTMLInputElement)?.files?.[0];
-    if (!file) return;
-
-    this.isParsing.set(true);
-    this.isApplyingData.set(false);
-    this.parsingStatus.set('reading');
-    this.parsingProgress.set(10);
-
-    try {
-      // Small UX delay to show the start
-      await new Promise(resolve => setTimeout(resolve, 800));
-      this.parsingStatus.set('analyzing');
-      this.parsingProgress.set(30);
-
-      // Actual Import call (emits events into parsingEvents signal)
-      await this.profileService.importResume(file);
-
-      this.parsingStatus.set('structuring');
-      this.parsingProgress.set(90);
-      
-      // Delay before closing modal to show the last feed lines
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      this.parsingProgress.set(100);
-      this.isParsing.set(false);
-      this.isApplyingData.set(true);
-      
-      // Keep skeletons for a moment to signify data integration
-      setTimeout(() => {
-        this.isApplyingData.set(false);
-        this.showToast.set(true);
-        setTimeout(() => this.showToast.set(false), 3000);
-      }, 2000);
-
-    } catch (error) {
-      console.error('Import failed', error);
-      this.isParsing.set(false);
-      this.isApplyingData.set(false);
-    } finally {
-      this.parsingProgress.set(0);
-    }
-  }
 
   importLinkedIn() {
     this.isImporting.set(true);
@@ -395,7 +254,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.newExperience.set({
         id: '', title: '', company: '', city: '', 
         startDate: '', endDate: '', current: false, 
-        type: 'Internship', description: ''
+        type: 'Stage', description: ''
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -431,51 +290,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     } finally {
       this.isSaving.set(false);
     }
-  }
-
-  // Extracurricular Methods
-  toggleAddExtracurricular() {
-    this.isAddingExtracurricular.update(v => !v);
-  }
-
-  updateNewExtracurricular(field: string, value: any) {
-    this.newExtracurricular.update(v => ({ ...v, [field]: value }));
-  }
-
-  async saveExtracurricular() {
-    this.isSaving.set(true);
-    try {
-      if (this.newExtracurricular().id) {
-        await this.profileService.updateExperience(this.newExtracurricular());
-      } else {
-        await this.profileService.addExperience(this.newExtracurricular());
-      }
-      this.isAddingExtracurricular.set(false);
-      this.newExtracurricular.set({
-        id: '', title: '', company: '', city: '', 
-        startDate: '', endDate: '', current: false, 
-        type: 'Extracurricular', description: ''
-      });
-      this.showToast.set(true);
-      setTimeout(() => this.showToast.set(false), 3000);
-    } catch (error) {
-      console.error('Erreur activité parascolaire:', error);
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  editExtracurricular(item: Experience) {
-    this.newExtracurricular.set({ ...item });
-    this.isAddingExtracurricular.set(true);
-  }
-
-  async deleteExtracurricular(id: string) {
-    await this.profileService.deleteExperience(id);
-  }
-
-  onProjectTabChange(tab: 'projects' | 'extracurriculars') {
-    this.activeProjectTab.set(tab);
   }
 
   // Certification Methods
@@ -572,33 +386,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error(`Erreur suppression ${type}:`, error);
     }
-  }
-
-  // Languages Methods
-  updateNewLanguage(field: string, value: any) {
-    this.newLanguage.update(v => ({ ...v, [field]: value }));
-  }
-
-  async saveLanguage() {
-    this.isSaving.set(true);
-    try {
-      if (this.newLanguage().id) {
-        await this.profileService.updateLanguage(this.newLanguage());
-      } else {
-        await this.profileService.addLanguage(this.newLanguage());
-      }
-      this.newLanguage.set({ id: '', name: '', level: 'B1' });
-      this.showToast.set(true);
-      setTimeout(() => this.showToast.set(false), 3000);
-    } catch (error) {
-      console.error('Erreur langue:', error);
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async removeLanguage(id: string) {
-    await this.profileService.deleteLanguage(id);
   }
 
   // Resume Methods

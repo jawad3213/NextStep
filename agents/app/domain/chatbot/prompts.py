@@ -1,4 +1,5 @@
-QUESTIONS_PROMPT_OFFER = """Generate 12 interview questions for {company} / role: {role}.
+
+QUESTIONS_PROMPT_OFFER = """Generate 10 interview questions for {company} / role: {role}.
 Required skills: {skills}. Missing skills: {missing}.
 Real Glassdoor questions:\n{glassdoor_questions}
 
@@ -8,7 +9,7 @@ Glassdoor questions → company_specific=true.
 Return ONLY JSON:
 {{"questions":[{{"question":"...","type":"behavioral|technical|situational","source":"glassdoor|generated","company_specific":true,"tip":"..."}}]}}"""
 
-QUESTIONS_PROMPT_ARENA = """Generate 15 interview questions for a {level} {domain} professional.
+QUESTIONS_PROMPT_ARENA = """Generate 12 interview questions for a {level} {domain} professional.
 Language: {language}. Focus: {focus}.
 Reference questions:\n{ref_questions}
 

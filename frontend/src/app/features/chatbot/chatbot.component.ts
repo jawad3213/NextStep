@@ -1,19 +1,20 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-chatbot',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   template: `
-    <div class="shell-container">
-      <header class="page-header">
-        <h1 class="page-title">Interview Chatbot</h1>
-        <p class="page-description">Mock interview, specific questions, STAR feedback.</p>
-      </header>
-      <div class="placeholder-card">🤖 AI Chatbot section under development...</div>
-    </div>
+    <router-outlet></router-outlet>
   `,
-  styles: [`.shell-container { .page-header { margin-bottom: 32px; .page-title { font-size: 28px; font-weight: 800; color: #002D5B; margin: 0; } .page-description { color: #64748B; margin: 4px 0 0 0; font-size: 16px; } } .placeholder-card { background: white; border: 2px dashed #CBD5E1; border-radius: 12px; height: 300px; display: flex; align-items: center; justify-content: center; color: #94A3B8; font-weight: 600; font-size: 18px; } }`]
+  styles: [`
+    :host {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+  `]
 })
 export class ChatbotComponent {}

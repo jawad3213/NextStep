@@ -17,6 +17,10 @@ using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using NextStep.Modules.Chatbot;
+using NextStep.Modules.Chatbot.Interfaces;
+using NextStep.Modules.Chatbot.Services;
+
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -63,8 +67,11 @@ builder.Services.AddDbContext<AppDbContext>(options => {
     options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
+// ─── Chatbot Module ───
 builder.Services.Configure<AgentPythonOptions>(builder.Configuration.GetSection("PythonAgents"));
-builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
+builder.Services.AddHttpClient("SharedAgentClient").AddTypedClient<NextStep.Shared.Http.IAgentHttpClient, NextStep.Shared.Http.AgentHttpClient>();
+builder.Services.AddChatbotModule(builder.Configuration);
+
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IOfferService, OfferService>();
 builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
@@ -76,6 +83,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ICvService, CvService>();
 builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
+
 
 // ─── MinIO / S3 Storage ───
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
@@ -90,6 +98,8 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
     return new AmazonS3Client(opts.AccessKey, opts.SecretKey, config);
 });
 builder.Services.AddSingleton<IStorageService, MinioStorageService>();
+
+
 
 QuestPDF.Settings.License = LicenseType.Community;
 
@@ -213,7 +223,7 @@ using (var scope = app.Services.CreateScope())
                 title VARCHAR(200),
                 template_slug VARCHAR(50) NOT NULL,
                 template_name VARCHAR(120),
-                cv_data_json JSONB DEFAULT '{}',
+                cv_data_json JSONB DEFAULT '{{}}',
                 file_url VARCHAR(1000) NOT NULL,
                 object_key VARCHAR(500) NOT NULL,
                 bucket_name VARCHAR(100) NOT NULL,
@@ -226,7 +236,7 @@ using (var scope = app.Services.CreateScope())
         ");
 
         // Add columns if table already exists (safe idempotent migration)
-        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{}'", "updated_at TIMESTAMP" };
+        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{{}}'", "updated_at TIMESTAMP" };
         foreach (var c in histCols)
             await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS {c};");
 

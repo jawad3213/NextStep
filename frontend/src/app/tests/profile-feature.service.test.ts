@@ -147,7 +147,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
 
   it('devrait mettre à jour une expérience (updateExperience)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
-    const exp: Experience = { id: '1', company: 'X', title: 'Y', startDate: '', endDate: '', description: '', city: '', type: 'Internship', current: false };
+    const exp: Experience = { id: '1', company: 'X', title: 'Y', startDate: '', endDate: '', description: '', city: '', type: 'Stage', current: false };
     const promise = service.updateExperience(exp);
     const req = httpMock.expectOne('http://localhost:5000/api/profile/experiences');
     expect(req.request.method).toBe('PUT');

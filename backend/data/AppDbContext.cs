@@ -5,6 +5,7 @@ using NextStep.Modules.Email.Models;
 using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Identity.Models;
 using NextStep.Modules.Profile.Models;
+using NextStep.Modules.Chatbot.Models;
 
 namespace NextStep.data;
 
@@ -23,6 +24,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CvTemplate> CvTemplates => Set<CvTemplate>();
     public DbSet<CvHistory> CvHistories => Set<CvHistory>();
     public DbSet<DocumentGenere> DocumentsGeneres => Set<DocumentGenere>();
+    
+    public DbSet<SessionCoaching> SessionCoachings { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<QuestionEntrainement> QuestionEntrainements { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -46,6 +46,7 @@ from app.domain.chatbot.prompts import (
     FREE_CHAT_PROMPT,
 )
 
+# cette ligne crée un "canal" de logs personnalisé pour ce fichier
 logger = logging.getLogger(__name__)
 
 
@@ -179,7 +180,7 @@ async def free_chat_node(state: InterviewPrepState) -> dict:
     Ex: 'Comment répondre à la Q2 ?' / 'Quelles questions sur Kafka ?'
     """
     logger.info("[FREE_CHAT] Answering free question")
-    llm = get_llm(temperature=0.7)
+    llm = get_llm(temperature=0.5)
 
     # Construire le contexte
     ctx = ""
@@ -232,23 +233,24 @@ async def interview_node(state: InterviewPrepState) -> dict:
     - continue_interview → réponse au message de l'user
     """
     logger.info(f"[INTERVIEW] request_type={state.request_type}")
-    llm = get_llm(temperature=0.8)
+    llm = get_llm(temperature=0.6)
 
-    # Construire le prompt recruteur selon le mode
+    # 1. Déterminer la langue une seule fois
+    lang = "English"  # Fallback par défaut
+    if state.arena_config and state.arena_config.language:
+        lang = state.arena_config.language
+
+    # 2. Construire le prompt recruteur selon le mode
     if state.mode == "offer" and state.offer_context:
         o = state.offer_context.offer
         c = state.offer_context.company
-        lang = state.offer_context.offer.job_title  # fallback
-        if state.arena_config:
-            lang = state.arena_config.language
-
         system = RECRUITER_PROMPT.format(
             company=o.company_name,
             role=o.job_title,
             culture=c.company_summary[:200] if c.company_summary else "professional",
             skills=", ".join(o.required_skills[:6]),
             difficulty=c.interview_difficulty,
-            language="English",
+            language=lang,
         )
     else:
         cfg = state.arena_config
@@ -258,7 +260,7 @@ async def interview_node(state: InterviewPrepState) -> dict:
             culture="innovative and collaborative",
             skills=", ".join(cfg.focus_areas[:6]) if cfg and cfg.focus_areas else "core skills",
             difficulty="medium",
-            language=cfg.language if cfg else "English",
+            language=lang,
         )
 
     # Construire les messages LangChain
@@ -376,8 +378,10 @@ async def salary_node(state: InterviewPrepState) -> dict:
         )
     else:
         cfg = state.arena_config
-        job_title = cfg.domain if cfg else "Software Engineer"
-        location  = "Casablanca, Morocco"
+        domain_name = cfg.domain if cfg else "Software Engineer"
+        level_name  = cfg.level.capitalize() if cfg else ""
+        job_title = f"{level_name} {domain_name} Engineer" if "Engineer" not in domain_name else f"{level_name} {domain_name}"
+        location  = "Morocco"
         extra = ""
 
     # Recherche données marché
@@ -476,3 +480,9 @@ def build_graph():
 
 # Instance singleton — importée par le router FastAPI
 interview_graph = build_graph()
+
+
+
+
+#C'est une exécution du "One-shot" par message
+#Pattern Router Vs Pattern Pipeline

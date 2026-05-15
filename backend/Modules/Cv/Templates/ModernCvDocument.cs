@@ -143,7 +143,7 @@ public class ModernCvDocument : IDocument
         }
     }
 
-    private static void ComposeSectionTitle(ColumnDescriptor column, string title)
+    private void ComposeSectionTitle(ColumnDescriptor column, string title)
     {
         column.Item().PaddingBottom(6).Column(titleCol =>
         {
@@ -152,7 +152,7 @@ public class ModernCvDocument : IDocument
         });
     }
 
-    private static void ComposeExperience(ColumnDescriptor column, CvExperience exp)
+    private void ComposeExperience(ColumnDescriptor column, CvExperience exp)
     {
         var dateStr = exp.End is not null ? $"{exp.Start} – {exp.End}" : $"{exp.Start} – Present";
         column.Item().PaddingBottom(12).Column(item =>
@@ -176,7 +176,7 @@ public class ModernCvDocument : IDocument
         });
     }
 
-    private static void ComposeProject(ColumnDescriptor column, CvProject prj)
+    private void ComposeProject(ColumnDescriptor column, CvProject prj)
     {
         column.Item().PaddingBottom(10).Column(item =>
         {
@@ -196,7 +196,7 @@ public class ModernCvDocument : IDocument
         });
     }
 
-    private static void ComposeActivity(ColumnDescriptor column, CvActivity act)
+    private void ComposeActivity(ColumnDescriptor column, CvActivity act)
     {
         column.Item().PaddingBottom(8).Column(item =>
         {

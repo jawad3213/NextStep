@@ -100,6 +100,7 @@ async def start_interview(
             arena_config=req.arena_config,
             user_id=req.user_id,
             db=db,
+            session_id=req.session_id,
         )
     except Exception as e:
         logger.error(f"start_interview error: {e}")

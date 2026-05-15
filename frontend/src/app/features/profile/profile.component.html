@@ -1,109 +1,51 @@
-<div class="profile-layout flex flex-col h-full w-full overflow-hidden bg-[#F9FAFF]"
-  [class.preview-active]="isPreviewOpen()">
-  <!-- GLOBAL LOADING OVERLAY FOR AI PARSING -->
-  @if (isParsing()) {
-  <div class="parsing-overlay animate-fade-in">
-    <div class="premium-loader-card">
-      <div class="loader-visual-container">
-        <div class="loader-visual">
-          <div class="pulse-ring"></div>
-          <div class="pulse-ring delay-1"></div>
-          <div class="pulse-ring delay-2"></div>
-          <div class="core-dot">
-            <mat-icon>auto_awesome</mat-icon>
-          </div>
-        </div>
-        <div class="loader-header-text">
-          <h2 class="loader-headline">AI Extraction Engine</h2>
-          <p class="loader-subtext">Our agents are scanning your document for key experiences and skills.</p>
-        </div>
-      </div>
-      
-      <div class="live-feed-terminal">
-        <div class="terminal-header">
-          <div class="t-dot"></div>
-          <div class="t-dot"></div>
-          <div class="t-dot"></div>
-        </div>
-        <div class="terminal-content custom-scrollbar">
-          @for (event of parsingEvents(); track $index) {
-          <div class="feed-line">
-            <span class="timestamp">[{{event.timestamp}}]</span>
-            <span class="status-tag" [class.success]="event.type === 'success'">
-              {{event.type === 'success' ? '✔' : '❯'}}
-            </span>
-            <span class="message">{{event.message}}</span>
-            @if (event.entity) {
-              <span class="entity-name">{{event.entity}}</span>
-            }
-          </div>
-          }
-          @if (parsingEvents().length === 0) {
-            <div class="feed-line">
-              <span class="status-tag">❯</span>
-              <span class="message italic">Initializing agentic workspace...</span>
-            </div>
-          }
-        </div>
-      </div>
-
-      <div class="loader-progress-container">
-        <div class="loader-progress-bar" [style.width.%]="parsingProgress()"></div>
-      </div>
-    </div>
-  </div>
-  }
-
+<div class="profile-layout flex flex-col h-full w-full overflow-hidden bg-[#F9FAFF]" [class.preview-active]="isPreviewOpen()">
+  
   <!-- CENTER: FOCUS INPUT AREA -->
   <main class="focus-area">
     <!-- Header with progress -->
-    <header
-      class="focus-header shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 md:px-8 py-4 flex items-center z-10">
-      <div class="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+    <header class="focus-header shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-8 h-20 flex items-center z-10">
+      <div class="w-full flex items-center justify-between">
         <div class="flex flex-col">
-          <nav class="breadcrumb hidden md:flex">
+          <nav class="breadcrumb">
             <span class="text-slate-400 text-xs font-medium">Profile</span>
             <mat-icon class="text-slate-400 !text-[14px] !w-[14px] !h-[14px] mx-1">chevron_right</mat-icon>
-            <span class="text-indigo-600 text-xs font-medium">{{
-              currentStep() === 'coordonnees' ? 'Contact Info' :
-              currentStep() === 'formation' ? 'Education' :
+            <span class="text-indigo-600 text-xs font-medium">{{ 
+              currentStep() === 'coordonnees' ? 'Contact Info' : 
+              currentStep() === 'formation' ? 'Education' : 
               currentStep() === 'experience' ? 'Experience' :
               currentStep() === 'competences' ? 'Skills' :
               currentStep() === 'resume' ? 'Summary' :
               currentStep() === 'projets' ? 'Projects' : 'Certifications'
-              }}</span>
+            }}</span>
           </nav>
-          <h2 class="section-title text-xl md:text-2xl font-bold text-slate-900 leading-tight mt-1">
-            {{
-            currentStep() === 'coordonnees' ? 'Personal Details' :
-            currentStep() === 'formation' ? 'Your Education' :
-            currentStep() === 'experience' ? 'Work Experience' :
-            currentStep() === 'competences' ? 'Skills & Languages' :
-            currentStep() === 'resume' ? 'Profile Summary' :
-            currentStep() === 'projets' ? 'Completed Projects' : 'Certifications'
-            }}
-          </h2>
+          <div class="flex items-center gap-3 mt-1">
+            <h2 class="section-title text-2xl font-semibold text-slate-900">
+              {{ 
+                currentStep() === 'coordonnees' ? 'Personal Details' : 
+                currentStep() === 'formation' ? 'Your Education' : 
+                currentStep() === 'experience' ? 'Work Experience' :
+                currentStep() === 'competences' ? 'Skills & Languages' :
+                currentStep() === 'resume' ? 'Profile Summary' :
+                currentStep() === 'projets' ? 'Completed Projects' : 'Certifications'
+              }}
+            </h2>
+          </div>
         </div>
 
-        <!-- Import Card (Zety-style two-column) -->
-        <div class="import-card-split">
-          <button class="import-split-btn" (click)="fileInput.click()">
-            <mat-icon class="import-split-icon">upload_file</mat-icon>
-            <span class="import-split-label">Upload existing resume</span>
-          </button>
-          <div class="import-split-divider"></div>
-          <button class="import-split-btn disabled" disabled>
-            <svg class="import-linkedin-icon" viewBox="0 0 24 24" fill="#0077b5">
-              <path
-                d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-            </svg>
-            <span class="import-split-label">Import LinkedIn profile</span>
-          </button>
+        <!-- Professional Auto-save Indicator moved to main header -->
+        <div class="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
+          @if (isSaving()) {
+            <div class="w-4 h-4 border-2 border-slate-200 border-t-[#1A91F0] rounded-full animate-spin"></div>
+            <span class="text-[12px] font-bold text-slate-500">Saving...</span>
+          } @else if (lastSaved()) {
+            <mat-icon class="!text-[18px] text-emerald-500">check_circle</mat-icon>
+            <span class="text-[12px] font-bold text-slate-500">Saved at {{ lastSaved() | date:'HH:mm:ss' }}</span>
+          } @else {
+            <mat-icon class="!text-[18px] text-slate-300">cloud_done</mat-icon>
+            <span class="text-[12px] font-bold text-slate-400">Auto-save active</span>
+          }
         </div>
-
-
       </div>
-      <input #fileInput type="file" (change)="onFileImported($event)" accept=".pdf,.doc,.docx" hidden>
     </header>
 
     <!-- HORIZONTAL STEPPER -->
@@ -112,206 +54,141 @@
     </div>
 
     <!-- Scrollable Form Container -->
-    <div class="form-scroll-container overflow-y-auto px-4 md:px-12 py-6 md:py-10 custom-scrollbar relative">
-      
-      @if (isApplyingData()) {
-        <div class="applying-data-layer"></div>
-        <div class="form-content max-w-5xl mx-auto w-full space-y-8">
-          <!-- SKELETON FOR PERSONAL INFO -->
-          <div class="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm space-y-6">
-            <div class="flex items-center gap-6">
-              <div class="skeleton-box w-24 h-24 rounded-full"></div>
-              <div class="space-y-3 flex-1">
-                <div class="skeleton-box w-1/3 h-8"></div>
-                <div class="skeleton-box w-1/2 h-4"></div>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-6">
-              <div class="skeleton-box h-12"></div>
-              <div class="skeleton-box h-12"></div>
-              <div class="skeleton-box h-12"></div>
-              <div class="skeleton-box h-12"></div>
-            </div>
-          </div>
-
-          <!-- SKELETON FOR LIST ITEMS -->
-          <div class="space-y-4">
-            <div class="skeleton-box w-48 h-8"></div>
-            <div class="bg-white rounded-xl p-6 border border-slate-100 shadow-sm flex gap-4">
-              <div class="skeleton-box w-12 h-12 rounded-lg"></div>
-              <div class="flex-1 space-y-3">
-                <div class="skeleton-box w-1/4 h-6"></div>
-                <div class="skeleton-box w-1/2 h-4"></div>
-                <div class="skeleton-box w-full h-20"></div>
-              </div>
-            </div>
-            <div class="bg-white rounded-xl p-6 border border-slate-100 shadow-sm flex gap-4 opacity-60">
-              <div class="skeleton-box w-12 h-12 rounded-lg"></div>
-              <div class="flex-1 space-y-3">
-                <div class="skeleton-box w-1/4 h-6"></div>
-                <div class="skeleton-box w-1/2 h-4"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      } @else {
-        <div class="form-content max-w-5xl mx-auto w-full">
-
+    <div class="form-scroll-container overflow-y-auto px-12 py-10 custom-scrollbar">
+      <div class="form-content max-w-5xl mx-auto w-full">
+        
         @if (currentStep() === 'coordonnees') {
-        <app-personal-info [data]="profile().personal" (dataChange)="updateField($event.field, $event.value)"
-          (photoUpload)="onPhotoSelected($event)">
-        </app-personal-info>
+          <app-personal-info 
+            [data]="profile().personal" 
+            (dataChange)="updateField($event.field, $event.value)" 
+            (photoUpload)="onPhotoSelected($event)">
+          </app-personal-info>
         }
 
         @if (currentStep() === 'formation') {
-        <app-formation [formations]="profile().education" [isAddingFormation]="isAddingFormation()"
-          [newFormation]="newFormation()" [sectionTitle]="getSectionTitle('formation', 'EDUCATION')"
-          [isEditingTitle]="editingSection() === 'formation'" (addToggle)="toggleAddFormation()"
-          (save)="saveFormation()" (updateNew)="updateNewItem('formation', $event.field, $event.value)"
-          (edit)="editItem($event, 'formation')" (duplicate)="duplicateItem($event, 'formation')"
-          (delete)="deleteItem($event, 'education')" (reorder)="drop($event, 'education')"
-          (titleEditStart)="startEditingSection('formation')" (titleEditSave)="updateSectionTitle('formation', $event)">
-        </app-formation>
+          <app-formation
+            [formations]="profile().education"
+            [isAddingFormation]="isAddingFormation()"
+            [newFormation]="newFormation()"
+            [sectionTitle]="getSectionTitle('formation', 'EDUCATION')"
+            [isEditingTitle]="editingSection() === 'formation'"
+            (addToggle)="toggleAddFormation()"
+            (save)="saveFormation()"
+            (updateNew)="updateNewItem('formation', $event.field, $event.value)"
+            (edit)="editItem($event, 'formation')"
+            (duplicate)="duplicateItem($event, 'formation')"
+            (delete)="deleteItem($event, 'education')"
+            (reorder)="drop($event, 'education')"
+            (titleEditStart)="startEditingSection('formation')"
+            (titleEditSave)="updateSectionTitle('formation', $event)">
+          </app-formation>
         }
 
         @if (currentStep() === 'experience') {
-        <app-experience [experiences]="workExperiences()" [isAddingExperience]="isAddingExperience()"
-          [newExperience]="newExperience()" [sectionTitle]="getSectionTitle('experience', 'WORK EXPERIENCE')"
-          [isEditingTitle]="editingSection() === 'experience'" (addToggle)="toggleAddExperience()"
-          (save)="saveExperience()" (updateNew)="updateNewItem('experience', $event.field, $event.value)"
-          (edit)="editItem($event, 'experience')" (duplicate)="duplicateItem($event, 'experience')"
-          (delete)="deleteItem($event, 'experience')" (reorder)="drop($event, 'experience')"
-          (titleEditStart)="startEditingSection('experience')"
-          (titleEditSave)="updateSectionTitle('experience', $event)">
-        </app-experience>
+          <app-experience
+            [experiences]="profile().experience"
+            [isAddingExperience]="isAddingExperience()"
+            [newExperience]="newExperience()"
+            [sectionTitle]="getSectionTitle('experience', 'WORK EXPERIENCE')"
+            [isEditingTitle]="editingSection() === 'experience'"
+            (addToggle)="toggleAddExperience()"
+            (save)="saveExperience()"
+            (updateNew)="updateNewItem('experience', $event.field, $event.value)"
+            (edit)="editItem($event, 'experience')"
+            (duplicate)="duplicateItem($event, 'experience')"
+            (delete)="deleteItem($event, 'experience')"
+            (reorder)="drop($event, 'experience')"
+            (titleEditStart)="startEditingSection('experience')"
+            (titleEditSave)="updateSectionTitle('experience', $event)">
+          </app-experience>
         }
 
         @if (currentStep() === 'projets') {
-        <app-projects [projects]="profile().projets" [extracurriculars]="extracurriculars()"
-          [isAddingProject]="isAddingProject()" [isAddingExtracurricular]="isAddingExtracurricular()"
-          [newProject]="newProject()" [newExtracurricular]="newExtracurricular()"
-          [sectionTitle]="getSectionTitle('projets', 'ACADEMIC & PERSONAL PROJECTS')"
-          [isEditingTitle]="editingSection() === 'projets'" [activeTab]="activeProjectTab()"
-          [extraTitle]="getSectionTitle('extraCurricular', 'EXTRACURRICULAR ACTIVITIES & VOLUNTEERING')"
-          [isEditingExtraTitle]="editingSection() === 'extraCurricular'"
-          (tabChange)="onProjectTabChange($event)" (addToggle)="toggleAddProject()" (save)="saveProject()"
-          (updateNew)="updateNewItem('project', $event.field, $event.value)" (edit)="editItem($event, 'project')"
-          (duplicate)="duplicateItem($event, 'project')" (delete)="deleteItem($event, 'projets')"
-          (reorder)="drop($event, 'projets')" (addToggleExtra)="toggleAddExtracurricular()"
-          (saveExtra)="saveExtracurricular()" (updateNewExtra)="updateNewExtracurricular($event.field, $event.value)"
-          (editExtra)="editExtracurricular($event)" (deleteExtra)="deleteExtracurricular($event)"
-          (titleEditStart)="startEditingSection('projets')" (titleEditSave)="updateSectionTitle('projets', $event)"
-          (extraTitleEditStart)="startEditingSection('extraCurricular')" (extraTitleEditSave)="updateSectionTitle('extraCurricular', $event)">
-        </app-projects>
-        }
-        @if (currentStep() === 'competences') {
-        <app-skills [skills]="profile().skills" [languages]="profile().languages" [newLanguage]="newLanguage()"
-          [activeTab]="activeSkillsTab()" [sectionTitle]="getSectionTitle('competences', 'Skills & Languages')"
-          [isEditingTitle]="editingSection() === 'competences'" [predefinedSkills]="predefinedSkills"
-          [langTitle]="getSectionTitle('languages', 'Languages')"
-          [isEditingLangTitle]="editingSection() === 'languages'"
-          [filteredSuggestions]="filteredSuggestions()" (tabChange)="activeSkillsTab.set($event)"
-          (onSkillInput)="onSkillInput($event)"
-          (addCustomSkill)="addCustomSkill($event.name, $event.category, $event.inputElement)"
-          (addSkill)="addSkill($event.name, $event.category)" (removeSkill)="deleteItem($event, 'skills')"
-          (selectSuggestion)="selectSuggestion($event.suggestion, $event.inputElement)"
-          (reorder)="drop($event, 'skills')" (addLanguage)="saveLanguage()" (removeLanguage)="removeLanguage($event)"
-          (updateNewLanguage)="updateNewLanguage($event.field, $event.value)"
-          (titleEditStart)="startEditingSection('competences')"
-          (titleEditSave)="updateSectionTitle('competences', $event)"
-          (langTitleEditStart)="startEditingSection('languages')"
-          (langTitleEditSave)="updateSectionTitle('languages', $event)">
-        </app-skills>
+          <app-projects
+            [projects]="profile().projets"
+            [isAddingProject]="isAddingProject()"
+            [newProject]="newProject()"
+            [sectionTitle]="getSectionTitle('projets', 'ACADEMIC & PERSONAL PROJECTS')"
+            [isEditingTitle]="editingSection() === 'projets'"
+            (addToggle)="toggleAddProject()"
+            (save)="saveProject()"
+            (updateNew)="updateNewItem('project', $event.field, $event.value)"
+            (edit)="editItem($event, 'project')"
+            (duplicate)="duplicateItem($event, 'project')"
+            (delete)="deleteItem($event, 'projets')"
+            (reorder)="drop($event, 'projets')"
+            (titleEditStart)="startEditingSection('projets')"
+            (titleEditSave)="updateSectionTitle('projets', $event)">
+          </app-projects>
         }
 
+        @if (currentStep() === 'competences') {
+          <app-skills
+            [skills]="profile().skills"
+            [predefinedSkills]="predefinedSkills"
+            [filteredSuggestions]="filteredSuggestions()"
+            (onSkillInput)="onSkillInput($event)"
+            (addCustomSkill)="addCustomSkill($event.name, $event.category, $event.inputElement)"
+            (addSkill)="addSkill($event.name, $event.category)"
+            (removeSkill)="deleteItem($event, 'skills')"
+            (selectSuggestion)="selectSuggestion($event.suggestion, $event.inputElement)"
+            (reorder)="drop($event, 'skills')">
+          </app-skills>
+        }
+
+
         @if (currentStep() === 'certifications') {
-        <app-certifications [certifications]="profile().certifications"
-          [isAddingCertification]="isAddingCertification()" [newCertification]="newCertification()"
-          (addToggle)="toggleAddCertification()" (save)="saveCertification()"
-          (updateNew)="updateNewItem('certification', $event.field, $event.value)"
-          (edit)="editItem($event, 'certification')" (duplicate)="duplicateItem($event, 'certification')"
-          (delete)="removeCertification($event)" (reorder)="drop($event, 'certifications')">
-        </app-certifications>
+          <app-certifications
+            [certifications]="profile().certifications"
+            [isAddingCertification]="isAddingCertification()"
+            [newCertification]="newCertification()"
+            (addToggle)="toggleAddCertification()"
+            (save)="saveCertification()"
+            (updateNew)="updateNewItem('certification', $event.field, $event.value)"
+            (edit)="editItem($event, 'certification')"
+            (duplicate)="duplicateItem($event, 'certification')"
+            (delete)="removeCertification($event)"
+            (reorder)="drop($event, 'certifications')">
+          </app-certifications>
         }
 
         @if (currentStep() === 'resume') {
-        <app-resume [resume]="profile().resume" [isGeneratingAI]="isGeneratingAI()"
-          (updateResume)="updateResume($event)" (generateAI)="generateAIResume()">
-        </app-resume>
+          <app-resume
+            [resume]="profile().resume"
+            [isGeneratingAI]="isGeneratingAI()"
+            (updateResume)="updateResume($event)"
+            (generateAI)="generateAIResume()">
+          </app-resume>
         }
 
 
-      </div> <!-- End of form-content -->
-    }
-  </div> <!-- End of form-scroll-container -->
+        </div> <!-- End of form-content -->
+    </div> <!-- End of form-scroll-container -->
 
     <!-- NAVIGATION FOOTER -->
-    <div
-      class="bg-white border-t border-slate-200 shrink-0 px-12 py-4 flex items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]"
-      [class.px-4]="true" [class.md:px-12]="true">
-      <button (click)="prev()" [disabled]="currentIndex() === 0"
-        class="flex items-center gap-2 text-slate-500 font-semibold hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm md:text-base">
+    <div class="bg-white border-t border-slate-200 shrink-0 px-12 py-4 flex items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+      <button (click)="prev()" [disabled]="currentIndex() === 0" 
+              class="flex items-center gap-2 text-slate-500 font-semibold hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
         <mat-icon>arrow_back</mat-icon>
-        <span class="hidden sm:inline">Previous</span>
+        Previous
       </button>
-
-      <button (click)="next()" class="btn-primary-next !px-6 md:!px-8 !py-2.5 md:!py-3 !text-sm md:!text-base">
-        <span class="max-w-[120px] md:max-w-none truncate">
-          {{ currentIndex() === steps.length - 1 ? 'Finish' : (isMobile() ? 'Next' : 'Next: ' + nextStepName()) }}
-        </span>
+      
+      <button (click)="next()" class="btn-primary-next">
+        {{ currentIndex() === steps.length - 1 ? 'Finish' : 'Next: ' + nextStepName() }}
         <mat-icon>arrow_forward</mat-icon>
       </button>
     </div>
-
+    
     <!-- TOAST NOTIFICATION -->
     @if (showToast()) {
-    <div class="toast-notification animate-fade-slide-up">
-      <mat-icon class="text-emerald-500">check_circle</mat-icon>
-      <span>Changes saved</span>
-    </div>
+      <div class="toast-notification animate-fade-slide-up">
+        <mat-icon class="text-emerald-500">check_circle</mat-icon>
+        <span>Changes saved</span>
+      </div>
     }
 
   </main>
 
-  <!-- PROFILE COMPLETION MODAL -->
-  @if (showCompletionModal()) {
-  <div class="completion-overlay" (click)="dismissCompletionModal()">
-    <div class="completion-modal" (click)="$event.stopPropagation()">
-
-      <!-- Close button -->
-      <button (click)="dismissCompletionModal()" class="modal-close-btn">
-        <mat-icon>close</mat-icon>
-      </button>
-
-      <div class="modal-content-wrapper">
-        <!-- Premium Success Icon -->
-        <div class="success-visual">
-          <div class="success-ring">
-            <mat-icon class="success-check">check</mat-icon>
-          </div>
-        </div>
-
-        <!-- Text Block -->
-        <h2 class="modal-headline">Your profile is ready!</h2>
-        <p class="modal-subtext">
-          Everything is saved. You can now use this profile to generate
-          professionally tailored CVs and job applications.
-        </p>
-
-        <!-- Main Actions -->
-        <div class="modal-actions-v2">
-          <button (click)="goToOffers()" class="btn-zety-primary">
-            Build my CV
-            <mat-icon>arrow_forward</mat-icon>
-          </button>
-          <button (click)="goToDashboard()" class="btn-zety-link">
-            Go to Dashboard
-          </button>
-        </div>
-      </div>
-
-    </div>
-  </div>
-  }
 
 </div>
+

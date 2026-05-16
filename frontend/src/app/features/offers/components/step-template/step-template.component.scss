@@ -1,33 +1,114 @@
-@use '../../../../../styles/abstracts/variables' as vars;
-
-.step-template-root {
-  font-family: 'Lato', sans-serif;
-  background: #f8f9ff;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(vars.$space-3);
-  -webkit-backdrop-filter: blur(vars.$space-3);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
-}
-
-.glass-card-hover:hover {
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08);
-}
-
-input[type="checkbox"] {
-  accent-color: #005ea1;
-}
-
 select {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23707884' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239E9E9E' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
   background-position: right 0.5rem center;
   background-repeat: no-repeat;
   background-size: 1.5em 1.5em;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+}
+
+.filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+
+  .relative > button {
+    min-height: 38px;
+    height: 38px;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    color: #424242;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f5f5;
+      border-color: #bdbdbd;
+    }
+
+    &.border-brand-500 {
+      border-color: #465fff;
+      color: #465fff;
+      background: #ecf3ff;
+    }
+  }
+
+  > button {
+    min-height: 38px;
+    height: 38px;
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    color: #424242;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+
+    &:hover {
+      background: #e0e0e0;
+    }
+
+    &.border-brand-500 {
+      border-color: #465fff;
+      color: #465fff;
+      background: #ecf3ff;
+    }
+  }
+
+  .relative > div.absolute {
+    margin-top: 6px;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+
+  .relative > div.absolute label {
+    min-height: 34px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #424242;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    &:hover {
+      background: #f5f5f5;
+      color: #121212;
+    }
+  }
+
+  .relative > div.absolute input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid #bdbdbd;
+    accent-color: #465fff;
+    cursor: pointer;
+  }
 }

@@ -73,6 +73,9 @@ export class StepTemplateComponent {
   readonly filterStyle = signal<string[]>([]);
   readonly filterLayout = signal<string[]>([]);
   readonly filterTag = signal<string[]>([]);
+  readonly filterColor = signal<string[]>([]);
+
+  readonly activeDropdown = signal<string | null>(null);
 
   readonly sortBy = signal<'recommended' | 'popular' | 'newest'>('recommended');
 
@@ -81,6 +84,7 @@ export class StepTemplateComponent {
   readonly styles = STYLES;
   readonly layouts = LAYOUTS;
   readonly tags = TAGS;
+  readonly colors = ['Blue', 'Green', 'Amber', 'Rose', 'Navy', 'Purple', 'Slate', 'Burgundy', 'Teal'] as const;
 
   readonly templates: CvTemplate[] = [
     {
@@ -203,6 +207,7 @@ export class StepTemplateComponent {
     const styles = this.filterStyle();
     const layouts = this.filterLayout();
     const tags = this.filterTag();
+    const colors = this.filterColor();
 
     return this.templates.filter(t => {
       if (industries.length > 0 && !industries.includes(t.industry)) return false;
@@ -210,8 +215,13 @@ export class StepTemplateComponent {
       if (styles.length > 0 && !styles.includes(t.style)) return false;
       if (layouts.length > 0 && !layouts.includes(t.layout)) return false;
       if (tags.length > 0 && !tags.includes(t.tag)) return false;
+      if (colors.length > 0 && !colors.includes(t.accent)) return false;
       return true;
     });
+  }
+
+  toggleDropdown(name: string): void {
+    this.activeDropdown.update(curr => curr === name ? null : name);
   }
 
   toggleFilter(filter: WritableSignal<string[]>, val: string): void {
@@ -226,6 +236,7 @@ export class StepTemplateComponent {
     this.filterStyle.set([]);
     this.filterLayout.set([]);
     this.filterTag.set([]);
+    this.filterColor.set([]);
   }
 
   get hasActiveFilters(): boolean {
@@ -233,7 +244,8 @@ export class StepTemplateComponent {
       || this.filterExperience().length > 0
       || this.filterStyle().length > 0
       || this.filterLayout().length > 0
-      || this.filterTag().length > 0;
+      || this.filterTag().length > 0
+      || this.filterColor().length > 0;
   }
 
   selectTemplate(id: string): void {

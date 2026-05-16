@@ -24,6 +24,7 @@ public class OfferAnalysisDto
     public string? NiveauEtudes { get; set; }
     public string? ModeTravail { get; set; }
     public string? DescriptionPoste { get; set; }
+    public string? TexteBrut { get; set; }
 
     // ─── Agent 4 : Scoring ───
     public int ScoreMatching { get; set; }

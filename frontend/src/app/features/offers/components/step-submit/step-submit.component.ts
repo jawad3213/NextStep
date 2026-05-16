@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, effect, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PipelineStateService, PipelineResult } from '../../../../services/pipeline-state.service';
@@ -23,30 +23,56 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
   error     = '';
 
   ngOnInit(): void {
-    // Restore values from pipeline state if they exist
+    this.syncFromPipeline();
+  }
+
+  private syncFromPipeline(): void {
     const savedText = this.pipeline.offerText();
     const savedUrl = this.pipeline.offerUrl();
 
     if (savedText) {
-      this.textValue = savedText;
-      this.mode = 'text';
+      if (savedText.startsWith('http')) {
+        this.urlValue = savedText;
+        this.mode = 'url';
+      } else {
+        this.textValue = savedText;
+        this.mode = 'text';
+      }
     } else if (savedUrl) {
       this.urlValue = savedUrl;
       this.mode = 'url';
     }
   }
 
+  constructor() {
+    effect(() => {
+      this.pipeline.offerText();
+      this.pipeline.offerUrl();
+      this.syncFromPipeline();
+    });
+  }
+
   get canSubmit(): boolean {
     if (this.pipeline.isLoading()) return false;
-    if (this.mode === 'url')  return this.urlValue.trim().length > 10;
-    if (this.mode === 'text') return this.textValue.trim().length > 50;
+    if (this.mode === 'url')  return (this.urlValue || '').trim().length > 10;
+    if (this.mode === 'text') return (this.textValue || '').trim().length > 50;
     return false;
   }
 
   get wordCount(): number {
-    const trimmed = this.textValue.trim();
+    const trimmed = (this.textValue || '').trim();
     if (!trimmed) return 0;
     return trimmed.split(/\s+/).length;
+  }
+
+  onTextChange(val: string): void {
+    this.textValue = val;
+    this.pipeline.offerText.set(val);
+  }
+
+  onUrlChange(val: string): void {
+    this.urlValue = val;
+    this.pipeline.offerUrl.set(val);
   }
 
   submit(): void {
@@ -210,11 +236,19 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
         word: k.mot,
         weight: k.poids
       })),
+      modeTravail: dto.modeTravail ?? undefined,
+      descriptionPoste: dto.descriptionPoste ?? '',
+      originalRawText: dto.texteBrut ?? '',
       profileStrengthsList: dto.forcesProfil ?? [],
     };
   }
 
   ngOnDestroy(): void {
     this.pipeline.pipelineError.set(null);
+    if (this.textValue) {
+      this.pipeline.offerText.set(this.textValue);
+    } else if (this.urlValue) {
+      this.pipeline.offerUrl.set(this.urlValue);
+    }
   }
 }

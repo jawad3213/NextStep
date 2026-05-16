@@ -52,6 +52,7 @@ export interface PipelineResult {
   preferredSkills: string[];
   experienceYears?: number;
   educationLevel?: string;
+  modeTravail?: string;
 
   // ─── Agent 2 : Récupération profil (ProfileRetrieverService) ───
   // (profil interne — pas de champs UI directs, alimente Agent 3)
@@ -247,6 +248,7 @@ export class PipelineStateService {
       preferredSkills: dto.competencesSouhaitees ?? [],
       experienceYears: dto.anneesExperience ?? undefined,
       educationLevel: dto.niveauEtudes ?? undefined,
+      modeTravail: dto.modeTravail ?? undefined,
       matchScore: dto.scoreMatching ?? 0,
       atsScore: dto.scoreAts ?? 0,
       matchBreakdown: { skills: 0, experience: 0, location: 0 },

@@ -20,6 +20,22 @@ from app.domain.offer_analyzer.agents.prompt import SYSTEM_PROMPT, HUMAN_PROMPT
 logger = logging.getLogger(__name__)
 
 
+def _is_short_cloud_keyword(value: str, max_words: int = 4) -> bool:
+    token = (value or "").strip()
+    if not token:
+        return False
+    # Reject sentence-like entries and comma-separated fragments.
+    if "," in token or ";" in token:
+        return False
+    if len(token.split()) > max_words:
+        return False
+    blocked_connectors = {" and ", " or ", " avec ", " pour "}
+    lowered = f" {token.lower()} "
+    if any(conn in lowered for conn in blocked_connectors):
+        return False
+    return True
+
+
 def _fallback_offer_from_text(raw_text: str) -> dict:
     text = (raw_text or "").strip()
     low = text.lower()
@@ -241,6 +257,8 @@ def offer_validator_node(state: OfferAnalyzerState) -> dict:
             item.strip() for item in original_list 
             if item and item.lower() not in ["string", "skill"]
         ]))
+        if field == "keywords_ats":
+            cleaned_list = [item for item in cleaned_list if _is_short_cloud_keyword(item, max_words=4)]
         data[field] = cleaned_list
 
     if not data["competences_requises"]:

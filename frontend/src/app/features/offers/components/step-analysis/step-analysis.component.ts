@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { PipelineResult, PipelineStateService } from '../../../../services/pipeline-state.service';
 
 type SkillStatus = 'matched' | 'partial' | 'missing';
@@ -34,7 +35,7 @@ interface RecommendationInsight {
 @Component({
   selector: 'app-step-analysis',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './step-analysis.component.html',
   styleUrl: './step-analysis.component.scss'
 })
@@ -42,9 +43,11 @@ export class StepAnalysisComponent {
   readonly pipeline = inject(PipelineStateService);
 
   skillsOpen = true;
+  softSkillsOpen = true;
   keywordsOpen = true;
   recommendationsOpen = true;
-  offerTextOpen = false;
+  companyInfoOpen = true;
+  customCompanyName = '';
 
   readonly agentStages: AgentStage[] = [
     {
@@ -113,25 +116,31 @@ export class StepAnalysisComponent {
   }
 
   get headlineCompany(): string {
-    return this.result?.companyName || 'Non mentionnée';
+    const val = this.result?.companyName;
+    return (val && val !== 'null') ? val : 'Non spécifié';
   }
 
   get headlineLocation(): string {
-    return this.result?.location || 'Non précisée';
+    const val = this.result?.location;
+    return (val && val !== 'null') ? val : 'Non spécifié';
   }
 
   get contractType(): string {
-    return this.result?.contractType || 'Non precise';
+    return this.result?.contractType || 'Non spécifié';
   }
 
   get experienceLabel(): string {
     const years = this.result?.experienceYears;
-    if (years == null) return 'Non precise';
+    if (years == null) return 'Non spécifié';
     return `${years} an${years > 1 ? 's' : ''}`;
   }
 
   get educationLabel(): string {
     return this.result?.educationLevel || '';
+  }
+
+  get workModeLabel(): string {
+    return this.result?.modeTravail || 'Non spécifié';
   }
 
   get salaryLabel(): string {
@@ -171,7 +180,6 @@ export class StepAnalysisComponent {
   get matchingSkills(): string[] {
     const data = this.result;
     if (!data) return [];
-    // Coverage must be based on offer skills only, not ATS keyword chips.
     return this.unique([...(data.matchingSkills ?? [])]);
   }
 
@@ -207,11 +215,32 @@ export class StepAnalysisComponent {
     return this.skillInsights.filter((s) => s.status === 'missing');
   }
 
+  // Categorized getters for Technical Skills
+  get matchedTechnicalSkills(): SkillInsight[] {
+    return this.matchedSkillsList.filter(s => s.category === 'technical');
+  }
+  get partialTechnicalSkills(): SkillInsight[] {
+    return this.partialSkillsList.filter(s => s.category === 'technical');
+  }
+  get missingTechnicalSkills(): SkillInsight[] {
+    return this.missingSkillsList.filter(s => s.category === 'technical');
+  }
+
+  // Categorized getters for Soft Skills
+  get matchedSoftSkills(): SkillInsight[] {
+    return this.matchedSkillsList.filter(s => s.category === 'soft');
+  }
+  get partialSoftSkills(): SkillInsight[] {
+    return this.partialSkillsList.filter(s => s.category === 'soft');
+  }
+  get missingSoftSkills(): SkillInsight[] {
+    return this.missingSkillsList.filter(s => s.category === 'soft');
+  }
+
   get skillInsights(): SkillInsight[] {
     const data = this.result;
     if (!data) return [];
 
-    // Use enriched backend data when available
     if (data.skillDetails && data.skillDetails.length > 0) {
       return data.skillDetails.map(s => ({
         name: s.name,
@@ -224,19 +253,18 @@ export class StepAnalysisComponent {
       }));
     }
 
-    // Fallback inference
     const matched = new Set(this.normalizeList(data.matchingSkills));
     const missing = new Set(this.normalizeList(data.missingSkills));
     const source = [
-      ...data.requiredSkills,
-      ...data.preferredSkills,
-      ...data.matchingSkills,
-      ...data.missingSkills
+      ...(data.requiredSkills ?? []),
+      ...(data.preferredSkills ?? []),
+      ...(data.matchingSkills ?? []),
+      ...(data.missingSkills ?? [])
     ];
 
-    const unique = this.unique(source);
+    const uniqueSkills = this.unique(source);
 
-    return unique.map((skill) => {
+    return uniqueSkills.map((skill) => {
       const normalized = this.normalize(skill);
       let status: SkillStatus = 'partial';
 
@@ -255,10 +283,8 @@ export class StepAnalysisComponent {
     const data = this.result;
     if (!data) return [];
 
-    // Use enriched backend data when available
     if (data.keywordWeights && data.keywordWeights.length > 0) {
       const sorted = [...data.keywordWeights].sort((a, b) => b.weight - a.weight);
-      const maxWeight = sorted[0]?.weight ?? 1;
       const matched = new Set(this.normalizeList(data.keywordsPresent));
       const missing = new Set(this.normalizeList(data.keywordsMissing));
 
@@ -267,17 +293,14 @@ export class StepAnalysisComponent {
         tone: matched.has(this.normalize(k.word)) ? 'matched' as const
             : missing.has(this.normalize(k.word)) ? 'missing' as const
             : 'neutral' as const,
-        size: k.weight / maxWeight > 0.7 ? 'lg' as const
-            : k.weight / maxWeight > 0.4 ? 'md' as const
-            : 'sm' as const
+        size: 'md' as const
       }));
     }
 
-    // Fallback inference
-    const matched = this.unique(data.keywordsPresent);
-    const missing = this.unique(data.keywordsMissing);
+    const matched = this.unique(data.keywordsPresent || []);
+    const missing = this.unique(data.keywordsMissing || []);
     const neutral = this.unique(
-      data.requiredSkills.filter((skill) => {
+      (data.requiredSkills || []).filter((skill) => {
         const normalized = this.normalize(skill);
         return !matched.some((item) => this.normalize(item) === normalized)
           && !missing.some((item) => this.normalize(item) === normalized);
@@ -285,28 +308,51 @@ export class StepAnalysisComponent {
     );
 
     return [
-      ...matched.slice(0, 6).map((label, index) => ({
+      ...matched.slice(0, 6).map(label => ({
         label,
         tone: 'matched' as const,
-        size: this.keywordSizeForIndex(index)
+        size: 'md' as const
       })),
-      ...missing.slice(0, 4).map((label, index) => ({
+      ...missing.slice(0, 4).map(label => ({
         label,
         tone: 'missing' as const,
-        size: this.keywordSizeForIndex(index + 1)
+        size: 'md' as const
       })),
-      ...neutral.slice(0, 6).map((label, index) => ({
+      ...neutral.slice(0, 6).map(label => ({
         label,
         tone: 'neutral' as const,
-        size: this.keywordSizeForIndex(index + 2)
+        size: 'md' as const
       }))
     ];
+  }
+
+  get matchedKeywordCloud(): KeywordChip[] {
+    return this.keywordCloud.filter((k) => k.tone === 'matched');
+  }
+
+  get missingKeywordCloud(): KeywordChip[] {
+    return this.keywordCloud.filter((k) => k.tone === 'missing');
+  }
+
+  get neutralKeywordCloud(): KeywordChip[] {
+    return this.keywordCloud.filter((k) => k.tone === 'neutral');
+  }
+
+  get matchedKeywordPercent(): number {
+    return this.keywordPercent(this.matchedKeywordCloud.length);
+  }
+
+  get missingKeywordPercent(): number {
+    return this.keywordPercent(this.missingKeywordCloud.length);
+  }
+
+  get neutralKeywordPercent(): number {
+    return this.keywordPercent(this.neutralKeywordCloud.length);
   }
 
   get recommendationInsights(): RecommendationInsight[] {
     const data = this.result;
 
-    // Use enriched backend data when available
     if (data?.recommendationsWithPriority && data.recommendationsWithPriority.length > 0) {
       return data.recommendationsWithPriority.map(r => ({
         title: r.priority === 'haute' ? 'Prioritaire' : r.priority === 'moyenne' ? 'Recommandé' : 'Optionnel',
@@ -330,18 +376,6 @@ export class StepAnalysisComponent {
       accent: titles[index % titles.length].accent,
       text
     }));
-  }
-
-  get originalOfferText(): string {
-    const pastedText = this.pipeline.offerText().trim();
-    if (pastedText) return pastedText;
-
-    const url = this.pipeline.offerUrl().trim();
-    if (url) {
-      return `Source de l offre : ${url}`;
-    }
-
-    return 'Le texte brut de l offre n est pas disponible dans cette session.';
   }
 
   get analysisSummary(): string {
@@ -412,6 +446,18 @@ export class StepAnalysisComponent {
     this.pipeline.goToStep(1);
   }
 
+  searchCompanyDetailed(): void {
+    const res = this.result;
+    const company = (res?.companyName && res?.companyName !== 'Non spécifié') 
+      ? res?.companyName 
+      : this.customCompanyName;
+
+    if (company && company !== '' && company !== 'Non spécifié') {
+      const query = `culture entreprise ${company} salaires actualités`;
+      window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+    }
+  }
+
   private buildFallbackRecommendations(): string[] {
     if (this.missingSkills.length > 0) {
       return this.missingSkills.slice(0, 3).map((skill) =>
@@ -428,10 +474,16 @@ export class StepAnalysisComponent {
     return ['Ajoutez des exemples concrets de vos competences principales pour renforcer la candidature.'];
   }
 
-  private keywordSizeForIndex(index: number): KeywordSize {
-    if (index === 0) return 'lg';
-    if (index <= 3) return 'md';
-    return 'sm';
+  keywordChipSizeClass(size: KeywordSize): string {
+    if (size === 'lg') return 'px-3.5 py-2 text-base';
+    if (size === 'md') return 'px-3 py-1.5 text-sm';
+    return 'px-2.5 py-1 text-xs';
+  }
+
+  private keywordPercent(count: number): number {
+    const total = this.keywordCloud.length;
+    if (!total) return 0;
+    return Math.round((count / total) * 100);
   }
 
   private isSoftSkill(skill: string): boolean {

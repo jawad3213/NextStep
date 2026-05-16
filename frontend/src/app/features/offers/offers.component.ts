@@ -46,8 +46,8 @@ export class OffersComponent implements OnInit {
           id: o.offerId,
           initials: this.getInitials(o.entreprise || o.titre),
           title: o.titre || 'Offre',
-          company: o.entreprise || 'Entreprise',
-          location: o.localisation || '',
+          company: (o.entreprise && o.entreprise !== 'null') ? o.entreprise : 'Entreprise',
+          location: (o.localisation && o.localisation !== 'null') ? o.localisation : '',
           matchingScore: o.scoreMatching,
           tags: [],
           status: o.status,
@@ -173,9 +173,9 @@ export class OffersComponent implements OnInit {
 
   getStatusLabel(status: OfferCard['status']): string {
     switch (status) {
-      case 'cv_genere': return 'CV Genere';
-      case 'analysee': return 'Analysee';
-      case 'non_traitee': return 'Non traitee';
+      case 'cv_genere': return 'CV Généré';
+      case 'analysee': return 'Analysée';
+      case 'non_traitee': return 'Non traitée';
     }
   }
 
@@ -190,7 +190,7 @@ export class OffersComponent implements OnInit {
   getNextAction(offer: OfferCard): { label: string; link: string; offerId?: string } | null {
     if (offer.expired) return null;
     if (offer.currentStep <= 4) return { label: 'Continuer', link: '/offers/analyze', offerId: offer.id };
-    return { label: 'Voir les resultats', link: `/offers/${offer.id}` };
+    return { label: 'Voir les résultats', link: `/offers/${offer.id}` };
   }
 
   getRecencyLabel(date: Date): string {

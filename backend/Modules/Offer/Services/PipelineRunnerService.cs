@@ -197,6 +197,7 @@ public class PipelineRunnerService : IPipelineRunnerService
             dto.DescriptionPoste = ao.GetStringOrDefault("description_poste");
             dto.AnneesExperience = ao.GetStringAsIntOrDefault("annees_experience");
             dto.NiveauEtudes = ao.GetStringOrDefault("niveau_etudes");
+            dto.ModeTravail = ao.GetStringOrDefault("mode_travail");
             dto.CompetencesRequises = ao.GetStringList("competences_requises");
             dto.CompetencesSouhaitees = ao.GetStringList("competences_souhaitees");
             dto.KeywordsAts = ao.GetStringList("keywords_ats");

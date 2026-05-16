@@ -40,6 +40,10 @@ class AnalyzedOffer(BaseModel):
         None, 
         description="Niveau de diplôme attendu (ex: Bac+5, Master)"
     )
+    mode_travail: Optional[str] = Field(
+        None, 
+        description="Mode de travail (Remote, Hybride, On-site)"
+    )
     description_poste: str = Field(
         ..., 
         description="Résumé de la mission en 2 ou 3 phrases synthétiques"

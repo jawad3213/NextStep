@@ -22,6 +22,7 @@ public class OfferAnalysisDto
     public List<string> KeywordsAts { get; set; } = [];
     public int? AnneesExperience { get; set; }
     public string? NiveauEtudes { get; set; }
+    public string? ModeTravail { get; set; }
     public string? DescriptionPoste { get; set; }
 
     // ─── Agent 4 : Scoring ───

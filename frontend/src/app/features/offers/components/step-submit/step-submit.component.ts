@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PipelineStateService, PipelineResult } from '../../../../services/pipeline-state.service';
@@ -12,7 +12,7 @@ import { SidebarService } from '../../../../shared/services/sidebar.service';
   templateUrl: './step-submit.component.html',
   styleUrl: './step-submit.component.scss'
 })
-export class StepSubmitComponent implements OnDestroy {
+export class StepSubmitComponent implements OnDestroy, OnInit {
   pipeline = inject(PipelineStateService);
   private offerApiService = inject(OfferApiService);
   sidebarService = inject(SidebarService);
@@ -21,6 +21,20 @@ export class StepSubmitComponent implements OnDestroy {
   urlValue  = '';
   textValue = '';
   error     = '';
+
+  ngOnInit(): void {
+    // Restore values from pipeline state if they exist
+    const savedText = this.pipeline.offerText();
+    const savedUrl = this.pipeline.offerUrl();
+
+    if (savedText) {
+      this.textValue = savedText;
+      this.mode = 'text';
+    } else if (savedUrl) {
+      this.urlValue = savedUrl;
+      this.mode = 'url';
+    }
+  }
 
   get canSubmit(): boolean {
     if (this.pipeline.isLoading()) return false;

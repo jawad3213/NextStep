@@ -35,6 +35,22 @@ export interface PdfGenerateResponse {
   status: string;
 }
 
+export interface SkillDetail {
+  nom: string;
+  categorie: 'technique' | 'soft' | 'langue' | 'certification';
+  statut: 'correspond' | 'partiel' | 'manquant';
+}
+
+export interface RecommendationPriorisee {
+  texte: string;
+  priorite: 'haute' | 'moyenne' | 'basse';
+}
+
+export interface KeywordPondere {
+  mot: string;
+  poids: number;
+}
+
 export interface OfferAnalysisResponse {
   offerId: string;
   titre: string;
@@ -61,6 +77,10 @@ export interface OfferAnalysisResponse {
   companyNews: { title: string; date: string }[];
   dateAnalyse: string;
   erreurs: string[];
+  competencesAvecDetails?: SkillDetail[];
+  recommandationsAvecPriorite?: RecommendationPriorisee[];
+  keywordsAvecPoids?: KeywordPondere[];
+  forcesProfil?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

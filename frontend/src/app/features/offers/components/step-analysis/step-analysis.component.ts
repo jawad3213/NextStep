@@ -41,6 +41,11 @@ interface RecommendationInsight {
 export class StepAnalysisComponent {
   readonly pipeline = inject(PipelineStateService);
 
+  skillsOpen = true;
+  keywordsOpen = true;
+  recommendationsOpen = true;
+  offerTextOpen = false;
+
   readonly agentStages: AgentStage[] = [
     {
       key: 'offer_analyzer',
@@ -58,8 +63,6 @@ export class StepAnalysisComponent {
       detail: 'Calcul du matching, des manques prioritaires et des recommandations.'
     }
   ];
-
-  showFullOfferText = false;
 
   get result(): PipelineResult | null {
     return this.pipeline.pipelineResult();
@@ -110,11 +113,11 @@ export class StepAnalysisComponent {
   }
 
   get headlineCompany(): string {
-    return this.result?.companyName || 'Entreprise non identifiee';
+    return this.result?.companyName || 'Non mentionnée';
   }
 
   get headlineLocation(): string {
-    return this.result?.location || 'Localisation non precisee';
+    return this.result?.location || 'Non précisée';
   }
 
   get contractType(): string {
@@ -125,6 +128,22 @@ export class StepAnalysisComponent {
     const years = this.result?.experienceYears;
     if (years == null) return 'Non precise';
     return `${years} an${years > 1 ? 's' : ''}`;
+  }
+
+  get educationLabel(): string {
+    return this.result?.educationLevel || '';
+  }
+
+  get salaryLabel(): string {
+    const min = this.result?.companySalaryMin;
+    const max = this.result?.companySalaryMax;
+    if (!min && !max) return '';
+    if (min && max) return `${min}k€ - ${max}k€`;
+    return `${min || max}k€`;
+  }
+
+  get profileStrengthsList(): string[] {
+    return this.result?.profileStrengthsList ?? [];
   }
 
   get matchingSkillsCount(): number {
@@ -176,10 +195,36 @@ export class StepAnalysisComponent {
     return this.skillInsights.filter((skill) => skill.category === 'soft');
   }
 
+  get matchedSkillsList(): SkillInsight[] {
+    return this.skillInsights.filter((s) => s.status === 'matched');
+  }
+
+  get partialSkillsList(): SkillInsight[] {
+    return this.skillInsights.filter((s) => s.status === 'partial');
+  }
+
+  get missingSkillsList(): SkillInsight[] {
+    return this.skillInsights.filter((s) => s.status === 'missing');
+  }
+
   get skillInsights(): SkillInsight[] {
     const data = this.result;
     if (!data) return [];
 
+    // Use enriched backend data when available
+    if (data.skillDetails && data.skillDetails.length > 0) {
+      return data.skillDetails.map(s => ({
+        name: s.name,
+        status: s.status === 'correspond' ? 'matched' as const
+              : s.status === 'partiel' ? 'partial' as const
+              : 'missing' as const,
+        category: s.category === 'technique' ? 'technical' as const
+                : s.category === 'soft' ? 'soft' as const
+                : 'technical' as const
+      }));
+    }
+
+    // Fallback inference
     const matched = new Set(this.normalizeList(data.matchingSkills));
     const missing = new Set(this.normalizeList(data.missingSkills));
     const source = [
@@ -210,6 +255,25 @@ export class StepAnalysisComponent {
     const data = this.result;
     if (!data) return [];
 
+    // Use enriched backend data when available
+    if (data.keywordWeights && data.keywordWeights.length > 0) {
+      const sorted = [...data.keywordWeights].sort((a, b) => b.weight - a.weight);
+      const maxWeight = sorted[0]?.weight ?? 1;
+      const matched = new Set(this.normalizeList(data.keywordsPresent));
+      const missing = new Set(this.normalizeList(data.keywordsMissing));
+
+      return sorted.slice(0, 16).map(k => ({
+        label: k.word,
+        tone: matched.has(this.normalize(k.word)) ? 'matched' as const
+            : missing.has(this.normalize(k.word)) ? 'missing' as const
+            : 'neutral' as const,
+        size: k.weight / maxWeight > 0.7 ? 'lg' as const
+            : k.weight / maxWeight > 0.4 ? 'md' as const
+            : 'sm' as const
+      }));
+    }
+
+    // Fallback inference
     const matched = this.unique(data.keywordsPresent);
     const missing = this.unique(data.keywordsMissing);
     const neutral = this.unique(
@@ -240,8 +304,19 @@ export class StepAnalysisComponent {
   }
 
   get recommendationInsights(): RecommendationInsight[] {
-    const recs = this.result?.recommendations?.length
-      ? this.result.recommendations
+    const data = this.result;
+
+    // Use enriched backend data when available
+    if (data?.recommendationsWithPriority && data.recommendationsWithPriority.length > 0) {
+      return data.recommendationsWithPriority.map(r => ({
+        title: r.priority === 'haute' ? 'Prioritaire' : r.priority === 'moyenne' ? 'Recommandé' : 'Optionnel',
+        accent: r.priority === 'haute' ? 'red' as const : r.priority === 'moyenne' ? 'amber' as const : 'blue' as const,
+        text: r.text
+      }));
+    }
+
+    const recs = data?.recommendations?.length
+      ? data.recommendations
       : this.buildFallbackRecommendations();
 
     const titles = [
@@ -267,15 +342,6 @@ export class StepAnalysisComponent {
     }
 
     return 'Le texte brut de l offre n est pas disponible dans cette session.';
-  }
-
-  get originalOfferPreview(): string {
-    if (this.showFullOfferText) return this.originalOfferText;
-    return this.originalOfferText;
-  }
-
-  get offerToggleLabel(): string {
-    return this.showFullOfferText ? 'Reduire' : 'Agrandir';
   }
 
   get analysisSummary(): string {
@@ -344,10 +410,6 @@ export class StepAnalysisComponent {
   retry(): void {
     this.pipeline.pipelineError.set(null);
     this.pipeline.goToStep(1);
-  }
-
-  toggleOfferText(): void {
-    this.showFullOfferText = !this.showFullOfferText;
   }
 
   private buildFallbackRecommendations(): string[] {

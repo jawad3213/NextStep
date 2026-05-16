@@ -1,0 +1,49 @@
+We are seeking a highly skilled Full-Stack QA Engineer (Software Development Engineer in Test) to join our engineering team. In this role, you will bridge the gap between development and quality assurance, designing robust automated testing frameworks that span across our entire technical stack.
+
+You will not just be finding bugs—you will be writing clean, testable code, architecting scalable end-to-end (E2E) testing suites, and integrating automated checks directly into our CI/CD pipelines. If you have a passion for full-stack architecture and a mindset dedicated to high-quality software delivery, this role is for you.
+
+Key Responsibilities
+Automation Framework Architecture: Design, build, and maintain scalable automated testing frameworks for frontend applications, backend microservices, and databases.
+
+Full-Stack Test Coverage: Write comprehensive E2E integration tests, API automation scripts, and unit tests using modern testing frameworks.
+
+CI/CD Integration: Integrate automated test suites into DevOps pipelines to ensure continuous testing, early bug detection, and seamless deployment gates.
+
+Performance & Security Testing: Performance test RESTful/GraphQL APIs and backend systems under load, identifying bottlenecks and stability issues.
+
+Collaboration: Partner closely with developers, product managers, and devops teams to refine user stories, establish acceptance criteria, and promote a culture of test-driven development (TDD).
+
+Defect Analysis: Debug complex asynchronous systems, trace errors through application logs, and provide detailed technical post-mortems for critical failures.
+
+echnical Requirements
+1. Backend & API Testing
+Strong proficiency in backend languages like Java (Spring Boot), Node.js (Express), or Python (FastAPI).
+
+Deep understanding of RESTful APIs, microservices architectures, and asynchronous event-driven flows.
+
+Hands-on experience with API testing and automation tools (e.g., Postman, RestAssured, or Supertest).
+
+Experience querying and validating relational databases (PostgreSQL, MySQL) or NoSQL solutions.
+
+2. Frontend Testing
+Proficiency in frontend technologies like Angular, React, or Vue.js.
+
+Expertise in modern E2E automation frameworks such as Cypress, Playwright, or Selenium.
+
+Solid understanding of the DOM, CSS selectors, and handling asynchronous frontend behavior.
+
+3. DevOps & Infrastructure
+Experience with containerization using Docker and orchestration principles.
+
+Familiarity with cloud platforms (e.g., AWS services like EC2, S3) and serverless environments.
+
+Hands-on experience managing and configuration testing stages in GitLab CI/CD, GitHub Actions, or Jenkins.
+
+Soft Skills & Qualifications
+Analytical Mindset: Excellent debugging and root-cause analysis skills across complex distributed systems.
+
+Agile Proficiency: Strong familiarity with Scrum methodologies, active participation in sprint planning, and backlog refinement.
+
+Communication: Ability to clearly communicate technical bugs, performance limitations, and architectural edge cases to both technical and non-technical stakeholders.
+
+Education/Experience: Bachelor’s degree in Computer Science, Software Engineering, or a related technical field, paired with proven experience in full-stack development or automation-heavy QA roles.

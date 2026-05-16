@@ -1,47 +1,8 @@
 <div class="flex flex-col lg:flex-row gap-8 items-start w-full animate-fade-in">
-  <!-- Left Sidebar -->
-  <div class="w-full lg:w-[320px] shrink-0">
-    <!-- Card 1: Pourquoi analyser -->
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
-      <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-5 text-emerald-500">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21h6m-3-19a6 6 0 00-6 6c0 2.22 1.2 4.14 3 5.19V17a2 2 0 002 2h2a2 2 0 002-2v-3.81c1.8-1.05 3-2.97 3-5.19a6 6 0 00-6-6z"></path>
-        </svg>
-      </div>
-      <h3 class="text-lg font-bold text-gray-900 mb-4">Pourquoi analyser ?</h3>
-      <ul class="space-y-4">
-        <li class="flex items-start">
-          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-          <span class="text-[13px] leading-relaxed text-gray-700">Extraction automatique des mots-clés ATS essentiels.</span>
-        </li>
-        <li class="flex items-start">
-          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-          <span class="text-[13px] leading-relaxed text-gray-700">Identification des compétences prioritaires (Hard & Soft skills).</span>
-        </li>
-        <li class="flex items-start">
-          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-          <span class="text-[13px] leading-relaxed text-gray-700">Adaptation du ton et de la structure de votre CV au secteur.</span>
-        </li>
-      </ul>
-    </div>
-
-    <!-- Card 2: Conseil Pro -->
-    <div class="bg-[#EFF6FF] rounded-2xl border border-blue-100 p-6 mb-6">
-      <h4 class="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-3">Conseil Pro</h4>
-      <p class="text-[13px] text-blue-900 leading-relaxed font-medium">
-        Évitez de ne copier que les puces. Incluez également le paragraphe de présentation de l'entreprise pour que Nexus puisse adapter votre accroche à leur culture.
-      </p>
-    </div>
-
-
-  </div>
-
-  <!-- Right Main Content -->
-  <div class="flex-1 lg:pl-4">
+  <!-- Main Content (Left, wider) -->
+  <div class="flex-1 min-w-0">
     <h2 class="text-[28px] font-bold text-gray-900 mb-2">Ajouter une offre</h2>
-    <p class="text-[15px] text-gray-500 mb-8 max-w-2xl leading-relaxed">
-      Préparez votre analyse en fournissant les détails du poste. Plus les informations sont précises, meilleure sera la personnalisation de votre CV.
-    </p>
+    <p class="text-[15px] text-gray-500 mb-8 max-w-[750px]">Préparez votre analyse en fournissant les détails du poste.<br>Plus les informations sont précises, meilleure sera la personnalisation de votre CV.</p>
 
     <!-- Tabs -->
     <div class="flex items-center gap-8 border-b border-gray-200 mb-8">
@@ -157,5 +118,41 @@
       </button>
     </div>
 
+  </div>
+
+  <!-- Right Sidebar (Cards) - stretches when main sidebar is collapsed -->
+  <div class="w-full shrink-0"
+    [ngClass]="(sidebarService.isExpanded$ | async) ? 'lg:w-[300px]' : 'lg:w-[380px]'">
+    <!-- Card 1: Pourquoi analyser -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
+      <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-5 text-emerald-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21h6m-3-19a6 6 0 00-6 6c0 2.22 1.2 4.14 3 5.19V17a2 2 0 002 2h2a2 2 0 002-2v-3.81c1.8-1.05 3-2.97 3-5.19a6 6 0 00-6-6z"></path>
+        </svg>
+      </div>
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Pourquoi analyser ?</h3>
+      <ul class="space-y-4">
+        <li class="flex items-start">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-[13px] leading-relaxed text-gray-700">Extraction automatique des mots-clés ATS essentiels.</span>
+        </li>
+        <li class="flex items-start">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-[13px] leading-relaxed text-gray-700">Identification des compétences prioritaires (Hard & Soft skills).</span>
+        </li>
+        <li class="flex items-start">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-[13px] leading-relaxed text-gray-700">Adaptation du ton et de la structure de votre CV au secteur.</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Card 2: Conseil Pro -->
+    <div class="bg-[#EFF6FF] rounded-2xl border border-blue-100 p-6 mb-6">
+      <h4 class="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-3">Conseil Pro</h4>
+      <p class="text-[13px] text-blue-900 leading-relaxed font-medium">
+        Évitez de ne copier que les puces. Incluez également le paragraphe de présentation de l'entreprise pour que Nexus puisse adapter votre accroche à leur culture.
+      </p>
+    </div>
   </div>
 </div>

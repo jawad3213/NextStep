@@ -1,243 +1,400 @@
 <div class="analysis-shell">
   @if (error) {
-  <div class="error-section">
-    <div class="error-banner">
-      <span class="error-icon">!</span>
-      <div>
-        <div class="error-title">Erreur pendant l'analyse</div>
-        <div class="error-detail">{{ error }}</div>
-      </div>
+  <div class="flex items-center gap-4 p-5 mb-6 bg-red-50 rounded-2xl border border-red-200">
+    <span class="material-symbols-outlined text-red-500 text-lg">error</span>
+    <div class="flex-1">
+      <div class="font-bold text-sm text-red-800">Erreur pendant l'analyse</div>
+      <div class="text-xs text-red-600 mt-1">{{ error }}</div>
     </div>
-    <div class="step-actions">
-      <button class="btn-ghost" (click)="goBack()">Retour</button>
-      <button class="btn-next" (click)="retry()">Réessayer</button>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 text-xs font-bold text-slate-600 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors" (click)="goBack()">Retour</button>
+      <button class="px-4 py-2 text-xs font-bold text-white bg-brand-500 rounded-xl hover:bg-brand-600 transition-colors" (click)="retry()">Réessayer</button>
     </div>
   </div>
   }
 
   @if (pipeline.isLoading() && !error) {
-  <section class="loading-stage">
-    <div class="loading-card">
-      <div class="loading-card__spinner">
-        <span class="spinner-lg"></span>
+  <div class="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-fade-in">
+    <div class="flex flex-col items-center text-center p-10 bg-white rounded-2xl border border-slate-200 shadow-sm max-w-[480px]">
+      <span class="w-12 h-12 border-4 border-slate-100 border-t-brand-500 rounded-full animate-spin mb-6"></span>
+      <div class="text-[11px] font-bold text-brand-500 uppercase tracking-wider mb-2">Analyse IA en cours</div>
+      <h3 class="text-xl font-extrabold text-slate-900 mb-2">Traitement de l'offre</h3>
+      <p class="text-sm text-slate-500 mb-4">{{ progress?.label ?? 'Analyse en cours...' }}</p>
+      <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+        <div class="h-full bg-brand-500 rounded-full transition-all duration-500" [style.width.%]="progress?.progressPercent ?? 5"></div>
       </div>
-      <div class="loading-card__body">
-        <div class="loading-card__eyebrow">Analyse IA en cours</div>
-        <h3 class="loading-card__title">Traitement de l'offre</h3>
-        <p class="loading-card__text">{{ progress?.label ?? 'Analyse en cours...' }}</p>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" [style.width.%]="progress?.progressPercent ?? 5"></div>
-        </div>
-        <div class="progress-text">{{ progress?.progressPercent ?? 5 }}%</div>
-      </div>
+      <div class="text-xs font-bold text-slate-400">{{ progress?.progressPercent ?? 5 }}%</div>
     </div>
-    <div class="agent-timeline">
+    <div class="w-full max-w-[480px] flex flex-col gap-3">
       @for (agent of agentStages; track agent.key) {
-      <div class="agent-row" [class.done]="getAgentStatus(agent.key) === 'done'"
-        [class.running]="getAgentStatus(agent.key) === 'running'">
-        <div class="agent-row__icon">
-          @if (getAgentStatus(agent.key) === 'done') { <span>✓</span> }
-          @else if (getAgentStatus(agent.key) === 'running') { <span class="spinner-sm"></span> }
-          @else { <span>○</span> }
+      <div class="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 transition-all"
+        [class.border-brand-500]="getAgentStatus(agent.key) === 'running'"
+        [class.border-green-500]="getAgentStatus(agent.key) === 'done'"
+        [class.bg-green-50]="getAgentStatus(agent.key) === 'done'"
+      >
+        <div class="w-8 h-8 flex items-center justify-center"
+          [class.text-green-600]="getAgentStatus(agent.key) === 'done'"
+          [class.text-brand-500]="getAgentStatus(agent.key) === 'running'"
+          [class.text-slate-300]="getAgentStatus(agent.key) === 'todo'">
+          @if (getAgentStatus(agent.key) === 'done') {
+            <span class="material-symbols-outlined text-lg">check_circle</span>
+          } @else if (getAgentStatus(agent.key) === 'running') {
+            <span class="w-4 h-4 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin block"></span>
+          } @else {
+            <span class="material-symbols-outlined text-lg">radio_button_unchecked</span>
+          }
         </div>
-        <div class="agent-row__content">
-          <div class="agent-row__title">{{ agent.title }}</div>
-          <div class="agent-row__detail">{{ agent.detail }}</div>
+        <div>
+          <div class="text-sm font-bold text-slate-900">{{ agent.title }}</div>
+          <div class="text-xs text-slate-500">{{ agent.detail }}</div>
         </div>
       </div>
       }
     </div>
-  </section>
+  </div>
   }
 
   @if (!pipeline.isLoading() && !error && result) {
-  <div class="analysis-page">
-    <!-- HERO HEADER -->
-    <header class="hero-header">
-      <div class="hero-header__identity">
-        <div class="hero-header__logo">
-          {{ headlineCompany.slice(0, 2).toUpperCase() }}
-        </div>
+  <div class="grid grid-cols-12 gap-6 animate-fade-in">
+    <!-- ═══ ROW 1: HERO HEADER (col-8) + SCORE CARD (col-4) ═══ -->
+    <div class="col-span-12 lg:col-span-8 flex flex-col gap-6">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-full flex flex-col">
         <div>
-          <h2 class="hero-header__title">{{ headlineTitle }}</h2>
-          <div class="hero-header__meta">
-            <span>{{ headlineCompany }}</span>
-            <span class="meta-dot">•</span>
-            <span>{{ headlineLocation }}</span>
-            <span class="meta-dot">•</span>
-            <span class="hero-header__badge"><span class="dot"></span> Analyse terminée</span>
+          <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+              <div class="flex gap-5">
+              <div class="w-16 h-16 rounded-xl bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0">
+                @if (result?.companyName) {
+                <span class="text-xl font-black text-slate-400">{{ headlineCompany.slice(0, 2).toUpperCase() }}</span>
+                } @else {
+                <span class="material-symbols-outlined text-2xl text-slate-300">business</span>
+                }
+              </div>
+              <div>
+                <h2 class="font-outfit text-2xl font-bold text-slate-900 leading-tight">{{ headlineTitle }}</h2>
+                <div class="flex flex-wrap items-center gap-3 mt-2 text-slate-600">
+                  <span class="flex items-center gap-1 text-sm font-medium">
+                    <span class="material-symbols-outlined text-sm" [class.text-brand-500]="result?.companyName" [class.text-slate-400]="!result?.companyName">apartment</span>
+                    {{ headlineCompany }}
+                  </span>
+                  <span class="text-slate-300">•</span>
+                  <span class="flex items-center gap-1 text-sm font-medium">
+                    <span class="material-symbols-outlined text-sm" [class.text-brand-500]="result?.location" [class.text-slate-400]="!result?.location">location_on</span>
+                    {{ headlineLocation }}
+                  </span>
+                  <span class="text-slate-300">•</span>
+                  <span class="flex items-center gap-1 text-sm font-medium bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                    <span class="material-symbols-outlined text-xs">check_circle</span>
+                    Analysée
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
+          <div class="bg-slate-50 p-3 rounded-xl text-center">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Type de contrat</p>
+            <p class="font-bold text-sm text-slate-800">{{ contractType }}</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl text-center">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Expérience</p>
+            <p class="font-bold text-sm text-slate-800">{{ experienceLabel }}</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl text-center">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Études</p>
+            <p class="font-bold text-sm text-slate-800">{{ educationLabel || 'Non spécifié' }}</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl text-center">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Salaire</p>
+            <p class="font-bold text-sm text-slate-800">{{ salaryLabel || 'Non spécifié' }}</p>
           </div>
         </div>
       </div>
-    </header>
-
-    <div class="analysis-grid">
-      <!-- MAIN CONTENT -->
-      <main class="analysis-content">
-        <!-- RÉSUMÉ IA -->
-        <section class="panel panel--summary">
-          <div class="panel__eyebrow">Résumé de l'IA</div>
-          <p class="panel__summary-text">{{ analysisSummary }}</p>
-        </section>
-
-        <!-- ANALYSE DÉTAILLÉE -->
-        <section class="analysis-details">
-          <div class="section-header">
-            <span class="section-header__icon">◎</span>
-            <h3>Analyse des compétences</h3>
-          </div>
-
-          <div class="skills-columns">
-            <article class="panel">
-              <div class="panel__heading">
-                <h4>Compétences techniques</h4>
-                <span class="panel__tag">TECH STACK</span>
-              </div>
-              <div class="skill-list">
-                @for (skill of technicalSkills; track skill.name) {
-                <div class="skill-row" [attr.data-status]="skill.status">
-                  <div class="skill-row__content">
-                    <span class="skill-row__name">{{ skill.name }}</span>
-                    <span class="skill-row__status">{{ skill.status }}</span>
-                  </div>
-                  <div class="skill-row__indicator"></div>
-                </div>
-                }
-              </div>
-            </article>
-
-            <article class="panel">
-              <div class="panel__heading">
-                <h4>Soft skills et contexte</h4>
-                <span class="panel__tag">FIT</span>
-              </div>
-              <div class="skill-list">
-                @for (skill of softSkills; track skill.name) {
-                <div class="skill-row" [attr.data-status]="skill.status">
-                  <div class="skill-row__content">
-                    <span class="skill-row__name">{{ skill.name }}</span>
-                    <span class="skill-row__status">{{ skill.status }}</span>
-                  </div>
-                  <div class="skill-row__indicator"></div>
-                </div>
-                }
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <!-- MOTS CLÉS -->
-        <section class="panel">
-          <div class="panel__heading">
-            <h4>Mots-clés sémantiques</h4>
-          </div>
-          <div class="keyword-cloud">
-            @for (keyword of keywordCloud; track keyword.label) {
-            <span class="keyword-chip" [class.is-matched]="keyword.tone === 'matched'"
-              [class.is-missing]="keyword.tone === 'missing'">
-              {{ keyword.label }}
-            </span>
-            }
-          </div>
-        </section>
-
-        <!-- RECOMMANDATIONS -->
-        <section class="recommendations-section">
-          <h3 class="recommendations-section__title">Axes d'optimisation</h3>
-          <div class="recommendations-container">
-            @for (rec of recommendationInsights; track rec.text) {
-            <article class="recommendation-card" [class.accent-amber]="rec.accent === 'amber'"
-              [class.accent-red]="rec.accent === 'red'" [class.accent-blue]="rec.accent === 'blue'">
-              <div class="recommendation-card__eyebrow">{{ rec.title }}</div>
-              <p class="recommendation-card__text">{{ rec.text }}</p>
-            </article>
-            }
-          </div>
-        </section>
-
-        <!-- OFFRE ORIGINALE -->
-        <section class="panel">
-          <div class="panel__heading panel__heading--between">
-            <h4>Texte original de l'offre</h4>
-            <button class="text-toggle" (click)="toggleOfferText()">{{ showFullOfferText ? 'Voir moins' : 'Voir plus' }}</button>
-          </div>
-          <div class="offer-text-box" [class.is-collapsed]="!showFullOfferText">
-            {{ originalOfferPreview }}
-          </div>
-        </section>
-      </main>
-
-      <!-- SIDEBAR -->
-      <aside class="analysis-sidebar">
-        <section class="premium-score-card">
-          <h4 class="premium-score-card__title">Matching score</h4>
-          <div class="score-visual">
-            <div class="ring-wrapper">
-              <svg viewBox="0 0 180 180" class="ring-svg">
-                <circle cx="90" cy="90" r="75" class="ring-bg"></circle>
-                <circle cx="90" cy="90" r="75" class="ring-fill" [class.score-green]="scoreAccent === 'green'"
-                  [class.score-amber]="scoreAccent === 'amber'" [class.score-red]="scoreAccent === 'red'"
-                  [style.stroke-dashoffset]="scoreRingOffset"></circle>
-              </svg>
-              <div class="ring-data">
-                <span class="ring-data__number">{{ score }}%</span>
-                <span class="ring-data__label">{{ scoreLabel }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="score-details">
-            <div class="score-stats-row">
-              <div class="stat-item">
-                <strong>{{ matchingSkillsCount }}</strong>
-                <span>Match</span>
-              </div>
-              <div class="stat-item">
-                <strong>{{ missingSkillsCount }}</strong>
-                <span>Gaps</span>
-              </div>
-              <div class="stat-item">
-                <strong>{{ partialSkillsCount }}</strong>
-                <span>Partiel</span>
-              </div>
-            </div>
-
-            <div class="score-progress-stack">
-              <div class="stack-item">
-                <div class="stack-header">
-                  <span>Couverture compétences</span>
-                  <span>{{ matchingSkillsCount }}/{{ totalSkillCount }}</span>
-                </div>
-                <div class="stack-bar">
-                  <div class="stack-fill is-green" [style.width.%]="skillsCoveragePercent"></div>
-                </div>
-              </div>
-              <div class="stack-item">
-                <div class="stack-header">
-                  <span>Optimisation ATS</span>
-                  <span>{{ atsScore }}%</span>
-                </div>
-                <div class="stack-bar">
-                  <div class="stack-fill is-blue" [style.width.%]="atsScore"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button class="btn-primary-cta" (click)="continueToTemplate()">
-            Continuer vers le template
-          </button>
-          <button class="btn-secondary-ghost" (click)="goBack()">
-            Modifier l'offre
-          </button>
-        </section>
-
-        <section class="company-card">
-          <h5>À propos de {{ headlineCompany }}</h5>
-          <p>{{ companySupportText }}</p>
-        </section>
-      </aside>
     </div>
+
+    <div class="col-span-12 lg:col-span-4">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 text-center relative overflow-hidden h-full flex flex-col justify-center">
+        <h4 class="font-outfit font-bold text-lg mb-4 text-slate-900">Matching Score</h4>
+        <div class="relative w-32 h-32 mx-auto mb-4">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 128 128">
+            <circle cx="64" cy="64" r="56" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+            <circle cx="64" cy="64" r="56" fill="none" stroke-width="10" stroke-linecap="round"
+              stroke-dasharray="351.85"
+              [style.stroke-dashoffset]="351.85 - (score / 100) * 351.85"
+              [class.stroke-brand-500]="scoreAccent === 'green'"
+              [class.stroke-amber-500]="scoreAccent === 'amber'"
+              [class.stroke-red-500]="scoreAccent === 'red'"
+              class="transition-all duration-1000 ease-out"
+            />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-2xl font-black font-outfit text-slate-900">{{ score }}%</span>
+            <span class="text-[8px] uppercase font-bold tracking-tighter text-slate-400">{{ scoreLabel }}</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-5">
+          <div class="flex flex-col">
+            <strong class="text-lg font-extrabold text-slate-900">{{ matchingSkillsCount }}</strong>
+            <span class="text-[9px] font-bold text-slate-400 uppercase">Match</span>
+          </div>
+          <div class="flex flex-col">
+            <strong class="text-lg font-extrabold text-slate-900">{{ missingSkillsCount }}</strong>
+            <span class="text-[9px] font-bold text-slate-400 uppercase">Gaps</span>
+          </div>
+          <div class="flex flex-col">
+            <strong class="text-lg font-extrabold text-slate-900">{{ partialSkillsCount }}</strong>
+            <span class="text-[9px] font-bold text-slate-400 uppercase">Partiel</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3 text-left mb-5">
+          <div>
+            <div class="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+              <span>Couverture</span>
+              <span>{{ matchingSkillsCount }}/{{ totalSkillCount }}</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full transition-all" [style.width.%]="skillsCoveragePercent"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+              <span>Optimisation ATS</span>
+              <span>{{ atsScore }}%</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-brand-500 rounded-full transition-all" [style.width.%]="atsScore"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ AI SUMMARY (Full width) ═══ -->
+    <div class="col-span-12">
+      <div class="bg-gradient-to-br from-brand-500/10 to-transparent p-6 rounded-2xl border border-brand-500/20">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-brand-500">auto_awesome</span>
+          <h3 class="font-outfit text-lg font-bold text-slate-900">Analyse Intelligence Artificielle</h3>
+        </div>
+        <h4 class="font-bold text-[10px] text-brand-500 uppercase tracking-wider mb-2">Résumé de l'IA</h4>
+        <p class="text-slate-700 leading-relaxed italic text-sm">
+          {{ analysisSummary }}
+        </p>
+      </div>
+    </div>
+
+    <!-- ═══ PROFIL STRENGTHS (if present) ═══ -->
+    @if (profileStrengthsList.length > 0) {
+    <div class="col-span-12">
+      <div class="bg-amber-50/50 p-6 rounded-2xl border border-amber-200/50">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="material-symbols-outlined text-amber-600 text-lg">star</span>
+          <h4 class="font-bold text-sm text-amber-800">Forces de votre profil</h4>
+        </div>
+        <ul class="m-0 p-0 list-none flex flex-col gap-2">
+          @for (strength of profileStrengthsList; track strength) {
+          <li class="flex items-center gap-2 text-sm text-amber-900">
+            <span class="material-symbols-outlined text-amber-500 text-sm">check_circle</span>
+            {{ strength }}
+          </li>
+          }
+        </ul>
+      </div>
+    </div>
+    }
+
+    <!-- ═══ SKILLS KANBAN (Collapsible) ═══ -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="skillsOpen = !skillsOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">view_kanban</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Compétences</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ totalSkillCount }}</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="skillsOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden" [class.max-h-0]="!skillsOpen" [class.max-h-[9999px]!]="skillsOpen" [class.opacity-0]="!skillsOpen" [class.opacity-100]="skillsOpen">
+          <div class="px-6 pb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Match -->
+              <div class="bg-emerald-50/50 rounded-xl border border-emerald-200 p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                    <span class="text-sm font-extrabold text-emerald-800">Match</span>
+                  </div>
+                  <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{{ matchedSkillsList.length }}</span>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  @for (skill of matchedSkillsList; track skill.name) {
+                  <div class="px-3 py-2 bg-white rounded-lg border border-emerald-200 text-sm font-semibold text-emerald-900 shadow-sm">
+                    {{ skill.name }}
+                  </div>
+                  }
+                  @if (matchedSkillsList.length === 0) {
+                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence correspondante</p>
+                  }
+                </div>
+              </div>
+              <!-- Partial -->
+              <div class="bg-amber-50/50 rounded-xl border border-amber-200 p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-600 text-base">change_history</span>
+                    <span class="text-sm font-extrabold text-amber-800">Partiel</span>
+                  </div>
+                  <span class="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ partialSkillsList.length }}</span>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  @for (skill of partialSkillsList; track skill.name) {
+                  <div class="px-3 py-2 bg-white rounded-lg border border-amber-200 text-sm font-semibold text-amber-900 shadow-sm">
+                    {{ skill.name }}
+                  </div>
+                  }
+                  @if (partialSkillsList.length === 0) {
+                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence partielle</p>
+                  }
+                </div>
+              </div>
+              <!-- Missing -->
+              <div class="bg-red-50/50 rounded-xl border border-red-200 p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-red-600 text-base">cancel</span>
+                    <span class="text-sm font-extrabold text-red-800">Manquant</span>
+                  </div>
+                  <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ missingSkillsList.length }}</span>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  @for (skill of missingSkillsList; track skill.name) {
+                  <div class="px-3 py-2 bg-white rounded-lg border border-red-200 text-sm font-semibold text-red-900 shadow-sm">
+                    {{ skill.name }}
+                  </div>
+                  }
+                  @if (missingSkillsList.length === 0) {
+                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence manquante</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KEYWORDS (Collapsible) ═══ -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="keywordsOpen = !keywordsOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">label</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Mots-clés sémantiques</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ keywordCloud.length }}</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="keywordsOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden" [class.max-h-0]="!keywordsOpen" [class.max-h-[9999px]!]="keywordsOpen" [class.opacity-0]="!keywordsOpen" [class.opacity-100]="keywordsOpen">
+          <div class="px-6 pb-6">
+            <div class="flex flex-wrap gap-2">
+              @for (keyword of keywordCloud; track keyword.label) {
+              <span class="rounded-full font-semibold transition-colors"
+                [ngClass]="{
+                  'bg-green-100 text-green-800': keyword.tone === 'matched',
+                  'bg-red-100 text-red-800': keyword.tone === 'missing',
+                  'bg-slate-100 text-slate-600': keyword.tone === 'neutral',
+                  'px-2 py-1 text-xs': keyword.size === 'sm',
+                  'px-3 py-1.5 text-sm': keyword.size === 'md',
+                  'px-4 py-2 text-base': keyword.size === 'lg'
+                }">
+                {{ keyword.label }}
+              </span>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ RECOMMENDATIONS (Collapsible) ═══ -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="recommendationsOpen = !recommendationsOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">lightbulb</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Axes d'optimisation</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ recommendationInsights.length }}</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="recommendationsOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden" [class.max-h-0]="!recommendationsOpen" [class.max-h-[9999px]!]="recommendationsOpen" [class.opacity-0]="!recommendationsOpen" [class.opacity-100]="recommendationsOpen">
+          <div class="px-6 pb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              @for (rec of recommendationInsights; track rec.text) {
+              <div class="p-4 rounded-2xl border-l-4 bg-white border border-slate-200"
+                [class.border-l-amber-500]="rec.accent === 'amber'"
+                [class.border-l-red-500]="rec.accent === 'red'"
+                [class.border-l-brand-500]="rec.accent === 'blue'">
+                <div class="flex items-center gap-2 font-bold text-[10px] uppercase mb-2"
+                  [class.text-amber-600]="rec.accent === 'amber'"
+                  [class.text-red-600]="rec.accent === 'red'"
+                  [class.text-brand-500]="rec.accent === 'blue'">
+                  <span class="material-symbols-outlined text-sm">
+                    {{ rec.accent === 'amber' ? 'priority_high' : rec.accent === 'red' ? 'add' : 'translate' }}
+                  </span>
+                  {{ rec.title }}
+                </div>
+                <p class="text-xs text-slate-700 leading-relaxed m-0">{{ rec.text }}</p>
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ORIGINAL OFFER TEXT (Collapsible, starts closed) ═══ -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="offerTextOpen = !offerTextOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">description</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Texte original de l'offre</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ originalOfferText.length }} caractères</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="offerTextOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden" [class.max-h-0]="!offerTextOpen" [class.max-h-[9999px]!]="offerTextOpen" [class.opacity-0]="!offerTextOpen" [class.opacity-100]="offerTextOpen">
+          <div class="px-6 pb-6">
+            <div class="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{{ originalOfferText }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ COMPANY INFO ═══ -->
+    @if (result?.companyName) {
+    <div class="col-span-12">
+      <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex-1">
+          <h5 class="font-bold text-sm text-slate-800 mb-1">À propos de {{ headlineCompany }}</h5>
+          <p class="text-xs text-slate-600 leading-relaxed">{{ companySupportText }}</p>
+        </div>
+        <span class="text-brand-500 text-xs font-bold flex items-center gap-1 whitespace-nowrap shrink-0">
+          <span class="material-symbols-outlined text-sm">open_in_new</span>
+          Voir le profil entreprise
+        </span>
+      </div>
+    </div>
+    }
   </div>
   }
 </div>

@@ -26,6 +26,22 @@ export interface SidebarBadge {
   visible: boolean;
 }
 
+export interface SkillDetail {
+  name: string;
+  category: 'technique' | 'soft' | 'langue' | 'certification';
+  status: 'correspond' | 'partiel' | 'manquant';
+}
+
+export interface RecommendationPriorisee {
+  text: string;
+  priority: 'haute' | 'moyenne' | 'basse';
+}
+
+export interface KeywordPondere {
+  word: string;
+  weight: number;
+}
+
 export interface PipelineResult {
   // ─── Agent 1 : Analyse offre (OfferAnalyzerService) ───
   offerTitle: string;
@@ -70,6 +86,12 @@ export interface PipelineResult {
   emailBody: string;
   recruiterName: string;
   coverLetterContent: string;
+
+  // ─── Enrichissements backend (v2) ───
+  skillDetails?: SkillDetail[];
+  recommendationsWithPriority?: RecommendationPriorisee[];
+  keywordWeights?: KeywordPondere[];
+  profileStrengthsList?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

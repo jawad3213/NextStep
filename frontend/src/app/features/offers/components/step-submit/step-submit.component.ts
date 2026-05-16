@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PipelineStateService, PipelineResult } from '../../../../services/pipeline-state.service';
 import { OfferApiService, OfferAnalysisResponse } from '../../services/offer-api.service';
+import { SidebarService } from '../../../../shared/services/sidebar.service';
 
 @Component({
   selector: 'app-step-submit',
@@ -14,6 +15,7 @@ import { OfferApiService, OfferAnalysisResponse } from '../../services/offer-api
 export class StepSubmitComponent implements OnDestroy {
   pipeline = inject(PipelineStateService);
   private offerApiService = inject(OfferApiService);
+  sidebarService = inject(SidebarService);
 
   mode: 'url' | 'text' = 'url';
   urlValue  = '';
@@ -179,6 +181,22 @@ export class StepSubmitComponent implements OnDestroy {
       emailBody: '',
       recruiterName: '',
       coverLetterContent: '',
+
+      // Enrichissements v2
+      skillDetails: dto.competencesAvecDetails?.map(s => ({
+        name: s.nom,
+        category: s.categorie,
+        status: s.statut
+      })),
+      recommendationsWithPriority: dto.recommandationsAvecPriorite?.map(r => ({
+        text: r.texte,
+        priority: r.priorite
+      })),
+      keywordWeights: dto.keywordsAvecPoids?.map(k => ({
+        word: k.mot,
+        weight: k.poids
+      })),
+      profileStrengthsList: dto.forcesProfil ?? [],
     };
   }
 

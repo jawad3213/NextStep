@@ -177,7 +177,7 @@ export class ModeSelectorComponent implements OnInit {
       next: () => {
         console.log('✅ Session supprimée avec succès');
         this.pastSessions.update(list => list.filter(s => s.sessionId !== session.sessionId));
-        this.triggerToast('Session supprimée avec succès !');
+        this.triggerToast('Session deleted successfully!');
         this.cancelDelete();
       },
       error: (err) => {

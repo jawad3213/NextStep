@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { ProfileService } from '../profile/profile.service';
 import { firstValueFrom } from 'rxjs';
+import { SafeUrlPipe } from '../../shared/pipe/safe-url.pipe';
 
 interface CvTemplate {
   id: string;
@@ -15,7 +16,7 @@ interface CvTemplate {
   industries: string[];
   experienceLevels: string[];
   style: string;
-  layoutFlags: number;
+  layoutFlags: string[];
   backgroundColor: string;
   tags: string[];
 }
@@ -51,7 +52,7 @@ interface CvData {
 @Component({
   selector: 'app-cv-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SafeUrlPipe],
   template: `
     <div class="cv-shell">
       <header class="page-header">
@@ -104,10 +105,14 @@ interface CvData {
               @for (tpl of filteredTemplates(); track tpl.id) {
                 <div class="template-card" [class.selected]="selectedTemplate()?.id === tpl.id" (click)="selectTemplate(tpl)">
                   <div class="template-thumb" [style.background]="tpl.backgroundColor || '#F1F5F9'">
-                    <div class="thumb-placeholder">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                      <span>{{ tpl.name }}</span>
-                    </div>
+                    @if (tpl.thumbnailUrl) {
+                      <iframe [src]="thumbnailUrl(tpl.thumbnailUrl) | safeUrl" class="thumb-pdf" loading="lazy" title="{{ tpl.name }} preview"></iframe>
+                    } @else {
+                      <div class="thumb-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        <span>{{ tpl.name }}</span>
+                      </div>
+                    }
                     <div class="template-badges">
                       @for (tag of tpl.tags.slice(0, 2); track tag) {
                         <span class="tpl-tag">{{ tag }}</span>
@@ -348,8 +353,9 @@ interface CvData {
 
     .templates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
     .template-card { background: white; border: 1px solid #E0E0E0; border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; &:hover { border-color: #1A91F0; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-2px); } &.selected { border-color: #0C1986; box-shadow: 0 0 0 2px rgba(12,25,134,0.2); } }
-    .template-thumb { height: 140px; display: flex; align-items: center; justify-content: center; position: relative; }
+    .template-thumb { height: 140px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
     .thumb-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #94A3B8; svg { width: 36px; height: 36px; } span { font-size: 12px; font-weight: 600; } }
+    .thumb-pdf { width: 100%; height: 100%; border: none; pointer-events: none; }
     .template-badges { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
     .tpl-tag { padding: 2px 6px; background: rgba(0,0,0,0.4); color: white; border-radius: 4px; font-size: 10px; font-weight: 600; }
     .template-info { padding: 16px; h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #212121; } p { margin: 0 0 8px; font-size: 12px; color: #616161; line-height: 1.4; } }
@@ -438,6 +444,12 @@ export class CvBuilderComponent implements OnInit {
     } finally {
       this.loadingTemplates.set(false);
     }
+  }
+
+  thumbnailUrl(path: string): string {
+    if (path.startsWith('http')) return path;
+    const origin = new URL(this.baseUrl).origin;
+    return `${origin}${path}`;
   }
 
   selectTemplate(tpl: CvTemplate) {
@@ -544,11 +556,11 @@ export class CvBuilderComponent implements OnInit {
 }
 
 const mockTemplates: CvTemplate[] = [
-  { id: '1', slug: 'modern', name: 'Moderne', description: 'Design épuré avec accent couleur bleu, idéal pour les profils tech.', thumbnailUrl: '', industries: ['IT', 'Tech'], experienceLevels: ['Junior', 'Senior'], style: 'Modern', layoutFlags: 1, backgroundColor: '#EEF2FF', tags: ['ATS', 'Minimal'] },
-  { id: '2', slug: 'classic', name: 'Classique', description: 'Mise en page traditionnelle, parfaite pour les secteurs formels.', thumbnailUrl: '', industries: ['Finance', 'Droit'], experienceLevels: ['Senior'], style: 'Classic', layoutFlags: 2, backgroundColor: '#F8F9FA', tags: ['Formal', 'Clean'] },
-  { id: '3', slug: 'executive', name: 'Exécutif', description: 'Template haut de gamme pour profils dirigeants et cadres.', thumbnailUrl: '', industries: ['Management'], experienceLevels: ['Senior', 'Executive'], style: 'Executive', layoutFlags: 3, backgroundColor: '#F0F0F0', tags: ['Premium', 'Dark'] },
-  { id: '4', slug: 'pro', name: 'Professionnel', description: 'CV professionnel avec barres de compétences et timeline.', thumbnailUrl: '', industries: ['IT', 'Marketing'], experienceLevels: ['Junior', 'Mid'], style: 'Pro', layoutFlags: 1, backgroundColor: '#F5F5FF', tags: ['Skills', 'Timeline'] },
-  { id: '5', slug: 'elegant', name: 'Élégant', description: 'Design minimaliste et élégant avec typographie soignée.', thumbnailUrl: '', industries: ['Design', 'Creative'], experienceLevels: ['Junior', 'Senior'], style: 'Elegant', layoutFlags: 1, backgroundColor: '#FAFAFA', tags: ['Minimal', 'Creative'] },
+  { id: '1', slug: 'modern', name: 'Moderne', description: 'Design épuré avec accent couleur bleu, idéal pour les profils tech.', thumbnailUrl: '/api/cv/templates/modern/thumbnail', industries: ['IT', 'Tech'], experienceLevels: ['Junior', 'Senior'], style: 'Modern', layoutFlags: ['Two Column', 'With Photo'], backgroundColor: '#EEF2FF', tags: ['ATS', 'Minimal'] },
+  { id: '2', slug: 'classic', name: 'Classique', description: 'Mise en page traditionnelle, parfaite pour les secteurs formels.', thumbnailUrl: '/api/cv/templates/classic/thumbnail', industries: ['Finance', 'Droit'], experienceLevels: ['Senior'], style: 'Classic', layoutFlags: ['One Column', 'Without Photo'], backgroundColor: '#F8F9FA', tags: ['Formal', 'Clean'] },
+  { id: '3', slug: 'executive', name: 'Exécutif', description: 'Template haut de gamme pour profils dirigeants et cadres.', thumbnailUrl: '/api/cv/templates/executive/thumbnail', industries: ['Management'], experienceLevels: ['Senior', 'Executive'], style: 'Executive', layoutFlags: ['Two Column', 'With Photo'], backgroundColor: '#F0F0F0', tags: ['Premium', 'Dark'] },
+  { id: '4', slug: 'pro', name: 'Professionnel', description: 'CV professionnel avec barres de compétences et timeline.', thumbnailUrl: '/api/cv/templates/pro/thumbnail', industries: ['IT', 'Marketing'], experienceLevels: ['Junior', 'Mid'], style: 'Pro', layoutFlags: ['Two Column', 'With Photo'], backgroundColor: '#F5F5FF', tags: ['Skills', 'Timeline'] },
+  { id: '5', slug: 'elegant', name: 'Élégant', description: 'Design minimaliste et élégant avec typographie soignée.', thumbnailUrl: '/api/cv/templates/elegant/thumbnail', industries: ['Design', 'Creative'], experienceLevels: ['Junior', 'Senior'], style: 'Elegant', layoutFlags: ['Two Column', 'Without Photo'], backgroundColor: '#FAFAFA', tags: ['Minimal', 'Creative'] },
 ];
 
 const mockPreviewData: CvData = {

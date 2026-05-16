@@ -15,6 +15,44 @@ interface CvTemplate {
   tag: string;
   accent: string;
   previewType: 'sidebar' | 'centered' | 'header-band' | 'top-bar' | 'split' | 'creative';
+  previewVariant: 'modern' | 'professional' | 'elegant';
+}
+
+interface TemplatePreviewData {
+  candidate: {
+    name: string;
+    title: string;
+    email: string;
+    phone: string;
+    location: string;
+    linkedIn: string;
+    portfolio: string;
+  };
+  summary: string;
+  experience: Array<{
+    role: string;
+    company: string;
+    period: string;
+    bullets: string[];
+  }>;
+  education: Array<{
+    degree: string;
+    institution: string;
+    year: string;
+  }>;
+  projects: Array<{
+    name: string;
+    context: string;
+    impact: string;
+  }>;
+  skills: string[];
+  tools: string[];
+  certifications: string[];
+  languages: Array<{
+    name: string;
+    level: string;
+  }>;
+  achievements: string[];
 }
 
 const INDUSTRIES = [
@@ -58,6 +96,90 @@ const LAYOUTS = [
 
 const TAGS = ['free', 'popular', 'recommended'] as const;
 
+const SAMPLE_PREVIEW: TemplatePreviewData = {
+  candidate: {
+    name: 'Maya Bennett',
+    title: 'Senior Product Designer',
+    email: 'maya.bennett@example.com',
+    phone: '+1 (415) 555-0146',
+    location: 'Austin, TX',
+    linkedIn: 'linkedin.com/in/mayabennett',
+    portfolio: 'mayabennett.design',
+  },
+  summary: 'Strategic product designer with 7+ years creating onboarding, workflow, and analytics experiences for SaaS teams. Combines design systems, research, accessibility, and stakeholder alignment to ship measurable product improvements.',
+  experience: [
+    {
+      role: 'Lead Product Designer',
+      company: 'Northstar Cloud',
+      period: '2023 - Present',
+      bullets: [
+        'Redesigned the activation journey and improved trial conversion by 28%.',
+        'Built a reusable design system adopted across three product squads.',
+        'Partnered with product and engineering to reduce release rework by 22%.'
+      ]
+    },
+    {
+      role: 'Senior UX Designer',
+      company: 'Brightlane Studio',
+      period: '2020 - 2022',
+      bullets: [
+        'Delivered responsive web and mobile flows for fintech and healthcare clients.',
+        'Led stakeholder workshops and translated discovery findings into high-conviction prototypes.'
+      ]
+    },
+    {
+      role: 'Product Designer',
+      company: 'Pixel Harbor',
+      period: '2018 - 2020',
+      bullets: [
+        'Designed customer self-service experiences that reduced support tickets by 18%.'
+      ]
+    }
+  ],
+  education: [
+    {
+      degree: 'B.A. Graphic Design',
+      institution: 'University of Washington',
+      year: '2018'
+    }
+  ],
+  projects: [
+    {
+      name: 'Enterprise Analytics Redesign',
+      context: 'SaaS dashboard modernization',
+      impact: 'Improved task completion for core reporting flows by 31%.'
+    },
+    {
+      name: 'Mobile Onboarding Optimization',
+      context: 'Growth and activation initiative',
+      impact: 'Reduced first-session drop-off and increased activation quality.'
+    }
+  ],
+  skills: [
+    'Product Strategy',
+    'Design Systems',
+    'User Research',
+    'Interaction Design',
+    'Accessibility',
+    'Cross-Functional Leadership'
+  ],
+  tools: ['Figma', 'FigJam', 'Adobe CC', 'Maze', 'Notion', 'Jira'],
+  certifications: [
+    'Google UX Design Certificate',
+    'IAAP Accessibility Fundamentals',
+    'Nielsen Norman Group UX Certification'
+  ],
+  languages: [
+    { name: 'English', level: 'Native' },
+    { name: 'Spanish', level: 'Professional' },
+    { name: 'French', level: 'Conversational' }
+  ],
+  achievements: [
+    'Speaker at Design Systems Summit 2025',
+    'Mentored 4 junior designers into senior-track roles'
+  ],
+};
+
 @Component({
   selector: 'app-step-template',
   standalone: true,
@@ -67,6 +189,7 @@ const TAGS = ['free', 'popular', 'recommended'] as const;
 })
 export class StepTemplateComponent {
   pipeline = inject(PipelineStateService);
+  readonly previewData = SAMPLE_PREVIEW;
 
   readonly filterIndustry = signal<string[]>([]);
   readonly filterExperience = signal<string[]>([]);
@@ -88,21 +211,22 @@ export class StepTemplateComponent {
 
   readonly templates: CvTemplate[] = [
     {
-      id: 'executive-diamond',
-      name: 'Executive Diamond',
-      description: 'Modern • IT & Engineering • Green Accent',
+      id: 'modern',
+      name: 'Modern',
+      description: 'Modern • IT & Engineering • Blue Accent',
       badge: { label: 'popular', variant: 'primary' },
       industry: 'IT & Engineering',
-      experience: 'Senior / Executive',
+      experience: 'Mid Level',
       style: 'Modern',
       layout: 'Two Column',
       tag: 'popular',
-      accent: 'Green',
+      accent: 'Blue',
       previewType: 'sidebar',
+      previewVariant: 'modern',
     },
     {
-      id: 'corporate-standard',
-      name: 'Corporate Standard',
+      id: 'classic',
+      name: 'Classic',
       description: 'Traditional • Finance & Accounting • Amber',
       badge: { label: 'recommended', variant: 'secondary' },
       industry: 'Finance & Accounting',
@@ -112,72 +236,39 @@ export class StepTemplateComponent {
       tag: 'recommended',
       accent: 'Amber',
       previewType: 'centered',
+      previewVariant: 'professional',
     },
     {
-      id: 'minimalist-centered',
-      name: 'Minimalist Centered',
-      description: 'Creative • Creative & Design • Rose',
-      industry: 'Creative & Design',
-      experience: 'Student / Entry Level',
-      style: 'Creative',
-      layout: 'With Photo',
-      tag: 'free',
-      accent: 'Rose',
-      previewType: 'header-band',
-    },
-    {
-      id: 'minimalist-modern',
-      name: 'Minimalist Modern',
-      description: 'Clean • IT & Engineering • Blue Accent',
-      badge: { label: 'popular', variant: 'primary' },
-      industry: 'IT & Engineering',
-      experience: 'Mid Level',
-      style: 'Modern',
-      layout: 'Two Column',
-      tag: 'popular',
-      accent: 'Blue',
-      previewType: 'top-bar',
-    },
-    {
-      id: 'professional-executive',
-      name: 'Professional Executive',
-      description: 'Elegant • Finance & Accounting • Navy Accent',
+      id: 'executive',
+      name: 'Executive',
+      description: 'Professional • Business & Management • Navy Accent',
       badge: { label: 'recommended', variant: 'secondary' },
-      industry: 'Finance & Accounting',
+      industry: 'Business & Management',
       experience: 'Senior / Executive',
       style: 'Professional',
       layout: 'One Page',
       tag: 'recommended',
       accent: 'Navy',
       previewType: 'split',
+      previewVariant: 'professional',
     },
     {
-      id: 'creative-portfolio',
-      name: 'Creative Portfolio',
-      description: 'Creative • Marketing & Sales • Purple/Pink Accent',
-      industry: 'Marketing & Sales',
-      experience: 'Student / Entry Level',
-      style: 'Creative',
-      layout: 'Without Photo',
-      tag: 'free',
-      accent: 'Purple',
-      previewType: 'creative',
-    },
-    {
-      id: 'simple-clean',
-      name: 'Simple Clean',
-      description: 'Simple • Business & Management • Slate Accent',
-      industry: 'Business & Management',
+      id: 'pro',
+      name: 'Pro',
+      description: 'Modern • IT & Engineering • Green Accent',
+      badge: { label: 'popular', variant: 'primary' },
+      industry: 'IT & Engineering',
       experience: 'Mid Level',
-      style: 'Simple',
-      layout: 'One Column',
-      tag: 'free',
-      accent: 'Slate',
-      previewType: 'top-bar',
+      style: 'Modern',
+      layout: 'Two Column',
+      tag: 'popular',
+      accent: 'Green',
+      previewType: 'sidebar',
+      previewVariant: 'modern',
     },
     {
-      id: 'elegant-academic',
-      name: 'Elegant Academic',
+      id: 'elegant',
+      name: 'Elegant',
       description: 'Elegant • Education & Academic • Burgundy Accent',
       industry: 'Education & Academic',
       experience: 'Senior / Executive',
@@ -186,18 +277,7 @@ export class StepTemplateComponent {
       tag: 'recommended',
       accent: 'Burgundy',
       previewType: 'centered',
-    },
-    {
-      id: 'retail-ready',
-      name: 'Retail Ready',
-      description: 'Clean • Customer Service & Retail • Teal Accent',
-      industry: 'Customer Service & Retail',
-      experience: 'Student / Entry Level',
-      style: 'Simple',
-      layout: 'With Photo',
-      tag: 'free',
-      accent: 'Teal',
-      previewType: 'sidebar',
+      previewVariant: 'elegant',
     },
   ];
 

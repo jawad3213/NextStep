@@ -74,6 +74,7 @@ export interface PipelineResult {
 
 @Injectable({ providedIn: 'root' })
 export class PipelineStateService {
+  private readonly STORAGE_KEY = 'nextstep.offer.pipeline.v1';
 
   // ── State du stepper ────────────────────────────────────────────────────
   readonly currentStep = signal<PipelineStep>(1);
@@ -135,34 +136,47 @@ export class PipelineStateService {
     Math.round(((this.currentStep() - 1) / 4) * 100)
   );
 
+  constructor() {
+    this.restoreFromStorage();
+  }
+
   // ── Actions ─────────────────────────────────────────────────────────────
 
   openFlow(): void {
     this.isFlowOpen.set(true);
-    this.currentStep.set(1);
-    this.updateStepStatus(0, 'active');
+    if (this.currentStep() < 1) {
+      this.currentStep.set(1);
+    }
+    if (this.steps()[0]?.status === 'idle') {
+      this.updateStepStatus(0, 'active');
+    }
+    this.persistToStorage();
   }
 
   closeFlow(): void {
     this.isFlowOpen.set(false);
-    this.resetSteps();
+    this.persistToStorage();
   }
 
   goToStep(step: PipelineStep): void {
     this.currentStep.set(step);
+    this.persistToStorage();
   }
 
   markStepDone(stepIndex: number): void {
     this.updateStepStatus(stepIndex, 'done');
+    this.persistToStorage();
   }
 
   setLoading(loading: boolean, message = ''): void {
     this.isLoading.set(loading);
     this.loadingMessage.set(message);
+    this.persistToStorage();
   }
 
   setResult(result: PipelineResult): void {
     this.pipelineResult.set(result);
+    this.persistToStorage();
   }
 
   showSidebarBadge(
@@ -197,6 +211,82 @@ export class PipelineStateService {
     this.pipelineError.set(null);
     this.resetSteps();
     this.sidebarBadges.update(badges => badges.map(b => ({ ...b, visible: false })));
+    this.persistToStorage();
+  }
+
+  hydrateFromAnalysis(offerId: string, dto: any): void {
+    this.currentOfferId.set(offerId);
+    this.setResult({
+      offerTitle: dto.titre ?? '',
+      companyName: dto.entreprise ?? '',
+      contractType: dto.typeContrat ?? '',
+      location: dto.localisation ?? undefined,
+      requiredSkills: dto.competencesRequises ?? [],
+      preferredSkills: dto.competencesSouhaitees ?? [],
+      experienceYears: dto.anneesExperience ?? undefined,
+      educationLevel: dto.niveauEtudes ?? undefined,
+      matchScore: dto.scoreMatching ?? 0,
+      atsScore: dto.scoreAts ?? 0,
+      matchBreakdown: { skills: 0, experience: 0, location: 0 },
+      keywordsPresent: dto.keywordsPresents ?? [],
+      keywordsMissing: dto.keywordsManquants ?? [],
+      matchingSkills: dto.competencesMatching ?? [],
+      missingSkills: dto.competencesManquantes ?? [],
+      recommendations: dto.recommandations ?? [],
+      companyCultureScore: dto.companyCultureScore ?? 0,
+      companySalaryMin: dto.companySalaryMin ?? 0,
+      companySalaryMax: dto.companySalaryMax ?? 0,
+      companySize: dto.companySize ?? '',
+      companyNews: dto.companyNews ?? [],
+      profileStrengths: [],
+      skillGaps: [],
+      cvPdfPath: '',
+      atsImprovements: [],
+      emailSubject: '',
+      emailBody: '',
+      recruiterName: '',
+      coverLetterContent: '',
+    });
+    this.markStepDone(0);
+    this.markStepDone(1);
+    if (this.currentStep() < 2) {
+      this.goToStep(2);
+    }
+    this.isFlowOpen.set(true);
+    this.persistToStorage();
+  }
+
+  private persistToStorage(): void {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify({
+        currentStep: this.currentStep(),
+        isFlowOpen: this.isFlowOpen(),
+        steps: this.steps(),
+        selectedTemplateId: this.selectedTemplateId(),
+        offerUrl: this.offerUrl(),
+        offerText: this.offerText(),
+        currentOfferId: this.currentOfferId(),
+        pipelineResult: this.pipelineResult(),
+        cvDownloadUrl: this.cvDownloadUrl(),
+      }));
+    } catch {}
+  }
+
+  private restoreFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.currentStep) this.currentStep.set(s.currentStep);
+      if (Array.isArray(s.steps)) this.steps.set(s.steps);
+      if (typeof s.selectedTemplateId === 'string') this.selectedTemplateId.set(s.selectedTemplateId);
+      if (typeof s.offerUrl === 'string') this.offerUrl.set(s.offerUrl);
+      if (typeof s.offerText === 'string') this.offerText.set(s.offerText);
+      if (typeof s.currentOfferId === 'string') this.currentOfferId.set(s.currentOfferId);
+      if (s.pipelineResult) this.pipelineResult.set(s.pipelineResult);
+      if (typeof s.cvDownloadUrl === 'string') this.cvDownloadUrl.set(s.cvDownloadUrl);
+      if (typeof s.isFlowOpen === 'boolean') this.isFlowOpen.set(s.isFlowOpen);
+    } catch {}
   }
 
   private updateStepStatus(index: number, status: PipelineStepStatus): void {

@@ -85,7 +85,7 @@
               <button class="cursor-pointer rounded-lg bg-brand-500 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-brand-600">Générer un CV</button>
             }
             @case ('non_traitee') {
-              <button routerLink="/offers/analyze" class="flex cursor-pointer items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-brand-600">
+              <button routerLink="/offers/analyze" [queryParams]="{ new: 1 }" class="flex cursor-pointer items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-brand-600">
                 <span class="material-symbols-outlined text-sm">rocket_launch</span>
                 Lancer le pipeline
               </button>
@@ -96,7 +96,7 @@
             Offre expirée
           </span>
         }
-        <button routerLink="/offers/analyze"
+        <button routerLink="/offers/analyze" [queryParams]="{ new: 1 }"
           class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 transition-all hover:border-brand-300 hover:text-brand-500">
           <span class="material-symbols-outlined text-sm">add</span>
           Nouvelle analyse

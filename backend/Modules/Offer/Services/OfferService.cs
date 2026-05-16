@@ -13,6 +13,8 @@ public interface IOfferService
 {
     Task<OffreEmploi> SaveOfferAsync(string rawText, string userId, CancellationToken ct = default);
     Task<OfferAnalysisDto?> GetAnalysisAsync(Guid offerId, CancellationToken ct = default);
+    Task<List<OfferHistoryItemDto>> GetHistoryAsync(Guid userId, CancellationToken ct = default);
+    Task<int> DeleteOffersAsync(Guid userId, List<Guid> offerIds, CancellationToken ct = default);
     Task SavePipelineResultAsync(Guid offerId, JsonDocument pipelineResult, Guid userId, CancellationToken ct = default);
     Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid offerId, CancellationToken ct = default);
 }
@@ -111,6 +113,89 @@ public class OfferService(
 
         var doc = JsonDocument.Parse(offre.AnalyseJson);
         return MapToDto(offre.Id, doc.RootElement);
+    }
+
+    public async Task<List<OfferHistoryItemDto>> GetHistoryAsync(Guid userId, CancellationToken ct = default)
+    {
+        var offers = await db.OffresEmploi
+            .Where(o => o.UtilisateurId == userId)
+            .OrderByDescending(o => o.DateCreation)
+            .ToListAsync(ct);
+
+        var offerIds = offers.Select(o => o.Id).ToList();
+        var generatedOfferIds = await (
+            from c in db.Candidatures
+            join d in db.DocumentsGeneres on c.IdCandidature equals d.IdCandidature
+            where offerIds.Contains(c.IdOffre)
+            select c.IdOffre
+        ).Distinct().ToListAsync(ct);
+        var generatedSet = generatedOfferIds.ToHashSet();
+
+        var list = new List<OfferHistoryItemDto>(offers.Count);
+        foreach (var offer in offers)
+        {
+            string title = "Offre";
+            string company = "";
+            string location = "";
+            int? score = null;
+            var status = "non_traitee";
+            var currentStep = 1;
+
+            if (!string.IsNullOrWhiteSpace(offer.AnalyseJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(offer.AnalyseJson);
+                    var dto = MapToDto(offer.Id, doc.RootElement);
+                    title = string.IsNullOrWhiteSpace(dto.Titre) ? title : dto.Titre;
+                    company = dto.Entreprise ?? "";
+                    location = dto.Localisation ?? "";
+                    score = dto.ScoreMatching > 0 ? dto.ScoreMatching : null;
+                    status = "analysee";
+                    currentStep = 2;
+                }
+                catch
+                {
+                    status = "analysee";
+                    currentStep = 2;
+                }
+            }
+
+            if (generatedSet.Contains(offer.Id))
+            {
+                status = "cv_genere";
+                currentStep = 5;
+            }
+
+            list.Add(new OfferHistoryItemDto
+            {
+                OfferId = offer.Id,
+                Titre = title,
+                Entreprise = company,
+                Localisation = location,
+                ScoreMatching = score,
+                Status = status,
+                CurrentStep = currentStep,
+                DateCreation = offer.DateCreation,
+            });
+        }
+
+        return list;
+    }
+
+    public async Task<int> DeleteOffersAsync(Guid userId, List<Guid> offerIds, CancellationToken ct = default)
+    {
+        if (offerIds.Count == 0) return 0;
+
+        var offers = await db.OffresEmploi
+            .Where(o => o.UtilisateurId == userId && offerIds.Contains(o.Id))
+            .ToListAsync(ct);
+
+        if (offers.Count == 0) return 0;
+
+        db.OffresEmploi.RemoveRange(offers);
+        await db.SaveChangesAsync(ct);
+        return offers.Count;
     }
 
     private static OfferAnalysisDto MapToDto(Guid offerId, JsonElement root)

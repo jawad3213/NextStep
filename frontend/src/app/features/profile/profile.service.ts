@@ -1136,9 +1136,31 @@ export class ProfileService {
       }
 
       for (const skill of data.skills) {
-        this.addParsingEvent('info', 'Mapping skill', skill.name);
+        const rawName = (skill.name || '').trim();
+        const normalizedName = rawName
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase();
+
+        const looksLikeLanguage = [
+          'french', 'francais', 'english', 'anglais', 'arabic', 'arabe',
+          'spanish', 'espagnol', 'german', 'allemand', 'italian', 'italien',
+          'russian', 'russe', 'chinese', 'chinois', 'japanese', 'japonais',
+          'portuguese', 'portugais'
+        ].some((lang) => normalizedName === lang || normalizedName.startsWith(`${lang} `) || normalizedName.includes(` ${lang} `));
+
+        if (looksLikeLanguage) {
+          const levelMatch = rawName.match(/\b(A1|A2|B1|B2|C1|C2|Native|Fluent|Advanced|Proficient|Beginner|Elementary|Intermediate|Upper-Intermediate)\b/i);
+          const level = levelMatch?.[1] || 'B2';
+          this.addParsingEvent('info', 'Mapping language from skills', rawName);
+          await this.addLanguage({ id: '', name: rawName.split(/[-(|]/)[0].trim(), level }, false);
+          this.addParsingEvent('success', 'Language added', rawName);
+          continue;
+        }
+
+        this.addParsingEvent('info', 'Mapping skill', rawName);
         await this.addSkill(skill, false);
-        this.addParsingEvent('success', 'Skill added', skill.name);
+        this.addParsingEvent('success', 'Skill added', rawName);
       }
 
       const skillsData: any[] = [];

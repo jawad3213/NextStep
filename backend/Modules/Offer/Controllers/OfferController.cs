@@ -60,6 +60,42 @@ public class OfferController(
         return Accepted(new OfferSubmitResponseDto { OfferId = offerId, Status = "saved" });
     }
 
+    [HttpGet]
+    [ProducesResponseType(typeof(List<OfferHistoryItemDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistory(CancellationToken ct)
+    {
+        var dbUserId = await GetUserIdAsync();
+        var items = await offerService.GetHistoryAsync(dbUserId, ct);
+        return Ok(items);
+    }
+
+    [HttpDelete]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkDelete([FromBody] BulkDeleteOffersDto dto, CancellationToken ct)
+    {
+        var dbUserId = await GetUserIdAsync();
+        var deleted = await offerService.DeleteOffersAsync(dbUserId, dto.OfferIds, ct);
+        return Ok(new { deletedCount = deleted });
+    }
+
+    [HttpPost("bulk-delete")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkDeletePost([FromBody] BulkDeleteOffersDto dto, CancellationToken ct)
+    {
+        var dbUserId = await GetUserIdAsync();
+        var deleted = await offerService.DeleteOffersAsync(dbUserId, dto.OfferIds, ct);
+        return Ok(new { deletedCount = deleted });
+    }
+
+    [HttpPost("delete")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeletePost([FromBody] BulkDeleteOffersDto dto, CancellationToken ct)
+    {
+        var dbUserId = await GetUserIdAsync();
+        var deleted = await offerService.DeleteOffersAsync(dbUserId, dto.OfferIds, ct);
+        return Ok(new { deletedCount = deleted });
+    }
+
     [HttpPost("{id:guid}/analyze-sync")]
     [ProducesResponseType(typeof(OfferAnalysisDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

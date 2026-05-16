@@ -427,6 +427,27 @@ export class StepAnalysisComponent {
     return this.result?.companyNews ?? [];
   }
 
+  get hasCompanyIntelSnapshot(): boolean {
+    return !!this.getCompanyIntelSnapshot();
+  }
+
+  get companyIntelSummary(): string {
+    const snap = this.getCompanyIntelSnapshot();
+    return snap?.companyIntelPayload?.intelligence?.summary || '';
+  }
+
+  async showCompanyIntelDetails(): Promise<void> {
+    const snap = this.getCompanyIntelSnapshot();
+    if (!snap) return;
+    await this.router.navigate(['/offers/company-analysis'], {
+      state: {
+        companyIntelPayload: snap.companyIntelPayload,
+        companyName: snap.companyName,
+        jobTitle: snap.jobTitle
+      }
+    });
+  }
+
   getAgentStatus(agentName: string): 'done' | 'running' | 'todo' {
     const current = this.progress?.agentName;
     if (!current) return 'todo';
@@ -512,8 +533,9 @@ export class StepAnalysisComponent {
         companyName: company,
         jobTitle: this.headlineTitle || 'Poste'
       }));
+      this.persistCompanyHistory(apiRes, company, this.headlineTitle || 'Poste');
 
-      await this.router.navigate(['/company-intel'], {
+      await this.router.navigate(['/offers/company-analysis'], {
         state: {
           companyIntelPayload: apiRes,
           companyName: company,
@@ -526,6 +548,53 @@ export class StepAnalysisComponent {
       this.companyIntelLoading = false;
       this.pipeline.setLoading(false);
     }
+  }
+
+  private getCompanyIntelSnapshot():
+    | { companyIntelPayload: any; companyName: string; jobTitle: string }
+    | null {
+    try {
+      const raw = sessionStorage.getItem('nextstep.company.last_payload');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.companyIntelPayload) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private persistCompanyHistory(apiRes: any, companyName: string, jobTitle: string): void {
+    try {
+      const raw = localStorage.getItem('nextstep.company.history');
+      const current = raw ? JSON.parse(raw) : [];
+      const normalized = Array.isArray(current) ? current : [];
+      const company = (companyName || '').trim();
+      const title = (jobTitle || '').trim();
+      if (!company) return;
+
+      const entry = {
+        id: `${Date.now()}`,
+        companyName: company,
+        jobTitle: title,
+        analyzedAt: new Date().toISOString(),
+        data: {
+          nom: apiRes?.intelligence?.nom ?? company,
+          summary: apiRes?.intelligence?.summary ?? '',
+          compatibilityScore: apiRes?.score ?? 0
+        },
+        rawPayload: apiRes
+      };
+
+      const deduped = normalized.filter((h: any) =>
+        !(
+          String(h?.companyName || '').toLowerCase() === company.toLowerCase() &&
+          String(h?.jobTitle || '').toLowerCase() === title.toLowerCase()
+        )
+      );
+
+      localStorage.setItem('nextstep.company.history', JSON.stringify([entry, ...deduped].slice(0, 20)));
+    } catch {}
   }
 
   private buildFallbackRecommendations(): string[] {

@@ -35,6 +35,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/offers/offer-pipeline.component').then(m => m.OfferPipelineComponent)
       },
       {
+        path: 'offers/company-analysis',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent)
+      },
+      {
         path: 'offers/:id',
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/offers/offer-detail.component').then(m => m.OfferDetailComponent)
@@ -68,7 +73,7 @@ export const routes: Routes = [
       { 
         path: 'company-intel', 
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent) 
+        loadComponent: () => import('./features/offers/offers-company.component').then(m => m.OffersCompanyComponent) 
       },
       { 
         path: 'skill-gap', 

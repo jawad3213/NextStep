@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
+import { PipelineStateService } from '../../services/pipeline-state.service';
 
 interface CompanyIntel {
   nom: string;
@@ -32,6 +33,10 @@ interface CompanyIntel {
     <div class="intel-shell">
       <header class="page-header">
         <div class="header-left">
+          <button (click)="returnToOffer()" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Retour a l'offre
+          </button>
           <h1 class="page-title">Company Intelligence</h1>
           <p class="page-subtitle">Analyse approfondie des entreprises, culture, salaires et actualites.</p>
         </div>
@@ -41,20 +46,12 @@ interface CompanyIntel {
         <div class="search-row">
           <div class="search-group">
             <label class="input-label">Nom de l'entreprise</label>
-            <input type="text" [(ngModel)]="companyName" class="search-input" placeholder="ex: Capgemini, OCP, CGI..." (keyup.enter)="analyzeCompany()" />
+            <input type="text" [ngModel]="companyName()" class="search-input" placeholder="ex: Capgemini, OCP, CGI..." readonly />
           </div>
           <div class="search-group">
             <label class="input-label">Intitule du poste</label>
-            <input type="text" [(ngModel)]="jobTitle" class="search-input" placeholder="ex: Full Stack Developer" (keyup.enter)="analyzeCompany()" />
+            <input type="text" [ngModel]="jobTitle()" class="search-input" placeholder="ex: Full Stack Developer" readonly />
           </div>
-          <button class="btn-analyze" (click)="analyzeCompany()" [disabled]="!companyName() || loading()">
-            @if (loading()) {
-              <span class="spinner-sm"></span> Analyse...
-            } @else {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-              Analyser
-            }
-          </button>
         </div>
       </div>
 
@@ -159,6 +156,7 @@ interface CompanyIntel {
     .header-left { display: flex; flex-direction: column; gap: 4px; }
     .page-title { font-size: 24px; font-weight: 700; color: #212121; margin: 0; font-family: 'Lato', sans-serif; }
     .page-subtitle { font-size: 14px; color: #616161; margin: 0; }
+    .back-link { display: flex; align-items: center; gap: 6px; background: none; border: none; padding: 0; color: #1A91F0; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 8px; svg { width: 16px; height: 16px; } &:hover { color: #0C1986; } }
 
     .search-section { background: white; border: 1px solid #E0E0E0; border-radius: 12px; padding: 20px; }
     .search-row { display: flex; gap: 12px; align-items: flex-end; }
@@ -208,6 +206,7 @@ interface CompanyIntel {
 export class CompanyIntelComponent implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private pipeline = inject(PipelineStateService);
   private baseUrl = environment.apiBaseUrl;
 
   companyName = signal('');
@@ -215,6 +214,14 @@ export class CompanyIntelComponent implements OnInit {
   loading = signal(false);
   result = signal<CompanyIntel | null>(null);
 
+  returnToOffer() {
+    const offerId = this.pipeline.currentOfferId();
+    if (offerId) {
+      this.router.navigate(['/offers/analyze'], { queryParams: { offerId } });
+    } else {
+      this.router.navigate(['/offers']);
+    }
+  }
   ngOnInit(): void {
     const navState = this.router.getCurrentNavigation()?.extras?.state as any;
     const historyState = (window.history?.state ?? {}) as any;

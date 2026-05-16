@@ -14,15 +14,11 @@ export class StepGenerationComponent {
   pipeline = inject(PipelineStateService);
 
   private readonly templateMap: Record<string, string> = {
-    'executive-diamond': 'modern',
-    'minimalist-modern': 'modern',
-    'creative-portfolio': 'modern',
-    'simple-clean': 'modern',
-    'retail-ready': 'modern',
-    'corporate-standard': 'professional',
-    'professional-executive': 'professional',
-    'elegant-academic': 'elegant',
-    'minimalist-centered': 'elegant',
+    modern: 'modern',
+    classic: 'professional',
+    executive: 'professional',
+    pro: 'modern',
+    elegant: 'elegant',
   };
 
   get selectedTemplate(): string {

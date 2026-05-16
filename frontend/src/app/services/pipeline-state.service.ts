@@ -53,6 +53,8 @@ export interface PipelineResult {
   experienceYears?: number;
   educationLevel?: string;
   modeTravail?: string;
+  descriptionPoste?: string;
+  originalRawText?: string;
 
   // ─── Agent 2 : Récupération profil (ProfileRetrieverService) ───
   // (profil interne — pas de champs UI directs, alimente Agent 3)
@@ -249,6 +251,8 @@ export class PipelineStateService {
       experienceYears: dto.anneesExperience ?? undefined,
       educationLevel: dto.niveauEtudes ?? undefined,
       modeTravail: dto.modeTravail ?? undefined,
+      descriptionPoste: dto.descriptionPoste ?? '',
+      originalRawText: dto.texteBrut ?? '',
       matchScore: dto.scoreMatching ?? 0,
       atsScore: dto.scoreAts ?? 0,
       matchBreakdown: { skills: 0, experience: 0, location: 0 },
@@ -271,6 +275,14 @@ export class PipelineStateService {
       recruiterName: '',
       coverLetterContent: '',
     });
+
+    // Bridge the raw text to the input signal for step 1 persistence
+    if (dto.texteBrut) {
+      this.offerText.set(dto.texteBrut);
+    } else if (dto.descriptionPoste) {
+      this.offerText.set(dto.descriptionPoste);
+    }
+
     this.markStepDone(0);
     this.markStepDone(1);
     if (this.currentStep() < 2) {

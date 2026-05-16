@@ -14,12 +14,14 @@ public class CvController : ControllerBase
     private readonly ICvService _cvService;
     private readonly ICvTemplateService _templateService;
     private readonly IUserService _userService;
+    private readonly ITemplateThumbnailService _thumbnailService;
 
-    public CvController(ICvService cvService, ICvTemplateService templateService, IUserService userService)
+    public CvController(ICvService cvService, ICvTemplateService templateService, IUserService userService, ITemplateThumbnailService thumbnailService)
     {
-        _cvService       = cvService;
-        _templateService = templateService;
-        _userService     = userService;
+        _cvService        = cvService;
+        _templateService  = templateService;
+        _userService      = userService;
+        _thumbnailService = thumbnailService;
     }
 
     // ─── Step 1: Template selection ────────────────────────────
@@ -45,6 +47,34 @@ public class CvController : ControllerBase
     public IActionResult GetFilterOptions()
     {
         return Ok(_templateService.GetFilterOptions());
+    }
+
+    // ─── Template Thumbnails (sample-data PDF previews) ──────
+
+    /// <summary>
+    /// Generate preview PDFs for all 5 templates using sample data.
+    /// POST /api/cv/templates/generate-thumbnails
+    /// </summary>
+    [HttpPost("templates/generate-thumbnails")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GenerateThumbnails()
+    {
+        await _thumbnailService.GenerateAllThumbnailsAsync();
+        return Ok(new { message = "Thumbnails generated for all templates." });
+    }
+
+    /// <summary>
+    /// Get the preview PDF for a template (rendered with sample data).
+    /// GET /api/cv/templates/{slug}/thumbnail
+    /// </summary>
+    [HttpGet("templates/{slug}/thumbnail")]
+    [AllowAnonymous]
+    public IActionResult GetThumbnail(string slug)
+    {
+        var pdfBytes = _thumbnailService.GetThumbnailPdf(slug.ToLowerInvariant());
+        if (pdfBytes is null)
+            return NotFound(new { error = $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first." });
+        return File(pdfBytes, "application/pdf", $"{slug}-preview.pdf");
     }
 
     // ─── Step 2: Preview (no storage) ──────────────────────────

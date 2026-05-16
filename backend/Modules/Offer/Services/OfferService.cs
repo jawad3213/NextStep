@@ -112,7 +112,7 @@ public class OfferService(
         if (string.IsNullOrEmpty(offre.AnalyseJson)) return null;
 
         var doc = JsonDocument.Parse(offre.AnalyseJson);
-        return MapToDto(offre.Id, doc.RootElement);
+        return MapToDto(offre.Id, doc.RootElement, offre.TexteBrut);
     }
 
     public async Task<List<OfferHistoryItemDto>> GetHistoryAsync(Guid userId, CancellationToken ct = default)
@@ -146,7 +146,7 @@ public class OfferService(
                 try
                 {
                     using var doc = JsonDocument.Parse(offer.AnalyseJson);
-                    var dto = MapToDto(offer.Id, doc.RootElement);
+                    var dto = MapToDto(offer.Id, doc.RootElement, offer.TexteBrut);
                     title = string.IsNullOrWhiteSpace(dto.Titre) ? title : dto.Titre;
                     company = dto.Entreprise ?? "";
                     location = dto.Localisation ?? "";
@@ -198,9 +198,9 @@ public class OfferService(
         return offers.Count;
     }
 
-    private static OfferAnalysisDto MapToDto(Guid offerId, JsonElement root)
+    private static OfferAnalysisDto MapToDto(Guid offerId, JsonElement root, string? rawText = null)
     {
-        var dto = new OfferAnalysisDto { OfferId = offerId };
+        var dto = new OfferAnalysisDto { OfferId = offerId, TexteBrut = rawText };
 
         if (root.TryGetProperty("analyzed_offer", out var ao) && ao.ValueKind == JsonValueKind.Object)
         {

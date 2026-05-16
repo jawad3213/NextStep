@@ -62,7 +62,9 @@ export interface OfferAnalysisResponse {
   keywordsAts: string[];
   anneesExperience: number | null;
   niveauEtudes: string | null;
+  modeTravail?: string;
   descriptionPoste: string | null;
+  texteBrut: string | null;
   scoreMatching: number;
   scoreAts: number;
   keywordsPresents: string[];

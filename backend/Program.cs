@@ -13,6 +13,7 @@ using NextStep.Modules.Profile.Services;
 using NextStep.Modules.Cv.Services;
 using NextStep.Shared.Storage;
 using Amazon.S3;
+using System.Linq;
 using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -90,6 +91,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ICvService, CvService>();
 builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
+builder.Services.AddSingleton<ITemplateThumbnailService, TemplateThumbnailService>();
 
 // ─── MinIO / S3 Storage ───
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
@@ -320,40 +322,47 @@ using (var scope = app.Services.CreateScope())
         ");
 
         // Seed default templates if table is empty
-        var templateCount = await context.Database.ExecuteSqlRawAsync(@"
-            INSERT INTO public.cv_template (slug, name, description, industries, experience_levels, style, layout, background_color, tags, sort_order)
+        await context.Database.ExecuteSqlRawAsync(@"
+            INSERT INTO public.cv_template (slug, name, description, thumbnail_url, industries, experience_levels, style, layout, background_color, tags, sort_order)
             SELECT * FROM (VALUES
-                ('modern',    'Modern',    'Dark blue header, two-column layout.',
+                ('modern',    'Modern',    'Dark blue header, two-column layout.',         '/api/cv/templates/modern/thumbnail',
                  '[""ITAndEngineering"",""CreativeAndDesign"",""MarketingAndSales""]'::jsonb,
                  '[""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Modern', 6, '#1B2A4A',
                  '[""two-column"",""dark-header""]'::jsonb, 1),
 
-                ('classic',   'Classic',   'Clean single-column, Georgia name font.',
+                ('classic',   'Classic',   'Clean single-column, Georgia name font.',      '/api/cv/templates/classic/thumbnail',
                  '[""AdministrativeAndOffice"",""EducationAndAcademic"",""FinanceAndAccounting"",""HealthcareAndMedical""]'::jsonb,
                  '[""StudentEntryLevel"",""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Traditional', 9, '#FFFFFF',
                  '[""single-column"",""ATS-friendly"",""clean""]'::jsonb, 2),
 
-                ('executive', 'Executive', 'Salmon/peach four-quadrant design.',
+                ('executive', 'Executive', 'Salmon/peach four-quadrant design.',           '/api/cv/templates/executive/thumbnail',
                  '[""BusinessAndManagement"",""FinanceAndAccounting"",""MarketingAndSales""]'::jsonb,
                  '[""SeniorExecutive""]'::jsonb,
                  'Elegant', 6, '#F4A68C',
                  '[""two-column"",""premium"",""executive""]'::jsonb, 3),
 
-                ('pro',       'Pro',       'Navy sidebar with skill bars and SVG contact chips.',
+                ('pro',       'Pro',       'Navy sidebar with skill bars and SVG contact chips.', '/api/cv/templates/pro/thumbnail',
                  '[""ITAndEngineering"",""CreativeAndDesign"",""BusinessAndManagement""]'::jsonb,
                  '[""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Professional', 6, '#1E2A3A',
                  '[""two-column"",""sidebar"",""skill-bars""]'::jsonb, 4),
 
-                ('elegant',   'Elegant',   'Dark navy sidebar, spaced-letter headings.',
+                ('elegant',   'Elegant',   'Dark navy sidebar, spaced-letter headings.',   '/api/cv/templates/elegant/thumbnail',
                  '[""CreativeAndDesign"",""MarketingAndSales"",""BusinessAndManagement""]'::jsonb,
                  '[""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Elegant', 6, '#1A1F36',
                  '[""two-column"",""sidebar"",""elegant""]'::jsonb, 5)
-            ) AS t(slug, name, description, industries, experience_levels, style, layout, background_color, tags, sort_order)
+            ) AS t(slug, name, description, thumbnail_url, industries, experience_levels, style, layout, background_color, tags, sort_order)
             WHERE NOT EXISTS (SELECT 1 FROM public.cv_template LIMIT 1);
+        ");
+
+        // Update thumbnail_url for existing templates that may have null
+        await context.Database.ExecuteSqlRawAsync(@"
+            UPDATE public.cv_template
+            SET thumbnail_url = '/api/cv/templates/' || slug || '/thumbnail'
+            WHERE thumbnail_url IS NULL OR thumbnail_url = '';
         ");
 
         Console.WriteLine("DEBUG: CV TEMPLATE TABLE AND SEED COMPLETED.");
@@ -439,6 +448,23 @@ using (var scope = app.Services.CreateScope())
         var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
         await storageService.EnsureBucketExistsAsync();
         Console.WriteLine("DEBUG: MINIO BUCKETS OK.");
+
+        // 12. Generate Template Thumbnails if missing
+        Console.WriteLine("DEBUG: CHECKING TEMPLATE THUMBNAILS...");
+        var thumbnailService = scope.ServiceProvider.GetRequiredService<ITemplateThumbnailService>();
+        var missing = thumbnailService.GetTemplateSlugs()
+            .Where(s => thumbnailService.GetThumbnailPdf(s) is null)
+            .ToList();
+        if (missing.Count > 0)
+        {
+            Console.WriteLine($"DEBUG: Generating thumbnails for: {string.Join(", ", missing)}");
+            await thumbnailService.GenerateAllThumbnailsAsync();
+            Console.WriteLine("DEBUG: THUMBNAILS GENERATED.");
+        }
+        else
+        {
+            Console.WriteLine("DEBUG: All thumbnails exist. Skipping generation.");
+        }
     }
     catch (Exception ex) { Console.WriteLine($"DEBUG: REPAIR FAILED: {ex.Message}"); }
 }

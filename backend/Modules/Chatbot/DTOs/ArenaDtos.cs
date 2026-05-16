@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace NextStep.Modules.Chatbot.DTOs;
 
 // ─────────────────────────────────────────────
@@ -21,7 +23,7 @@ public record ArenaConfigDto(
 /// Utilisé pour passer l'historique à Python à chaque appel.
 /// </summary>
 public record MessageTurnDto(
-    string Role,    // "user" | "ai"
+    string Role,
     string Content
 );
 
@@ -74,12 +76,13 @@ public record FreeChatResponse(
 // ─────────────────────────────────────────────
 
 public record StartSessionRequest(
+    string? SessionId = null,
     string? Mode = null,
     string? UserId = null,
     string? OfferId = null,
     string? CandidatureId = null,
     ArenaConfigDto? ArenaConfig = null,
-    string? SessionId = null
+    List<QuestionItemDto>? Questions = null
 );
 
 public record StartSessionResponse(
@@ -120,8 +123,8 @@ public record EndSessionRequest(
 );
 
 public record DimensionScoreDto(
-    string Name,        // ex: "Communication", "Technical depth"
-    int Score,          // 0-100
+    string Name,
+    int Score,
     string Comment
 );
 
@@ -179,7 +182,22 @@ public record SalaryResponse(
 
 // ─────────────────────────────────────────────
 // Sessions History
-// ─────────────────────────────────────────────
+
+public record SessionDetailDto(
+    string SessionId,
+    string Mode,
+    string? Domain,
+    string? Level,
+    int? GlobalScore,
+    DateTime DateSession,
+    List<DimensionScoreDto> Dimensions,
+    List<string> Strengths,
+    List<string> Improvements,
+    List<string> CoachingTips,
+    List<QuestionEvaluationDto> QuestionEvaluations,
+    string? BestAnswer = null,
+    string? WorstAnswer = null
+);
 
 public record SessionSummaryDto(
     string SessionId,
@@ -189,10 +207,11 @@ public record SessionSummaryDto(
     int DurationMinutes,
     string? Domain,
     string? Level,
-    int? Score,
+    int? ScoreEntretien,
     DateTime DateSession,
     DateTime? CompletedAt
 );
+
 
 // ─────────────────────────────────────────────
 // Salary Coach Interactive

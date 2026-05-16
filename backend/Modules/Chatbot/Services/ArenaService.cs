@@ -125,46 +125,85 @@ public class ArenaService : IArenaService
 
     public async Task<List<SessionSummaryDto>> GetSessionsAsync(string userId)
     {
-        var userGuid = Guid.Parse(userId);
+        if (string.IsNullOrEmpty(userId)) return new List<SessionSummaryDto>();
 
-        var sessions = await _db.SessionCoachings
-            .Where(s => s.IdUtilisateur == userGuid)
-            .OrderByDescending(s => s.DateSession)
-            .Select(s => new SessionSummaryDto(
-                s.IdSession.ToString(),
-                s.Mode,
-                s.Status,
-                s.Language,
-                s.DurationMinutes,
-                s.Domain,
-                s.Level,
-                s.ScoreEntretien,
-                s.DateSession,
-                s.CompletedAt
-            ))
-            .ToListAsync();
+        // Jointure directe pour garantir que l'on trouve les sessions 
+        // quel que soit l'ID (Keycloak ou Interne) fourni dans le token.
+        var query = from s in _db.SessionCoachings
+                    join u in _db.Utilisateurs on s.IdUtilisateur equals u.Id
+                    where u.KeycloakId == userId || u.Id.ToString() == userId
+                    where s.Status != "pending"
+                    orderby s.DateSession descending
+                    select new SessionSummaryDto(
+                        s.IdSession.ToString(),
+                        s.Mode,
+                        s.Status,
+                        s.Language,
+                        s.DurationMinutes,
+                        s.Domain,
+                        s.Level,
+                        s.ScoreEntretien,
+                        s.DateSession,
+                        s.CompletedAt
+                    );
 
-        return sessions;
+        return await query.ToListAsync();
     }
 
-    public async Task<FeedbackDto?> GetSessionDetailsAsync(string sessionId)
+    public async Task<SessionDetailDto> GetSessionDetailAsync(string sessionId)
     {
-        var sessionGuid = Guid.Parse(sessionId);
         var session = await _db.SessionCoachings
-            .FirstOrDefaultAsync(s => s.IdSession == sessionGuid);
+            .FindAsync(Guid.Parse(sessionId));
 
-        if (session == null || string.IsNullOrEmpty(session.FeedbackJson))
-            return null;
+        if (session == null) throw new KeyNotFoundException();
 
-        try
+        // Le FeedbackDto doit être désérialisé en tenant compte du format snake_case de Python
+        var options = new JsonSerializerOptions 
+        { 
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        };
+
+        var feedback = session.FeedbackJson != null
+            ? JsonSerializer.Deserialize<FeedbackDto>(session.FeedbackJson, options)
+            : null;
+
+        return new SessionDetailDto(
+            SessionId    : session.IdSession.ToString(),
+            Mode         : session.Mode,
+            Domain       : session.Domain,
+            Level        : session.Level,
+            GlobalScore  : feedback?.GlobalScore ?? session.ScoreEntretien,
+            DateSession  : session.DateSession,
+            Dimensions   : feedback?.Dimensions ?? [],
+            Strengths    : feedback?.Strengths ?? [],
+            Improvements : feedback?.Improvements ?? [],
+            CoachingTips : feedback?.CoachingTips ?? [],
+            QuestionEvaluations : feedback?.QuestionEvaluations ?? [],
+            BestAnswer   : feedback?.BestAnswer,
+            WorstAnswer  : feedback?.WorstAnswer
+        );
+    }
+
+    public async Task<bool> DeleteSessionAsync(string sessionId, string userId)
+    {
+        if (!Guid.TryParse(sessionId, out var sessionGuid)) return false;
+
+        var session = await _db.SessionCoachings.FindAsync(sessionGuid);
+        if (session == null) return false;
+
+        // Sécurité : Vérifier que la session appartient bien à l'utilisateur
+        // On résout l'ID interne de l'utilisateur pour comparer
+        var internalUser = await _db.Utilisateurs
+            .FirstOrDefaultAsync(u => u.KeycloakId == userId || u.Id.ToString() == userId);
+
+        if (internalUser == null || session.IdUtilisateur != internalUser.Id)
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            return JsonSerializer.Deserialize<FeedbackDto>(session.FeedbackJson, options);
+            return false;
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ArenaService] Error deserializing FeedbackJson for session {sessionId}: {ex.Message}");
-            return null;
-        }
+
+        _db.SessionCoachings.Remove(session);
+        await _db.SaveChangesAsync();
+        return true;
     }
 }

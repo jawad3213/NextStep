@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
-import { ArenaConfig, QuestionItem, ChatMessage, FeedbackResult, SalaryResult, SessionSummary } from '../models/arena.models';
+import { ArenaConfig, QuestionItem, ChatMessage, FeedbackResult, SalaryResult, SessionSummary, SessionDetail } from '../models/arena.models';
 
 const mapConfig = (c: ArenaConfig) => ({
   domain: c.domain,
@@ -48,12 +48,11 @@ export class ArenaService {
     })));
   }
 
-  startSession(config: ArenaConfig, sessionId?: string): Observable<{ status: string; session_id: string; opening_message: string }> {
+  startSession(config: ArenaConfig, sessionId?: string, questions?: QuestionItem[]): Observable<{ status: string; session_id: string; opening_message: string }> {
     return this.http.post<any>(`${this.api}/session/start`, {
       sessionId: sessionId,
       arenaConfig: mapConfig(config),
-      language: config.language,
-      durationMinutes: config.duration_minutes,
+      questions: questions || []
     }).pipe(map(r => ({
       status: 'success',
       session_id: r.sessionId || r.session_id,
@@ -87,14 +86,19 @@ export class ArenaService {
         session_id: r.sessionId || r.session_id,
         score: score,
         feedback: {
-          global_score: score,
+          globalScore: score,
           dimensions: f.dimensions || [],
-          question_evaluations: f.questionEvaluations || f.question_evaluations || [],
+          questionEvaluations: (f.questionEvaluations || f.question_evaluations || []).map((qe: any) => ({
+            question: qe.question,
+            userAnswer: qe.userAnswer || qe.user_answer,
+            score: qe.score,
+            correction: qe.correction
+          })),
           strengths: f.strengths || [],
           improvements: f.improvements || [],
-          best_answer: f.bestAnswer || f.best_answer || '',
-          worst_answer: f.worstAnswer || f.worst_answer || '',
-          coaching_tips: f.coachingTips || f.coaching_tips || []
+          bestAnswer: f.bestAnswer || f.best_answer || '',
+          worstAnswer: f.worstAnswer || f.worst_answer || '',
+          coachingTips: f.coachingTips || f.coaching_tips || []
         }
       };
     }));
@@ -133,12 +137,54 @@ export class ArenaService {
     });
   }
 
-  getHistory(): Observable<SessionSummary[]> {
-    // Note: The backend expects userId in query or gets it from token
-    return this.http.get<SessionSummary[]>(`${this.api}/sessions`);
+  // Liste légère → cards
+  getSessions(userId: string): Observable<SessionSummary[]> {
+    return this.http.get<any[]>(`${this.api}/sessions`, {
+      params: { userId }
+    }).pipe(map(list => (list || []).map(s => ({
+      sessionId: s.sessionId || s.session_id || s.idSession,
+      mode: s.mode,
+      status: s.status,
+      language: s.language,
+      durationMinutes: s.durationMinutes || s.duration_minutes,
+      domain: s.domain,
+      level: s.level,
+      scoreEntretien: s.scoreEntretien !== undefined ? s.scoreEntretien : s.score_entretien,
+      dateSession: s.dateSession || s.date_session,
+      completedAt: s.completedAt || s.completed_at
+    }))));
   }
 
-  getSessionDetails(sessionId: string): Observable<FeedbackResult> {
-    return this.http.get<FeedbackResult>(`${this.api}/sessions/${sessionId}/details`);
+  // Détail complet → modal
+  getSessionDetail(sessionId: string): Observable<SessionDetail> {
+    return this.http.get<any>(`${this.api}/sessions/${sessionId}`)
+      .pipe(map(s => ({
+        sessionId: s.sessionId || s.session_id,
+        mode: s.mode,
+        status: s.status,
+        language: s.language,
+        durationMinutes: s.durationMinutes || s.duration_minutes,
+        domain: s.domain,
+        level: s.level,
+        globalScore: s.globalScore !== undefined ? s.globalScore : (s.global_score || s.scoreEntretien || s.score_entretien || 0),
+        dateSession: s.dateSession || s.date_session,
+        dimensions: s.dimensions || [],
+        strengths: s.strengths || [],
+        improvements: s.improvements || [],
+        coachingTips: s.coachingTips || s.coaching_tips || [],
+        questionEvaluations: (s.questionEvaluations || s.question_evaluations || []).map((qe: any) => ({
+          question: qe.question,
+          userAnswer: qe.userAnswer || qe.user_answer,
+          score: qe.score,
+          correction: qe.correction
+        })),
+        bestAnswer: s.bestAnswer || s.best_answer,
+        worstAnswer: s.worstAnswer || s.worst_answer
+      })));
+  }
+
+  // Suppression
+  deleteSession(sessionId: string): Observable<void> {
+    return this.http.post<void>(`${this.api}/sessions/${sessionId}/delete`, {});
   }
 }

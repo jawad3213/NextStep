@@ -21,12 +21,39 @@ Culture: {culture}. Key skills: {skills}. Difficulty: {difficulty}.
 Language: {language} — ALWAYS respond in this language.
 Ask ONE question at a time. Stay in character. Be professional but human."""
 
-EVALUATOR_PROMPT = """Evaluate this mock interview.
+EVALUATOR_PROMPT = """Analyze the interview transcript and provide a rigorous evaluation.
 Context: {context}
-Transcript:\n{transcript}
+Transcript:
+{transcript}
+
+EVALUATION CRITERIA:
+1. Clarity: Is the response structured and easy to follow?
+2. STAR Method: Does the candidate use Situation, Task, Action, and Result effectively?
+3. Technical Accuracy: Are technical concepts explained correctly and with sufficient depth?
+4. Communication: Professionalism, tone, and vocabulary.
+5. Confidence: Ability to think critically vs. relying on generic or memorized answers.
+
+SCORING RULES:
+- global_score: A total performance score from 0 to 100. 
+- dimensions: Individual scores from 0 to 10 for each criteria mentioned above.
+- Return the evaluation in the same language as the transcript.
 
 Return ONLY JSON:
-{{"global_score":0,"dimensions":[{{"name":"Clarity","score":0,"comment":"..."}},{{"name":"STAR Method","score":0,"comment":"..."}},{{"name":"Technical Accuracy","score":0,"comment":"..."}},{{"name":"Communication","score":0,"comment":"..."}},{{"name":"Confidence","score":0,"comment":"..."}}],"strengths":["..."],"improvements":["..."],"best_answer":"...","worst_answer":"... Better: [...]","coaching_tips":["..."]}}"""
+{{
+  "global_score": 0,
+  "dimensions": [
+    {{"name": "Clarity", "score": 0, "comment": "..."}},
+    {{"name": "STAR Method", "score": 0, "comment": "..."}},
+    {{"name": "Technical Accuracy", "score": 0, "comment": "..."}},
+    {{"name": "Communication", "score": 0, "comment": "..."}},
+    {{"name": "Confidence", "score": 0, "comment": "..."}}
+  ],
+  "strengths": ["...", "..."],
+  "improvements": ["...", "..."],
+  "best_answer": "Extract or summarize the candidate's strongest response.",
+  "worst_answer": "Identify the weakest response and provide a concrete 'Better' version.",
+  "coaching_tips": ["Actionable tip 1", "Actionable tip 2"]
+}}"""
 
 SALARY_PROMPT = """Salary negotiation expert — MENA region.
 Job: {job_title}. Location: {location}.

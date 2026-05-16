@@ -16,6 +16,7 @@ from __future__ import annotations
 import uuid
 import logging
 from datetime import datetime
+from sqlalchemy import update
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -67,16 +68,27 @@ async def get_internal_user_id(keycloak_id: str | None, db: AsyncSession) -> uui
     """Résout le Keycloak ID en internal id_utilisateur UUID."""
     if not keycloak_id:
         return None
+    
+    # 1. Chercher si l'utilisateur existe déjà
     try:
         from sqlalchemy import text
-        # On essaie d'abord de voir si c'est déjà l'internal ID (UUID valide dans id_utilisateur)
-        # Mais le plus sûr est de chercher dans keycloak_id
         r = await db.execute(
             text("SELECT id_utilisateur FROM utilisateur WHERE keycloak_id = :k OR id_utilisateur::text = :k"),
             {"k": keycloak_id}
         )
-        return r.scalar_one_or_none()
-    except Exception:
+        found_id = r.scalar_one_or_none()
+        if found_id:
+            return found_id
+            
+        # 2. Si non trouvé, on tente de voir si c'est un UUID valide pour l'utiliser
+        try:
+            val_uuid = uuid.UUID(keycloak_id)
+            return val_uuid
+        except (ValueError, TypeError):
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error resolving user {keycloak_id}: {e}")
         return None
 
 
@@ -187,24 +199,18 @@ async def get_offer_context_from_db(
 
 async def generate_questions_service(
     mode: str,
+    user_id: str,
     offer_id: str | None,
     arena_config: ArenaConfigSchema | None,
-    user_id: str,
     db: AsyncSession,
 ) -> QuestionsResponse:
-    """
-    Génère les questions via LangGraph.
-    Sauvegarde chaque question dans question_entrainement.
-    """
-
-    # 1. Récupérer le contexte offre si mode offer
+    """Génère les questions via LangGraph sans aucune persistence en DB."""
+    
     offer_ctx = None
     if mode == "offer" and offer_id:
         offer_ctx = await get_offer_context_from_db(offer_id, user_id, db)
 
-    # 2. Construire l'état initial
     state = InterviewPrepState(
-        session_id=str(uuid.uuid4()),
         user_id=user_id,
         mode=mode,
         request_type="generate_questions",
@@ -212,52 +218,11 @@ async def generate_questions_service(
         arena_config=_to_arena_config(arena_config),
     )
 
-    # 3. Invoquer le graphe
     result = await interview_graph.ainvoke(state)
     questions_out = result.get("questions", [])
 
-    if not questions_out:
-        logger.warning("Graph returned 0 questions")
-
-    # 4. Sauvegarder en DB (session temporaire pour les questions générées)
-    try:
-        internal_uid = await get_internal_user_id(user_id, db)
-        cand_id = await get_candidature_id(offer_id, user_id, db)
-        session_db = SessionCoaching(
-            id_utilisateur=internal_uid,
-            id_candidature=cand_id,
-            mode=mode,
-            language=arena_config.language if arena_config else "en",
-            duration_minutes=arena_config.duration_minutes if arena_config else 20,
-            domain=arena_config.domain if arena_config else None,
-            level=arena_config.level if arena_config else None,
-            focus_areas=arena_config.focus_areas if arena_config else None,
-            status="pending",
-        )
-        db.add(session_db)
-        await db.flush()  # obtenir l'id_session sans commit
-
-        for i, q in enumerate(questions_out):
-            db.add(QuestionEntrainement(
-                id_session=session_db.id_session,
-                texte_question=q.question,
-                type_question=q.type,
-                source=q.source,
-                company_specific=q.company_specific,
-                conseil_reponse=q.tip,
-                ordre=i,
-            ))
-
-        await db.commit()
-        logger.info(f"Saved session {session_db.id_session} with {len(questions_out)} questions")
-
-    except Exception as e:
-        logger.error(f"DB save error in generate_questions: {e}")
-        await db.rollback()
-
-    # 5. Retourner le schema de réponse
     return QuestionsResponse(
-        session_id=str(session_db.id_session),
+        session_id=None,
         mode=mode,
         total=len(questions_out),
         questions=[
@@ -342,64 +307,63 @@ async def free_chat_service(
 # ═══════════════════════════════════════════════════════════════
 
 async def start_interview_service(
+    session_id: str | None,
     mode: str,
     offer_id: str | None,
     arena_config: ArenaConfigSchema | None,
     user_id: str,
     db: AsyncSession,
-    session_id: str | None = None,
+    questions: list[QuestionOut] | None = None
 ) -> StartInterviewResponse:
-    """Démarre la session. Crée la ligne en DB ou réutilise l'existante."""
+    """Crée la session en DB seulement maintenant."""
 
     offer_ctx = None
     if mode == "offer" and offer_id:
         offer_ctx = await get_offer_context_from_db(offer_id, user_id, db)
 
-    # Réutiliser ou créer la session en DB
-    cfg = arena_config
+    # 1. Résoudre les identifiants
+    internal_uid = await get_internal_user_id(user_id, db)
+    cand_id = await get_candidature_id(offer_id, user_id, db)
+    
+    # 2. Créer la session
+    final_session_id = uuid.UUID(session_id) if session_id else uuid.uuid4()
+    
     try:
-        internal_uid = await get_internal_user_id(user_id, db)
-        cand_id = await get_candidature_id(offer_id, user_id, db)
+        session_db = SessionCoaching(
+            id_session=final_session_id,
+            id_utilisateur=internal_uid,
+            id_candidature=cand_id,
+            mode=mode,
+            language=arena_config.language if arena_config else "en",
+            duration_minutes=arena_config.duration_minutes if arena_config else 20,
+            domain=arena_config.domain if arena_config else None,
+            level=arena_config.level if arena_config else None,
+            status="started",
+            date_session=datetime.utcnow()
+        )
+        db.add(session_db)
         
-        if session_id:
-            # On réutilise la session existante (créée pendant la génération des questions)
-            session_uuid = uuid.UUID(session_id)
-            session_db = await db.get(SessionCoaching, session_uuid)
-            if session_db:
-                session_db.status = "in_progress"
-                session_db.id_utilisateur = internal_uid
-                session_db.id_candidature = cand_id
-                await db.commit()
-                logger.info(f"Reusing existing session: {session_id}")
-            else:
-                session_id = None # On en créera une nouvelle plus bas
-
-        if not session_id:
-            session_db = SessionCoaching(
-                id_utilisateur=internal_uid,
-                id_candidature=cand_id,
-                mode=mode,
-                language=cfg.language if cfg else "en",
-                duration_minutes=cfg.duration_minutes if cfg else 20,
-                domain=cfg.domain if cfg else None,
-                level=cfg.level if cfg else None,
-                focus_areas=cfg.focus_areas if cfg else None,
-                status="in_progress",
-            )
-            db.add(session_db)
-            await db.commit()
-            session_id = str(session_db.id_session)
-            logger.info(f"New session created: {session_id}")
-            
+        # 3. Sauvegarder les questions si fournies
+        if questions:
+            for i, q in enumerate(questions):
+                db.add(QuestionEntrainement(
+                    id_session=final_session_id,
+                    texte_question=q.question,
+                    type_question=q.type,
+                    source=q.source,
+                    conseil_reponse=q.tip,
+                    ordre=i
+                ))
+        
+        await db.commit()
+        logger.info(f"Session {final_session_id} created in DB for user {user_id}")
     except Exception as e:
-        logger.error(f"DB session management error: {e}")
+        logger.error(f"Error creating session record: {e}")
         await db.rollback()
-        if not session_id:
-            session_id = str(uuid.uuid4())
 
-    # Appeler le graphe pour le message d'ouverture
+    # 4. Invoquer le graphe
     state = InterviewPrepState(
-        session_id=session_id,
+        session_id=str(final_session_id),
         user_id=user_id,
         mode=mode,
         request_type="start_interview",
@@ -410,15 +374,14 @@ async def start_interview_service(
 
     result = await interview_graph.ainvoke(state)
     messages_out = result.get("messages", [])
-    opening = messages_out[-1].content if messages_out else "Hello! Let's begin the interview."
+    opening = messages_out[-1].content if messages_out else "Hello! Let's begin."
 
-    # Sauvegarder le message d'ouverture
+    # 5. Sauvegarder le message d'ouverture
     try:
-        internal_uid = await get_internal_user_id(user_id, db)
         db.add(ChatMessage(
-            thread_id=uuid.UUID(session_id),
+            thread_id=final_session_id,
             id_utilisateur=internal_uid,
-            id_session=uuid.UUID(session_id),
+            id_session=final_session_id,
             chat_type="interview",
             sender="ai",
             content=opening,
@@ -429,7 +392,7 @@ async def start_interview_service(
         await db.rollback()
 
     return StartInterviewResponse(
-        session_id=session_id,
+        session_id=str(final_session_id),
         opening_message=opening,
     )
 
@@ -536,10 +499,10 @@ async def end_interview_service(
     result = await interview_graph.ainvoke(state)
     feedback: FeedbackResult | None = result.get("feedback")
     score = feedback.global_score if feedback else 0
+    
+    logger.info(f"[EVALUATOR] Evaluated session {session_id}. Score: {score}")
 
     # Mettre à jour la session en DB
-    session_uuid = None
-    questions_rows = []
     try:
         session_uuid = uuid.UUID(session_id)
         row = await db.get(SessionCoaching, session_uuid)
@@ -547,49 +510,46 @@ async def end_interview_service(
             row.status          = "completed"
             row.score_entretien = score
             row.completed_at    = datetime.utcnow()
-            row.feedback_json   = feedback.model_dump() if feedback else {}
+            # Stocker feedback comme dict/JSON
+            row.feedback_json   = feedback.model_dump() if feedback else None
             
-            user_messages = [m for m in state.messages if m.role == "user"]
-            dims = feedback.dimensions if feedback else []
-            tips = feedback.coaching_tips if feedback else []
+            # Flush pour s'assurer que la session est mise à jour avant les questions
+            await db.flush()
 
-            for i, msg in enumerate(user_messages):
-                await db.execute(
-                    update(QuestionEntrainement)
-                    .where(QuestionEntrainement.id_session == session_uuid)
-                    .where(QuestionEntrainement.ordre == i)
-                    .values(
-                        reponse_utilisateur = msg.content,
-                        score_reponse       = (dims[i].score * 10) if i < len(dims) else None,
-                        correction_ia       = tips[i] if i < len(tips) else None
-                    )
-                )
+            # Mise à jour des questions si feedback présent
+            if feedback and feedback.dimensions:
+                user_messages = [m for m in state.messages if m.role == "user"]
+                dims = feedback.dimensions
+                tips = feedback.coaching_tips if feedback else []
+
+                for i, msg in enumerate(user_messages):
+                    try:
+                        await db.execute(
+                            update(QuestionEntrainement)
+                            .where(QuestionEntrainement.id_session == session_uuid)
+                            .where(QuestionEntrainement.ordre == i)
+                            .values(
+                                reponse_utilisateur = msg.content,
+                                score_reponse       = (dims[i].score * 10) if i < len(dims) else None,
+                                correction_ia       = tips[i] if i < len(tips) else None
+                            )
+                        )
+                    except Exception as qe:
+                        logger.warning(f"Failed to update question {i} for session {session_id}: {qe}")
 
             await db.commit()
-            
-            # Récupérer les questions pour le front
-            stmt_q = select(QuestionEntrainement).where(QuestionEntrainement.id_session == session_uuid).order_by(QuestionEntrainement.ordre)
-            res_q = await db.execute(stmt_q)
-            questions_rows = res_q.scalars().all()
+            logger.info(f"✅ Session {session_id} successfully saved to DB with score {score}")
         else:
-            logger.warning(f"Session {session_id} not found in DB")
+            logger.error(f"❌ Session {session_id} not found in DB during end_interview")
 
     except Exception as e:
-        logger.error(f"End session processing error: {e}")
+        logger.error(f"❌ End session processing error for {session_id}: {e}")
         await db.rollback()
 
-    # Construire la réponse (avec fallback si erreur)
+    # Construire la réponse
     feedback_out = FeedbackOut(
         global_score=feedback.global_score if feedback else 0,
         dimensions=[DimensionOut(**d.model_dump()) for d in (feedback.dimensions if feedback else [])],
-        question_evaluations=[
-            QuestionEvalOut(
-                question=q.texte_question,
-                user_answer=q.reponse_utilisateur or "",
-                score=q.score_reponse or 0,
-                correction=q.correction_ia or ""
-            ) for q in questions_rows
-        ],
         strengths=feedback.strengths    if feedback else [],
         improvements=feedback.improvements if feedback else [],
         best_answer=feedback.best_answer   if feedback else "",

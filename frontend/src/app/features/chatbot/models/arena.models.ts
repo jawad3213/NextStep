@@ -29,6 +29,7 @@ export interface SessionConfig {
   display_title?: string;   // e.g. "Software Dev Arena" or "Full-Stack Dev @ Google"
   display_emoji?: string;   // domain emoji
   session_id?: string;      // The unified session UUID
+  questions?: QuestionItem[];
 }
 
 export interface ChatMessage {
@@ -54,20 +55,20 @@ export interface DimensionScore {
 
 export interface QuestionEvaluation {
   question: string;
-  user_answer: string;
+  userAnswer: string;
   score: number;
   correction: string;
 }
 
 export interface FeedbackResult {
-  global_score: number;
+  globalScore: number;
   dimensions: DimensionScore[];
-  question_evaluations: QuestionEvaluation[];
+  questionEvaluations: QuestionEvaluation[];
   strengths: string[];
   improvements: string[];
-  best_answer: string;
-  worst_answer: string;
-  coaching_tips: string[];
+  bestAnswer: string;
+  worstAnswer: string;
+  coachingTips: string[];
 }
 
 export interface NegotiationStep {
@@ -88,29 +89,28 @@ export interface SalaryResult {
 }
 
 export interface SessionSummary {
-  idSession: string;
-  mode: string;
+  sessionId: string;
+  mode: 'offer' | 'arena';
   status: string;
   language: string;
   durationMinutes: number;
   domain: string;
   level: string;
-  scoreEntretien: number | null;
-  dateSession: Date;
-  completedAt?: Date;
+  scoreEntretien?: number;
+  dateSession: string;
+  completedAt?: string;
 }
 
-export interface PastSessionDto {
-  id: string;
-  id_session: string;
-  mode: string;
-  status: string;
-  language: string;
-  durationMinutes: number;
-  domain: string;
-  level: string;
-  scoreEntretien: number | null;
-  dateSession: string;
+export interface SessionDetail extends SessionSummary {
+  globalScore: number;
+  dimensions: DimensionScore[];
+  strengths: string[];
+  improvements: string[];
+  coachingTips: string[];
+  questionEvaluations: QuestionEvaluation[];
+  bestAnswer?: string;
+  worstAnswer?: string;
+  feedbackJson?: FeedbackResult;
 }
 
 export interface SessionCoachingDetailsDto {

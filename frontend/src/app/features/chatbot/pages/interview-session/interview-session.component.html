@@ -228,12 +228,12 @@
         Coach's Advice
       </div>
       <ul>
-        <li *ngFor="let tip of feedback()?.coaching_tips">{{ tip }}</li>
+        <li *ngFor="let tip of feedback()?.coachingTips">{{ tip }}</li>
       </ul>
     </div>
 
     <!-- Question Evaluations -->
-    <div class="res-q-evals" *ngIf="feedback()?.question_evaluations?.length">
+    <div class="res-q-evals" *ngIf="feedback()?.questionEvaluations?.length">
       <div class="tips-title">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -245,13 +245,13 @@
         </svg>
         Question Details
       </div>
-      <div class="q-eval-item" *ngFor="let qe of feedback()?.question_evaluations">
+      <div class="q-eval-item" *ngFor="let qe of feedback()?.questionEvaluations">
         <div class="q-eval-header">
           <span class="q-eval-text">{{ qe.question }}</span>
           <span class="q-eval-score" [ngClass]="qe.score >= 70 ? 'high' : qe.score >= 50 ? 'mid' : 'low'">{{ qe.score }}%</span>
         </div>
         <div class="q-eval-ans">
-          <strong>Your response:</strong> {{ qe.user_answer }}
+          <strong>Your response:</strong> {{ qe.userAnswer }}
         </div>
         <div class="q-eval-corr" *ngIf="qe.correction">
           <strong>Analysis & Correction:</strong> {{ qe.correction }}

@@ -98,7 +98,7 @@ export class InterviewSessionComponent implements OnInit, OnDestroy, AfterViewCh
     setTimeout(() => this.msgInput?.nativeElement?.focus(), 800);
 
     const arenaConfig = this.toArenaConfig();
-    this.svc.startSession(arenaConfig, this.config.session_id).subscribe({
+    this.svc.startSession(arenaConfig, this.config.session_id, this.config.questions).subscribe({
       next: r => {
         this.sessionId.set(r.session_id);
         this.messages.set([{ role: 'ai', content: r.opening_message, timestamp: new Date() }]);

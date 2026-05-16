@@ -36,14 +36,23 @@ builder.Services.AddCors(options =>
     );
 });
 
+Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = builder.Configuration["Keycloak:Authority"];
         options.Audience = builder.Configuration["Keycloak:Audience"];
         options.RequireHttpsMetadata = false;
-        options.MetadataAddress = "http://keycloak:8080/realms/Next-Step/.well-known/openid-configuration";
-        options.TokenValidationParameters = new TokenValidationParameters { ValidateAudience = false, ValidateIssuer = false, NameClaimType = "email" };
+        options.MetadataAddress = $"{builder.Configuration["Keycloak:Authority"]}/.well-known/openid-configuration";
+        options.TokenValidationParameters = new TokenValidationParameters 
+        { 
+            ValidateAudience = false, 
+            ValidateIssuer = false, 
+            ValidateLifetime = false,
+            NameClaimType = "email" 
+        };
+        options.MapInboundClaims = false;
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = async context =>

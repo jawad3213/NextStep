@@ -68,5 +68,10 @@ public interface IArenaService
     /// <summary>
     /// Retourne les détails (feedback complet) d'une session terminée.
     /// </summary>
-    Task<FeedbackDto?> GetSessionDetailsAsync(string sessionId);
+    Task<SessionDetailDto> GetSessionDetailAsync(string sessionId);
+
+    /// <summary>
+    /// Supprime une session d'interview.
+    /// </summary>
+    Task<bool> DeleteSessionAsync(string sessionId, string userId);
 }

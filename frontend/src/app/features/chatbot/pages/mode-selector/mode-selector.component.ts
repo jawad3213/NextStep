@@ -2,9 +2,11 @@ import { Component, signal, computed, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { ArenaService } from '../../services/arena.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import {
   ArenaConfig, DOMAINS, LEVELS, DURATIONS, LANGUAGES,
-  FOCUS_BY_DOMAIN, InterviewLevel, PastSessionDto, SessionCoachingDetailsDto
+  FOCUS_BY_DOMAIN, InterviewLevel, SessionSummary, SessionDetail
 } from '../../models/arena.models';
 
 type View = 'selector' | 'arena';
@@ -29,6 +31,8 @@ const STEPS: { key: ArenaStep; label: string }[] = [
 export class ModeSelectorComponent implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private arenaService = inject(ArenaService);
+  private authService = inject(AuthService);
 
   // ── Views & steps
   view = signal<View>('selector');
@@ -43,9 +47,16 @@ export class ModeSelectorComponent implements OnInit {
   selectedFocus = signal<string[]>([]);
 
   // ── History Data
-  pastSessions = signal<PastSessionDto[]>([]);
-  selectedSession = signal<SessionCoachingDetailsDto | null>(null);
-  showDetails = signal(false);
+  pastSessions = signal<SessionSummary[]>([]);
+  selectedSession = signal<SessionDetail | null>(null);
+  showDetailModal = signal(false);
+  loadingHistory = signal(false);
+  showDeleteConfirm = signal(false);
+  sessionToDelete = signal<SessionSummary | null>(null);
+  
+  // Notification Toast
+  showToast = signal(false);
+  toastMsg = signal('');
 
   // ── Data
   readonly domains = DOMAINS;
@@ -58,46 +69,135 @@ export class ModeSelectorComponent implements OnInit {
   stepIndex = computed(() => STEPS.findIndex(s => s.key === this.currentStep()));
 
   ngOnInit() {
-    this.loadHistory();
+    // Attendez que Keycloak soit prêt avec un petit délai
+    // Keycloak s'initialise de manière asynchrone
+    setTimeout(() => {
+      if (this.authService.isAuthenticated()) {
+        console.log('✅ Utilisateur authentifié - chargement de l\'historique');
+        this.loadHistory();
+      } else {
+        console.warn('⏳ Utilisateur non authentifié - historique non chargé');
+        this.pastSessions.set([]);
+      }
+    }, 500); // Donne 500ms à Keycloak pour initialiser
   }
 
-  loadHistory() {
-    this.http.get<any[]>('/api/arena/sessions').subscribe({
-      next: (data) => {
-        const mapped = data.map(s => ({
-          ...s,
-          id: s.sessionId,
-          id_session: s.sessionId,
-          scoreEntretien: s.score,
-          durationMinutes: s.durationMinutes,
-          dateSession: s.dateSession
-        }));
-        this.pastSessions.set(mapped);
+  private loadHistory() {
+    // Récupère le token JWT depuis Keycloak
+    const token = this.authService.getToken();
+    if (!token) {
+      console.warn('❌ Token Keycloak manquant!');
+      this.pastSessions.set([]);
+      return;
+    }
+
+    // Décode le token pour extraire le userId (claim "sub")
+    const userId = this.extractUserIdFromToken(token);
+    if (!userId) {
+      console.warn('❌ userId manquant dans le token!');
+      this.pastSessions.set([]);
+      return;
+    }
+
+    console.log('✅ userId trouvé:', userId);
+    this.loadingHistory.set(true);
+
+    this.arenaService.getSessions(userId).subscribe({
+      next: (sessions) => {
+        console.log('✅ Sessions chargées:', sessions.length);
+        console.log('📊 Réponse API complète:', sessions);
+        this.pastSessions.set(sessions);
+        this.loadingHistory.set(false);
       },
-      error: (err) => console.error('Failed to load history', err)
+      error: (err) => {
+        console.error('❌ Erreur chargement historique:', err);
+        console.error('📡 Détails erreur:', err.status, err.message);
+        this.pastSessions.set([]);
+        this.loadingHistory.set(false);
+      }
     });
   }
 
-  viewDetails(session: PastSessionDto) {
-    this.http.get<any>(`/api/arena/sessions/${session.id}/details`).subscribe({
-      next: (res) => {
-        const details: SessionCoachingDetailsDto = {
-          ...res,
-          global_score: res.globalScore,
-          coaching_tips: res.coachingTips,
-          domain: session.domain,
-          level: session.level,
-          mode: session.mode,
-          date: session.dateSession
-        };
-        this.selectedSession.set(details);
-        this.showDetails.set(true);
+  private extractUserIdFromToken(token: string): string | null {
+    try {
+      // Décode le JWT: format = header.payload.signature
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+
+      const payload = JSON.parse(atob(parts[1]));
+      console.log('🔍 JWT Payload:', payload);
+      
+      // Le userId se trouve dans le claim "sub"
+      const userId = payload.sub || payload.userId;
+      if (userId) {
+        console.log('✅ userId extrait du token:', userId);
+      }
+      return userId || null;
+    } catch (error) {
+      console.error('❌ Erreur décodage token:', error);
+      return null;
+    }
+  }
+
+  viewDetails(session: SessionSummary) {
+    this.loadingHistory.set(true);
+    this.arenaService.getSessionDetail(session.sessionId).subscribe({
+      next: (detail) => {
+        this.selectedSession.set(detail);
+        this.showDetailModal.set(true);
+        this.loadingHistory.set(false);
       },
-      error: (err) => console.error('Failed to load details', err)
+      error: () => {
+        this.loadingHistory.set(false);
+        // On pourrait ajouter un toast d'erreur ici
+      }
     });
   }
 
-  closeDetails() { this.showDetails.set(false); setTimeout(() => this.selectedSession.set(null), 300); }
+  deleteSession(event: Event, session: SessionSummary) {
+    event.stopPropagation();
+    this.sessionToDelete.set(session);
+    this.showDeleteConfirm.set(true);
+  }
+
+  cancelDelete() {
+    this.showDeleteConfirm.set(false);
+    this.sessionToDelete.set(null);
+  }
+
+  confirmDeleteSession() {
+    console.log('🗑️ Tentative de suppression de la session:', this.sessionToDelete()?.sessionId);
+    const session = this.sessionToDelete();
+    if (!session) {
+      console.warn('⚠️ Aucune session à supprimer (sessionToDelete est null)');
+      return;
+    }
+
+    this.arenaService.deleteSession(session.sessionId).subscribe({
+      next: () => {
+        console.log('✅ Session supprimée avec succès');
+        this.pastSessions.update(list => list.filter(s => s.sessionId !== session.sessionId));
+        this.triggerToast('Session supprimée avec succès !');
+        this.cancelDelete();
+      },
+      error: (err) => {
+        console.error('❌ Erreur suppression:', err);
+      }
+    });
+  }
+
+  triggerToast(msg: string) {
+    this.toastMsg.set(msg);
+    this.showToast.set(true);
+    setTimeout(() => this.showToast.set(false), 3000);
+  }
+
+  closeModal() {
+    this.showDetailModal.set(false);
+    this.selectedSession.set(null);
+  }
+
+
 
   stepState(key: ArenaStep): 'done' | 'current' | 'locked' {
     const idx = STEPS.findIndex(s => s.key === key);

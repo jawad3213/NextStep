@@ -166,7 +166,8 @@ export class ArenaSessionComponent implements OnInit, OnDestroy, AfterViewChecke
       focus_areas: this.config.focus_areas,
       display_title: `${this.config.domain.charAt(0).toUpperCase() + this.config.domain.slice(1)} Arena`,
       display_emoji: '⚡',
-      session_id: this.sessionId() // On passe l'ID existant
+      session_id: this.sessionId(),
+      questions: this.questions()
     };
     
     this.router.navigate(['/chatbot/interview'], { state: { sessionConfig } });

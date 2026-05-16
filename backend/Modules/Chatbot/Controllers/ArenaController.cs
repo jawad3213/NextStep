@@ -19,9 +19,12 @@ public class ArenaController : ControllerBase
 
     private string GetUserId()
     {
-        return User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
-               ?? User.FindFirst("sub")?.Value 
-               ?? "";
+        // On essaie tous les claims standards pour récupérer l'ID Keycloak (sub)
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                     ?? User.FindFirst("sub")?.Value 
+                     ?? User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+
+        return userId ?? "";
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -74,6 +77,7 @@ public class ArenaController : ControllerBase
     [HttpPost("session/start")]
     public async Task<IActionResult> StartSession([FromBody] StartSessionRequest request)
     {
+        Console.WriteLine($"[DEBUG] StartSession - Received SessionId: {request.SessionId ?? "NULL"}");
         request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
         var result = await _arenaService.StartSessionAsync(request);
         return Ok(result);
@@ -88,6 +92,7 @@ public class ArenaController : ControllerBase
     {
         try
         {
+            Console.WriteLine($"[DEBUG] SendMessage - SessionId: {request.SessionId}");
             request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
             var result = await _arenaService.SendMessageAsync(request);
             return Ok(result);
@@ -108,6 +113,7 @@ public class ArenaController : ControllerBase
     {
         try
         {
+            Console.WriteLine($"[DEBUG] EndSession - SessionId: {request.SessionId}");
             request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
             var result = await _arenaService.EndSessionAsync(request);
             return Ok(result);
@@ -152,27 +158,39 @@ public class ArenaController : ControllerBase
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// GET /api/arena/sessions?userId=xxx
-    /// Retourne l'historique des sessions de l'utilisateur.
+    /// GET /api/arena/sessions
+    /// Retourne l'historique des sessions de l'utilisateur authentifié.
+    /// Sécurité : L'ID est extrait du token JWT pour éviter l'usurpation.
     /// </summary>
     [HttpGet("sessions")]
-    public async Task<IActionResult> GetSessions([FromQuery] string? userId)
+    public async Task<IActionResult> GetSessions()
     {
-        // Si userId n'est pas fourni, on prend celui du token
-        var id = string.IsNullOrEmpty(userId) ? GetUserId() : userId;
-        var result = await _arenaService.GetSessionsAsync(id);
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        
+        var result = await _arenaService.GetSessionsAsync(userId);
         return Ok(result);
     }
 
-    /// <summary>
-    /// GET /api/arena/sessions/{sessionId}/details
-    /// Retourne les détails (feedback complet) d'une session.
-    /// </summary>
-    [HttpGet("sessions/{sessionId}/details")]
-    public async Task<IActionResult> GetSessionDetails(string sessionId)
+    // GET /api/arena/sessions/{sessionId}
+    [HttpGet("sessions/{sessionId}")]
+    public async Task<IActionResult> GetSessionDetail([FromRoute] string sessionId)
     {
-        var result = await _arenaService.GetSessionDetailsAsync(sessionId);
-        if (result == null) return NotFound(new { error = "Session non trouvée ou sans évaluation." });
+        if (string.IsNullOrEmpty(sessionId)) return BadRequest();
+        var result = await _arenaService.GetSessionDetailAsync(sessionId);
         return Ok(result);
+    }
+
+    // DELETE /api/arena/sessions/{sessionId}
+    // Note: On garde HttpDelete mais on ajoute HttpPost comme fallback car certains serveurs bloquent DELETE
+    [HttpDelete("sessions/{sessionId}")]
+    [HttpPost("sessions/{sessionId}/delete")]
+    public async Task<IActionResult> DeleteSession([FromRoute] string sessionId)
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(sessionId)) return BadRequest();
+        
+        var success = await _arenaService.DeleteSessionAsync(sessionId, userId);
+        return success ? Ok() : NotFound();
     }
 }

@@ -63,7 +63,14 @@ export class MainLayoutComponent {
           const isForcedStepper = isProfileRoute && !profileUnlocked;
           return !(!status.onboardingCompleted || isForcedStepper);
         }),
-        catchError(() => of(true))
+        catchError(() => {
+          const currentUrl = this.router.url;
+          if (currentUrl.startsWith('/onboarding')) return of(false);
+          const isProfileRoute = currentUrl.startsWith('/profile');
+          const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
+          const isForcedStepper = isProfileRoute && !profileUnlocked;
+          return of(!isForcedStepper);
+        })
       )
     )
   );

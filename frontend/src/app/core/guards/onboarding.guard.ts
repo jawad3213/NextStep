@@ -28,8 +28,11 @@ export const onboardingGuard: CanActivateFn = (route, state) => {
     catchError(() => {
       const devBypass = localStorage.getItem(profileUnlockedKey) === 'true';
       if (devBypass) return of(true);
-      localStorage.setItem(profileUnlockedKey, 'true');
-      return of(true);
+      const softOnboardingDone = localStorage.getItem('nextstep_soft_onboarding_done') === 'true';
+      if (softOnboardingDone) {
+        return of(router.parseUrl('/profile?step=coordonnees'));
+      }
+      return of(router.parseUrl('/onboarding'));
     })
   );
 };
@@ -41,11 +44,18 @@ export const alreadyOnboardedGuard: CanActivateFn = () => {
   return onboardingService.getStatus().pipe(
     take(1),
     map(status => {
-      // If user HAS completed onboarding, don't let them back into onboarding page
       if (status.onboardingCompleted) {
         return router.parseUrl('/offers');
       }
       return true;
+    }),
+    catchError(() => {
+      const profileUnlocked = localStorage.getItem('nextstep_profile_unlocked') === 'true';
+      const softOnboardingDone = localStorage.getItem('nextstep_soft_onboarding_done') === 'true';
+      if (profileUnlocked || softOnboardingDone) {
+        return of(router.parseUrl('/offers'));
+      }
+      return of(true);
     })
   );
 };

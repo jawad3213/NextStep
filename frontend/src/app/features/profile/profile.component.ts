@@ -90,26 +90,11 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isSaving = signal(false);
   lastSaved = signal<Date | null>(new Date());
   showToast = signal(false);
-  showCompletionModal = signal(false);
   isForcedOnboarding = signal(false);
   toastMessage = signal('Changes saved');
   showInsufficientToast = signal(false);
   private lastSavedSnapshot: string = '';
 
-  // Profile completion stats for the finish modal
-  profileCompletion = computed(() => {
-    const p = this.profile();
-    let filled = 0;
-    const total = 7;
-    if (p.personal?.firstName || p.personal?.lastName) filled++;
-    if (p.education?.length > 0) filled++;
-    if (p.experience?.length > 0) filled++;
-    if (p.skills?.length > 0) filled++;
-    if (p.projets?.length > 0) filled++;
-    if (p.resume) filled++;
-    if (p.certifications?.length > 0) filled++;
-    return { filled, total, percent: Math.round((filled / total) * 100) };
-  });
   
   // Section States
   isAddingFormation = signal(false);
@@ -237,26 +222,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     this.isForcedOnboarding.set(false);
     this.profileService.isOnboarding.set(false);
     localStorage.setItem(this.profileUnlockedKey, 'true');
-    this.showCompletionModal.set(false);
+    localStorage.removeItem('nextstep_soft_onboarding_done');
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { step: 'coordonnees' },
       queryParamsHandling: 'merge'
     });
-  }
-
-  goToDashboard() {
-    this.showCompletionModal.set(false);
-    this.router.navigate(['/dashboard']);
-  }
-
-  goToOffers() {
-    this.showCompletionModal.set(false);
-    this.router.navigate(['/cv']);
-  }
-
-  dismissCompletionModal() {
-    this.showCompletionModal.set(false);
   }
 
   async prev() {
@@ -411,10 +382,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isApplyingData.set(true);
       
       // Keep skeletons for a moment to signify data integration
-      setTimeout(() => {
+      setTimeout(async () => {
         this.isApplyingData.set(false);
-        this.showToast.set(true);
-        setTimeout(() => this.showToast.set(false), 3000);
+        await this.afterImportCheck();
       }, 2000);
 
     } catch (error) {
@@ -470,10 +440,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isParsing.set(false);
       this.isApplyingData.set(true);
       
-      setTimeout(() => {
+      setTimeout(async () => {
         this.isApplyingData.set(false);
-        this.showToast.set(true);
-        setTimeout(() => this.showToast.set(false), 3000);
+        await this.afterImportCheck();
       }, 2000);
 
     } catch (error) {
@@ -483,6 +452,21 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       alert("Une erreur s'est produite lors de l'import. Veuillez reessayer avec une URL LinkedIn valide.");
     } finally {
       this.parsingProgress.set(0);
+    }
+  }
+
+  private async afterImportCheck() {
+    if (!this.isForcedOnboarding()) return;
+    const pct = this.completionPercentage();
+    if (pct >= 85) {
+      await this.finishProfile();
+    } else {
+      this.toastMessage.set(`Profile ${pct}% filled. Complete the remaining steps to finish.`);
+      this.showToast.set(true);
+      setTimeout(() => {
+        this.showToast.set(false);
+        this.toastMessage.set('Changes saved');
+      }, 4000);
     }
   }
 

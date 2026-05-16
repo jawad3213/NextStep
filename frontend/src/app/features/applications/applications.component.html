@@ -1,243 +1,289 @@
-<div class="candidature-shell">
+<div class="min-h-0 flex-1 overflow-y-auto">
+  <div class="p-3 md:p-4 lg:p-5 pt-1 md:pt-2 lg:pt-3">
 
-  <!-- STATS ROW -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <p class="stat-label">Total</p>
-      <p class="stat-value">{{ stats().total }}</p>
+    <!-- KPI Cards -->
+    <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Total</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().total }}</h3>
+          <span class="material-symbols-outlined text-lg text-brand-500 opacity-40">work</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Envoyées</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().envoyees }}</h3>
+          <span class="material-symbols-outlined text-lg text-brand-500 opacity-40">send</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">En attente</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().enAttente }}</h3>
+          <span class="material-symbols-outlined text-lg text-amber-500 opacity-40">schedule</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Acceptées</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().acceptees }}</h3>
+          <span class="material-symbols-outlined text-lg text-green-600 opacity-40">verified</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Taux de réponse</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().tauxReponse }}%</h3>
+          <span class="material-symbols-outlined text-lg text-purple-500 opacity-40">insights</span>
+        </div>
+      </div>
     </div>
-    <div class="stat-card stat-card-border stat-card-border-primary">
-      <p class="stat-label">Envoyées</p>
-      <p class="stat-value">{{ stats().envoyees }}</p>
-    </div>
-    <div class="stat-card stat-card-border stat-card-border-warning">
-      <p class="stat-label">En attente</p>
-      <p class="stat-value">{{ stats().enAttente }}</p>
-    </div>
-    <div class="stat-card stat-card-border stat-card-border-success">
-      <p class="stat-label">Acceptées</p>
-      <p class="stat-value">{{ stats().acceptees }}</p>
-    </div>
-    <div class="stat-card">
-      <p class="stat-label">Réponse</p>
-      <p class="stat-value stat-value-primary">{{ stats().tauxReponse }}%</p>
-    </div>
-  </div>
 
-  <!-- PERFORMANCE STATS -->
-  <section class="perf-section">
-    <h3 class="perf-title">
-      <mat-icon class="text-primary">insights</mat-icon>
-      Statistiques de Performance
-    </h3>
-    <div class="perf-grid">
-      @for (card of performanceCards; track card.label) {
-        <div class="perf-card" [class.perf-card-urgent]="card.urgent">
-          <div class="perf-card-head">
-            <div class="perf-icon" [ngClass]="card.iconBg">
-              <mat-icon [ngClass]="card.iconColor">{{ card.icon }}</mat-icon>
+    <!-- Performance Cards -->
+    <section class="mb-6">
+      <h4 class="mb-3 flex items-center gap-2 text-lg font-bold text-gray-900">
+        <span class="material-symbols-outlined text-brand-500">analytics</span>
+        Statistiques de Performance
+      </h4>
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+        @for (card of performanceCards; track card.label) {
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-300"
+            [class.ring-2]="card.urgent" [class.ring-red-500]="card.urgent">
+            <div class="mb-2 flex items-center justify-between">
+              <div class="flex h-8 w-8 items-center justify-center rounded-lg" [class]="card.iconBg">
+                <span class="material-symbols-outlined text-base" [class]="card.iconColor">{{ card.icon }}</span>
+              </div>
+              <span class="flex items-center gap-0.5 text-[10px] font-bold" [class]="card.badgeColor">
+                @if (card.badgeIcon) {
+                  <span class="material-symbols-outlined text-sm">trending_up</span>
+                }
+                {{ card.badge }}
+              </span>
             </div>
-            <span class="perf-badge" [ngClass]="card.badgeColor">
-              @if (card.badgeIcon) {
-                <mat-icon class="text-sm">trending_up</mat-icon>
+            <p class="text-xs font-medium text-gray-500">{{ card.label }}</p>
+            <p class="font-mono text-xl font-bold text-gray-900">
+              {{ card.value }}
+              @if (card.sub) {
+                <span class="text-sm font-normal text-gray-400"> {{ card.sub }}</span>
               }
-              {{ card.badge }}
-            </span>
+            </p>
           </div>
-          <p class="perf-label">{{ card.label }}</p>
-          <p class="perf-value">
-            {{ card.value }}
-            @if (card.sub) {
-              <span class="perf-sub">{{ card.sub }}</span>
-            }
-          </p>
+        }
+      </div>
+    </section>
+
+    <!-- Toolbar -->
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base text-gray-400">search</span>
+          <input type="text" class="h-9 w-56 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-xs font-medium text-gray-900 placeholder-gray-400 outline-none transition-all focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10"
+            placeholder="Rechercher une entreprise..."
+            [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
         </div>
-      }
-    </div>
-  </section>
-
-  <!-- TOOLBAR -->
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <div class="search-box">
-        <mat-icon class="search-icon">search</mat-icon>
-        <input type="text" class="search-input" placeholder="Rechercher une entreprise..."
-          [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+        <div class="flex overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+          <button class="flex items-center gap-1 rounded-md px-3 py-1.5 text-[11px] font-bold transition-all"
+            [class]="viewMode() === 'kanban' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            (click)="setView('kanban')">
+            <span class="material-symbols-outlined text-sm">view_kanban</span> Kanban
+          </button>
+          <button class="flex items-center gap-1 rounded-md px-3 py-1.5 text-[11px] font-bold transition-all"
+            [class]="viewMode() === 'liste' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            (click)="setView('liste')">
+            <span class="material-symbols-outlined text-sm">format_list_bulleted</span> Liste
+          </button>
+        </div>
       </div>
-      <div class="view-toggle">
-        <button class="view-btn" [class.view-btn-active]="viewMode() === 'kanban'" (click)="setView('kanban')">
-          <mat-icon>view_kanban</mat-icon> Kanban
-        </button>
-        <button class="view-btn" [class.view-btn-active]="viewMode() === 'liste'" (click)="setView('liste')">
-          <mat-icon>format_list_bulleted</mat-icon> Liste
-        </button>
-      </div>
-    </div>
-    <button class="btn-primary" (click)="showNewForm.set(true)">
-      <mat-icon>add</mat-icon> Nouvelle candidature
-    </button>
-  </div>
-
-  <!-- FILTER PILLS -->
-  <div class="filter-pills">
-    <button class="pill" [class.pill-active]="filterStatut() === 'Tous'" (click)="setFilter('Tous')">Tous</button>
-    @for (col of columns; track col.key) {
-      <button class="pill pill-outline" [class.pill-active]="filterStatut() === col.key" (click)="setFilter(col.key)">
-        {{ col.label }}
+      <button (click)="showNewForm.set(true)"
+        class="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600">
+        <span class="material-symbols-outlined text-sm">add</span> Nouvelle candidature
       </button>
-    }
-  </div>
+    </div>
 
-  <!-- KANBAN BOARD -->
-  @if (viewMode() === 'kanban') {
-    <div class="kanban-board">
+    <!-- Filter Pills -->
+    <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <button class="flex-shrink-0 rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all"
+        [class]="filterStatut() === 'Tous' ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-500 hover:border-brand-300 hover:text-brand-500'"
+        (click)="setFilter('Tous')">Tous</button>
       @for (col of columns; track col.key) {
-        <div class="kanban-col">
-          <div class="kanban-col-header">
-            <h3 class="kanban-col-title" [style.color]="col.color">{{ col.label }}</h3>
-            <span class="kanban-col-dot" [style.background]="col.color"></span>
-          </div>
-          <div class="kanban-col-body"
-            [class.kanban-col-dragover]="dragOverCol() === col.key"
-            (dragover)="onDragOver($event, col.key)"
-            (dragleave)="onDragLeave()"
-            (drop)="onDrop($event, col.key)">
-            @for (card of getColumnCards(col.key); track card.id) {
-              <div class="kanban-card"
-                [class.kanban-card-active]="col.key === 'entretien'"
-                draggable="true"
-                (dragstart)="onDragStart(card)">
-                <div class="kanban-card-head">
-                  <span class="kanban-card-type" [ngClass]="getTypeBadgeClass(card.type)">{{ card.type }}</span>
-                  <mat-icon class="kanban-card-more">more_horiz</mat-icon>
-                </div>
-                <h4 class="kanban-card-title">{{ card.entreprise }}</h4>
-                <p class="kanban-card-role">{{ card.role }}</p>
-                @if (col.key === 'envoye') {
-                  <div class="kanban-card-footer kanban-card-footer-error">
-                    <mat-icon>schedule</mat-icon> Offre expire dans 2 jours
-                  </div>
-                }
-                @if (col.key === 'en-attente') {
-                  <div class="kanban-card-footer kanban-card-footer-warning">
-                    <mat-icon>notification_important</mat-icon> À relancer
-                  </div>
-                }
-                @if (col.key === 'entretien') {
-                  <div class="kanban-card-footer kanban-card-footer-primary">
-                    <mat-icon>calendar_today</mat-icon> Entretien dans 6 jours
-                  </div>
-                }
-                @if (col.key === 'accepte') {
-                  <div class="kanban-card-footer kanban-card-footer-success">
-                    <mat-icon>check_circle</mat-icon> Offre reçue
-                  </div>
-                }
-              </div>
-            }
-            @if (getColumnCards(col.key).length === 0) {
-              <div class="kanban-col-empty">
-                <p>Aucune candidature</p>
-              </div>
-            }
-          </div>
-        </div>
+        <button class="flex-shrink-0 rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all"
+          [class]="filterStatut() === col.key ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-500 hover:border-brand-300 hover:text-brand-500'"
+          (click)="setFilter(col.key)">{{ col.label }}</button>
       }
     </div>
-  }
 
-  <!-- HISTORY TABLE -->
-  <section class="history-section">
-    <div class="history-header">
-      <h3 class="history-title">Historique &amp; Apprentissage</h3>
-      <button class="btn-ghost">
-        <mat-icon>download</mat-icon> Exporter le rapport
-      </button>
-    </div>
-    <div class="history-table-wrap">
-      <table class="history-table">
-        <thead>
-          <tr>
-            <th>Entreprise</th>
-            <th>Rôle</th>
-            <th>Date de fin</th>
-            <th>Issue</th>
-            <th class="text-right">Détails</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (entry of historyEntries; track entry.company) {
-            <tr>
-              <td>
-                <div class="td-company">
-                  <div class="td-avatar" [style.background]="getCompanyColor(entry.company)">{{ entry.initial }}</div>
-                  <span class="td-company-name">{{ entry.company }}</span>
+    <!-- Kanban Board -->
+    @if (viewMode() === 'kanban') {
+      <div class="mb-6 flex gap-4 overflow-x-auto pb-4">
+        @for (col of columns; track col.key) {
+          <div class="flex min-w-[260px] max-w-[260px] flex-col gap-3">
+            <div class="flex items-center justify-between px-1">
+              <h5 class="text-[10px] font-black uppercase tracking-widest" [style.color]="col.color">{{ col.label }}</h5>
+              <span class="h-2 w-2 rounded-full" [style.background]="col.color"></span>
+            </div>
+            <div class="flex min-h-[100px] flex-col gap-3 rounded-lg p-1 transition-colors"
+              [ngClass]="{'bg-brand-50': dragOverCol() === col.key}"
+              (dragover)="onDragOver($event, col.key)"
+              (dragleave)="onDragLeave()"
+              (drop)="onDrop($event, col.key)">
+              @for (card of getColumnCards(col.key); track card.id) {
+                <div class="cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
+                  [class]="col.key === 'entretien' ? 'border-2 border-brand-500 shadow-sm ring-4 ring-brand-500/10' : 'border-gray-200'"
+                  draggable="true"
+                  (dragstart)="onDragStart(card)">
+                  <div class="mb-2.5 flex items-start justify-between">
+                    <span [class]="'rounded px-2 py-0.5 text-[9px] font-bold uppercase ' + getTypeBadgeClass(card.type)">{{ card.type }}</span>
+                    <span class="material-symbols-outlined text-sm text-gray-400">more_horiz</span>
+                  </div>
+                  <h4 class="mb-0.5 text-sm font-bold text-gray-900">{{ card.entreprise }}</h4>
+                  <p class="mb-3 text-[11px] font-medium text-gray-500">{{ card.role }}</p>
+                  @if (col.key === 'envoye') {
+                    <div class="flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-bold text-red-600">
+                      <span class="material-symbols-outlined text-xs">schedule</span> Offre expire dans 2 jours
+                    </div>
+                  }
+                  @if (col.key === 'en-attente') {
+                    <div class="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] font-bold text-amber-700">
+                      <span class="material-symbols-outlined text-xs">notification_important</span> À relancer
+                    </div>
+                  }
+                  @if (col.key === 'entretien') {
+                    <div class="flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-[10px] font-bold text-brand-600">
+                      <span class="material-symbols-outlined text-xs">calendar_today</span> Entretien dans 6 jours
+                    </div>
+                  }
+                  @if (col.key === 'accepte') {
+                    <div class="flex items-center gap-1.5 rounded-lg bg-green-50 px-2.5 py-1.5 text-[10px] font-bold text-green-700">
+                      <span class="material-symbols-outlined text-xs">check_circle</span> Offre reçue
+                    </div>
+                  }
                 </div>
-              </td>
-              <td class="td-muted">{{ entry.role }}</td>
-              <td class="td-muted">{{ entry.date }}</td>
-              <td>
-                <span class="td-chip" [ngClass]="entry.issueClass">{{ entry.issue }}</span>
-              </td>
-              <td class="text-right">
-                <button class="td-info-btn"><mat-icon>info</mat-icon></button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </section>
+              }
+              @if (getColumnCards(col.key).length === 0) {
+                <div class="py-6 text-center">
+                  <p class="text-[11px] font-medium text-gray-400">Aucune candidature</p>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
 
-  <!-- NEW FORM MODAL -->
-  @if (showNewForm()) {
-    <div class="modal-overlay" (click)="showNewForm.set(false)">
-      <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3>Nouvelle candidature</h3>
-          <button class="modal-close" (click)="showNewForm.set(false)"><mat-icon>close</mat-icon></button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Entreprise</label>
-            <input type="text" class="form-input" placeholder="Nom de l'entreprise"
-              [ngModel]="newForm().entreprise" (ngModelChange)="updateForm('entreprise', $event)" />
+    <!-- History Table -->
+    <section>
+      <div class="mb-3 flex items-center justify-between">
+        <h4 class="flex items-center gap-2 text-lg font-bold text-gray-900">
+          <span class="material-symbols-outlined text-brand-500">history</span>
+          Historique &amp; Apprentissage
+        </h4>
+        <button class="flex items-center gap-1 text-[11px] font-bold text-brand-500 hover:underline">
+          <span class="material-symbols-outlined text-sm">download</span> Exporter le rapport
+        </button>
+      </div>
+      <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <table class="w-full text-left">
+          <thead class="border-b border-gray-100 bg-gray-50">
+            <tr>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Entreprise</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Rôle</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Date de fin</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Issue</th>
+              <th class="px-5 py-2.5 text-right text-[9px] font-bold uppercase tracking-wider text-gray-400">Détails</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            @for (entry of historyEntries; track entry.company) {
+              <tr class="transition-colors hover:bg-gray-50/50">
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center gap-2.5">
+                    <div class="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-bold text-white" [style.background]="getCompanyColor(entry.company)">
+                      {{ entry.initial }}
+                    </div>
+                    <span class="text-sm font-bold text-gray-900">{{ entry.company }}</span>
+                  </div>
+                </td>
+                <td class="px-5 py-3.5 text-sm font-medium text-gray-500">{{ entry.role }}</td>
+                <td class="px-5 py-3.5 font-mono text-xs text-gray-500">{{ entry.date }}</td>
+                <td class="px-5 py-3.5">
+                  <span class="inline-block rounded-full px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase"
+                    [class]="entry.issueClass === 'error' ? 'bg-red-50 text-red-600' : entry.issueClass === 'success' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'">
+                    {{ entry.issue }}
+                  </span>
+                </td>
+                <td class="px-5 py-3.5 text-right">
+                  <button class="text-gray-300 transition-colors hover:text-brand-500">
+                    <span class="material-symbols-outlined text-lg">info</span>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- New Form Modal -->
+    @if (showNewForm()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" (click)="showNewForm.set(false)">
+        <div class="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-xl" (click)="$event.stopPropagation()">
+          <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <h3 class="text-lg font-bold text-gray-900">Nouvelle candidature</h3>
+            <button (click)="showNewForm.set(false)" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
           </div>
-          <div class="form-group">
-            <label class="form-label">Rôle / Poste</label>
-            <input type="text" class="form-input" placeholder="Intitulé du poste"
-              [ngModel]="newForm().role" (ngModelChange)="updateForm('role', $event)" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Type de contrat</label>
-            <select class="form-select"
-              [ngModel]="newForm().type" (ngModelChange)="updateForm('type', $event)">
-              <option value="Stage">Stage</option>
-              <option value="Stage PFA">Stage PFA</option>
-              <option value="Stage PFE">Stage PFE</option>
-              <option value="Alternance">Alternance</option>
-              <option value="CDI">CDI</option>
-              <option value="CDD">CDD</option>
-              <option value="Freelance">Freelance</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Statut initial</label>
-            <select class="form-select"
-              [ngModel]="newForm().statut" (ngModelChange)="updateForm('statut', $event)">
-              <option value="envoye">Envoyé</option>
-              <option value="en-attente">En attente</option>
-              <option value="entretien">Entretien</option>
-              <option value="test-tech">Test Technique</option>
-            </select>
-          </div>
-          <div class="form-actions">
-            <button class="btn-cancel" (click)="showNewForm.set(false)">Annuler</button>
-            <button class="btn-primary" (click)="createCandidature()">Créer</button>
+          <div class="flex flex-col gap-4 p-6">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Entreprise</label>
+              <input type="text" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                placeholder="Nom de l'entreprise"
+                [ngModel]="newForm().entreprise" (ngModelChange)="updateForm('entreprise', $event)" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Rôle / Poste</label>
+              <input type="text" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                placeholder="Intitulé du poste"
+                [ngModel]="newForm().role" (ngModelChange)="updateForm('role', $event)" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Type de contrat</label>
+              <select class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                [ngModel]="newForm().type" (ngModelChange)="updateForm('type', $event)">
+                <option value="Stage">Stage</option>
+                <option value="Stage PFA">Stage PFA</option>
+                <option value="Stage PFE">Stage PFE</option>
+                <option value="Alternance">Alternance</option>
+                <option value="CDI">CDI</option>
+                <option value="CDD">CDD</option>
+                <option value="Freelance">Freelance</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Statut initial</label>
+              <select class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                [ngModel]="newForm().statut" (ngModelChange)="updateForm('statut', $event)">
+                <option value="envoye">Envoyé</option>
+                <option value="en-attente">En attente</option>
+                <option value="entretien">Entretien</option>
+                <option value="test-tech">Test Technique</option>
+              </select>
+            </div>
+            <div class="mt-2 flex justify-end gap-3">
+              <button (click)="showNewForm.set(false)"
+                class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-500 transition-all hover:bg-gray-50">
+                Annuler
+              </button>
+              <button (click)="createCandidature()"
+                class="rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600">
+                Créer
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  }
+    }
 
+  </div>
 </div>

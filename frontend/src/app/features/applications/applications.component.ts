@@ -1,7 +1,6 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatIconModule } from '@angular/material/icon';
 
 interface CandidatureCard {
   id: string;
@@ -16,7 +15,7 @@ interface CandidatureCard {
 @Component({
   selector: 'app-applications',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './applications.component.html',
   styleUrl: './applications.component.scss'
 })
@@ -45,12 +44,12 @@ export class ApplicationsComponent {
   ]);
 
   columns = [
-    { key: 'envoye', label: 'Envoyé', color: 'var(--primary)' },
-    { key: 'en-attente', label: 'En attente', color: 'var(--warning)' },
-    { key: 'entretien', label: 'Entretien', color: 'var(--tertiary)' },
-    { key: 'test-tech', label: 'Test Tech', color: 'var(--outline)' },
-    { key: 'accepte', label: 'Accepté', color: 'var(--success)' },
-    { key: 'refuse', label: 'Refusé', color: 'var(--error)' },
+    { key: 'envoye', label: 'Envoyé', color: '#465fff' },
+    { key: 'en-attente', label: 'En attente', color: '#F59B00' },
+    { key: 'entretien', label: 'Entretien', color: '#7c3aed' },
+    { key: 'test-tech', label: 'Test Tech', color: '#757575' },
+    { key: 'accepte', label: 'Accepté', color: '#34A853' },
+    { key: 'refuse', label: 'Refusé', color: '#D93025' },
   ];
 
   filteredCards = computed(() => {
@@ -116,14 +115,19 @@ export class ApplicationsComponent {
 
   getTypeBadgeClass(type: string): string {
     const map: Record<string, string> = {
-      'CDI': 'badge-cdi', 'Stage PFA': 'badge-pfa', 'Stage PFE': 'badge-pfe',
-      'Stage': 'badge-stage', 'Freelance': 'badge-freelance', 'CDD': 'badge-cdd', 'Alternance': 'badge-alternance',
+      'CDI': 'bg-brand-50 text-brand-600',
+      'Stage PFA': 'bg-amber-50 text-amber-700',
+      'Stage PFE': 'bg-orange-50 text-orange-700',
+      'Stage': 'bg-gray-100 text-gray-600',
+      'Freelance': 'bg-green-50 text-green-700',
+      'CDD': 'bg-red-50 text-red-600',
+      'Alternance': 'bg-blue-50 text-blue-600',
     };
-    return map[type] || 'badge-default';
+    return map[type] || 'bg-gray-100 text-gray-500';
   }
 
   getCompanyColor(name: string): string {
-    const colors = ['#005ea1','#8f4900','#34A853','#F59B00','#D93025','#7d5700','#0078ca','#b35e00'];
+    const colors = ['#465fff','#8f4900','#34A853','#F59B00','#D93025','#7d5700','#1A91F0','#b35e00'];
     let sum = 0; for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
     return colors[sum % colors.length];
   }
@@ -135,9 +139,9 @@ export class ApplicationsComponent {
   ];
 
   performanceCards = [
-    { icon: 'analytics', iconBg: 'primary-tint', iconColor: 'primary', label: 'Taux de Conversion', value: '15%', badge: '+2%', badgeIcon: 'trending_up', badgeColor: 'success' },
-    { icon: 'timer', iconBg: 'tertiary-fixed', iconColor: 'tertiary', label: 'Temps Moyen', value: '4 jours', badge: 'Stabilité', badgeColor: 'on-surface-variant' },
-    { icon: 'forum', iconBg: 'success-tint', iconColor: 'success', label: 'Entretiens', value: '3', sub: 'cette semaine', badge: 'Actif', badgeColor: 'primary' },
-    { icon: 'priority_high', iconBg: 'error-tint', iconColor: 'error', label: 'Relances', value: '2', sub: 'critiques', badge: 'Urgent', badgeColor: 'error', urgent: true },
+    { icon: 'analytics', iconBg: 'bg-brand-50', iconColor: 'text-brand-500', label: 'Taux de Conversion', value: '15%', badge: '+2%', badgeIcon: true, badgeColor: 'text-green-600', urgent: false },
+    { icon: 'timer', iconBg: 'bg-purple-50', iconColor: 'text-purple-600', label: 'Temps Moyen', value: '4 jours', badge: 'Stabilité', badgeIcon: false, badgeColor: 'text-gray-500', urgent: false },
+    { icon: 'forum', iconBg: 'bg-green-50', iconColor: 'text-green-600', label: 'Entretiens', value: '3', sub: 'cette semaine', badge: 'Actif', badgeIcon: false, badgeColor: 'text-brand-600', urgent: false },
+    { icon: 'priority_high', iconBg: 'bg-red-50', iconColor: 'text-red-600', label: 'Relances', value: '2', sub: 'critiques', badge: 'Urgent', badgeIcon: false, badgeColor: 'text-red-600', urgent: true },
   ];
 }

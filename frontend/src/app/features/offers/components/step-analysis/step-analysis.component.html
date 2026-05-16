@@ -619,10 +619,16 @@
               </span>
             </div>
 
+            @if (companyIntelError) {
+              <div class="mb-4 text-xs text-red-600 font-semibold">{{ companyIntelError }}</div>
+            }
             <div class="flex justify-end">
-              <button (click)="searchCompanyDetailed()" class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group">
+              <button
+                (click)="searchCompanyDetailed()"
+                [disabled]="companyIntelLoading"
+                class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group disabled:opacity-60 disabled:cursor-not-allowed">
                 <span class="material-symbols-outlined text-base group-hover:rotate-12 transition-transform">travel_explore</span>
-                Lancer la recherche détaillée
+                {{ companyIntelLoading ? 'Recherche en cours...' : 'Lancer la recherche détaillée' }}
               </button>
             </div>
           </div>

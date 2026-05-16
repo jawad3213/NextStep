@@ -1,9 +1,10 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
+import { Router } from '@angular/router';
 
 interface CompanyIntel {
   nom: string;
@@ -204,8 +205,9 @@ interface CompanyIntel {
     .info-card.cons ul li { color: #D93025; }
   `]
 })
-export class CompanyIntelComponent {
+export class CompanyIntelComponent implements OnInit {
   private http = inject(HttpClient);
+  private router = inject(Router);
   private baseUrl = environment.apiBaseUrl;
 
   companyName = signal('');
@@ -213,21 +215,105 @@ export class CompanyIntelComponent {
   loading = signal(false);
   result = signal<CompanyIntel | null>(null);
 
+  ngOnInit(): void {
+    const navState = this.router.getCurrentNavigation()?.extras?.state as any;
+    const historyState = (window.history?.state ?? {}) as any;
+    let payload = navState?.['companyIntelPayload'] ?? historyState?.['companyIntelPayload'];
+    let companyName = navState?.['companyName'] ?? historyState?.['companyName'];
+    let jobTitle = navState?.['jobTitle'] ?? historyState?.['jobTitle'];
+
+    if (!payload) {
+      try {
+        const cached = sessionStorage.getItem('nextstep.company.last_payload');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          payload = parsed?.companyIntelPayload ?? payload;
+          companyName = parsed?.companyName ?? companyName;
+          jobTitle = parsed?.jobTitle ?? jobTitle;
+        }
+      } catch {}
+    }
+
+    if (companyName) this.companyName.set(companyName);
+    if (jobTitle) this.jobTitle.set(jobTitle);
+
+    if (payload) {
+      const mapped = this.mapApiResponse(payload);
+      this.result.set(mapped);
+      localStorage.setItem('nextstep.company.interview_questions', JSON.stringify(mapped.interviewQuestions ?? []));
+    }
+  }
+
   async analyzeCompany() {
     if (!this.companyName()) return;
     this.loading.set(true);
     try {
-      const res = await firstValueFrom(this.http.post<CompanyIntel>(`${this.baseUrl.replace('/api', '')}/company/analyze-company`, {
+      const res = await firstValueFrom(this.http.post<any>(`${environment.agentsBaseUrl}/company/analyze-company`, {
         company_name: this.companyName(),
-        job_title: this.jobTitle() || 'Developpeur',
-        user_id: 'current'
+        user_id: 0,
+        profile_data: {},
+        offer_data: {
+          titre: this.jobTitle() || 'Developpeur',
+          entreprise: this.companyName(),
+          competencesRequises: [],
+          competencesSouhaitees: [],
+          keywordsAts: []
+        }
       }));
-      this.result.set(res);
+      const mapped = this.mapApiResponse(res);
+      this.result.set(mapped);
+      localStorage.setItem('nextstep.company.interview_questions', JSON.stringify(mapped.interviewQuestions ?? []));
     } catch {
       this.result.set(mockIntel);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private mapApiResponse(res: any): CompanyIntel {
+    const intel = res?.intelligence ?? {};
+    const culture = intel?.culture ?? {};
+    return {
+      nom: intel?.nom ?? this.companyName() ?? '',
+      summary: intel?.summary ?? res?.summary ?? '',
+      sector: intel?.sector ?? '',
+      hqLocation: intel?.hq_location ?? intel?.hqLocation ?? '',
+      linkedinUrl: intel?.linkedin_url ?? intel?.linkedinUrl ?? '',
+      culture: {
+        cultureScore: culture?.culture_score ?? culture?.cultureScore ?? 0,
+        turnoverRate: culture?.turnover_rate ?? culture?.turnoverRate ?? '',
+        workLifeBalance: culture?.work_life_balance ?? culture?.workLifeBalance ?? 0,
+        glassdoorRating: culture?.glassdoor_rating ?? culture?.glassdoorRating ?? 0,
+        keyValues: culture?.key_values ?? culture?.keyValues ?? [],
+        topReviews: culture?.top_reviews ?? culture?.topReviews ?? []
+      },
+      salaries: (intel?.salaries ?? []).map((s: any) => ({
+        jobTitle: s?.job_title ?? s?.jobTitle ?? '',
+        location: s?.location ?? '',
+        minSalary: s?.min_salary ?? s?.minSalary ?? 0,
+        maxSalary: s?.max_salary ?? s?.maxSalary ?? 0,
+        avgSalary: s?.avg_salary ?? s?.avgSalary ?? 0,
+        currency: s?.currency ?? 'EUR',
+        source: s?.source ?? ''
+      })),
+      actualites: (intel?.actualites ?? []).map((n: any) =>
+        typeof n === 'string'
+          ? { title: n, date: '', source: '', url: '' }
+          : {
+              title: n?.title ?? n?.titre ?? '',
+              date: n?.date ?? '',
+              source: n?.source ?? '',
+              url: n?.url ?? ''
+            }
+      ),
+      interviewDifficulty: intel?.interview_difficulty ?? intel?.interviewDifficulty ?? 'medium',
+      interviewQuestions: intel?.interview_questions ?? intel?.interviewQuestions ?? [],
+      pros: intel?.pros ?? [],
+      cons: intel?.cons ?? [],
+      careerOpportunities: intel?.career_opportunities ?? intel?.careerOpportunities ?? [],
+      compatibilityScore: res?.score ?? res?.compatibilityScore ?? 0,
+      recommendations: res?.recommendations ?? []
+    };
   }
 
   getInitials(name: string): string {

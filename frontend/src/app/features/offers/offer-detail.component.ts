@@ -17,7 +17,7 @@ export class OfferDetailComponent {
   offer: OfferCard | undefined;
 
   constructor() {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id = this.route.snapshot.paramMap.get('id');
     this.offer = MOCK_OFFERS.find(o => o.id === id);
   }
 

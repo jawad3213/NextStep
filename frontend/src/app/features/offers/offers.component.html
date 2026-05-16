@@ -14,7 +14,7 @@
           <h2 class="text-lg font-bold text-gray-900">Démarrer une nouvelle analyse</h2>
           <p class="mt-0.5 text-xs text-slate-500">Analysez une nouvelle opportunité en quelques secondes</p>
         </div>
-        <a routerLink="/offers/analyze"
+        <a routerLink="/offers/analyze" [queryParams]="{ new: 1 }"
           class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 no-underline transition-colors hover:bg-slate-50">
           <span class="material-symbols-outlined text-sm">add</span>
           Nouvelle analyse
@@ -23,32 +23,65 @@
     </div>
   </section>
 
-  <!-- Filter Bar -->
-  <div class="mb-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-    <div class="flex w-full items-center gap-3 sm:w-auto">
-      <div class="relative w-full sm:w-72">
+  <!-- Filters & Actions Bar -->
+  <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+    <div class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+      <!-- Search Input -->
+      <div class="relative flex-1 sm:max-w-md">
         <input (input)="onSearchInput($any($event.target).value)"
           placeholder="Rechercher une offre, une entreprise..."
-          class="w-full rounded-xl border-slate-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm transition-all focus:bg-white"
+          class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 outline-none"
         />
-        <span class="material-symbols-outlined absolute left-3 top-2.5 text-base text-slate-400">search</span>
+        <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px] text-slate-400">search</span>
+      </div>
+
+      <!-- Sorting & Filtering -->
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <select (change)="onSortChange($any($event.target).value)"
+            class="appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 outline-none">
+            <option value="date">Plus récentes</option>
+            <option value="score">Score</option>
+            <option value="company">Entreprise A-Z</option>
+            <option value="step">Avancement</option>
+          </select>
+          <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[18px]">expand_more</span>
+        </div>
+
+        <div class="relative">
+          <select (change)="onFilterStatusChange($any($event.target).value)"
+            class="appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 outline-none">
+            <option value="">Tous les statuts</option>
+            <option value="non_traitee">Non traitée</option>
+            <option value="analysee">Analysée</option>
+            <option value="cv_genere">CV Généré</option>
+          </select>
+          <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[18px]">expand_more</span>
+        </div>
       </div>
     </div>
-    <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-      <select (change)="onSortChange($any($event.target).value)"
-        class="cursor-pointer rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-brand-500">
-        <option value="date">Plus récentes</option>
-        <option value="score">Score</option>
-        <option value="company">Entreprise A-Z</option>
-        <option value="step">Avancement</option>
-      </select>
-      <select (change)="onFilterStatusChange($any($event.target).value)"
-        class="cursor-pointer rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-brand-500">
-        <option value="">Tous les statuts</option>
-        <option value="non_traitee">Non traitée</option>
-        <option value="analysee">Analysée</option>
-        <option value="cv_genere">CV Généré</option>
-      </select>
+
+    <!-- Batch Actions -->
+    <div class="flex items-center justify-between gap-4 border-t border-slate-100 pt-3 lg:border-t-0 lg:pt-0">
+      <label class="flex cursor-pointer items-center gap-2.5 text-[13px] font-bold text-slate-600 hover:text-slate-900 transition-colors">
+        <input
+          type="checkbox"
+          [checked]="allVisibleSelected"
+          (change)="toggleSelectAllVisible($any($event.target).checked)"
+          class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        Tout sélectionner
+      </label>
+      
+      <button
+        type="button"
+        [disabled]="selectedCount === 0 || isDeleting()"
+        (click)="openDeleteConfirm()"
+        class="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-[13px] font-bold text-red-600 transition-all hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 border border-red-100"
+      >
+        <span class="material-symbols-outlined text-[18px]">delete</span>
+        {{ isDeleting() ? 'Suppression...' : 'Supprimer (' + selectedCount + ')' }}
+      </button>
     </div>
   </div>
 
@@ -62,6 +95,11 @@
           <div class="flex flex-col gap-4 md:flex-row md:items-center">
             <!-- Left: Avatar + Info -->
             <div class="flex min-w-0 flex-1 items-center gap-4">
+              <input
+                type="checkbox"
+                [checked]="selectedOfferIds().has(offer.id)"
+                (change)="toggleOfferSelection(offer.id, $any($event.target).checked)"
+              />
               <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white"
                 [style.background]="getBubbleGradient(offer.company)">
                 {{ offer.initials }}
@@ -153,6 +191,7 @@
             <div class="flex items-center gap-2">
               @if (getNextAction(offer); as action) {
                 <a [routerLink]="action.link"
+                  [queryParams]="action.offerId ? { offerId: action.offerId } : null"
                   class="flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-1.5 text-xs font-bold text-white transition-all hover:bg-brand-600 no-underline">
                   {{ action.label }}
                   <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -185,11 +224,42 @@
       <p class="mt-1 max-w-xs text-sm text-slate-400">
         Vous n'avez encore lancé aucune analyse. Soumettez une offre pour commencer.
       </p>
-      <a routerLink="/offers/analyze"
+      <a routerLink="/offers/analyze" [queryParams]="{ new: 1 }"
         class="mt-6 flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 px-6 py-3 font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 no-underline">
         <span class="material-symbols-outlined text-sm">add</span>
         Nouvelle analyse
       </a>
+    </div>
+  }
+
+  @if (showDeleteConfirm()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div class="border-b border-slate-100 px-5 py-4">
+          <h3 class="text-base font-bold text-slate-900">Confirmer la suppression</h3>
+          <p class="mt-1 text-sm text-slate-500">
+            Vous allez supprimer {{ selectedCount }} offre(s). Cette action est irreversible.
+          </p>
+        </div>
+        <div class="flex items-center justify-end gap-2 px-5 py-4">
+          <button
+            type="button"
+            (click)="cancelDeleteConfirm()"
+            [disabled]="isDeleting()"
+            class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            (click)="bulkDeleteSelected()"
+            [disabled]="isDeleting()"
+            class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {{ isDeleting() ? 'Suppression...' : 'Supprimer definitivement' }}
+          </button>
+        </div>
+      </div>
     </div>
   }
 

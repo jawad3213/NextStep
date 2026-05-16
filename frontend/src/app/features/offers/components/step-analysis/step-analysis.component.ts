@@ -152,14 +152,15 @@ export class StepAnalysisComponent {
   get matchingSkills(): string[] {
     const data = this.result;
     if (!data) return [];
-    return this.unique([...(data.matchingSkills ?? []), ...(data.keywordsPresent ?? [])]);
+    // Coverage must be based on offer skills only, not ATS keyword chips.
+    return this.unique([...(data.matchingSkills ?? [])]);
   }
 
   get missingSkills(): string[] {
     const data = this.result;
     if (!data) return [];
 
-    const explicitMissing = this.unique([...(data.missingSkills ?? []), ...(data.keywordsMissing ?? [])]);
+    const explicitMissing = this.unique([...(data.missingSkills ?? [])]);
     if (explicitMissing.length > 0) return explicitMissing;
 
     const matchedSet = new Set(this.normalizeList(this.matchingSkills));

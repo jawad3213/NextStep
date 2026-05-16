@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 
 export interface OfferSubmitPayload {
@@ -11,6 +12,17 @@ export interface OfferSubmitPayload {
 export interface OfferSubmitResponse {
   offerId: string;
   status: string;
+}
+
+export interface OfferHistoryItem {
+  offerId: string;
+  titre: string;
+  entreprise: string;
+  localisation: string;
+  scoreMatching?: number;
+  status: 'cv_genere' | 'non_traitee' | 'analysee';
+  currentStep: number;
+  dateCreation: string;
 }
 
 export interface PdfGeneratePayload {
@@ -60,6 +72,18 @@ export class OfferApiService {
     return this.http.post<OfferSubmitResponse>(
       `${this.base}/offers/submit`,
       payload
+    );
+  }
+
+  getOffersHistory(): Observable<OfferHistoryItem[]> {
+    return this.http.get<OfferHistoryItem[]>(`${this.base}/offers`);
+  }
+
+  bulkDeleteOffers(offerIds: string[]): Observable<{ deletedCount: number }> {
+    return this.http.post<{ deletedCount: number }>(`${this.base}/offers/delete`, { offerIds }).pipe(
+      catchError(() =>
+        this.http.post<{ deletedCount: number }>(`${this.base}/offers/bulk-delete`, { offerIds })
+      )
     );
   }
 

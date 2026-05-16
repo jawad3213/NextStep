@@ -53,7 +53,8 @@ export class StepSubmitComponent implements OnDestroy {
         this.pipeline.goToStep(2);
 
         // Visual Progress Simulator
-        let currentProgress = 0;
+        const analysisStartTs = Date.now();
+        const minAnalysisUxMs = 7200;
         const progressStages = [
           { agent: 'offer_analyzer', label: 'Analyse de la description du poste (Agent 1)...', percent: 15 },
           { agent: 'offer_analyzer', label: 'Extraction des compétences et mots-clés...', percent: 35 },
@@ -86,13 +87,33 @@ export class StepSubmitComponent implements OnDestroy {
           next: (analysis) => {
             // Clear simulation timers
             timers.forEach(t => clearTimeout(t));
-            
-            // Map the backend DTO to PipelineResult
-            const result = this.mapAnalysisToResult(analysis);
-            this.pipeline.setResult(result);
-            this.pipeline.setLoading(false);
-            this.pipeline.markStepDone(1);
-            this.pipeline.currentAgentProgress.set(null);
+
+            const elapsedMs = Date.now() - analysisStartTs;
+            const waitMs = Math.max(0, minAnalysisUxMs - elapsedMs);
+
+            // Keep the 3-agent progression visible before showing final card.
+            this.pipeline.currentAgentProgress.set({
+              step: 'analysis',
+              agentName: 'skill_gap',
+              label: 'Finalisation de l analyse (Agent 3)...',
+              status: 'running',
+              progressPercent: 95
+            });
+
+            setTimeout(() => {
+              const result = this.mapAnalysisToResult(analysis);
+              this.pipeline.setResult(result);
+              this.pipeline.setLoading(false);
+              this.pipeline.markStepDone(1);
+              this.pipeline.currentAgentProgress.set({
+                step: 'analysis',
+                agentName: 'skill_gap',
+                label: 'Analyse terminee',
+                status: 'done',
+                progressPercent: 100
+              });
+              setTimeout(() => this.pipeline.currentAgentProgress.set(null), 450);
+            }, waitMs);
           },
           error: (err) => {
             // Clear simulation timers

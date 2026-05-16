@@ -1,144 +1,107 @@
 <div class="analysis-shell">
   @if (error) {
-    <div class="error-section">
-      <div class="error-banner">
-        <span class="error-icon">!</span>
-        <div>
-          <div class="error-title">Erreur pendant l analyse</div>
-          <div class="error-detail">{{ error }}</div>
-        </div>
-      </div>
-
-      <div class="step-actions">
-        <button class="btn-ghost" (click)="goBack()">Retour</button>
-        <button class="btn-next" (click)="retry()">Reessayer</button>
+  <div class="error-section">
+    <div class="error-banner">
+      <span class="error-icon">!</span>
+      <div>
+        <div class="error-title">Erreur pendant l'analyse</div>
+        <div class="error-detail">{{ error }}</div>
       </div>
     </div>
+    <div class="step-actions">
+      <button class="btn-ghost" (click)="goBack()">Retour</button>
+      <button class="btn-next" (click)="retry()">Réessayer</button>
+    </div>
+  </div>
   }
 
   @if (pipeline.isLoading() && !error) {
-    <section class="loading-stage">
-      <div class="loading-card">
-        <div class="loading-card__spinner">
-          <span class="spinner-lg"></span>
+  <section class="loading-stage">
+    <div class="loading-card">
+      <div class="loading-card__spinner">
+        <span class="spinner-lg"></span>
+      </div>
+      <div class="loading-card__body">
+        <div class="loading-card__eyebrow">Analyse IA en cours</div>
+        <h3 class="loading-card__title">Traitement de l'offre</h3>
+        <p class="loading-card__text">{{ progress?.label ?? 'Analyse en cours...' }}</p>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" [style.width.%]="progress?.progressPercent ?? 5"></div>
         </div>
-
-        <div class="loading-card__body">
-          <div class="loading-card__eyebrow">Analyse IA en cours</div>
-          <h3 class="loading-card__title">Traitement de l offre et du skill gap</h3>
-          <p class="loading-card__text">
-            {{ progress?.label ?? 'Analyse en cours...' }}
-          </p>
-
-          <div class="progress-bar-container">
-            <div class="progress-bar-fill" [style.width.%]="progress?.progressPercent ?? 5"></div>
-          </div>
-          <div class="progress-text">{{ progress?.progressPercent ?? 5 }}%</div>
+        <div class="progress-text">{{ progress?.progressPercent ?? 5 }}%</div>
+      </div>
+    </div>
+    <div class="agent-timeline">
+      @for (agent of agentStages; track agent.key) {
+      <div class="agent-row" [class.done]="getAgentStatus(agent.key) === 'done'"
+        [class.running]="getAgentStatus(agent.key) === 'running'">
+        <div class="agent-row__icon">
+          @if (getAgentStatus(agent.key) === 'done') { <span>✓</span> }
+          @else if (getAgentStatus(agent.key) === 'running') { <span class="spinner-sm"></span> }
+          @else { <span>○</span> }
+        </div>
+        <div class="agent-row__content">
+          <div class="agent-row__title">{{ agent.title }}</div>
+          <div class="agent-row__detail">{{ agent.detail }}</div>
         </div>
       </div>
-
-      <div class="agent-timeline">
-        @for (agent of agentStages; track agent.key) {
-          <div
-            class="agent-row"
-            [class.done]="getAgentStatus(agent.key) === 'done'"
-            [class.running]="getAgentStatus(agent.key) === 'running'"
-            [class.todo]="getAgentStatus(agent.key) === 'todo'">
-            <div class="agent-row__icon">
-              @if (getAgentStatus(agent.key) === 'done') {
-                <span>✓</span>
-              } @else if (getAgentStatus(agent.key) === 'running') {
-                <span class="agent-spinner"></span>
-              } @else {
-                <span>○</span>
-              }
-            </div>
-
-            <div class="agent-row__content">
-              <div class="agent-row__title">{{ agent.title }}</div>
-              <div class="agent-row__detail">{{ agent.detail }}</div>
-            </div>
-          </div>
-        }
-      </div>
-    </section>
+      }
+    </div>
+  </section>
   }
 
   @if (!pipeline.isLoading() && !error && result) {
-    <div class="analysis-page">
-      <section class="hero-card">
-        <div class="hero-card__top">
-          <div class="hero-card__identity">
-            <div class="hero-card__logo">
-              {{ headlineCompany.slice(0, 2).toUpperCase() }}
-            </div>
-
-            <div>
-              <h2 class="hero-card__title">{{ headlineTitle }}</h2>
-              <div class="hero-card__meta">
-                <span>{{ headlineCompany }}</span>
-                <span class="meta-dot">•</span>
-                <span>{{ headlineLocation }}</span>
-                <span class="meta-dot">•</span>
-                <span class="hero-card__badge">Analyse terminee</span>
-              </div>
-            </div>
-          </div>
-
-          <button class="hero-card__cta" (click)="continueToTemplate()">
-            Choisir le template
-          </button>
+  <div class="analysis-page">
+    <!-- HERO HEADER -->
+    <header class="hero-header">
+      <div class="hero-header__identity">
+        <div class="hero-header__logo">
+          {{ headlineCompany.slice(0, 2).toUpperCase() }}
         </div>
-
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <span class="hero-stat__label">Type de contrat</span>
-            <span class="hero-stat__value">{{ contractType }}</span>
-          </div>
-          <div class="hero-stat">
-            <span class="hero-stat__label">Experience demandee</span>
-            <span class="hero-stat__value">{{ experienceLabel }}</span>
-          </div>
-          <div class="hero-stat">
-            <span class="hero-stat__label">Competences match</span>
-            <span class="hero-stat__value">{{ matchingSkillsCount }}</span>
-          </div>
-          <div class="hero-stat">
-            <span class="hero-stat__label">Skill gaps</span>
-            <span class="hero-stat__value">{{ missingSkillsCount }}</span>
+        <div>
+          <h2 class="hero-header__title">{{ headlineTitle }}</h2>
+          <div class="hero-header__meta">
+            <span>{{ headlineCompany }}</span>
+            <span class="meta-dot">•</span>
+            <span>{{ headlineLocation }}</span>
+            <span class="meta-dot">•</span>
+            <span class="hero-header__badge"><span class="dot"></span> Analyse terminée</span>
           </div>
         </div>
-      </section>
+      </div>
+    </header>
 
-      <div class="analysis-layout">
-        <div class="analysis-main">
-          <section class="panel panel--summary">
-            <div class="panel__eyebrow">Resume de l IA</div>
-            <p class="panel__summary-text">{{ analysisSummary }}</p>
-          </section>
+    <div class="analysis-grid">
+      <!-- MAIN CONTENT -->
+      <main class="analysis-content">
+        <!-- RÉSUMÉ IA -->
+        <section class="panel panel--summary">
+          <div class="panel__eyebrow">Résumé de l'IA</div>
+          <p class="panel__summary-text">{{ analysisSummary }}</p>
+        </section>
 
-          <section class="section-header">
+        <!-- ANALYSE DÉTAILLÉE -->
+        <section class="analysis-details">
+          <div class="section-header">
             <span class="section-header__icon">◎</span>
-            <h3>Analyse des competences</h3>
-          </section>
+            <h3>Analyse des compétences</h3>
+          </div>
 
-          <div class="skills-grid">
+          <div class="skills-columns">
             <article class="panel">
               <div class="panel__heading">
-                <h4>Competences techniques</h4>
+                <h4>Compétences techniques</h4>
                 <span class="panel__tag">TECH STACK</span>
               </div>
-
               <div class="skill-list">
                 @for (skill of technicalSkills; track skill.name) {
-                  <div class="skill-item" [class.is-matched]="skill.status === 'matched'" [class.is-partial]="skill.status === 'partial'" [class.is-missing]="skill.status === 'missing'">
-                    <span class="skill-item__name">{{ skill.name }}</span>
-                    <span class="skill-item__icon">{{ getSkillIcon(skill.status) }}</span>
+                <div class="skill-row" [attr.data-status]="skill.status">
+                  <div class="skill-row__content">
+                    <span class="skill-row__name">{{ skill.name }}</span>
+                    <span class="skill-row__status">{{ skill.status }}</span>
                   </div>
-                }
-
-                @if (technicalSkills.length === 0) {
-                  <div class="empty-state">Aucune competence technique structuree n a ete retournee.</div>
+                  <div class="skill-row__indicator"></div>
+                </div>
                 }
               </div>
             </article>
@@ -148,150 +111,133 @@
                 <h4>Soft skills et contexte</h4>
                 <span class="panel__tag">FIT</span>
               </div>
-
               <div class="skill-list">
                 @for (skill of softSkills; track skill.name) {
-                  <div class="skill-item" [class.is-matched]="skill.status === 'matched'" [class.is-partial]="skill.status === 'partial'" [class.is-missing]="skill.status === 'missing'">
-                    <span class="skill-item__name">{{ skill.name }}</span>
-                    <span class="skill-item__icon">{{ getSkillIcon(skill.status) }}</span>
+                <div class="skill-row" [attr.data-status]="skill.status">
+                  <div class="skill-row__content">
+                    <span class="skill-row__name">{{ skill.name }}</span>
+                    <span class="skill-row__status">{{ skill.status }}</span>
                   </div>
-                }
-
-                @if (softSkills.length === 0) {
-                  <div class="empty-state">Les signaux soft skills sont encore faibles dans cette offre.</div>
+                  <div class="skill-row__indicator"></div>
+                </div>
                 }
               </div>
             </article>
           </div>
+        </section>
 
-          <section class="panel">
-            <div class="panel__heading panel__heading--stacked">
-              <h4>Mots cles detectes</h4>
-              <span class="panel__subtext">Present, manquant et attendu par l offre</span>
-            </div>
+        <!-- MOTS CLÉS -->
+        <section class="panel">
+          <div class="panel__heading">
+            <h4>Mots-clés sémantiques</h4>
+          </div>
+          <div class="keyword-cloud">
+            @for (keyword of keywordCloud; track keyword.label) {
+            <span class="keyword-chip" [class.is-matched]="keyword.tone === 'matched'"
+              [class.is-missing]="keyword.tone === 'missing'">
+              {{ keyword.label }}
+            </span>
+            }
+          </div>
+        </section>
 
-            <div class="keyword-cloud">
-              @for (keyword of keywordCloud; track keyword.label) {
-                <span class="keyword-chip" [class.is-matched]="keyword.tone === 'matched'" [class.is-missing]="keyword.tone === 'missing'" [class.is-neutral]="keyword.tone === 'neutral'" [class.size-sm]="keyword.size === 'sm'" [class.size-md]="keyword.size === 'md'" [class.size-lg]="keyword.size === 'lg'">
-                  {{ keyword.label }}
-                </span>
-              }
-            </div>
-          </section>
+        <!-- RECOMMANDATIONS -->
+        <section class="recommendations-section">
+          <h3 class="recommendations-section__title">Axes d'optimisation</h3>
+          <div class="recommendations-container">
+            @for (rec of recommendationInsights; track rec.text) {
+            <article class="recommendation-card" [class.accent-amber]="rec.accent === 'amber'"
+              [class.accent-red]="rec.accent === 'red'" [class.accent-blue]="rec.accent === 'blue'">
+              <div class="recommendation-card__eyebrow">{{ rec.title }}</div>
+              <p class="recommendation-card__text">{{ rec.text }}</p>
+            </article>
+            }
+          </div>
+        </section>
 
-          <section class="recommendations-section">
-            <h3 class="recommendations-section__title">Recommandations strategiques</h3>
+        <!-- OFFRE ORIGINALE -->
+        <section class="panel">
+          <div class="panel__heading panel__heading--between">
+            <h4>Texte original de l'offre</h4>
+            <button class="text-toggle" (click)="toggleOfferText()">{{ showFullOfferText ? 'Voir moins' : 'Voir plus' }}</button>
+          </div>
+          <div class="offer-text-box" [class.is-collapsed]="!showFullOfferText">
+            {{ originalOfferPreview }}
+          </div>
+        </section>
+      </main>
 
-            <div class="recommendations-grid">
-              @for (recommendation of recommendationInsights; track recommendation.text) {
-                <article class="recommendation-card" [class.accent-amber]="recommendation.accent === 'amber'" [class.accent-red]="recommendation.accent === 'red'" [class.accent-blue]="recommendation.accent === 'blue'">
-                  <div class="recommendation-card__title">{{ recommendation.title }}</div>
-                  <p>{{ recommendation.text }}</p>
-                </article>
-              }
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel__heading panel__heading--between">
-              <h4>Texte original de l offre</h4>
-              <button class="text-toggle" (click)="toggleOfferText()">{{ offerToggleLabel }}</button>
-            </div>
-
-            <div class="offer-text" [class.is-collapsed]="!showFullOfferText">
-              {{ originalOfferPreview }}
-            </div>
-          </section>
-        </div>
-
-        <aside class="analysis-sidebar">
-          <section class="score-card">
-            <h4 class="score-card__title">Matching score</h4>
-
-            <div class="score-ring">
-              <svg viewBox="0 0 180 180" class="score-ring__svg">
-                <circle cx="90" cy="90" r="70" class="score-ring__track"></circle>
-                <circle
-                  cx="90"
-                  cy="90"
-                  r="70"
-                  class="score-ring__value"
-                  [class.score-green]="scoreAccent === 'green'"
-                  [class.score-amber]="scoreAccent === 'amber'"
-                  [class.score-red]="scoreAccent === 'red'"
+      <!-- SIDEBAR -->
+      <aside class="analysis-sidebar">
+        <section class="premium-score-card">
+          <h4 class="premium-score-card__title">Matching score</h4>
+          <div class="score-visual">
+            <div class="ring-wrapper">
+              <svg viewBox="0 0 180 180" class="ring-svg">
+                <circle cx="90" cy="90" r="75" class="ring-bg"></circle>
+                <circle cx="90" cy="90" r="75" class="ring-fill" [class.score-green]="scoreAccent === 'green'"
+                  [class.score-amber]="scoreAccent === 'amber'" [class.score-red]="scoreAccent === 'red'"
                   [style.stroke-dashoffset]="scoreRingOffset"></circle>
               </svg>
-
-              <div class="score-ring__center">
-                <span class="score-ring__number">{{ score }}%</span>
-                <span class="score-ring__label">{{ scoreLabel }}</span>
+              <div class="ring-data">
+                <span class="ring-data__number">{{ score }}%</span>
+                <span class="ring-data__label">{{ scoreLabel }}</span>
               </div>
             </div>
+          </div>
 
-            <div class="score-breakdown">
-              <div class="score-breakdown__row">
-                <span>Couverture competences</span>
-                <strong>{{ matchingSkillsCount }} / {{ totalSkillCount || 1 }}</strong>
-              </div>
-              <div class="mini-bar">
-                <div class="mini-bar__fill is-green" [style.width.%]="skillsCoveragePercent"></div>
-              </div>
-
-              <div class="score-breakdown__row">
-                <span>Optimisation ATS</span>
-                <strong>{{ atsScore }}%</strong>
-              </div>
-              <div class="mini-bar">
-                <div class="mini-bar__fill is-blue" [style.width.%]="atsScore"></div>
-              </div>
-            </div>
-
-            <div class="score-metrics">
-              <div>
+          <div class="score-details">
+            <div class="score-stats-row">
+              <div class="stat-item">
                 <strong>{{ matchingSkillsCount }}</strong>
                 <span>Match</span>
               </div>
-              <div>
+              <div class="stat-item">
                 <strong>{{ missingSkillsCount }}</strong>
                 <span>Gaps</span>
               </div>
-              <div>
+              <div class="stat-item">
                 <strong>{{ partialSkillsCount }}</strong>
                 <span>Partiel</span>
               </div>
             </div>
 
-            <button class="score-card__button" (click)="continueToTemplate()">
-              Continuer vers le template
-            </button>
-          </section>
-
-          <section class="support-card">
-            <h5>{{ companySupportTitle }}</h5>
-            <p>{{ companySupportText }}</p>
-
-            @if (companyNews.length > 0) {
-              <div class="support-card__news">
-                @for (item of companyNews; track item.title) {
-                  <div class="support-card__news-item">
-                    <strong>{{ item.title }}</strong>
-                    @if (item.date) {
-                      <span>{{ item.date }}</span>
-                    }
-                  </div>
-                }
+            <div class="score-progress-stack">
+              <div class="stack-item">
+                <div class="stack-header">
+                  <span>Couverture compétences</span>
+                  <span>{{ matchingSkillsCount }}/{{ totalSkillCount }}</span>
+                </div>
+                <div class="stack-bar">
+                  <div class="stack-fill is-green" [style.width.%]="skillsCoveragePercent"></div>
+                </div>
               </div>
-            } @else {
-              <a class="support-card__link" (click)="continueToTemplate()">Passer a l etape suivante</a>
-            }
-          </section>
-        </aside>
-      </div>
+              <div class="stack-item">
+                <div class="stack-header">
+                  <span>Optimisation ATS</span>
+                  <span>{{ atsScore }}%</span>
+                </div>
+                <div class="stack-bar">
+                  <div class="stack-fill is-blue" [style.width.%]="atsScore"></div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <div class="step-actions">
-        <button class="btn-ghost" (click)="goBack()">Retour a l offre</button>
-        <button class="btn-next" (click)="continueToTemplate()">Choisir le template</button>
-      </div>
+          <button class="btn-primary-cta" (click)="continueToTemplate()">
+            Continuer vers le template
+          </button>
+          <button class="btn-secondary-ghost" (click)="goBack()">
+            Modifier l'offre
+          </button>
+        </section>
+
+        <section class="company-card">
+          <h5>À propos de {{ headlineCompany }}</h5>
+          <p>{{ companySupportText }}</p>
+        </section>
+      </aside>
     </div>
+  </div>
   }
 </div>

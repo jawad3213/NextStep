@@ -65,11 +65,11 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                 text("""
                     SELECT nom, prenom, email,
                            id_utilisateur AS profil_id,
-                           titre_poste    AS titre, 
-                           resume_professionnel AS resume, 
+                           titre_poste    AS titre,
+                           resume_professionnel AS resume,
                            telephone, ville
                     FROM utilisateur
-                    WHERE keycloak_id = :uid
+                    WHERE keycloak_id = :uid OR id_utilisateur::text = :uid
                     LIMIT 1
                 """),
                 {"uid": user_id},
@@ -89,11 +89,6 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                     text("SELECT nom, type_competence, niveau FROM competence WHERE id_utilisateur = :pid"),
                     {"pid": pid},
                 )).mappings().all()
-                
-                # LOG DE DEBUG pour voir la structure réelle
-                if comps:
-                    print(f"DEBUG DB_TOOLS - Première compétence: {comps[0]}")
-                    print(f"DEBUG DB_TOOLS - Clés disponibles: {list(comps[0].keys())}")
             except Exception as e:
                 logger.error("[Tool:db] Erreur compétences : %s", str(e))
                 comps = []

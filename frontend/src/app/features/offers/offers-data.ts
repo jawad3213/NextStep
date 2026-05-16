@@ -12,7 +12,7 @@ export const ANALYSIS_STEPS: AnalysisStep[] = [
 ];
 
 export interface OfferCard {
-  id: number;
+  id: string;
   initials: string;
   title: string;
   company: string;
@@ -29,7 +29,7 @@ export interface OfferCard {
 
 export const MOCK_OFFERS: OfferCard[] = [
   {
-    id: 0,
+    id: '0',
     initials: 'CP',
     title: 'Full Stack Stage',
     company: 'Capgemini Maroc',
@@ -42,7 +42,7 @@ export const MOCK_OFFERS: OfferCard[] = [
     currentStep: 5,
   },
   {
-    id: 1,
+    id: '1',
     initials: 'CG',
     title: 'Développeur Java Spring',
     company: 'CGI',
@@ -53,7 +53,7 @@ export const MOCK_OFFERS: OfferCard[] = [
     currentStep: 0,
   },
   {
-    id: 2,
+    id: '2',
     initials: 'OC',
     title: 'DevOps Stage',
     company: 'OCP Group',
@@ -65,7 +65,7 @@ export const MOCK_OFFERS: OfferCard[] = [
     currentStep: 2,
   },
   {
-    id: 3,
+    id: '3',
     initials: 'MT',
     title: 'Data Engineer CDI',
     company: 'Maroc Telecom',
@@ -79,7 +79,7 @@ export const MOCK_OFFERS: OfferCard[] = [
     currentStep: 3,
   },
   {
-    id: 4,
+    id: '4',
     initials: 'IN',
     title: 'Backend Python Stage',
     company: 'Intelcia',

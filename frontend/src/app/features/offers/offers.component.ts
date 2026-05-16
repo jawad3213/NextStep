@@ -1,9 +1,10 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-import { MOCK_OFFERS, OfferCard, ANALYSIS_STEPS } from './offers-data';
+import { ANALYSIS_STEPS, MOCK_OFFERS, OfferCard } from './offers-data';
+import { OfferApiService } from './services/offer-api.service';
 
 @Component({
   selector: 'app-offers',
@@ -24,22 +25,47 @@ import { MOCK_OFFERS, OfferCard, ANALYSIS_STEPS } from './offers-data';
     ])
   ]
 })
-export class OffersComponent {
+export class OffersComponent implements OnInit {
   readonly steps = ANALYSIS_STEPS;
-  readonly offers: OfferCard[] = MOCK_OFFERS;
+  private readonly offerApi = inject(OfferApiService);
+  readonly offers = signal<OfferCard[]>([]);
 
   readonly searchTerm = signal('');
   readonly filterStatus = signal('');
   readonly sortBy = signal<'date' | 'score' | 'company' | 'step'>('date');
   readonly currentPage = signal(1);
   readonly pageSize = signal(10);
+  readonly selectedOfferIds = signal<Set<string>>(new Set<string>());
+  readonly isDeleting = signal(false);
+  readonly showDeleteConfirm = signal(false);
+
+  ngOnInit(): void {
+    this.offerApi.getOffersHistory().subscribe({
+      next: (items) => {
+        this.offers.set(items.map((o) => ({
+          id: o.offerId,
+          initials: this.getInitials(o.entreprise || o.titre),
+          title: o.titre || 'Offre',
+          company: o.entreprise || 'Entreprise',
+          location: o.localisation || '',
+          matchingScore: o.scoreMatching,
+          tags: [],
+          status: o.status,
+          createdAt: new Date(o.dateCreation),
+          currentStep: o.currentStep || 1,
+        })));
+        this.selectedOfferIds.set(new Set<string>());
+      },
+      error: () => this.offers.set(MOCK_OFFERS)
+    });
+  }
 
   get filteredOffers(): OfferCard[] {
     const search = this.searchTerm().trim().toLowerCase();
     const status = this.filterStatus();
     const sort = this.sortBy();
 
-    let result = this.offers.filter(o => {
+    let result = this.offers().filter(o => {
       const matchSearch = !search ||
         o.title.toLowerCase().includes(search) ||
         o.company.toLowerCase().includes(search) ||
@@ -69,6 +95,17 @@ export class OffersComponent {
     return this.paginatedOffers.length < this.filteredOffers.length;
   }
 
+  get allVisibleSelected(): boolean {
+    const visible = this.paginatedOffers;
+    if (visible.length === 0) return false;
+    const selected = this.selectedOfferIds();
+    return visible.every((o) => selected.has(o.id));
+  }
+
+  get selectedCount(): number {
+    return this.selectedOfferIds().size;
+  }
+
   onSearchInput(value: string): void {
     this.searchTerm.set(value);
     this.currentPage.set(1);
@@ -88,11 +125,57 @@ export class OffersComponent {
     this.currentPage.update(p => p + 1);
   }
 
+  toggleOfferSelection(offerId: string, checked: boolean): void {
+    const next = new Set(this.selectedOfferIds());
+    if (checked) next.add(offerId);
+    else next.delete(offerId);
+    this.selectedOfferIds.set(next);
+  }
+
+  toggleSelectAllVisible(checked: boolean): void {
+    const next = new Set(this.selectedOfferIds());
+    if (checked) {
+      for (const offer of this.paginatedOffers) next.add(offer.id);
+    } else {
+      for (const offer of this.paginatedOffers) next.delete(offer.id);
+    }
+    this.selectedOfferIds.set(next);
+  }
+
+  openDeleteConfirm(): void {
+    if (this.selectedCount === 0 || this.isDeleting()) return;
+    this.showDeleteConfirm.set(true);
+  }
+
+  cancelDeleteConfirm(): void {
+    if (this.isDeleting()) return;
+    this.showDeleteConfirm.set(false);
+  }
+
+  bulkDeleteSelected(): void {
+    const ids = [...this.selectedOfferIds()];
+    if (ids.length === 0) return;
+    this.isDeleting.set(true);
+    this.offerApi.bulkDeleteOffers(ids).subscribe({
+      next: () => {
+        this.offers.update((list) => list.filter((o) => !this.selectedOfferIds().has(o.id)));
+        this.selectedOfferIds.set(new Set<string>());
+        this.isDeleting.set(false);
+        this.showDeleteConfirm.set(false);
+      },
+      error: (err) => {
+        this.isDeleting.set(false);
+        const msg = err?.error?.message || err?.error?.error || 'Suppression impossible pour le moment.';
+        alert(msg);
+      },
+    });
+  }
+
   getStatusLabel(status: OfferCard['status']): string {
     switch (status) {
-      case 'cv_genere': return 'CV Généré';
-      case 'analysee': return 'Analysée';
-      case 'non_traitee': return 'Non traitée';
+      case 'cv_genere': return 'CV Genere';
+      case 'analysee': return 'Analysee';
+      case 'non_traitee': return 'Non traitee';
     }
   }
 
@@ -104,13 +187,10 @@ export class OffersComponent {
     }
   }
 
-  getNextAction(offer: OfferCard): { label: string; link: string } | null {
+  getNextAction(offer: OfferCard): { label: string; link: string; offerId?: string } | null {
     if (offer.expired) return null;
-    if (offer.currentStep === 0) return { label: 'Lancer l\'analyse', link: '/offers/analyze' };
-    if (offer.currentStep <= 2) return { label: 'Continuer l\'analyse', link: '/offers/analyze' };
-    if (offer.currentStep === 3) return { label: 'Choisir le template', link: '/offers/analyze' };
-    if (offer.currentStep === 4) return { label: 'Générer le CV', link: '/offers/analyze' };
-    return { label: 'Voir les résultats', link: `/offers/${offer.id}` };
+    if (offer.currentStep <= 4) return { label: 'Continuer', link: '/offers/analyze', offerId: offer.id };
+    return { label: 'Voir les resultats', link: `/offers/${offer.id}` };
   }
 
   getRecencyLabel(date: Date): string {
@@ -137,5 +217,12 @@ export class OffersComponent {
     let sum = 0;
     for (let i = 0; i < company.length; i++) sum += company.charCodeAt(i);
     return colors[sum % colors.length];
+  }
+
+  private getInitials(value: string): string {
+    const parts = value.split(' ').filter(Boolean);
+    if (parts.length === 0) return 'NS';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 }

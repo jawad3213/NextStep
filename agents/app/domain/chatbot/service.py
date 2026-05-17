@@ -24,6 +24,8 @@ from sqlalchemy import select
 from app.domain.chatbot.graph import interview_graph
 from app.domain.chatbot.models import (
     SessionCoaching, QuestionEntrainement, ChatMessage,
+)
+from app.core.models import (
     OffreAnalysee, IntelEntreprise, ResultatMatching,
 )
 from app.domain.chatbot.state import (

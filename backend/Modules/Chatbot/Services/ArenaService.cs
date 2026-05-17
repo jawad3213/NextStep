@@ -192,8 +192,6 @@ public class ArenaService : IArenaService
         var session = await _db.SessionCoachings.FindAsync(sessionGuid);
         if (session == null) return false;
 
-        // Sécurité : Vérifier que la session appartient bien à l'utilisateur
-        // On résout l'ID interne de l'utilisateur pour comparer
         var internalUser = await _db.Utilisateurs
             .FirstOrDefaultAsync(u => u.KeycloakId == userId || u.Id.ToString() == userId);
 
@@ -206,4 +204,100 @@ public class ArenaService : IArenaService
         await _db.SaveChangesAsync();
         return true;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Offers page — sidebar
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public async Task<List<UserOfferSummaryDto>> GetUserOffersAsync(string userId)
+    {
+        // Resolve Keycloak sub → internal UUID
+        var internalUser = await _db.Utilisateurs
+            .FirstOrDefaultAsync(u => u.KeycloakId == userId || u.Id.ToString() == userId);
+
+        if (internalUser == null) return [];
+
+        // Get all candidatures for this user, with their associated analyzed offer
+        var candidatureIds = await _db.Candidatures
+            .Where(c => c.IdUtilisateur == internalUser.Id)
+            .Select(c => c.IdOffre)
+            .ToListAsync();
+
+        if (candidatureIds.Count == 0) return [];
+
+        // Raw SQL query against the agent tables (not EF-mapped write tables)
+        var result = new List<UserOfferSummaryDto>();
+
+        foreach (var offreId in candidatureIds)
+        {
+            var sql = $"""
+                SELECT id, id_offre, titre_poste, entreprise, localisation, type_contrat,
+                       competences_requises, annees_experience, date_analyse
+                FROM public.offre_analysee
+                WHERE id_offre = '{offreId}'
+                LIMIT 1
+            """;
+
+            var rows = await _db.Database
+                .SqlQueryRaw<OffreAnalyseeRaw>(sql)
+                .ToListAsync();
+
+            if (rows.Count == 0) continue;
+            var r = rows[0];
+
+            // Parse JSONB arrays
+            List<string> skills = [];
+            try
+            {
+                if (!string.IsNullOrEmpty(r.CompetencesRequises))
+                    skills = System.Text.Json.JsonSerializer.Deserialize<List<string>>(r.CompetencesRequises) ?? [];
+            }
+            catch { /* ignore parse errors */ }
+
+            // Get matching score from resultat_matching
+            int? matchScore = null;
+            var matchSql = $"""
+                SELECT score_global FROM public.resultat_matching
+                WHERE id_offre = '{offreId}' AND id_utilisateur = '{internalUser.Id}'
+                LIMIT 1
+            """;
+            var matchRows = await _db.Database
+                .SqlQueryRaw<MatchScoreRaw>(matchSql)
+                .ToListAsync();
+            if (matchRows.Count > 0) matchScore = matchRows[0].ScoreGlobal;
+
+            result.Add(new UserOfferSummaryDto(
+                OfferId         : r.IdOffre.ToString(),
+                JobTitle        : r.TitrePoste ?? "Unknown Position",
+                Company         : r.Entreprise ?? "Unknown Company",
+                Location        : r.Localisation,
+                ContractType    : r.TypeContrat,
+                MatchingScore   : matchScore,
+                YearsExperience : r.AnneesExperience,
+                RequiredSkills  : skills.Take(6).ToList(),
+                DateAnalysed    : r.DateAnalyse
+            ));
+        }
+
+        return result;
+    }
 }
+
+// ── Raw query projection types ──
+file class OffreAnalyseeRaw
+{
+    public Guid Id { get; set; }
+    public Guid IdOffre { get; set; }
+    public string? TitrePoste { get; set; }
+    public string? Entreprise { get; set; }
+    public string? Localisation { get; set; }
+    public string? TypeContrat { get; set; }
+    public string? CompetencesRequises { get; set; }
+    public int? AnneesExperience { get; set; }
+    public DateTime DateAnalyse { get; set; }
+}
+
+file class MatchScoreRaw
+{
+    public int? ScoreGlobal { get; set; }
+}

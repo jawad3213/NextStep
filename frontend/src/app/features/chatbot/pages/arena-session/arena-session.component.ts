@@ -157,15 +157,23 @@ export class ArenaSessionComponent implements OnInit, OnDestroy, AfterViewChecke
   // ── TAB 2 ─────────────────────────────────────────────────
 
   startInterview() {
+    const isOffer = this.config.offer_id != null;
     const sessionConfig: SessionConfig = {
-      mode: 'arena',
+      mode: isOffer ? 'offer' : 'arena',
       domain: this.config.domain,
       level: this.config.level,
       duration_minutes: this.config.duration_minutes,
       language: this.config.language,
       focus_areas: this.config.focus_areas,
-      display_title: `${this.config.domain.charAt(0).toUpperCase() + this.config.domain.slice(1)} Arena`,
-      display_emoji: '⚡',
+      offer_id: this.config.offer_id,
+      job_title: this.config.job_title,
+      company: this.config.company,
+      display_title: isOffer && this.config.job_title && this.config.company
+        ? `${this.config.job_title} @ ${this.config.company}`
+        : isOffer
+          ? `Interview Prep — ${this.config.domain}`
+          : `${this.config.domain.charAt(0).toUpperCase() + this.config.domain.slice(1)} Arena`,
+      display_emoji: isOffer ? '🎯' : '⚡',
       session_id: this.sessionId(),
       questions: this.questions()
     };

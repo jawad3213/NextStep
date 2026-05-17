@@ -8,6 +8,9 @@ export interface ArenaConfig {
   duration_minutes: number;
   language: string;
   focus_areas: string[];
+  offer_id?: string;
+  job_title?: string;
+  company?: string;
 }
 
 /** Unified config passed to the shared interview-session page.
@@ -111,6 +114,18 @@ export interface SessionDetail extends SessionSummary {
   bestAnswer?: string;
   worstAnswer?: string;
   feedbackJson?: FeedbackResult;
+}
+
+export interface UserOfferSummary {
+  offerId: string;
+  jobTitle: string;
+  company: string;
+  location?: string;
+  contractType?: string;
+  matchingScore?: number;
+  yearsExperience?: number;
+  requiredSkills: string[];
+  dateAnalysed: string;
 }
 
 export interface SessionCoachingDetailsDto {

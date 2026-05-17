@@ -32,6 +32,8 @@ class OfferData(BaseModel):
     tech_stack: list[str] = []
     experience_years: int = 0
     raw_text: str = ""
+    location: str = ""
+    contract_type: str = ""
  
  
 class CompanyData(BaseModel):

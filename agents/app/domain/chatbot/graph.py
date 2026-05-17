@@ -100,18 +100,27 @@ async def questions_node(state: InterviewPrepState) -> dict:
         company = state.offer_context.company
         match   = state.offer_context.match
 
-        # 1. Chercher les vraies questions Glassdoor
-        real_questions = await search_interview_questions(
+        # 1. Fusionner les questions connues de la base de données (seed) et de la recherche en direct Tavily
+        db_questions = company.known_questions if company.known_questions else []
+        web_questions = await search_interview_questions(
             offer.company_name, offer.job_title
         )
+        
+        # Combiner sans doublons
+        combined_questions = list(db_questions)
+        for q in web_questions:
+            if q not in combined_questions:
+                combined_questions.append(q)
 
         # 2. Construire le prompt avec tout le contexte
         prompt = QUESTIONS_PROMPT_OFFER.format(
             company=offer.company_name,
             role=offer.job_title,
+            location=offer.location if offer.location else "Remote",
+            contract_type=offer.contract_type if offer.contract_type else "Full-time",
             skills=", ".join(offer.required_skills),
             missing=", ".join(match.missing_skills),
-            glassdoor_questions="\n".join(real_questions) if real_questions else "Aucune trouvée",
+            glassdoor_questions="\n".join(combined_questions) if combined_questions else "None found",
         )
 
     else:
@@ -244,23 +253,43 @@ async def interview_node(state: InterviewPrepState) -> dict:
     if state.mode == "offer" and state.offer_context:
         o = state.offer_context.offer
         c = state.offer_context.company
+        m = state.offer_context.match
+        msg_count = len(state.messages)
         system = RECRUITER_PROMPT.format(
             company=o.company_name,
             role=o.job_title,
-            culture=c.company_summary[:200] if c.company_summary else "professional",
+            location=o.location if o.location else "Remote",
+            contract_type=o.contract_type if o.contract_type else "Full-time",
+            culture=c.company_summary if c.company_summary else "innovative and professional",
             skills=", ".join(o.required_skills[:6]),
             difficulty=c.interview_difficulty,
             language=lang,
+            duration=state.arena_config.duration_minutes if state.arena_config else 20,
+            missing_skills=", ".join(m.missing_skills) if m.missing_skills else "None identified",
+            strengths=", ".join(m.strengths) if m.strengths else "Highly qualified candidate",
+            salary_min=c.salary_min,
+            salary_max=c.salary_max,
+            salary_currency=c.currency if c.currency else "USD",
+            msg_count=msg_count,
         )
     else:
         cfg = state.arena_config
         system = RECRUITER_PROMPT.format(
             company="a leading company",
             role=f"{cfg.level if cfg else 'mid'} {cfg.domain if cfg else 'Software'} engineer",
+            location="Remote",
+            contract_type="Full-time",
             culture="innovative and collaborative",
             skills=", ".join(cfg.focus_areas[:6]) if cfg and cfg.focus_areas else "core skills",
             difficulty="medium",
             language=lang,
+            duration=cfg.duration_minutes if cfg else 20,
+            missing_skills="None",
+            strengths="Motivated professional",
+            salary_min=50000,
+            salary_max=120000,
+            salary_currency="USD",
+            msg_count=len(state.messages),
         )
 
     # Construire les messages LangChain
@@ -366,14 +395,22 @@ async def salary_node(state: InterviewPrepState) -> dict:
     llm = get_llm_precise()
 
     # Déterminer job_title + location
+    db_min = 0
+    db_max = 0
+    db_target = 0
+    currency = "MAD"
+
     if state.mode == "offer" and state.offer_context:
         o = state.offer_context.offer
         c = state.offer_context.company
         job_title = o.job_title
-        location  = o.raw_text[:50] if o.raw_text else "Casablanca"
+        location  = o.location if o.location else "Mountain View, CA"
+        db_min = c.salary_min
+        db_max = c.salary_max
+        db_target = int(c.salary_min + (c.salary_max - c.salary_min) * 0.8) if c.salary_max > c.salary_min else c.salary_min
+        currency = c.currency if c.currency else "USD"
         extra = (
             f"Company: {o.company_name}\n"
-            f"Known range from Glassdoor: {c.salary_min}–{c.salary_max} {c.currency}\n"
             f"Candidate strengths: {', '.join(state.offer_context.match.strengths)}\n"
         )
     else:
@@ -382,6 +419,10 @@ async def salary_node(state: InterviewPrepState) -> dict:
         level_name  = cfg.level.capitalize() if cfg else ""
         job_title = f"{level_name} {domain_name} Engineer" if "Engineer" not in domain_name else f"{level_name} {domain_name}"
         location  = "Morocco"
+        db_min = 150000 if cfg and cfg.level == "senior" else (90000 if cfg and cfg.level == "mid" else 50000)
+        db_max = 300000 if cfg and cfg.level == "senior" else (180000 if cfg and cfg.level == "mid" else 90000)
+        db_target = int(db_min + (db_max - db_min) * 0.75)
+        currency = "MAD"
         extra = ""
 
     # Recherche données marché
@@ -392,6 +433,10 @@ async def salary_node(state: InterviewPrepState) -> dict:
         location=location,
         extra_context=extra,
         market_raw="\n".join(market_data.get("raw_data", [])),
+        currency=currency,
+        db_min=db_min,
+        db_max=db_max,
+        db_target=db_target,
     )
 
     lc_messages = [

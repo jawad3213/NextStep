@@ -45,6 +45,11 @@ export class ModeSelectorComponent implements OnInit {
   selectedDuration = signal(20);
   selectedLanguage = signal('en');
   selectedFocus = signal<string[]>([]);
+  
+  // ── Offer specifics
+  selectedOfferId = signal<string | null>(null);
+  selectedJobTitle = signal<string | null>(null);
+  selectedCompany = signal<string | null>(null);
 
   // ── History Data
   pastSessions = signal<SessionSummary[]>([]);
@@ -69,17 +74,33 @@ export class ModeSelectorComponent implements OnInit {
   stepIndex = computed(() => STEPS.findIndex(s => s.key === this.currentStep()));
 
   ngOnInit() {
-    // Attendez que Keycloak soit prêt avec un petit délai
-    // Keycloak s'initialise de manière asynchrone
+    // Check if navigated from the Offers page with a pre-filled offer config
+    const navState = history.state as { preselectedMode?: string; offerConfig?: ArenaConfig };
+    if (navState?.preselectedMode === 'offer' && navState?.offerConfig) {
+      const config = navState.offerConfig;
+      this.selectedOfferId.set(config.offer_id ?? null);
+      this.selectedJobTitle.set(config.job_title ?? null);
+      this.selectedCompany.set(config.company ?? null);
+      this.selectedDomain.set(config.domain || 'software');
+      this.selectedLevel.set(config.level || 'senior');
+      this.selectedDuration.set(config.duration_minutes || 20);
+      this.selectedLanguage.set(config.language || 'en');
+      this.selectedFocus.set(config.focus_areas || []);
+
+      // Go to stepper configuration immediately so the user can choose the duration!
+      this.view.set('arena');
+      this.currentStep.set('duration'); // Lands directly on the duration selection page!
+      return;
+    }
+
+    // Normal load — fetch session history
     setTimeout(() => {
       if (this.authService.isAuthenticated()) {
-        console.log('✅ Utilisateur authentifié - chargement de l\'historique');
         this.loadHistory();
       } else {
-        console.warn('⏳ Utilisateur non authentifié - historique non chargé');
         this.pastSessions.set([]);
       }
-    }, 500); // Donne 500ms à Keycloak pour initialiser
+    }, 500);
   }
 
   private loadHistory() {
@@ -257,6 +278,9 @@ export class ModeSelectorComponent implements OnInit {
       duration_minutes: this.selectedDuration(),
       language: this.selectedLanguage(),
       focus_areas: this.selectedFocus(),
+      offer_id: this.selectedOfferId() ?? undefined,
+      job_title: this.selectedJobTitle() ?? undefined,
+      company: this.selectedCompany() ?? undefined
     };
     setTimeout(() => { this.router.navigate(['/chatbot/arena'], { state: { arenaConfig: config } }); }, 1800);
   }

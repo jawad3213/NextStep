@@ -193,4 +193,23 @@ public class ArenaController : ControllerBase
         var success = await _arenaService.DeleteSessionAsync(sessionId, userId);
         return success ? Ok() : NotFound();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Offers page
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// GET /api/arena/my-offers
+    /// Retourne les offres analysées de l'utilisateur courant pour la page Offers.
+    /// </summary>
+    [HttpGet("my-offers")]
+    public async Task<IActionResult> GetMyOffers()
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var result = await _arenaService.GetUserOffersAsync(userId);
+        return Ok(result);
+    }
 }
+

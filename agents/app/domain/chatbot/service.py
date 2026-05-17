@@ -69,18 +69,27 @@ async def get_internal_user_id(keycloak_id: str | None, db: AsyncSession) -> uui
     if not keycloak_id:
         return None
     
-    # 1. Chercher si l'utilisateur existe déjà
     try:
         from sqlalchemy import text
+        # 1. Priorité absolue : chercher par keycloak_id
         r = await db.execute(
-            text("SELECT id_utilisateur FROM utilisateur WHERE keycloak_id = :k OR id_utilisateur::text = :k"),
+            text("SELECT id_utilisateur FROM utilisateur WHERE keycloak_id = :k"),
             {"k": keycloak_id}
         )
-        found_id = r.scalar_one_or_none()
+        found_id = r.scalar()
+        if found_id:
+            return found_id
+
+        # 2. Chercher par id_utilisateur (UUID)
+        r = await db.execute(
+            text("SELECT id_utilisateur FROM utilisateur WHERE id_utilisateur::text = :k"),
+            {"k": keycloak_id}
+        )
+        found_id = r.scalar()
         if found_id:
             return found_id
             
-        # 2. Si non trouvé, on tente de voir si c'est un UUID valide pour l'utiliser
+        # 3. Si non trouvé, on tente de voir si c'est un UUID valide pour l'utiliser
         try:
             val_uuid = uuid.UUID(keycloak_id)
             return val_uuid
@@ -131,7 +140,8 @@ async def get_offer_context_from_db(
 
     try:
         offer_uuid = uuid.UUID(offer_id)
-        user_uuid  = uuid.UUID(user_id) if user_id else None
+        internal_uid = await get_internal_user_id(user_id, db)
+        user_uuid = internal_uid if internal_uid else (uuid.UUID(user_id) if user_id else None)
 
         # ── Agent 2 : offre_analysee ───────────────────────
         r2 = await db.execute(
@@ -170,6 +180,8 @@ async def get_offer_context_from_db(
                 ats_keywords=offre_row.keywords_ats   or [] if offre_row else [],
                 tech_stack=offre_row.stack_technique  or [] if offre_row else [],
                 experience_years=offre_row.annees_experience or 0 if offre_row else 0,
+                location=offre_row.localisation       if offre_row and offre_row.localisation else "",
+                contract_type=offre_row.type_contrat   if offre_row and offre_row.type_contrat else "",
             ),
             company=CompanyData(
                 company_name=intel_row.nom_entreprise         if intel_row else "",

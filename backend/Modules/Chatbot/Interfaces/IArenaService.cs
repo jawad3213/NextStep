@@ -74,4 +74,10 @@ public interface IArenaService
     /// Supprime une session d'interview.
     /// </summary>
     Task<bool> DeleteSessionAsync(string sessionId, string userId);
+
+    /// <summary>
+    /// Retourne les offres analysées (offre_analysee) de l'utilisateur,
+    /// issues de ses candidatures — utilisé par la page Offers du sidebar.
+    /// </summary>
+    Task<List<UserOfferSummaryDto>> GetUserOffersAsync(string userId);
 }

@@ -274,6 +274,9 @@ export class InterviewSessionComponent implements OnInit, OnDestroy, AfterViewCh
       duration_minutes: this.config.duration_minutes,
       language:         this.config.language,
       focus_areas:      this.config.focus_areas,
+      offer_id:         this.config.offer_id,
+      job_title:        this.config.job_title,
+      company:          this.config.company,
     };
   }
 

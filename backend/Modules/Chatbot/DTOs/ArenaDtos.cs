@@ -238,3 +238,23 @@ public record SalaryCoachResponse(
     string Status,
     string Response
 );
+
+// ─────────────────────────────────────────────
+// User Offers (sidebar page)
+// ─────────────────────────────────────────────
+
+/// <summary>
+/// Légère carte affichée sur la page Offers du sidebar.
+/// Alimente le bouton "Prepare for Interview" (mode offer du chatbot).
+/// </summary>
+public record UserOfferSummaryDto(
+    string OfferId,
+    string JobTitle,
+    string Company,
+    string? Location,
+    string? ContractType,
+    int? MatchingScore,
+    int? YearsExperience,
+    List<string> RequiredSkills,
+    DateTime DateAnalysed
+);

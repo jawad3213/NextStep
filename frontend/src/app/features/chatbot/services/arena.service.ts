@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
-import { ArenaConfig, QuestionItem, ChatMessage, FeedbackResult, SalaryResult, SessionSummary, SessionDetail } from '../models/arena.models';
+import { ArenaConfig, QuestionItem, ChatMessage, FeedbackResult, SalaryResult, SessionSummary, SessionDetail, UserOfferSummary } from '../models/arena.models';
 
 const mapConfig = (c: ArenaConfig) => ({
   domain: c.domain,
@@ -11,6 +11,7 @@ const mapConfig = (c: ArenaConfig) => ({
   durationMinutes: c.duration_minutes,
   language: c.language,
   focusAreas: c.focus_areas,
+  offerId: c.offer_id
 });
 
 @Injectable({ providedIn: 'root' })
@@ -20,7 +21,9 @@ export class ArenaService {
   constructor(private http: HttpClient) { }
 
   getQuestions(config: ArenaConfig): Observable<{ status: string; total: number; session_id: string; questions: QuestionItem[] }> {
-    return this.http.post<any>(`${this.api}/questions`, { arenaConfig: mapConfig(config) })
+    const body: any = { arenaConfig: mapConfig(config) };
+    if (config.offer_id) body['offerId'] = config.offer_id;
+    return this.http.post<any>(`${this.api}/questions`, body)
       .pipe(map(r => ({
         status: 'success',
         total: r.questions?.length || 0,
@@ -49,11 +52,14 @@ export class ArenaService {
   }
 
   startSession(config: ArenaConfig, sessionId?: string, questions?: QuestionItem[]): Observable<{ status: string; session_id: string; opening_message: string }> {
-    return this.http.post<any>(`${this.api}/session/start`, {
+    const body: any = {
       sessionId: sessionId,
       arenaConfig: mapConfig(config),
       questions: questions || []
-    }).pipe(map(r => ({
+    };
+    if (config.offer_id) body['offerId'] = config.offer_id;
+
+    return this.http.post<any>(`${this.api}/session/start`, body).pipe(map(r => ({
       status: 'success',
       session_id: r.sessionId || r.session_id,
       opening_message: r.openingMessage || r.opening_message
@@ -61,12 +67,15 @@ export class ArenaService {
   }
 
   sendMessage(sessionId: string, userInput: string, history: ChatMessage[], config: ArenaConfig): Observable<{ status: string; session_id: string; ai_response: string }> {
-    return this.http.post<any>(`${this.api}/session/message`, {
+    const body: any = {
       sessionId: sessionId,
       userInput: userInput,
       history: history.map(m => ({ role: m.role, content: m.content })),
       arenaConfig: mapConfig(config),
-    }).pipe(map(r => ({
+    };
+    if (config.offer_id) body['offerId'] = config.offer_id;
+
+    return this.http.post<any>(`${this.api}/session/message`, body).pipe(map(r => ({
       status: 'success',
       session_id: r.sessionId || r.session_id,
       ai_response: r.aiResponse || r.message || r.ai_response || ''
@@ -74,11 +83,14 @@ export class ArenaService {
   }
 
   endSession(sessionId: string, history: ChatMessage[], config: ArenaConfig): Observable<{ status: string; session_id: string; score: number; feedback: FeedbackResult }> {
-    return this.http.post<any>(`${this.api}/session/end`, {
+    const body: any = {
       sessionId: sessionId,
       history: history.map(m => ({ role: m.role, content: m.content })),
       arenaConfig: mapConfig(config),
-    }).pipe(map(r => {
+    };
+    if (config.offer_id) body['offerId'] = config.offer_id;
+
+    return this.http.post<any>(`${this.api}/session/end`, body).pipe(map(r => {
       const f = r.feedback || r;
       const score = r.score !== undefined ? r.score : (f.globalScore !== undefined ? f.globalScore : (f.global_score || 0));
       return {
@@ -105,7 +117,10 @@ export class ArenaService {
   }
 
   getSalary(config: ArenaConfig): Observable<SalaryResult & { status: string }> {
-    return this.http.post<any>(`${this.api}/salary`, { arenaConfig: mapConfig(config) })
+    const body: any = { arenaConfig: mapConfig(config) };
+    if (config.offer_id) body['offerId'] = config.offer_id;
+
+    return this.http.post<any>(`${this.api}/salary`, body)
       .pipe(map(r => ({
         status: 'success',
         range_min: r.rangeMin || r.salaryMin || r.range_min || 0,
@@ -186,5 +201,22 @@ export class ArenaService {
   // Suppression
   deleteSession(sessionId: string): Observable<void> {
     return this.http.post<void>(`${this.api}/sessions/${sessionId}/delete`, {});
+  }
+
+  // Offers page — fetch analyzed offers for the authenticated user
+  getMyOffers(): Observable<UserOfferSummary[]> {
+    return this.http.get<any[]>(`${this.api}/my-offers`).pipe(
+      map(list => (list || []).map(o => ({
+        offerId:         o.offerId,
+        jobTitle:        o.jobTitle,
+        company:         o.company,
+        location:        o.location,
+        contractType:    o.contractType,
+        matchingScore:   o.matchingScore,
+        yearsExperience: o.yearsExperience,
+        requiredSkills:  o.requiredSkills || [],
+        dateAnalysed:    o.dateAnalysed,
+      })))
+    );
   }
 }

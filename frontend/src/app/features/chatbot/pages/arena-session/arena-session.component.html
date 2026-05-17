@@ -11,8 +11,8 @@
       <div class="session-info">
         <span class="emoji">{{ domainEmoji() }}</span>
         <div class="meta">
-          <h2>{{ config.domain | titlecase }} Arena</h2>
-          <span class="subtitle">{{ levelLabel() }} &bull; {{ config.duration_minutes }} min &bull; {{ langFlag() }}</span>
+          <h2>{{ config.job_title || (config.domain | titlecase) + ' Arena' }}</h2>
+          <span class="subtitle"><span *ngIf="config.company">{{ config.company }} &bull; </span>{{ levelLabel() }} &bull; {{ config.duration_minutes }} min &bull; {{ langFlag() }}</span>
         </div>
       </div>
     </div>
@@ -51,6 +51,7 @@
           <button [class.active]="filterType() === 'all'" (click)="setFilter('all')">All ({{questions().length}})</button>
           <button [class.active]="filterType() === 'technical'" (click)="setFilter('technical')">Technical ({{qCount('technical')}})</button>
           <button [class.active]="filterType() === 'behavioral'" (click)="setFilter('behavioral')">Behavioral ({{qCount('behavioral')}})</button>
+          <button [class.active]="filterType() === 'situational'" (click)="setFilter('situational')">Situational ({{qCount('situational')}})</button>
         </div>
 
         <div class="q-list">

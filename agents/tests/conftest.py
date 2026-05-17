@@ -183,6 +183,8 @@ def mock_offre_row():
     row.keywords_ats         = ["ETL", "pipeline", "data lake"]
     row.stack_technique      = ["PySpark", "Airflow", "dbt"]
     row.annees_experience    = 3
+    row.localisation         = ""
+    row.type_contrat         = ""
     return row
 
 
@@ -226,6 +228,8 @@ def mock_offer_context(mock_offre_row, mock_intel_row, mock_match_row) -> OfferC
             ats_keywords=mock_offre_row.keywords_ats,
             tech_stack=mock_offre_row.stack_technique,
             experience_years=mock_offre_row.annees_experience,
+            location=mock_offre_row.localisation,
+            contract_type=mock_offre_row.type_contrat,
         ),
         company=CompanyData(
             company_name=mock_intel_row.nom_entreprise,

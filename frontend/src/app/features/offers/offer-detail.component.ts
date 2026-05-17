@@ -149,4 +149,24 @@ export class OfferDetailComponent implements OnInit {
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
+
+  startInterview(): void {
+    if (!this.offer) return;
+    const config = {
+      offer_id: this.offer.id,
+      job_title: this.offer.title,
+      company: this.offer.company,
+      domain: 'software',
+      level: 'senior',
+      duration_minutes: 20,
+      language: 'fr',
+      focus_areas: []
+    };
+    this.router.navigate(['/chatbot'], {
+      state: {
+        preselectedMode: 'offer',
+        offerConfig: config
+      }
+    });
+  }
 }

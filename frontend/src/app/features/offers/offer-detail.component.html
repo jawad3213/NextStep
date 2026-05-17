@@ -90,9 +90,21 @@
                 class="cursor-pointer rounded-lg bg-gray-900 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60">
                 {{ isDownloadingCv() ? 'Chargement...' : 'Voir le CV' }}
               </button>
+              <button
+                (click)="startInterview()"
+                class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 transition-all hover:border-brand-300 hover:text-brand-500">
+                <span class="material-symbols-outlined text-sm">rocket_launch</span>
+                Simuler l'entretien
+              </button>
             }
             @case ('analysee') {
               <button class="cursor-pointer rounded-lg bg-brand-500 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-brand-600">Générer un CV</button>
+              <button
+                (click)="startInterview()"
+                class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 transition-all hover:border-brand-300 hover:text-brand-500">
+                <span class="material-symbols-outlined text-sm">rocket_launch</span>
+                Simuler l'entretien
+              </button>
             }
             @case ('non_traitee') {
               <button routerLink="/offers/analyze" [queryParams]="{ new: 1 }" class="flex cursor-pointer items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-brand-600">

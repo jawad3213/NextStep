@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
 import { CvHistoryItem, OfferApiService } from '../../services/offer-api.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-step-results',
@@ -16,6 +17,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   pipeline = inject(PipelineStateService);
   private api = inject(OfferApiService);
   private sanitizer = inject(DomSanitizer);
+  private router = inject(Router);
   private previewBlobUrl: string | null = null;
 
   cvPreviewUrl: SafeResourceUrl | null = null;
@@ -116,5 +118,28 @@ export class StepResultsComponent implements OnInit, OnDestroy {
 
   finish(): void {
     this.pipeline.closeFlow();
+  }
+
+  startInterview(): void {
+    const offerId = this.pipeline.currentOfferId();
+    const result = this.result;
+    if (!offerId || !result) return;
+    const config = {
+      offer_id: offerId,
+      job_title: result.offerTitle || 'Offre',
+      company: result.companyName || 'Entreprise',
+      domain: 'software',
+      level: 'senior',
+      duration_minutes: 20,
+      language: 'fr',
+      focus_areas: result.requiredSkills || []
+    };
+    this.pipeline.closeFlow();
+    this.router.navigate(['/chatbot'], {
+      state: {
+        preselectedMode: 'offer',
+        offerConfig: config
+      }
+    });
   }
 }

@@ -2,6 +2,9 @@ import { Component, inject, signal, WritableSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
+import { OfferApiService, ResumePipelineResponse } from '../../services/offer-api.service';
+import { ProfileService } from '../../../../services/profile.service';
+import { firstValueFrom } from 'rxjs';
 
 interface CvTemplate {
   id: string;
@@ -189,6 +192,8 @@ const SAMPLE_PREVIEW: TemplatePreviewData = {
 })
 export class StepTemplateComponent {
   pipeline = inject(PipelineStateService);
+  private readonly offerApi = inject(OfferApiService);
+  private readonly profileService = inject(ProfileService);
   readonly previewData = SAMPLE_PREVIEW;
 
   readonly filterIndustry = signal<string[]>([]);
@@ -211,50 +216,8 @@ export class StepTemplateComponent {
 
   readonly templates: CvTemplate[] = [
     {
-      id: 'modern',
-      name: 'Modern',
-      description: 'Modern • IT & Engineering • Blue Accent',
-      badge: { label: 'popular', variant: 'primary' },
-      industry: 'IT & Engineering',
-      experience: 'Mid Level',
-      style: 'Modern',
-      layout: 'Two Column',
-      tag: 'popular',
-      accent: 'Blue',
-      previewType: 'sidebar',
-      previewVariant: 'modern',
-    },
-    {
-      id: 'classic',
-      name: 'Classic',
-      description: 'Traditional • Finance & Accounting • Amber',
-      badge: { label: 'recommended', variant: 'secondary' },
-      industry: 'Finance & Accounting',
-      experience: 'Mid Level',
-      style: 'Corporate',
-      layout: 'One Column',
-      tag: 'recommended',
-      accent: 'Amber',
-      previewType: 'centered',
-      previewVariant: 'professional',
-    },
-    {
-      id: 'executive',
-      name: 'Executive',
-      description: 'Professional • Business & Management • Navy Accent',
-      badge: { label: 'recommended', variant: 'secondary' },
-      industry: 'Business & Management',
-      experience: 'Senior / Executive',
-      style: 'Professional',
-      layout: 'One Page',
-      tag: 'recommended',
-      accent: 'Navy',
-      previewType: 'split',
-      previewVariant: 'professional',
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
+      id: 'chrono',
+      name: 'Chrono',
       description: 'Modern • IT & Engineering • Green Accent',
       badge: { label: 'popular', variant: 'primary' },
       industry: 'IT & Engineering',
@@ -269,15 +232,58 @@ export class StepTemplateComponent {
     {
       id: 'elegant',
       name: 'Elegant',
-      description: 'Elegant • Education & Academic • Burgundy Accent',
-      industry: 'Education & Academic',
+      description: 'Elegant • Professional • Dark Teal Accent',
+      badge: { label: 'recommended', variant: 'secondary' },
+      industry: 'Finance & Accounting',
       experience: 'Senior / Executive',
       style: 'Elegant',
-      layout: 'Two Page',
+      layout: 'Two Column',
+      tag: 'recommended',
+      accent: 'Teal',
+      previewType: 'sidebar',
+      previewVariant: 'elegant',
+    },
+    {
+      id: 'circular',
+      name: 'Circular',
+      description: 'Creative • Unique Wavy Sidebar • Blue Accent',
+      badge: { label: 'recommended', variant: 'secondary' },
+      industry: 'Creative & Design',
+      experience: 'Mid Level',
+      style: 'Creative',
+      layout: 'Two Column',
+      tag: 'recommended',
+      accent: 'Blue',
+      previewType: 'creative',
+      previewVariant: 'modern',
+    },
+    {
+      id: 'modern',
+      name: 'Modern',
+      description: 'Professional • Split Layout • Navy Accent',
+      badge: { label: 'popular', variant: 'primary' },
+      industry: 'IT & Engineering',
+      experience: 'Mid Level',
+      style: 'Modern',
+      layout: 'Two Column',
+      tag: 'popular',
+      accent: 'Navy',
+      previewType: 'sidebar',
+      previewVariant: 'modern',
+    },
+    {
+      id: 'luxe',
+      name: 'Luxe',
+      description: 'Corporate • Minimalist Centered • Burgundy Accent',
+      badge: { label: 'recommended', variant: 'secondary' },
+      industry: 'Business & Management',
+      experience: 'Senior / Executive',
+      style: 'Corporate',
+      layout: 'One Column',
       tag: 'recommended',
       accent: 'Burgundy',
       previewType: 'centered',
-      previewVariant: 'elegant',
+      previewVariant: 'professional',
     },
   ];
 
@@ -332,12 +338,223 @@ export class StepTemplateComponent {
     this.pipeline.selectedTemplateId.set(id);
   }
 
-  next(): void {
-    this.pipeline.markStepDone(3);
-    this.pipeline.goToStep(4);
+  async next(): Promise<void> {
+    const offerId = this.pipeline.currentOfferId();
+    if (!offerId) {
+      this.pipeline.pipelineError.set('Offre introuvable pour la génération CV.');
+      return;
+    }
+
+    const selected = this.pipeline.selectedTemplateId();
+    const templateIdMap: Record<string, number> = {
+      chrono: 1,
+      elegant: 2,
+      circular: 3,
+      modern: 4,
+      luxe: 5,
+    };
+    const templateId = templateIdMap[selected] ?? 1;
+
+    this.pipeline.pipelineError.set(null);
+    this.pipeline.setLoading(true, 'Génération CV (cv_optimizer + cv_engine) en cours...');
+
+    const localProfile = await firstValueFrom(this.profileService.getFullProfile()).catch((err) => {
+      console.warn('[CV-PIPELINE] profile fallback unavailable', err);
+      return null;
+    });
+
+    this.offerApi.resumePipeline(offerId, templateId).subscribe({
+      next: (res: ResumePipelineResponse) => {
+        const current = this.pipeline.pipelineResult();
+        if (current) {
+          const profileForFallback = res?.profileData
+            ?? res?.profile_data
+            ?? current.profileData
+            ?? localProfile;
+
+          const generatedCv = res?.['cvGeneratedContent']
+            ?? res?.cv_data
+            ?? res?.cvData
+            ?? res?.cv_optimized_content
+            ?? res?.cvOptimizedContent
+            ?? this.buildFallbackCv(
+              profileForFallback,
+              current
+            );
+
+          this.pipeline.setResult({
+            ...current,
+            profileData: profileForFallback ?? current.profileData,
+            cvGeneratedContent: generatedCv,
+            emailSubject: res?.email_subject ?? current.emailSubject ?? '',
+            emailBody: res?.email_body ?? current.emailBody ?? '',
+            recruiterName: res?.recruiter_name ?? current.recruiterName ?? '',
+          });
+        }
+        this.pipeline.setLoading(false);
+        this.pipeline.markStepDone(2);
+        this.pipeline.goToStep(4);
+      },
+      error: (err) => {
+        this.pipeline.setLoading(false);
+        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Échec génération CV.');
+      }
+    });
   }
 
   back(): void {
     this.pipeline.goToStep(2);
+  }
+
+  private buildFallbackCv(profile: any, current: any): any {
+    const source = profile?.data ?? profile?.profile ?? profile ?? {};
+    const personal = source?.personalInfo ?? source?.personal_info ?? source?.personal ?? {};
+    const experiences = this.asArray(source?.experiences);
+    const projects = this.asArray(source?.projets ?? source?.projects);
+    const formations = this.asArray(source?.formations ?? source?.education);
+    const competences = this.asArray(source?.competences ?? source?.skills);
+    const certifications = this.asArray(source?.certifications ?? source?.certificats);
+    const matchedSkills = new Set(this.asArray(current?.matchingSkills).map((s: any) => this.normalizeText(s)));
+
+    const firstName = personal?.prenom ?? personal?.firstName ?? personal?.first_name ?? '';
+    const lastName = personal?.nom ?? personal?.lastName ?? personal?.last_name ?? '';
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim()
+      || personal?.nomComplet
+      || personal?.fullName
+      || 'Candidat';
+    const location = [personal?.ville ?? personal?.city, personal?.pays ?? personal?.country]
+      .filter(Boolean)
+      .join(', ');
+
+    const technicalSkills = competences
+      .filter((skill: any) => {
+        const category = this.normalizeText(skill?.categorie ?? skill?.category ?? '');
+        return category !== 'langue' && category !== 'language' && category !== 'certification';
+      })
+      .map((skill: any) => {
+        const name = skill?.nom ?? skill?.name ?? skill?.label ?? '';
+        return {
+          name,
+          level: this.toSkillLevel(skill?.niveau ?? skill?.level),
+          isMatched: matchedSkills.has(this.normalizeText(name)),
+        };
+      })
+      .filter((skill: any) => !!skill.name);
+
+    const languages = competences
+      .filter((skill: any) => {
+        const category = this.normalizeText(skill?.categorie ?? skill?.category ?? '');
+        return category === 'langue' || category === 'language';
+      })
+      .map((skill: any) => {
+        const name = skill?.nom ?? skill?.name ?? skill?.label ?? '';
+        const level = skill?.niveau ?? skill?.level ?? skill?.proficiency ?? '';
+        return [name, level ? `(${level})` : ''].filter(Boolean).join(' ');
+      })
+      .filter(Boolean);
+
+    const certificationNames = [
+      ...certifications.map((cert: any) => {
+        const name = cert?.nom ?? cert?.name ?? cert?.titre ?? cert?.title ?? '';
+        const issuer = cert?.organisme ?? cert?.issuer ?? cert?.provider ?? '';
+        return [name, issuer ? `- ${issuer}` : ''].filter(Boolean).join(' ');
+      }),
+      ...competences
+        .filter((skill: any) => this.normalizeText(skill?.categorie ?? skill?.category ?? '') === 'certification')
+        .map((skill: any) => skill?.nom ?? skill?.name ?? ''),
+    ].filter(Boolean);
+
+    return {
+      candidate: {
+        name: fullName,
+        email: personal?.email ?? personal?.mail ?? '',
+        phone: personal?.telephone ?? personal?.phone ?? '',
+        location,
+        title: personal?.titrePoste ?? personal?.title ?? current?.offerTitle ?? '',
+        linkedIn: personal?.lienLinkedin ?? personal?.linkedin ?? personal?.linkedIn ?? null,
+        gitHub: personal?.lienGithub ?? personal?.github ?? personal?.gitHub ?? null,
+        portfolio: personal?.lienPortfolio ?? personal?.portfolio ?? null,
+        photoUrl: personal?.photoUrl ?? personal?.photo_url ?? null,
+      },
+      summary: personal?.resumeProfessionnel
+        ?? personal?.summary
+        ?? source?.objectif
+        ?? current?.descriptionPoste
+        ?? '',
+      experience: experiences.map((exp: any) => ({
+        role: exp?.poste ?? exp?.titre ?? exp?.role ?? 'Experience',
+        company: exp?.entreprise ?? exp?.company ?? '',
+        start: this.toMonthValue(exp?.dateDebut ?? exp?.start),
+        end: this.toMonthValue(exp?.dateFin ?? exp?.end),
+        bullets: this.toBullets(exp?.taches ?? exp?.missions ?? exp?.description),
+      })),
+      education: formations.map((form: any) => ({
+        degree: [form?.diplome ?? form?.titre ?? form?.degree, form?.specialisation ?? form?.speciality]
+          .filter(Boolean)
+          .join(' - ') || 'Formation',
+        institution: form?.etablissement ?? form?.ecole ?? form?.institution ?? '',
+        year: String(form?.anneeFin ?? form?.annee ?? form?.dateFin ?? form?.year ?? ''),
+      })),
+      skills: technicalSkills,
+      projects: projects.map((project: any) => {
+        const technologies = this.asArray(project?.technologies).join(', ');
+        const bullets = this.toBullets(project?.taches ?? project?.description);
+        if (technologies) bullets.push(`Technologies: ${technologies}`);
+        return {
+          title: project?.titreProjet ?? project?.titre ?? project?.title ?? 'Projet',
+          description: project?.description ?? '',
+          bullets,
+        };
+      }),
+      certifications: certificationNames,
+      languages,
+      activities: [],
+      atsScore: current?.atsScore ?? 0,
+      matchingScore: current?.matchScore ?? 0,
+      atsCoveragePct: current?.atsScore ?? 0,
+    };
+  }
+
+  private asArray(value: any): any[] {
+    return Array.isArray(value) ? value : [];
+  }
+
+  private normalizeText(value: any): string {
+    return String(value ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private toSkillLevel(value: any): number {
+    if (typeof value === 'number') return Math.min(5, Math.max(1, Math.round(value)));
+    const normalized = this.normalizeText(value);
+    if (['expert', 'avance', 'advanced', 'proficient', 'native'].includes(normalized)) return 5;
+    if (['intermediaire', 'intermediate', 'upper-intermediate'].includes(normalized)) return 4;
+    if (['elementaire', 'elementary', 'debutant', 'beginner'].includes(normalized)) return 2;
+    return 3;
+  }
+
+  private toBullets(value: any): string[] {
+    if (Array.isArray(value)) {
+      return value.map(v => String(v).trim()).filter(Boolean);
+    }
+    const text = String(value ?? '').trim();
+    if (!text) return ['A completer'];
+    return text
+      .split(/\r?\n|[.;]/)
+      .map(part => part.trim())
+      .filter(Boolean);
+  }
+
+  private toMonthValue(value: any): string {
+    if (typeof value !== 'string') return '';
+    const v = value.trim();
+    if (!v) return '';
+    const m = v.match(/^(\d{4})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}`;
+    if (/^\d{4}-\d{2}$/.test(v)) return v;
+    return '';
   }
 }

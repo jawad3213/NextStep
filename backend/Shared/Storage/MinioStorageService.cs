@@ -32,6 +32,7 @@ public interface IStorageService
     /// Generates a pre-signed download URL valid for the given duration.
     /// </summary>
     Task<string> GetPresignedUrlAsync(string objectKey, TimeSpan? expiry = null);
+    Task<byte[]> DownloadFileAsync(string objectKey);
 
     /// <summary>
     /// Ensures that the configured bucket exists in MinIO.
@@ -82,6 +83,20 @@ public class MinioStorageService : IStorageService
         };
 
         return await Task.FromResult(_s3.GetPreSignedURL(request));
+    }
+
+    public async Task<byte[]> DownloadFileAsync(string objectKey)
+    {
+        var request = new GetObjectRequest
+        {
+            BucketName = _options.BucketName,
+            Key = objectKey
+        };
+
+        using var response = await _s3.GetObjectAsync(request);
+        await using var ms = new MemoryStream();
+        await response.ResponseStream.CopyToAsync(ms);
+        return ms.ToArray();
     }
 
     public async Task EnsureBucketExistsAsync()

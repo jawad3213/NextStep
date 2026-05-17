@@ -211,9 +211,28 @@ public class OfferService(
             dto.DescriptionPoste = ao.GetStringOrDefault("description_poste");
             dto.AnneesExperience = ao.GetStringAsIntOrDefault("annees_experience");
             dto.NiveauEtudes = ao.GetStringOrDefault("niveau_etudes");
+            dto.ModeTravail = ao.GetStringOrDefault("mode_travail") ?? ao.GetStringOrDefault("modeTravail");
             dto.CompetencesRequises = ao.GetStringList("competences_requises");
             dto.CompetencesSouhaitees = ao.GetStringList("competences_souhaitees");
             dto.KeywordsAts = ao.GetStringList("keywords_ats");
+        }
+
+        if (root.TryGetProperty("cv_data", out var cvData) && cvData.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.CvGeneratedContent = JsonSerializer.Deserialize<object>(cvData.GetRawText());
+        }
+        else if (root.TryGetProperty("cvData", out var cvDataCamel) && cvDataCamel.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.CvGeneratedContent = JsonSerializer.Deserialize<object>(cvDataCamel.GetRawText());
+        }
+
+        if (root.TryGetProperty("profile_data", out var profileData) && profileData.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.ProfileData = JsonSerializer.Deserialize<object>(profileData.GetRawText());
+        }
+        else if (root.TryGetProperty("profileData", out var profileDataCamel) && profileDataCamel.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.ProfileData = JsonSerializer.Deserialize<object>(profileDataCamel.GetRawText());
         }
 
         if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)

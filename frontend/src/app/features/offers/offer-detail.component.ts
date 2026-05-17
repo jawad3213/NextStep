@@ -1,7 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
-import { MOCK_OFFERS, OfferCard } from './offers-data';
+import { firstValueFrom } from 'rxjs';
+import { OfferCard } from './offers-data';
+import { OfferApiService } from './services/offer-api.service';
 
 @Component({
   selector: 'app-offer-detail',
@@ -10,15 +12,46 @@ import { MOCK_OFFERS, OfferCard } from './offers-data';
   templateUrl: './offer-detail.component.html',
   styleUrl: './offer-detail.component.scss'
 })
-export class OfferDetailComponent {
+export class OfferDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private offerApi = inject(OfferApiService);
 
   offer: OfferCard | undefined;
+  isLoading = signal(true);
+  isDownloadingCv = signal(false);
 
-  constructor() {
+  ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    this.offer = MOCK_OFFERS.find(o => o.id === id);
+    if (!id) {
+      this.isLoading.set(false);
+      return;
+    }
+
+    this.offerApi.getOffersHistory().subscribe({
+      next: (items) => {
+        const item = items.find((o) => o.offerId === id);
+        this.offer = item
+          ? {
+              id: item.offerId,
+              initials: this.getInitials(item.entreprise || item.titre),
+              title: item.titre || 'Offre',
+              company: (item.entreprise && item.entreprise !== 'null') ? item.entreprise : 'Entreprise',
+              location: (item.localisation && item.localisation !== 'null') ? item.localisation : '',
+              matchingScore: item.scoreMatching,
+              tags: [],
+              status: item.status,
+              createdAt: new Date(item.dateCreation),
+              currentStep: item.currentStep || 1,
+            }
+          : undefined;
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.offer = undefined;
+        this.isLoading.set(false);
+      },
+    });
   }
 
   getBubbleGradient(company: string): string {
@@ -53,5 +86,67 @@ export class OfferDetailComponent {
 
   goBack(): void {
     this.router.navigate(['/offers']);
+  }
+
+  async viewCv(): Promise<void> {
+    if (!this.offer?.id || this.isDownloadingCv()) return;
+    this.isDownloadingCv.set(true);
+
+    try {
+      const history = await firstValueFrom(this.offerApi.getCvHistory());
+      let target = history
+        .filter((h) => h.title === `CV_${this.offer!.id}`)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+      // If no CV exists yet for this offer, generate one using the last known template preference.
+      if (!target?.id) {
+        const fallbackTemplate = history[0]?.templateSlug || 'modern';
+        await firstValueFrom(this.offerApi.generatePdf(this.offer.id, fallbackTemplate));
+        const refreshedHistory = await firstValueFrom(this.offerApi.getCvHistory());
+        target = refreshedHistory
+          .filter((h) => h.title === `CV_${this.offer!.id}`)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      }
+
+      if (!target?.id) throw new Error('CV history not found after generation');
+
+      try {
+        const fileBlob = await firstValueFrom(this.offerApi.downloadCvHistoryFile(target.id));
+        this.downloadBlob(fileBlob, this.offer!.id);
+      } catch {
+        const signed = await firstValueFrom(this.offerApi.getCvDownloadUrl(target.id));
+        if (!signed?.downloadUrl) throw new Error('Signed url missing');
+        const fixedUrl = this.fixMinioHost(signed.downloadUrl);
+        window.location.href = fixedUrl;
+      }
+      this.isDownloadingCv.set(false);
+    } catch {
+      this.isDownloadingCv.set(false);
+      alert('CV non disponible pour le moment. Lance la generation depuis le pipeline puis reessaie.');
+    }
+  }
+
+  private fixMinioHost(url: string): string {
+    return url
+      .replace('http://minio:9000', 'http://localhost:9000')
+      .replace('https://minio:9000', 'http://localhost:9000');
+  }
+
+  private downloadBlob(blob: Blob, offerId: string): void {
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `CV_${offerId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
+  }
+
+  private getInitials(value: string): string {
+    const parts = value.split(' ').filter(Boolean);
+    if (parts.length === 0) return 'NS';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 }

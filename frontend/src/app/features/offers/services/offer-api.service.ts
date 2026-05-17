@@ -35,6 +35,38 @@ export interface PdfGenerateResponse {
   status: string;
 }
 
+export interface ResumePipelineResponse {
+  cvGeneratedContent?: any;
+  cv_data?: any;
+  cvData?: any;
+  profileData?: any;
+  profile_data?: any;
+  _cvPending?: boolean;
+  cv_optimized_content?: any;
+  cvOptimizedContent?: any;
+  email_subject?: string;
+  email_body?: string;
+  recruiter_name?: string;
+  [key: string]: any;
+}
+
+export interface CvHistoryItem {
+  id: string;
+  title?: string | null;
+  templateSlug: string;
+  templateName?: string | null;
+  fileUrl: string;
+  fileSizeBytes: number;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface CvSaveResponse {
+  historyId: string;
+  fileUrl: string;
+  fileSizeBytes: number;
+}
+
 export interface SkillDetail {
   nom: string;
   categorie: 'technique' | 'soft' | 'langue' | 'certification';
@@ -83,6 +115,11 @@ export interface OfferAnalysisResponse {
   recommandationsAvecPriorite?: RecommendationPriorisee[];
   keywordsAvecPoids?: KeywordPondere[];
   forcesProfil?: string[];
+  cvGeneratedContent?: any;
+  cv_data?: any;
+  cvData?: any;
+  profileData?: any;
+  profile_data?: any;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -137,6 +174,101 @@ export class OfferApiService {
     });
   }
   resumePipeline(offerId: string, templateId: number): Observable<any> {
-    return this.http.post(`${this.base}/offers/${offerId}/resume`, { templateId });
+    console.log('[CV-PIPELINE] API resumePipeline request', { offerId, templateId, endpoint: `${this.base}/offers/${offerId}/resume` });
+    return new Observable(observer => {
+      let cancelled = false;
+      let timerId: number | undefined;
+
+      const poll = (attempt = 1) => {
+        if (cancelled) return;
+
+        this.getAnalysis(offerId).subscribe({
+          next: (analysis: any) => {
+            const cvData = analysis?.cvGeneratedContent ?? analysis?.cv_data ?? analysis?.cvData;
+            console.log('[CV-PIPELINE] API resumePipeline poll', {
+              attempt,
+              hasCvData: !!cvData,
+              keys: analysis && typeof analysis === 'object' ? Object.keys(analysis) : [],
+            });
+
+            if (cvData) {
+              observer.next(analysis);
+              observer.complete();
+              return;
+            }
+
+            if (attempt >= 12) {
+              observer.next({
+                ...analysis,
+                _cvPending: true,
+              });
+              observer.complete();
+              return;
+            }
+
+            timerId = window.setTimeout(() => poll(attempt + 1), 2000);
+          },
+          error: (err) => {
+            if (attempt >= 12) {
+              observer.next({
+                _cvPending: true,
+              });
+              observer.complete();
+              return;
+            }
+            timerId = window.setTimeout(() => poll(attempt + 1), 2000);
+          }
+        });
+      };
+
+      const sub = this.http.post(`${this.base}/offers/${offerId}/resume`, { templateId }).subscribe({
+        next: (res: any) => {
+          console.log('[CV-PIPELINE] API resumePipeline accepted', {
+            status: res?.status,
+            keys: res && typeof res === 'object' ? Object.keys(res) : [],
+          });
+          poll();
+        },
+        error: (err) => observer.error(err)
+      });
+
+      return () => {
+        cancelled = true;
+        sub.unsubscribe();
+        if (timerId) window.clearTimeout(timerId);
+      };
+    });
+  }
+
+  saveCvDraft(offerId: string, draft: any): Observable<any> {
+    return this.http.patch(`${this.base}/offers/${offerId}/cv-draft`, draft);
+  }
+
+  getCvHistory(): Observable<CvHistoryItem[]> {
+    return this.http.get<CvHistoryItem[]>(`${this.base}/cv/history`);
+  }
+
+  getCvDownloadUrl(historyId: string): Observable<{ downloadUrl: string }> {
+    return this.http.get<{ downloadUrl: string }>(`${this.base}/cv/${historyId}/download`);
+  }
+
+  downloadCvHistoryFile(historyId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/cv/${historyId}/download-file`, {
+      responseType: 'blob'
+    });
+  }
+
+  renderCvPreview(templateSlug: string, data: any): Observable<Blob> {
+    return this.http.post(`${this.base}/cv/preview/render?template=${encodeURIComponent(templateSlug)}`, data, {
+      responseType: 'blob'
+    });
+  }
+
+  saveFinalCv(templateSlug: string, title: string, data: any): Observable<CvSaveResponse> {
+    return this.http.post<CvSaveResponse>(`${this.base}/cv/save`, {
+      templateSlug,
+      title,
+      data
+    });
   }
 }

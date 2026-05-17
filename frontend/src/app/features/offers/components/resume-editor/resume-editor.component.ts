@@ -1,7 +1,10 @@
-import { Component, Input, Output, EventEmitter, signal, effect } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, effect, OnDestroy } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
+import { inject } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { OfferApiService } from '../../services/offer-api.service';
 
 export interface Candidate {
   name: string;
@@ -65,8 +68,13 @@ export interface CvGeneratedSchema {
 })
 export class ResumeEditorComponent {
   @Input() templateId: string = 'modern';
+  @Input() offerId: string | null = null;
+  @Input() initialData: any = null;
   @Output() back = new EventEmitter<void>();
   @Output() continue = new EventEmitter<void>();
+
+  private readonly offerApi = inject(OfferApiService);
+  private remoteDraftSyncEnabled = false;
 
   // DYNAMIC CHOSEN MODEL
   readonly activeTemplate = signal<string>('modern');
@@ -107,8 +115,8 @@ export class ResumeEditorComponent {
       {
         role: "Stage Développeur Full-Stack",
         company: "Smart Automation Technologie",
-        start: "2025-07-01",
-        end: "2025-08-01",
+        start: "2025-07",
+        end: "2025-08",
         bullets: [
           "Contribution à l'amélioration et à la refonte d'une plateforme web marketplace en utilisant Angular, développement d'un chatbot IA basé sur l'approche RAG pour automatiser le support client, mise en place de l'automatisation des workflows avec n8n, collaboration au sein d'une équipe Agile avec gestion du versionning via GitLab."
         ]
@@ -246,7 +254,7 @@ export class ResumeEditorComponent {
       ...data,
       experience: [
         ...data.experience,
-        { role: 'Nouveau Poste', company: 'Nouvelle Entreprise', start: '2026-01-01', end: 'Présent', bullets: ['Responsabilité clé ou réalisation technique accomplie.'] }
+        { role: 'Nouveau Poste', company: 'Nouvelle Entreprise', start: '2026-01', end: '', bullets: ['Responsabilite cle ou realisation technique accomplie.'] }
       ]
     }));
   }
@@ -395,16 +403,26 @@ export class ResumeEditorComponent {
       localStorage.setItem('nextstep_cv_draft', JSON.stringify(this.cvData()));
       localStorage.setItem('nextstep_cv_visibility', JSON.stringify(this.sectionVisibility()));
       this.lastSaved.set(new Date().toLocaleTimeString());
+      // Remote PATCH disabled for now because /cv-draft endpoint is not available on backend.
     }, 1000);
   });
 
   ngOnInit() {
     this.activeTemplate.set(this.templateId);
+    console.log('[CV-PIPELINE] ResumeEditor init', {
+      templateId: this.templateId,
+      offerId: this.offerId,
+      hasInitialData: !!this.initialData,
+      initialDataKeys: this.initialData && typeof this.initialData === 'object' ? Object.keys(this.initialData) : [],
+    });
+    if (this.initialData) {
+      this.hydrateFromGenerated(this.initialData);
+    }
     const saved = localStorage.getItem('nextstep_cv_draft');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        this.cvData.set(parsed);
+        this.hydrateFromGenerated(parsed);
       } catch {}
     }
     const savedVis = localStorage.getItem('nextstep_cv_visibility');
@@ -413,6 +431,81 @@ export class ResumeEditorComponent {
         this.sectionVisibility.set(JSON.parse(savedVis));
       } catch {}
     }
+
+    const data = this.cvData();
+    console.log('[CV-PIPELINE] ResumeEditor ready for preview', {
+      candidateName: data?.candidate?.name,
+      hasSummary: !!data?.summary,
+      experienceCount: Array.isArray(data?.experience) ? data.experience.length : 0,
+      skillsCount: Array.isArray(data?.skills) ? data.skills.length : 0,
+      languagesCount: Array.isArray(data?.languages) ? data.languages.length : 0,
+      atsScore: data?.atsScore,
+      matchingScore: data?.matchingScore,
+    });
+  }
+
+  private hydrateFromGenerated(generated: any): void {
+    const normalized = generated?.cvData ?? generated?.cv_data ?? generated;
+    if (!normalized || typeof normalized !== 'object') {
+      console.warn('[CV-PIPELINE] ResumeEditor hydrate skipped: invalid payload', { generated });
+      return;
+    }
+
+    console.log('[CV-PIPELINE] ResumeEditor hydrating generated CV', {
+      hasCandidate: !!normalized?.candidate,
+      experienceCount: Array.isArray(normalized?.experience) ? normalized.experience.length : 0,
+      skillsCount: Array.isArray(normalized?.skills) ? normalized.skills.length : 0,
+      languagesCount: Array.isArray(normalized?.languages) ? normalized.languages.length : 0,
+      hasSummary: !!normalized?.summary,
+      keys: Object.keys(normalized),
+    });
+
+    this.cvData.update(current => ({
+      ...current,
+      candidate: {
+        ...current.candidate,
+        name: normalized?.candidate?.name ?? current.candidate.name,
+        email: normalized?.candidate?.email ?? current.candidate.email,
+        phone: normalized?.candidate?.phone ?? current.candidate.phone,
+        location: normalized?.candidate?.location ?? current.candidate.location,
+        title: normalized?.candidate?.title ?? current.candidate.title,
+        linkedIn: normalized?.candidate?.linkedIn ?? current.candidate.linkedIn,
+        gitHub: normalized?.candidate?.gitHub ?? current.candidate.gitHub,
+        portfolio: normalized?.candidate?.portfolio ?? current.candidate.portfolio,
+      },
+      summary: normalized?.summary ?? current.summary,
+      experience: Array.isArray(normalized?.experience) ? normalized.experience.map((e: any) => ({ ...e, start: this.toMonthValue(e?.start), end: this.toMonthValue(e?.end) })) : current.experience,
+      education: Array.isArray(normalized?.education) ? normalized.education : current.education,
+      skills: Array.isArray(normalized?.skills) ? normalized.skills : current.skills,
+      projects: Array.isArray(normalized?.projects) ? normalized.projects : current.projects,
+      certifications: Array.isArray(normalized?.certifications) ? normalized.certifications : current.certifications,
+      languages: Array.isArray(normalized?.languages) ? normalized.languages : current.languages,
+      activities: Array.isArray(normalized?.activities) ? normalized.activities : current.activities,
+      atsScore: normalized?.atsScore ?? current.atsScore,
+      matchingScore: normalized?.matchingScore ?? current.matchingScore,
+      atsCoveragePct: normalized?.atsCoveragePct ?? current.atsCoveragePct,
+    }));
+
+    const hydrated = this.cvData();
+    console.log('[CV-PIPELINE] ResumeEditor hydration applied', {
+      candidateName: hydrated?.candidate?.name,
+      experienceCount: Array.isArray(hydrated?.experience) ? hydrated.experience.length : 0,
+      skillsCount: Array.isArray(hydrated?.skills) ? hydrated.skills.length : 0,
+      languagesCount: Array.isArray(hydrated?.languages) ? hydrated.languages.length : 0,
+      atsScore: hydrated?.atsScore,
+      matchingScore: hydrated?.matchingScore,
+    });
+  }
+
+  private toMonthValue(value: any): string {
+    if (typeof value !== 'string') return '';
+    const v = value.trim();
+    if (!v) return '';
+    if (v.toLowerCase() === 'present' || v.toLowerCase() === 'pr�sent' || v.toLowerCase() === 'pr�sent') return '';
+    const m = v.match(/^(\d{4})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}`;
+    if (/^\d{4}-\d{2}$/.test(v)) return v;
+    return '';
   }
 
   // ── Drag-and-drop reorder ──
@@ -566,3 +659,4 @@ export class ResumeEditorComponent {
     return date;
   }
 }
+

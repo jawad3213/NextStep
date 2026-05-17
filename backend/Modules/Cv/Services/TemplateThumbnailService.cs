@@ -13,7 +13,7 @@ public interface ITemplateThumbnailService
 
 public class TemplateThumbnailService : ITemplateThumbnailService
 {
-    private static readonly string[] Slugs = ["modern", "classic", "executive", "pro", "elegant"];
+    private static readonly string[] Slugs = ["chrono", "elegant", "circular", "modern", "luxe"];
     private readonly string _storageDir;
 
     public TemplateThumbnailService(IWebHostEnvironment env)

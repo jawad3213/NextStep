@@ -73,7 +73,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         });
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/questions');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/questions');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.arenaConfig).toEqual({
         domain: 'software',
@@ -109,7 +109,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         });
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/questions');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/questions');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.offerId).toBe('b1e1e1e1-e1e1-4e1e-b1e1-e1e1e1e1e1e1');
       expect(req.request.body.arenaConfig).toEqual({
@@ -140,7 +140,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.opening_message).toBe('Welcome to your Software Arena!');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/session/start');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/session/start');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.sessionId).toBe('arena-session-id');
       expect(req.request.body.offerId).toBeUndefined();
@@ -159,7 +159,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.opening_message).toBe('Welcome to Google! Tell me about Docker.');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/session/start');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/session/start');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.sessionId).toBe('offer-session-id');
       expect(req.request.body.offerId).toBe('b1e1e1e1-e1e1-4e1e-b1e1-e1e1e1e1e1e1');
@@ -188,7 +188,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.ai_response).toBe('Great. Let us move to React questions.');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/session/message');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/session/message');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.userInput).toBe('I love coding.');
       expect(req.request.body.offerId).toBeUndefined();
@@ -211,7 +211,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.ai_response).toBe('Excellent. Tell me about Kubernetes.');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/session/message');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/session/message');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.offerId).toBe('b1e1e1e1-e1e1-4e1e-b1e1-e1e1e1e1e1e1');
       req.flush(mockResponse);
@@ -255,7 +255,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.feedback.questionEvaluations[0].userAnswer).toBe('First answer');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/session/end');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/session/end');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.offerId).toBeUndefined();
       req.flush({ ...mockEndResponse, sessionId: 'arena-session-id' });
@@ -269,7 +269,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect((res.feedback as any).feedback_out).toBeUndefined(); // ensure mapper cleaned up response
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/session/end');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/session/end');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.offerId).toBe('b1e1e1e1-e1e1-4e1e-b1e1-e1e1e1e1e1e1');
       req.flush({ ...mockEndResponse, sessionId: 'offer-session-id' });
@@ -303,7 +303,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.negotiation_script[0].phrase).toBe('I expect 155k USD.');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/salary');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/salary');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.offerId).toBeUndefined();
       req.flush(mockSalaryResponse);
@@ -316,7 +316,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect((res as any).offerId).toBeUndefined(); // ensure mapper correctly mapped response
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/salary');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/salary');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.offerId).toBe('b1e1e1e1-e1e1-4e1e-b1e1-e1e1e1e1e1e1');
       req.flush(mockSalaryResponse);
@@ -339,7 +339,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.response).toBe('Here is a tip about STAR method.');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/chat');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/chat');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.userInput).toBe('How to answer Q2?');
       expect(req.request.body.threadId).toBe('chat-thread-123');
@@ -360,7 +360,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.response).toBe('To negotiate, start with your high range.');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/salary-coach');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/salary-coach');
       expect(req.request.method).toBe('POST');
       expect(req.request.body.userInput).toBe('How to counter-offer?');
       expect(req.request.body.threadId).toBe('salary-thread-456');
@@ -394,7 +394,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res[0].scoreEntretien).toBe(80);
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/sessions?userId=user-123');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/sessions?userId=user-123');
       expect(req.request.method).toBe('GET');
       req.flush(mockList);
     });
@@ -425,7 +425,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res.dimensions[0].name).toBe('Tech');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/sessions/session-abc');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/sessions/session-abc');
       expect(req.request.method).toBe('GET');
       req.flush(mockDetail);
     });
@@ -435,7 +435,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res).toBeNull();
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/sessions/session-abc/delete');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/sessions/session-abc/delete');
       expect(req.request.method).toBe('POST');
       req.flush(null);
     });
@@ -462,7 +462,7 @@ describe('ArenaService (Chatbot Testing)', () => {
         expect(res[0].company).toBe('NovaTech');
       });
 
-      const req = httpMock.expectOne('http://127.0.0.1:5000/api/arena/my-offers');
+      const req = httpMock.expectOne('http://localhost:5000/api/arena/my-offers');
       expect(req.request.method).toBe('GET');
       req.flush(mockOffers);
     });

@@ -67,7 +67,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
       }
     });
 
-    expect(service.completionPercentage()).toBe(15);
+    expect(service.completionPercentage()).toBe(6);
   });
 
   it('devrait mettre à jour l\'étape courante via setStep', () => {

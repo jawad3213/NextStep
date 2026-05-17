@@ -3,6 +3,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http'; 
 import { routes } from './app.routes';
+import { environment } from '../environments/environment';
 import { 
   provideKeycloak, 
   withAutoRefreshToken, 
@@ -15,7 +16,8 @@ import {
 // ← L'intercepteur qui envoie le JWT 
 } from 'keycloak-angular'; 
 
-const apiTokenCondition = createInterceptorCondition<IncludeBearerTokenCondition>({  urlPattern: /^http:\/\/127.0.0.1:5000\/api\/.*/i, 
+const escapedApiBaseUrl = environment.apiBaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const apiTokenCondition = createInterceptorCondition<IncludeBearerTokenCondition>({  urlPattern: new RegExp(`^${escapedApiBaseUrl}/.*`, 'i'),
   bearerPrefix: 'Bearer', 
 }); 
 export const appConfig: ApplicationConfig = { 

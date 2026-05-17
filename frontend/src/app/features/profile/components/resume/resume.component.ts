@@ -14,10 +14,15 @@ export class ResumeComponent {
   @Input({ required: true }) isGeneratingAI: boolean = false;
 
   @Output() updateResume = new EventEmitter<string>();
+  @Output() blur = new EventEmitter<void>();
   @Output() generateAI = new EventEmitter<void>();
 
   onResumeChange(event: Event) {
     const value = (event.target as HTMLTextAreaElement).value;
     this.updateResume.emit(value);
+  }
+
+  onResumeBlur() {
+    this.blur.emit();
   }
 }

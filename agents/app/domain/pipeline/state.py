@@ -22,11 +22,12 @@ class PipelineState(TypedDict, total=False):
     normalized_profile_skills: Annotated[list[str], operator.add]
     
     match_result: Optional[Dict[str, Any]]
+    company_intelligence: Optional[Dict[str, Any]]
     
     # -- Sorties Finales (CV) --
     cv_optimized_content: Optional[Dict[str, Any]]
     cv_engine_result: Optional[Dict[str, Any]]
 
-    # -- Métadonnées --
-    messages: Annotated[list[BaseMessage], add_messages]
-    errors: Annotated[list[str], operator.add]
+    # -- Contrôle du flux --
+    only_analysis: bool  # True pour s'arrêter après le skill gap et intel
+

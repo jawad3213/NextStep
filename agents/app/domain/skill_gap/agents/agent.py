@@ -7,6 +7,7 @@ from app.core.config import get_llm
 from app.domain.skill_gap.schemas.state import SkillGapState
 from app.domain.skill_gap.schemas.models import SkillGapResult, GapFlag
 from app.domain.skill_gap.agents.prompts import _SKILL_GAP_PROMPT
+from app.domain.skill_gap.logic.scoring import calculate_mathematical_score, determine_flag
 
 logger = logging.getLogger(__name__)
 
@@ -37,26 +38,59 @@ def parse_json_markdown(text: str) -> dict:
             logger.error(f"❌ Échec de la réparation JSON : {e2}")
             raise e2
 
+def _compress_profile(profile: dict) -> dict:
+    """Compresse un profil pour réduire la consommation de tokens LLM."""
+    compressed = dict(profile)
+
+    # Compétences : garder les 15 plus pertinentes (tri par niveau desc)
+    skills = compressed.get("competences") or compressed.get("skills") or []
+    if isinstance(skills, list) and len(skills) > 15:
+        skills.sort(key=lambda s: s.get("niveau", 0) if isinstance(s, dict) else 0, reverse=True)
+        compressed["competences"] = skills[:15]
+
+    # Résumé : tronquer à 200 caractères
+    for field in ("resume", "summary", "description"):
+        val = compressed.get(field)
+        if isinstance(val, str) and len(val) > 200:
+            compressed[field] = val[:200] + "..."
+
+    # Expériences : tronquer les descriptions
+    exps = compressed.get("experiences") or compressed.get("experiences_professionnelles") or []
+    for exp in exps:
+        desc = exp.get("description")
+        if isinstance(desc, str) and len(desc) > 150:
+            exp["description"] = desc[:150] + "..."
+
+    return compressed
+
+
 async def skill_gap_node(state: SkillGapState) -> dict:
     """
     Nœud 1 : Analyse des écarts de compétences (Skill Gap).
     Prend en compte les erreurs des tentatives précédentes pour s'auto-corriger.
     """
-    candidate_cv = state.get("candidate_cv")
+    candidate_cv_raw = state.get("candidate_cv")
     job_offer = state.get("job_offer")
     current_count = state.get("iteration_count", 0)
     prev_errors = state.get("errors", [])
     
-    if not candidate_cv or not job_offer:
+    if candidate_cv_raw is None or job_offer is None:
         logger.warning("⚠️ Données manquantes pour l'analyse Skill Gap.")
         return {
             "errors": ["CV ou Offre d'emploi manquants."],
             "iteration_count": current_count + 1
         }
+    if not candidate_cv_raw:
+        candidate_cv_raw = {"name": "Candidat", "skills": []}
+    if not job_offer:
+        job_offer = {"title": "Offre sans titre", "skills": []}
+        
+    # Compression du profil pour respecter les limites tokens des LLM gratuits
+    candidate_cv = _compress_profile(candidate_cv_raw)
         
     logger.info(f"🎯 Skill Gap Agent — Tentative {current_count + 1} pour {job_offer.get('job_title')}")
     
-    llm = get_llm()
+    llm = get_llm(agent_name="skill_gap")
     if hasattr(llm, "bind"):
         llm = llm.bind(response_format={"type": "json_object"})
         
@@ -77,6 +111,25 @@ async def skill_gap_node(state: SkillGapState) -> dict:
         })
         
         skill_gap_dict = parse_json_markdown(response.content if hasattr(response, "content") else str(response))
+        
+        # --- CALCUL MATHÉMATIQUE DU SCORE (DÉTERMINISTE) ---
+        m_skills = len(skill_gap_dict.get("matched_skills", []))
+        miss_skills = len(skill_gap_dict.get("missing_skills", []))
+        exp_c = float(skill_gap_dict.get("experience_years", 0.0))
+        exp_r = float(skill_gap_dict.get("required_years", 0.0))
+        c_match = bool(skill_gap_dict.get("cert_match", False))
+        
+        # Calcul de la note finale par fonction Python (pas par l'agent)
+        math_score = calculate_mathematical_score(m_skills, miss_skills, exp_c, exp_r, c_match)
+        
+        # Injection du score calculé
+        skill_gap_dict["relevance_score"] = math_score
+        
+        # Recalcul de l'écart d'années et du flag
+        gap_years = max(0.0, exp_r - exp_c)
+        skill_gap_dict["experience_gap_years"] = round(gap_years, 1)
+        skill_gap_dict["flag"] = determine_flag(math_score, gap_years)
+
         # Validation Pydantic
         skill_gap_result = SkillGapResult(**skill_gap_dict).model_dump()
     except Exception as e:

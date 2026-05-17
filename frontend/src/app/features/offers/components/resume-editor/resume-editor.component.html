@@ -1,0 +1,689 @@
+<div class="resume-workspace">
+
+  <!-- NAVBAR HEADER -->
+  <nav class="editor-navbar">
+    <div class="nav-left">
+      <button class="btn-back-nav" (click)="onBack()">
+        <svg viewBox="0 0 24 24" class="icon-md"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>Modèles</span>
+      </button>
+      <div class="vertical-divider"></div>
+      <div class="cv-status-info">
+        <span class="font-bold text-dark">{{ cvData().candidate.name }}</span>
+        <span class="badge-ats">ATS: {{ cvData().atsScore }}%</span>
+        @if (lastSaved()) {
+          <span class="badge-saved">💾 {{ lastSaved() }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="nav-center">
+      <div class="template-selector-pill">
+        <button [class.active]="activeTemplate() === 'modern'" (click)="setTemplate('modern')">Moderne</button>
+        <button [class.active]="activeTemplate() === 'professional'" (click)="setTemplate('professional')">Pro</button>
+        <button [class.active]="activeTemplate() === 'elegant'" (click)="setTemplate('elegant')">Élégant</button>
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <button class="btn-ghost-nav" (click)="resetDraft()" title="Réinitialiser">
+        <svg viewBox="0 0 24 24" class="icon-sm"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      </button>
+      <button class="btn-secondary" (click)="exportPdf()">
+        <svg viewBox="0 0 24 24" class="icon-sm"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>PDF</span>
+      </button>
+      <button class="btn-primary" (click)="continue.emit()">
+        <span>Continuer →</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- SPLIT SCREEN WORKSPACE -->
+  <div class="workspace-layout">
+
+    <!-- LEFT FORM PANEL -->
+    <aside class="sidebar-form-panel">
+      <div class="panel-section-header">
+        <h2>Personnaliser le CV</h2>
+        <p>Les modifications apparaissent en temps réel dans l'aperçu.</p>
+      </div>
+
+      <!-- PERSONAL INFO -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'coordonnees'">
+        <div class="accordion-title" (click)="toggleSection('coordonnees')">📋 Coordonnées</div>
+        <div class="accordion-content">
+          <div class="form-field">
+            <label>Nom Complet</label>
+            <input type="text" [ngModel]="cvData().candidate.name" (ngModelChange)="updateCandidateField('name', $event)">
+          </div>
+          <div class="form-field">
+            <label>Titre / Poste</label>
+            <input type="text" [ngModel]="cvData().candidate.title" (ngModelChange)="updateCandidateField('title', $event)">
+          </div>
+          <div class="form-field">
+            <label>Email</label>
+            <input type="email" [ngModel]="cvData().candidate.email" (ngModelChange)="updateCandidateField('email', $event)">
+          </div>
+          <div class="form-field">
+            <label>Téléphone</label>
+            <input type="text" [ngModel]="cvData().candidate.phone" (ngModelChange)="updateCandidateField('phone', $event)">
+          </div>
+          <div class="form-field">
+            <label>Localisation</label>
+            <input type="text" [ngModel]="cvData().candidate.location" (ngModelChange)="updateCandidateField('location', $event)">
+          </div>
+          <div class="form-field">
+            <label>LinkedIn</label>
+            <input type="text" [ngModel]="cvData().candidate.linkedIn" (ngModelChange)="updateCandidateField('linkedIn', $event)" placeholder="linkedin.com/in/...">
+          </div>
+          <div class="form-field">
+            <label>GitHub</label>
+            <input type="text" [ngModel]="cvData().candidate.gitHub" (ngModelChange)="updateCandidateField('gitHub', $event)" placeholder="github.com/...">
+          </div>
+          <div class="form-field">
+            <label>Photo</label>
+            <div class="photo-upload-row">
+              @if (cvData().candidate.photoUrl) {
+                <img [src]="cvData().candidate.photoUrl" class="photo-preview-thumb" alt="photo">
+                <button class="btn-delete" (click)="removePhoto()">✖</button>
+              }
+              <input type="file" accept="image/*" (change)="onPhotoUpload($event)" class="photo-input">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFESSIONAL SUMMARY -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'summary'">
+        <div class="accordion-title-row" (click)="toggleSection('summary')">
+          <div class="accordion-title">📝 Résumé</div>
+          <button class="btn-ai-sparkle" [class.loading]="isImproving()" (click)="improveSummaryWithAi(); $event.stopPropagation()">
+            <svg viewBox="0 0 24 24" class="sparkle-icon"><path d="M12 3l1.912 5.813 6.119-.03-4.93 3.61 1.912 5.813-4.93-3.61-4.93 3.61 1.912-5.813-4.93-3.61 6.119.03z"/></svg>
+            <span>IA</span>
+          </button>
+        </div>
+        <div class="accordion-content">
+          <div class="form-field">
+            <textarea rows="5" [ngModel]="cvData().summary" (ngModelChange)="updateSummary($event)"></textarea>
+            <span class="char-count">{{ cvData().summary.length }} car.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPERIENCE -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'experience'">
+        <div class="accordion-title-row" (click)="toggleSection('experience')">
+          <div class="accordion-title">💼 Expériences</div>
+          <button class="btn-add-action" (click)="addExperience(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list" cdkDropList (cdkDropListDropped)="dropExperience($event)">
+          @for (exp of cvData().experience; track $index; let expIdx = $index) {
+            <div class="sub-item-editor" cdkDrag>
+              <div class="sub-item-header">
+                <span class="drag-handle" cdkDragHandle>::</span>
+                <span class="sub-item-title">{{ exp.role || 'Nouveau Poste' }}</span>
+                <div class="sub-item-actions">
+                  <button class="btn-duplicate" (click)="duplicateExperience(expIdx)" title="Dupliquer">⧉</button>
+                  <button class="btn-delete" (click)="removeExperience(expIdx)">✖</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Poste</label>
+                <input type="text" [ngModel]="exp.role" (ngModelChange)="updateExperience(expIdx, 'role', $event)">
+              </div>
+              <div class="form-field">
+                <label>Entreprise</label>
+                <input type="text" [ngModel]="exp.company" (ngModelChange)="updateExperience(expIdx, 'company', $event)">
+              </div>
+              <div class="form-field-row">
+                <div class="form-field">
+                  <label>Début</label>
+                  <input type="month" [ngModel]="exp.start" (ngModelChange)="updateExperience(expIdx, 'start', $event)">
+                </div>
+                <div class="form-field">
+                  <label>Fin</label>
+                  <input type="month" [ngModel]="exp.end" (ngModelChange)="updateExperience(expIdx, 'end', $event)">
+                </div>
+              </div>
+              <div class="bullets-editor">
+                <label>Réalisations</label>
+                @for (bullet of exp.bullets; track $index; let bIdx = $index) {
+                  <div class="bullet-row">
+                    <textarea rows="2" [ngModel]="bullet" (ngModelChange)="updateExperienceBullet(expIdx, bIdx, $event)"></textarea>
+                    <button class="btn-delete" (click)="removeExperienceBullet(expIdx, bIdx)">✖</button>
+                  </div>
+                }
+                <button class="btn-add-bullet" (click)="addExperienceBullet(expIdx)">+ Réalisation</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- PROJECTS -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'projects'">
+        <div class="accordion-title-row" (click)="toggleSection('projects')">
+          <div class="accordion-title">🚀 Projets</div>
+          <button class="btn-add-action" (click)="addProject(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list" cdkDropList (cdkDropListDropped)="dropProjects($event)">
+          @for (proj of cvData().projects; track $index; let projIdx = $index) {
+            <div class="sub-item-editor" cdkDrag>
+              <div class="sub-item-header">
+                <span class="drag-handle" cdkDragHandle>::</span>
+                <span class="sub-item-title">{{ proj.title || 'Nouveau Projet' }}</span>
+                <div class="sub-item-actions">
+                  <button class="btn-duplicate" (click)="duplicateProject(projIdx)" title="Dupliquer">⧉</button>
+                  <button class="btn-delete" (click)="removeProject(projIdx)">✖</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Titre</label>
+                <input type="text" [ngModel]="proj.title" (ngModelChange)="updateProject(projIdx, 'title', $event)">
+              </div>
+              <div class="bullets-editor">
+                <label>Descriptions</label>
+                @for (bullet of proj.bullets; track $index; let bIdx = $index) {
+                  <div class="bullet-row">
+                    <textarea rows="2" [ngModel]="bullet" (ngModelChange)="updateProjectBullet(projIdx, bIdx, $event)"></textarea>
+                    <button class="btn-delete" (click)="removeProjectBullet(projIdx, bIdx)">✖</button>
+                  </div>
+                }
+                <button class="btn-add-bullet" (click)="addProjectBullet(projIdx)">+ Description</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- EDUCATION -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'education'">
+        <div class="accordion-title-row" (click)="toggleSection('education')">
+          <div class="accordion-title">🎓 Formations</div>
+          <button class="btn-add-action" (click)="addEducation(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list" cdkDropList (cdkDropListDropped)="dropEducation($event)">
+          @for (edu of cvData().education; track $index; let eduIdx = $index) {
+            <div class="sub-item-editor" cdkDrag>
+              <div class="sub-item-header">
+                <span class="drag-handle" cdkDragHandle>::</span>
+                <span class="sub-item-title">{{ edu.degree || 'Formation' }}</span>
+                <div class="sub-item-actions">
+                  <button class="btn-duplicate" (click)="duplicateEducation(eduIdx)" title="Dupliquer">⧉</button>
+                  <button class="btn-delete" (click)="removeEducation(eduIdx)">✖</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Diplôme</label>
+                <input type="text" [ngModel]="edu.degree" (ngModelChange)="updateEducation(eduIdx, 'degree', $event)">
+              </div>
+              <div class="form-field">
+                <label>Établissement</label>
+                <input type="text" [ngModel]="edu.institution" (ngModelChange)="updateEducation(eduIdx, 'institution', $event)">
+              </div>
+              <div class="form-field">
+                <label>Année</label>
+                <input type="text" [ngModel]="edu.year" (ngModelChange)="updateEducation(eduIdx, 'year', $event)">
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- SKILLS -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'skills'">
+        <div class="accordion-title-row" (click)="toggleSection('skills')">
+          <div class="accordion-title">⚡ Compétences</div>
+          <button class="btn-add-action" (click)="addSkill(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list" cdkDropList (cdkDropListDropped)="dropSkills($event)">
+          @for (sk of cvData().skills; track $index; let skIdx = $index) {
+            <div class="skill-editor-row" cdkDrag>
+              <span class="drag-handle-sm" cdkDragHandle>::</span>
+              <input type="text" [ngModel]="sk.name" (ngModelChange)="updateSkill(skIdx, 'name', $event)">
+              <select [ngModel]="sk.level" (ngModelChange)="updateSkill(skIdx, 'level', +$event)" class="skill-level-select">
+                <option value="1">★</option>
+                <option value="2">★★</option>
+                <option value="3">★★★</option>
+                <option value="4">★★★★</option>
+                <option value="5">★★★★★</option>
+              </select>
+              <button class="btn-delete" (click)="removeSkill(skIdx)">✖</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- CERTIFICATIONS -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'certifications'">
+        <div class="accordion-title-row" (click)="toggleSection('certifications')">
+          <div class="accordion-title">🏅 Certifications</div>
+          <button class="btn-add-action" (click)="addCertification(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list">
+          @for (cert of cvData().certifications; track $index; let certIdx = $index) {
+            <div class="skill-editor-row">
+              <input type="text" [ngModel]="cert" (ngModelChange)="updateCertification(certIdx, $event)">
+              <button class="btn-delete" (click)="removeCertification(certIdx)">✖</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- LANGUAGES -->
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'languages'">
+        <div class="accordion-title-row" (click)="toggleSection('languages')">
+          <div class="accordion-title">🌐 Langues</div>
+          <button class="btn-add-action" (click)="addLanguage(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list">
+          @for (lang of cvData().languages; track $index; let langIdx = $index) {
+            <div class="skill-editor-row">
+              <input type="text" [ngModel]="lang" (ngModelChange)="updateLanguage(langIdx, $event)">
+              <button class="btn-delete" (click)="removeLanguage(langIdx)">✖</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- SECTION VISIBILITY TOGGLES -->
+      <div class="form-group-accordion expanded">
+        <div class="accordion-title">👁️ Visibilité des sections</div>
+        <div class="accordion-content">
+          @for (key of ['summary','experience','projects','education','skills','certifications','languages']; track key) {
+            <label class="visibility-toggle">
+              <input type="checkbox" [checked]="sectionVisibility()[key]" (change)="toggleSectionVisibility(key)">
+              <span>{{ key.charAt(0).toUpperCase() + key.slice(1) }}</span>
+            </label>
+          }
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT PREVIEW -->
+    <main class="preview-canvas-container">
+
+      <div class="floating-matching-indicator">
+        <div class="indicator-inner-ring">
+          <span class="match-pct">{{ cvData().matchingScore }}%</span>
+          <span class="match-lbl">MATCH</span>
+        </div>
+      </div>
+
+      <div class="a4-sheet-scroller">
+        <div class="a4-paper-sheet" [class]="activeTemplate()">
+
+          @if (activeTemplate() === 'modern') {
+            <div class="modern-theme-layout">
+              <div class="modern-sidebar">
+                @if (cvData().candidate.photoUrl) {
+                  <img [src]="cvData().candidate.photoUrl" class="preview-photo" alt="">
+                } @else {
+                  <div class="candidate-avatar-bubble" [style.background]="getBubbleGradient()">
+                    {{ cvData().candidate.name.charAt(0) }}
+                  </div>
+                }
+                <h2 class="sidebar-candidate-name">{{ cvData().candidate.name }}</h2>
+                <p class="sidebar-candidate-role">{{ cvData().candidate.title }}</p>
+
+                <div class="sidebar-block contact">
+                  <h3 class="sb-title">CONTACT</h3>
+                  <p class="sb-item">✉ {{ cvData().candidate.email }}</p>
+                  <p class="sb-item">📞 {{ cvData().candidate.phone }}</p>
+                  <p class="sb-item">📍 {{ cvData().candidate.location }}</p>
+                  @if (cvData().candidate.linkedIn) {
+                    <p class="sb-item">🔗 {{ cvData().candidate.linkedIn }}</p>
+                  }
+                  @if (cvData().candidate.gitHub) {
+                    <p class="sb-item">🐙 {{ cvData().candidate.gitHub }}</p>
+                  }
+                </div>
+
+                @if (sectionVisibility().skills) {
+                  <div class="sidebar-block">
+                    <h3 class="sb-title">COMPÉTENCES</h3>
+                    <div class="sb-skills-list">
+                      @for (sk of cvData().skills; track sk.name) {
+                        <span class="sb-skill-pill" [class.matched]="sk.isMatched">
+                          {{ sk.name }}
+                          <span class="skill-stars" [title]="'Niveau ' + sk.level">
+                            @for (s of [].constructor(sk.level); track $index) {★}
+                          </span>
+                        </span>
+                      }
+                    </div>
+                  </div>
+                }
+
+                @if (sectionVisibility().languages) {
+                  <div class="sidebar-block">
+                    <h3 class="sb-title">LANGUES</h3>
+                    <ul class="sb-list">
+                      @for (lg of cvData().languages; track lg) {
+                        <li class="lang-item">{{ lg }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+
+              <div class="modern-main-content">
+                @if (sectionVisibility().summary) {
+                  <section class="main-section">
+                    <p class="resume-paragraph-summary">{{ cvData().summary }}</p>
+                  </section>
+                }
+
+                @if (sectionVisibility().experience) {
+                  <section class="main-section">
+                    <h3 class="section-heading">EXPÉRIENCE</h3>
+                    <div class="section-divider"></div>
+                    @for (exp of cvData().experience; track $index) {
+                      <div class="timeline-block">
+                        <div class="block-header">
+                          <span class="role-name font-bold">{{ exp.role }}</span>
+                          <span class="dates-range font-bold text-secondary">{{ formatDate(exp.start) }} - {{ exp.end === 'Présent' ? 'Présent' : formatDate(exp.end) }}</span>
+                        </div>
+                        <p class="company-subname font-bold">{{ exp.company }}</p>
+                        <ul class="resume-bullets">
+                          @for (bullet of exp.bullets; track bullet) {
+                            <li>{{ bullet }}</li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </section>
+                }
+
+                @if (sectionVisibility().projects) {
+                  <section class="main-section">
+                    <h3 class="section-heading">PROJETS</h3>
+                    <div class="section-divider"></div>
+                    @for (proj of cvData().projects; track $index) {
+                      <div class="timeline-block">
+                        <p class="role-name font-bold">{{ proj.title }}</p>
+                        <ul class="resume-bullets">
+                          @for (bullet of proj.bullets; track bullet) {
+                            <li>{{ bullet }}</li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </section>
+                }
+
+                @if (sectionVisibility().education) {
+                  <section class="main-section">
+                    <h3 class="section-heading">FORMATION</h3>
+                    <div class="section-divider"></div>
+                    @for (edu of cvData().education; track $index) {
+                      <div class="education-block">
+                        <div class="block-header">
+                          <span class="degree-title font-bold">{{ edu.degree }}</span>
+                          <span class="dates-range text-secondary">{{ edu.year }}</span>
+                        </div>
+                        <p class="school-name">{{ edu.institution }}</p>
+                      </div>
+                    }
+                  </section>
+                }
+
+                @if (sectionVisibility().certifications) {
+                  <section class="main-section">
+                    <h3 class="section-heading">CERTIFICATIONS</h3>
+                    <div class="section-divider"></div>
+                    <ul class="resume-bullets grid-two">
+                      @for (cert of cvData().certifications; track cert) {
+                        <li>{{ cert }}</li>
+                      }
+                    </ul>
+                  </section>
+                }
+              </div>
+            </div>
+
+          } @else if (activeTemplate() === 'professional') {
+            <div class="professional-theme-layout">
+              <header class="classic-centered-header">
+                <div class="classic-photo-row">
+                  @if (cvData().candidate.photoUrl) {
+                    <img [src]="cvData().candidate.photoUrl" class="preview-photo-circle" alt="">
+                  }
+                </div>
+                <h1 class="classic-name">{{ cvData().candidate.name }}</h1>
+                <p class="classic-subtitle">{{ (cvData().candidate.title || '').toUpperCase() }}</p>
+                <div class="classic-contact-row">
+                  <span>{{ cvData().candidate.email }}</span>
+                  <span class="bullet-sep">•</span>
+                  <span>{{ cvData().candidate.phone }}</span>
+                  <span class="bullet-sep">•</span>
+                  <span>{{ cvData().candidate.location }}</span>
+                </div>
+                @if (cvData().candidate.linkedIn || cvData().candidate.gitHub) {
+                  <div class="classic-social-row">
+                    @if (cvData().candidate.linkedIn) { <span>🔗 {{ cvData().candidate.linkedIn }}</span> }
+                    @if (cvData().candidate.gitHub) { <span>🐙 {{ cvData().candidate.gitHub }}</span> }
+                  </div>
+                }
+              </header>
+              <div class="classic-divider"></div>
+
+              @if (sectionVisibility().summary) {
+                <section class="classic-section">
+                  <p class="classic-summary-text">{{ cvData().summary }}</p>
+                </section>
+              }
+
+              @if (sectionVisibility().experience) {
+                <section class="classic-section">
+                  <h2 class="classic-section-title">EXPÉRIENCE</h2>
+                  @for (exp of cvData().experience; track $index) {
+                    <div class="classic-experience-item">
+                      <div class="item-header-row">
+                        <span class="font-bold text-dark">{{ exp.role }}</span>
+                        <span class="font-bold text-secondary">{{ formatDate(exp.start) }} - {{ exp.end === 'Présent' ? 'Présent' : formatDate(exp.end) }}</span>
+                      </div>
+                      <div class="company-name font-bold text-secondary-dark">{{ exp.company }}</div>
+                      <ul class="classic-bullets-list">
+                        @for (b of exp.bullets; track b) { <li>{{ b }}</li> }
+                      </ul>
+                    </div>
+                  }
+                </section>
+              }
+
+              @if (sectionVisibility().projects) {
+                <section class="classic-section">
+                  <h2 class="classic-section-title">PROJETS</h2>
+                  @for (proj of cvData().projects; track $index) {
+                    <div class="classic-experience-item">
+                      <div class="item-header-row">
+                        <span class="font-bold text-dark">{{ proj.title }}</span>
+                      </div>
+                      <ul class="classic-bullets-list">
+                        @for (b of proj.bullets; track b) { <li>{{ b }}</li> }
+                      </ul>
+                    </div>
+                  }
+                </section>
+              }
+
+              <div class="classic-columns-row">
+                <div class="col-60">
+                  @if (sectionVisibility().education) {
+                    <section class="classic-section">
+                      <h2 class="classic-section-title">FORMATION</h2>
+                      @for (edu of cvData().education; track $index) {
+                        <div class="classic-education-item">
+                          <div class="edu-top">
+                            <span class="font-bold text-dark">{{ edu.degree }}</span>
+                            <span class="text-secondary font-bold">{{ edu.year }}</span>
+                          </div>
+                          <p class="school-text">{{ edu.institution }}</p>
+                        </div>
+                      }
+                    </section>
+                  }
+                </div>
+                <div class="col-40">
+                  @if (sectionVisibility().skills) {
+                    <section class="classic-section">
+                      <h2 class="classic-section-title">COMPÉTENCES</h2>
+                      <div class="classic-skills-cloud">
+                        @for (sk of cvData().skills; track sk.name) {
+                          <span class="classic-skill-badge" [class.matched]="sk.isMatched">
+                            {{ sk.name }}
+                            <span class="skill-stars-sm">@for (s of [].constructor(sk.level); track $index) {★}</span>
+                          </span>
+                        }
+                      </div>
+                    </section>
+                  }
+                </div>
+              </div>
+
+              @if (sectionVisibility().certifications || sectionVisibility().languages) {
+                <section class="classic-section">
+                  <h2 class="classic-section-title">CERTIFICATIONS & LANGUES</h2>
+                  <div class="classic-footer-row">
+                    @if (sectionVisibility().certifications) {
+                      <div>
+                        @for (cert of cvData().certifications; track cert) {
+                          <p class="body-small text-dark">• {{ cert }}</p>
+                        }
+                      </div>
+                    }
+                    @if (sectionVisibility().languages) {
+                      <div>
+                        @for (lang of cvData().languages; track lang) {
+                          <p class="body-small text-dark font-bold">• {{ lang }}</p>
+                        }
+                      </div>
+                    }
+                  </div>
+                </section>
+              }
+            </div>
+
+          } @else {
+            <div class="elegant-theme-layout">
+              <div class="elegant-top-band"></div>
+
+              <header class="elegant-header-box">
+                <div class="h-left">
+                  <div class="elegant-photo-name-row">
+                    @if (cvData().candidate.photoUrl) {
+                      <img [src]="cvData().candidate.photoUrl" class="preview-photo-circle-sm" alt="">
+                    }
+                    <div>
+                      <h1 class="elegant-name-title">{{ cvData().candidate.name }}</h1>
+                      <p class="elegant-role-sub">{{ cvData().candidate.title }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="h-right">
+                  <p>✉ {{ cvData().candidate.email }}</p>
+                  <p>📞 {{ cvData().candidate.phone }}</p>
+                  <p>📍 {{ cvData().candidate.location }}</p>
+                  @if (cvData().candidate.linkedIn) { <p>🔗 {{ cvData().candidate.linkedIn }}</p> }
+                  @if (cvData().candidate.gitHub) { <p>🐙 {{ cvData().candidate.gitHub }}</p> }
+                </div>
+              </header>
+
+              <div class="elegant-asymmetric-columns">
+                <div class="elegant-col-main">
+                  @if (sectionVisibility().summary) {
+                    <section class="elegant-section">
+                      <p class="elegant-summary">{{ cvData().summary }}</p>
+                    </section>
+                  }
+
+                  @if (sectionVisibility().experience) {
+                    <section class="elegant-section">
+                      <h3 class="elegant-section-title">PARCOURS</h3>
+                      @for (exp of cvData().experience; track $index) {
+                        <div class="elegant-exp-block">
+                          <div class="eb-top">
+                            <span class="font-bold text-dark">{{ exp.role }}</span>
+                            <span class="text-orange font-bold">{{ formatDate(exp.start) }} - {{ exp.end === 'Présent' ? 'Présent' : formatDate(exp.end) }}</span>
+                          </div>
+                          <p class="eb-company font-bold text-secondary">{{ exp.company }}</p>
+                          <ul class="elegant-bullets">
+                            @for (b of exp.bullets; track b) { <li>{{ b }}</li> }
+                          </ul>
+                        </div>
+                      }
+                    </section>
+                  }
+
+                  @if (sectionVisibility().projects) {
+                    <section class="elegant-section">
+                      <h3 class="elegant-section-title">PROJETS</h3>
+                      @for (proj of cvData().projects; track $index) {
+                        <div class="elegant-exp-block">
+                          <p class="font-bold text-dark">{{ proj.title }}</p>
+                          <ul class="elegant-bullets">
+                            @for (b of proj.bullets; track b) { <li>{{ b }}</li> }
+                          </ul>
+                        </div>
+                      }
+                    </section>
+                  }
+
+                  @if (sectionVisibility().education) {
+                    <section class="elegant-section">
+                      <h3 class="elegant-section-title">FORMATION</h3>
+                      @for (edu of cvData().education; track $index) {
+                        <div class="elegant-edu-item">
+                          <p class="edu-degree font-bold">{{ edu.degree }}</p>
+                          <p class="edu-school">{{ edu.institution }} ({{ edu.year }})</p>
+                        </div>
+                      }
+                    </section>
+                  }
+                </div>
+
+                <div class="elegant-col-side">
+                  @if (sectionVisibility().skills) {
+                    <section class="elegant-section">
+                      <h3 class="elegant-section-title">COMPÉTENCES</h3>
+                      <div class="elegant-skills-container">
+                        @for (s of cvData().skills; track s.name) {
+                          <span class="elegant-skill-pill" [class.matched]="s.isMatched">
+                            {{ s.name }}
+                            <span class="skill-stars-sm">@for (x of [].constructor(s.level); track $index) {★}</span>
+                          </span>
+                        }
+                      </div>
+                    </section>
+                  }
+
+                  @if (sectionVisibility().certifications) {
+                    <section class="elegant-section">
+                      <h3 class="elegant-section-title">CERTIFICATIONS</h3>
+                      <ul class="elegant-sidebar-bullets">
+                        @for (c of cvData().certifications; track c) { <li>{{ c }}</li> }
+                      </ul>
+                    </section>
+                  }
+
+                  @if (sectionVisibility().languages) {
+                    <section class="elegant-section">
+                      <h3 class="elegant-section-title">LANGUES</h3>
+                      <div class="elegant-skills-container">
+                        @for (l of cvData().languages; track l) {
+                          <span class="elegant-lang-pill">{{ l }}</span>
+                        }
+                      </div>
+                    </section>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </main>
+  </div>
+</div>

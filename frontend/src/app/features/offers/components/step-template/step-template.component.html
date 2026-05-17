@@ -1,0 +1,657 @@
+<div class="w-full px-6 pt-2 pb-6 md:px-10 md:pt-4 md:pb-10 overflow-y-auto h-full animate-fade-in">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
+    <div>
+      <h2 class="text-[28px] font-bold text-slate-900 mb-1">Choisir un template</h2>
+      <p class="text-[15px] text-slate-500">{{ filteredTemplates.length }} template(s) disponible(s)</p>
+    </div>
+    <div class="flex items-center gap-3">
+      @if (hasActiveFilters) {
+        <button (click)="clearFilters()"
+          class="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-500 transition-colors cursor-pointer bg-transparent border-none">
+          <span class="material-symbols-outlined text-base">close</span>
+          Effacer les filtres
+        </button>
+      }
+      <select [(ngModel)]="sortBy"
+        class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none shadow-sm">
+        <option value="recommended">Recommandé</option>
+        <option value="popular">Populaire</option>
+        <option value="newest">Nouveauté</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Click Backdrop to automatically close active dropdown when clicking outside -->
+  @if (activeDropdown()) {
+    <div class="fixed inset-0 z-30 bg-transparent" (click)="activeDropdown.set(null)"></div>
+  }
+
+  <!-- Filters Dropdowns Row -->
+  <div class="filter-toolbar flex flex-wrap items-center gap-2.5 mb-8 relative z-40">
+    
+    <!-- All Filters Button -->
+    <button (click)="clearFilters()"
+      class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-sm focus:outline-none"
+      [class.border-brand-500]="hasActiveFilters"
+      [class.text-brand-500]="hasActiveFilters">
+      <span class="material-symbols-outlined text-base">tune</span>
+      <span>All Filters</span>
+      @if (hasActiveFilters) {
+        <span class="flex h-2 w-2 rounded-full bg-brand-500"></span>
+      }
+    </button>
+
+    <!-- Industry Dropdown -->
+    <div class="relative">
+      <button (click)="toggleDropdown('industry')"
+        class="flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border bg-white text-xs font-bold transition-all cursor-pointer shadow-sm focus:outline-none"
+        [class.border-brand-500]="activeDropdown() === 'industry' || filterIndustry().length > 0"
+        [class.text-brand-500]="activeDropdown() === 'industry' || filterIndustry().length > 0"
+        [class.bg-brand-50]="filterIndustry().length > 0"
+        [class.border-slate-200]="activeDropdown() !== 'industry' && filterIndustry().length === 0"
+        [class.text-slate-700]="activeDropdown() !== 'industry' && filterIndustry().length === 0"
+        [class.hover:bg-slate-50]="activeDropdown() !== 'industry' && filterIndustry().length === 0">
+        <span>Industry</span>
+        @if (filterIndustry().length > 0) {
+          <span class="bg-brand-500 text-white text-[10px] h-4.5 min-w-4.5 px-1 rounded-full flex items-center justify-center font-bold">
+            {{ filterIndustry().length }}
+          </span>
+        }
+        <span class="material-symbols-outlined text-base transition-transform duration-200"
+          [class.rotate-180]="activeDropdown() === 'industry'">
+          expand_more
+        </span>
+      </button>
+
+      @if (activeDropdown() === 'industry') {
+        <div class="absolute left-0 mt-2 w-72 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-3.5 flex flex-col max-h-[350px]">
+          <div class="overflow-y-auto px-4 flex flex-col gap-2.5 pb-2">
+            @for (ind of industries; track ind) {
+              <label class="flex items-center gap-3 cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                <input type="checkbox"
+                  [checked]="filterIndustry().includes(ind)"
+                  (change)="toggleFilter(filterIndustry, ind)"
+                  class="h-4.5 w-4.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span class="leading-none">{{ ind }}</span>
+              </label>
+            }
+          </div>
+          <div class="border-t border-slate-100 mt-2.5 pt-2.5 px-4 flex justify-center">
+            <button (click)="filterIndustry.set([]); $event.stopPropagation()"
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 bg-transparent border-none cursor-pointer">
+              <span class="material-symbols-outlined text-base">close</span>
+              Clear
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Experience Level Dropdown -->
+    <div class="relative">
+      <button (click)="toggleDropdown('experience')"
+        class="flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border bg-white text-xs font-bold transition-all cursor-pointer shadow-sm focus:outline-none"
+        [class.border-brand-500]="activeDropdown() === 'experience' || filterExperience().length > 0"
+        [class.text-brand-500]="activeDropdown() === 'experience' || filterExperience().length > 0"
+        [class.bg-brand-50]="filterExperience().length > 0"
+        [class.border-slate-200]="activeDropdown() !== 'experience' && filterExperience().length === 0"
+        [class.text-slate-700]="activeDropdown() !== 'experience' && filterExperience().length === 0"
+        [class.hover:bg-slate-50]="activeDropdown() !== 'experience' && filterExperience().length === 0">
+        <span>Experience Level</span>
+        @if (filterExperience().length > 0) {
+          <span class="bg-brand-500 text-white text-[10px] h-4.5 min-w-4.5 px-1 rounded-full flex items-center justify-center font-bold">
+            {{ filterExperience().length }}
+          </span>
+        }
+        <span class="material-symbols-outlined text-base transition-transform duration-200"
+          [class.rotate-180]="activeDropdown() === 'experience'">
+          expand_more
+        </span>
+      </button>
+
+      @if (activeDropdown() === 'experience') {
+        <div class="absolute left-0 mt-2 w-64 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-3.5 flex flex-col max-h-[350px]">
+          <div class="overflow-y-auto px-4 flex flex-col gap-2.5 pb-2">
+            @for (exp of experienceLevels; track exp) {
+              <label class="flex items-center gap-3 cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                <input type="checkbox"
+                  [checked]="filterExperience().includes(exp)"
+                  (change)="toggleFilter(filterExperience, exp)"
+                  class="h-4.5 w-4.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span class="leading-none">{{ exp }}</span>
+              </label>
+            }
+          </div>
+          <div class="border-t border-slate-100 mt-2.5 pt-2.5 px-4 flex justify-center">
+            <button (click)="filterExperience.set([]); $event.stopPropagation()"
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 bg-transparent border-none cursor-pointer">
+              <span class="material-symbols-outlined text-base">close</span>
+              Clear
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Style Dropdown -->
+    <div class="relative">
+      <button (click)="toggleDropdown('style')"
+        class="flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border bg-white text-xs font-bold transition-all cursor-pointer shadow-sm focus:outline-none"
+        [class.border-brand-500]="activeDropdown() === 'style' || filterStyle().length > 0"
+        [class.text-brand-500]="activeDropdown() === 'style' || filterStyle().length > 0"
+        [class.bg-brand-50]="filterStyle().length > 0"
+        [class.border-slate-200]="activeDropdown() !== 'style' && filterStyle().length === 0"
+        [class.text-slate-700]="activeDropdown() !== 'style' && filterStyle().length === 0"
+        [class.hover:bg-slate-50]="activeDropdown() !== 'style' && filterStyle().length === 0">
+        <span>Style</span>
+        @if (filterStyle().length > 0) {
+          <span class="bg-brand-500 text-white text-[10px] h-4.5 min-w-4.5 px-1 rounded-full flex items-center justify-center font-bold">
+            {{ filterStyle().length }}
+          </span>
+        }
+        <span class="material-symbols-outlined text-base transition-transform duration-200"
+          [class.rotate-180]="activeDropdown() === 'style'">
+          expand_more
+        </span>
+      </button>
+
+      @if (activeDropdown() === 'style') {
+        <div class="absolute left-0 mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-3.5 flex flex-col max-h-[350px]">
+          <div class="overflow-y-auto px-4 flex flex-col gap-2.5 pb-2">
+            @for (s of styles; track s) {
+              <label class="flex items-center gap-3 cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                <input type="checkbox"
+                  [checked]="filterStyle().includes(s)"
+                  (change)="toggleFilter(filterStyle, s)"
+                  class="h-4.5 w-4.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span class="leading-none">{{ s }}</span>
+              </label>
+            }
+          </div>
+          <div class="border-t border-slate-100 mt-2.5 pt-2.5 px-4 flex justify-center">
+            <button (click)="filterStyle.set([]); $event.stopPropagation()"
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 bg-transparent border-none cursor-pointer">
+              <span class="material-symbols-outlined text-base">close</span>
+              Clear
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Layout Dropdown -->
+    <div class="relative">
+      <button (click)="toggleDropdown('layout')"
+        class="flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border bg-white text-xs font-bold transition-all cursor-pointer shadow-sm focus:outline-none"
+        [class.border-brand-500]="activeDropdown() === 'layout' || filterLayout().length > 0"
+        [class.text-brand-500]="activeDropdown() === 'layout' || filterLayout().length > 0"
+        [class.bg-brand-50]="filterLayout().length > 0"
+        [class.border-slate-200]="activeDropdown() !== 'layout' && filterLayout().length === 0"
+        [class.text-slate-700]="activeDropdown() !== 'layout' && filterLayout().length === 0"
+        [class.hover:bg-slate-50]="activeDropdown() !== 'layout' && filterLayout().length === 0">
+        <span>Layout</span>
+        @if (filterLayout().length > 0) {
+          <span class="bg-brand-500 text-white text-[10px] h-4.5 min-w-4.5 px-1 rounded-full flex items-center justify-center font-bold">
+            {{ filterLayout().length }}
+          </span>
+        }
+        <span class="material-symbols-outlined text-base transition-transform duration-200"
+          [class.rotate-180]="activeDropdown() === 'layout'">
+          expand_more
+        </span>
+      </button>
+
+      @if (activeDropdown() === 'layout') {
+        <div class="absolute left-0 mt-2 w-60 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-3.5 flex flex-col max-h-[350px]">
+          <div class="overflow-y-auto px-4 flex flex-col gap-2.5 pb-2">
+            @for (lay of layouts; track lay) {
+              <label class="flex items-center gap-3 cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                <input type="checkbox"
+                  [checked]="filterLayout().includes(lay)"
+                  (change)="toggleFilter(filterLayout, lay)"
+                  class="h-4.5 w-4.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span class="leading-none">{{ lay }}</span>
+              </label>
+            }
+          </div>
+          <div class="border-t border-slate-100 mt-2.5 pt-2.5 px-4 flex justify-center">
+            <button (click)="filterLayout.set([]); $event.stopPropagation()"
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 bg-transparent border-none cursor-pointer">
+              <span class="material-symbols-outlined text-base">close</span>
+              Clear
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Color Dropdown -->
+    <div class="relative">
+      <button (click)="toggleDropdown('color')"
+        class="flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border bg-white text-xs font-bold transition-all cursor-pointer shadow-sm focus:outline-none"
+        [class.border-brand-500]="activeDropdown() === 'color' || filterColor().length > 0"
+        [class.text-brand-500]="activeDropdown() === 'color' || filterColor().length > 0"
+        [class.bg-brand-50]="filterColor().length > 0"
+        [class.border-slate-200]="activeDropdown() !== 'color' && filterColor().length === 0"
+        [class.text-slate-700]="activeDropdown() !== 'color' && filterColor().length === 0"
+        [class.hover:bg-slate-50]="activeDropdown() !== 'color' && filterColor().length === 0">
+        <span>Color</span>
+        @if (filterColor().length > 0) {
+          <span class="bg-brand-500 text-white text-[10px] h-4.5 min-w-4.5 px-1 rounded-full flex items-center justify-center font-bold">
+            {{ filterColor().length }}
+          </span>
+        }
+        <span class="material-symbols-outlined text-base transition-transform duration-200"
+          [class.rotate-180]="activeDropdown() === 'color'">
+          expand_more
+        </span>
+      </button>
+
+      @if (activeDropdown() === 'color') {
+        <div class="absolute left-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-3.5 flex flex-col max-h-[350px]">
+          <div class="overflow-y-auto px-4 flex flex-col gap-2.5 pb-2">
+            @for (col of colors; track col) {
+              <label class="flex items-center gap-3 cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                <input type="checkbox"
+                  [checked]="filterColor().includes(col)"
+                  (change)="toggleFilter(filterColor, col)"
+                  class="h-4.5 w-4.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full shadow-sm"
+                    [class.bg-blue-500]="col === 'Blue'"
+                    [class.bg-emerald-500]="col === 'Green'"
+                    [class.bg-amber-500]="col === 'Amber'"
+                    [class.bg-rose-500]="col === 'Rose'"
+                    [class.bg-indigo-900]="col === 'Navy'"
+                    [class.bg-purple-500]="col === 'Purple'"
+                    [class.bg-slate-500]="col === 'Slate'"
+                    [class.bg-red-800]="col === 'Burgundy'"
+                    [class.bg-teal-500]="col === 'Teal'"
+                  ></span>
+                  <span class="leading-none">{{ col }}</span>
+                </div>
+              </label>
+            }
+          </div>
+          <div class="border-t border-slate-100 mt-2.5 pt-2.5 px-4 flex justify-center">
+            <button (click)="filterColor.set([]); $event.stopPropagation()"
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 bg-transparent border-none cursor-pointer">
+              <span class="material-symbols-outlined text-base">close</span>
+              Clear
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Tags Dropdown -->
+    <div class="relative">
+      <button (click)="toggleDropdown('tag')"
+        class="flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border bg-white text-xs font-bold transition-all cursor-pointer shadow-sm focus:outline-none"
+        [class.border-brand-500]="activeDropdown() === 'tag' || filterTag().length > 0"
+        [class.text-brand-500]="activeDropdown() === 'tag' || filterTag().length > 0"
+        [class.bg-brand-50]="filterTag().length > 0"
+        [class.border-slate-200]="activeDropdown() !== 'tag' && filterTag().length === 0"
+        [class.text-slate-700]="activeDropdown() !== 'tag' && filterTag().length === 0"
+        [class.hover:bg-slate-50]="activeDropdown() !== 'tag' && filterTag().length === 0">
+        <span>Tags</span>
+        @if (filterTag().length > 0) {
+          <span class="bg-brand-500 text-white text-[10px] h-4.5 min-w-4.5 px-1 rounded-full flex items-center justify-center font-bold">
+            {{ filterTag().length }}
+          </span>
+        }
+        <span class="material-symbols-outlined text-base transition-transform duration-200"
+          [class.rotate-180]="activeDropdown() === 'tag'">
+          expand_more
+        </span>
+      </button>
+
+      @if (activeDropdown() === 'tag') {
+        <div class="absolute left-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-3.5 flex flex-col max-h-[350px]">
+          <div class="overflow-y-auto px-4 flex flex-col gap-2.5 pb-2">
+            @for (t of tags; track t) {
+              <label class="flex items-center gap-3 cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                <input type="checkbox"
+                  [checked]="filterTag().includes(t)"
+                  (change)="toggleFilter(filterTag, t)"
+                  class="h-4.5 w-4.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span class="leading-none capitalize">{{ t }}</span>
+              </label>
+            }
+          </div>
+          <div class="border-t border-slate-100 mt-2.5 pt-2.5 px-4 flex justify-center">
+            <button (click)="filterTag.set([]); $event.stopPropagation()"
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 bg-transparent border-none cursor-pointer">
+              <span class="material-symbols-outlined text-base">close</span>
+              Clear
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+  </div>
+
+
+  <!-- Template Grid -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    <!-- Start from scratch -->
+    <div (click)="selectTemplate('scratch')" hidden
+      class="bg-white rounded-2xl aspect-[1/1.4] flex flex-col items-center justify-center p-6 cursor-pointer hover:bg-white/80 transition-all border-2 border-dashed border-slate-200 hover:border-brand-500 group shadow-sm"
+      [class.ring-2]="pipeline.selectedTemplateId() === 'scratch'"
+      [class.ring-brand-500]="pipeline.selectedTemplateId() === 'scratch'"
+      [class.border-brand-500]="pipeline.selectedTemplateId() === 'scratch'">
+      <div class="w-14 h-14 rounded-full bg-brand-500 flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-brand-500/20">
+        <span class="material-symbols-outlined text-[28px]">add</span>
+      </div>
+      <span class="text-sm font-bold text-slate-800 group-hover:text-brand-500 transition-colors">Partir de zéro</span>
+      <p class="text-xs text-slate-500 text-center mt-2 px-3 leading-relaxed">Créez votre propre mise en page</p>
+    </div>
+
+    <!-- Template Cards -->
+    @for (tpl of filteredTemplates; track tpl.id) {
+      <div (click)="selectTemplate(tpl.id)"
+        class="bg-white rounded-2xl overflow-hidden group cursor-pointer relative flex flex-col transition-all duration-300 shadow-sm border border-slate-200 hover:shadow-md"
+        [class.ring-2]="pipeline.selectedTemplateId() === tpl.id"
+        [class.ring-brand-500]="pipeline.selectedTemplateId() === tpl.id">
+        @if (tpl.badge) {
+          <div class="absolute top-3 left-3 z-10">
+            <span class="text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-md flex items-center gap-1 capitalize"
+              [class.bg-brand-500]="tpl.badge.variant === 'primary'"
+              [class.bg-slate-600]="tpl.badge.variant !== 'primary'">
+              <span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">
+                {{ tpl.badge.variant === 'primary' ? 'star' : 'thumb_up' }}
+              </span>
+              {{ tpl.badge.label }}
+            </span>
+          </div>
+        }
+        <div class="bg-slate-100 aspect-[1/1.4] w-full relative overflow-hidden p-4">
+          <div class="template-card-preview-shell">
+            <div class="template-demo template-demo--card"
+              [class.variant-modern]="tpl.previewVariant === 'modern'"
+              [class.variant-professional]="tpl.previewVariant === 'professional'"
+              [class.variant-elegant]="tpl.previewVariant === 'elegant'">
+              @if (tpl.previewVariant === 'modern') {
+                <div class="preview-modern">
+                  <aside class="preview-modern-sidebar">
+                    <div class="preview-avatar">{{ previewData.candidate.name.charAt(0) }}</div>
+                    <h4>{{ previewData.candidate.name }}</h4>
+                    <p class="role">{{ previewData.candidate.title }}</p>
+
+                    <div class="sidebar-group">
+                      <span class="group-title">CONTACT</span>
+                      <p>{{ previewData.candidate.email }}</p>
+                      <p>{{ previewData.candidate.phone }}</p>
+                      <p>{{ previewData.candidate.location }}</p>
+                      <p>{{ previewData.candidate.linkedIn }}</p>
+                    </div>
+
+                    <div class="sidebar-group">
+                      <span class="group-title">SKILLS</span>
+                      <div class="pill-list">
+                        @for (skill of previewData.skills; track skill) {
+                          <span>{{ skill }}</span>
+                        }
+                      </div>
+                    </div>
+
+                    <div class="sidebar-group">
+                      <span class="group-title">LANGUAGES</span>
+                      <ul>
+                        @for (language of previewData.languages; track language.name) {
+                          <li>{{ language.name }} - {{ language.level }}</li>
+                        }
+                      </ul>
+                    </div>
+                  </aside>
+
+                  <div class="preview-main">
+                    <section>
+                      <p class="summary">{{ previewData.summary }}</p>
+                    </section>
+
+                    <section>
+                      <h5>EXPERIENCE</h5>
+                      @for (item of previewData.experience; track item.role) {
+                        <article class="entry">
+                          <div class="entry-top">
+                            <strong>{{ item.role }}</strong>
+                            <span>{{ item.period }}</span>
+                          </div>
+                          <p class="company">{{ item.company }}</p>
+                          <ul>
+                            @for (bullet of item.bullets; track bullet) {
+                              <li>{{ bullet }}</li>
+                            }
+                          </ul>
+                        </article>
+                      }
+                    </section>
+
+                    <section>
+                      <h5>KEY ACHIEVEMENTS</h5>
+                      <ul>
+                        @for (achievement of previewData.achievements; track achievement) {
+                          <li>{{ achievement }}</li>
+                        }
+                      </ul>
+                    </section>
+                  </div>
+                </div>
+              } @else if (tpl.previewVariant === 'professional') {
+                <div class="preview-professional">
+                  <header class="pro-header">
+                    <h4>{{ previewData.candidate.name }}</h4>
+                    <p>{{ previewData.candidate.title | uppercase }}</p>
+                    <div class="pro-contact">
+                      <span>{{ previewData.candidate.email }}</span>
+                      <span>•</span>
+                      <span>{{ previewData.candidate.phone }}</span>
+                      <span>•</span>
+                      <span>{{ previewData.candidate.location }}</span>
+                    </div>
+                  </header>
+
+                  <section>
+                    <p class="summary">{{ previewData.summary }}</p>
+                  </section>
+
+                  <section>
+                    <h5>EXPERIENCE</h5>
+                    @for (item of previewData.experience; track item.role) {
+                      <article class="entry">
+                        <div class="entry-top">
+                          <strong>{{ item.role }}</strong>
+                          <span>{{ item.period }}</span>
+                        </div>
+                        <p class="company">{{ item.company }}</p>
+                        <ul>
+                          @for (bullet of item.bullets; track bullet) {
+                            <li>{{ bullet }}</li>
+                          }
+                        </ul>
+                      </article>
+                    }
+                  </section>
+
+                  <div class="two-col">
+                    <section>
+                      <h5>EDUCATION</h5>
+                      @for (edu of previewData.education; track edu.degree) {
+                        <article class="entry compact">
+                          <div class="entry-top">
+                            <strong>{{ edu.degree }}</strong>
+                            <span>{{ edu.year }}</span>
+                          </div>
+                          <p class="company">{{ edu.institution }}</p>
+                        </article>
+                      }
+                    </section>
+
+                    <section>
+                      <h5>SKILLS</h5>
+                      <div class="pill-list">
+                        @for (skill of previewData.skills; track skill) {
+                          <span>{{ skill }}</span>
+                        }
+                      </div>
+                    </section>
+
+                    <section>
+                      <h5>TOOLS</h5>
+                      <div class="pill-list">
+                        @for (tool of previewData.tools; track tool) {
+                          <span>{{ tool }}</span>
+                        }
+                      </div>
+                    </section>
+
+                    <section>
+                      <h5>LANGUAGES</h5>
+                      <ul>
+                        @for (language of previewData.languages; track language.name) {
+                          <li>{{ language.name }} - {{ language.level }}</li>
+                        }
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h5>CERTIFICATIONS</h5>
+                      <ul>
+                        @for (cert of previewData.certifications; track cert) {
+                          <li>{{ cert }}</li>
+                        }
+                      </ul>
+                    </section>
+                  </div>
+                </div>
+              } @else {
+                <div class="preview-elegant">
+                  <div class="elegant-band"></div>
+                  <header class="elegant-header">
+                    <div>
+                      <h4>{{ previewData.candidate.name }}</h4>
+                      <p>{{ previewData.candidate.title }}</p>
+                    </div>
+                    <div class="elegant-contact">
+                      <span>{{ previewData.candidate.email }}</span>
+                      <span>{{ previewData.candidate.phone }}</span>
+                      <span>{{ previewData.candidate.location }}</span>
+                      <span>{{ previewData.candidate.portfolio }}</span>
+                    </div>
+                  </header>
+
+                  <div class="elegant-grid">
+                    <div class="elegant-main">
+                      <section>
+                        <p class="summary">{{ previewData.summary }}</p>
+                      </section>
+
+                      <section>
+                        <h5>EXPERIENCE</h5>
+                        @for (item of previewData.experience; track item.role) {
+                          <article class="entry">
+                            <div class="entry-top">
+                              <strong>{{ item.role }}</strong>
+                              <span>{{ item.period }}</span>
+                            </div>
+                            <p class="company">{{ item.company }}</p>
+                            <ul>
+                              @for (bullet of item.bullets; track bullet) {
+                                <li>{{ bullet }}</li>
+                              }
+                            </ul>
+                          </article>
+                        }
+                      </section>
+
+                      <section>
+                        <h5>PROJECTS</h5>
+                        @for (project of previewData.projects; track project.name) {
+                          <article class="entry compact">
+                            <div class="entry-top">
+                              <strong>{{ project.name }}</strong>
+                              <span>{{ project.context }}</span>
+                            </div>
+                            <p class="company">{{ project.impact }}</p>
+                          </article>
+                        }
+                      </section>
+                    </div>
+
+                    <aside class="elegant-side">
+                      <section>
+                        <h5>SKILLS</h5>
+                        <div class="pill-list">
+                          @for (skill of previewData.skills; track skill) {
+                            <span>{{ skill }}</span>
+                          }
+                        </div>
+                      </section>
+
+                      <section>
+                        <h5>CERTIFICATIONS</h5>
+                        <ul>
+                          @for (cert of previewData.certifications; track cert) {
+                            <li>{{ cert }}</li>
+                          }
+                        </ul>
+                      </section>
+
+                      <section>
+                        <h5>LANGUAGES</h5>
+                        <ul>
+                          @for (language of previewData.languages; track language.name) {
+                            <li>{{ language.name }} - {{ language.level }}</li>
+                          }
+                        </ul>
+                      </section>
+                    </aside>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="absolute inset-0 bg-slate-800/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <div class="bg-brand-500 text-white font-bold py-2.5 px-5 rounded-full shadow-lg hover:bg-brand-600 transition-colors transform translate-y-4 group-hover:translate-y-0 duration-300 text-sm cursor-pointer">
+              Sélectionner
+            </div>
+          </div>
+        </div>
+        <div class="p-4 border-t border-slate-100 bg-white">
+          <h3 class="font-bold text-slate-800 text-base leading-tight mb-0.5">{{ tpl.name }}</h3>
+          <p class="text-xs text-slate-500">{{ tpl.description }}</p>
+        </div>
+      </div>
+    }
+  </div>
+  <!-- Footer Actions -->
+  <div class="mt-8 flex items-center justify-between border-t border-slate-200 pt-6">
+    <button (click)="back()"
+      class="flex cursor-pointer items-center gap-1.5 px-6 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 transition-colors bg-white">
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+      Retour à l'analyse
+    </button>
+    <div class="flex items-center gap-3">
+      @if (!pipeline.selectedTemplateId()) {
+        <span class="text-xs text-slate-400">Sélectionnez un template pour continuer</span>
+      }
+      <button (click)="next()"
+        [disabled]="!pipeline.selectedTemplateId()"
+        class="cursor-pointer rounded-xl bg-brand-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+        Générer les documents
+        <span class="material-symbols-outlined text-lg">arrow_forward</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+

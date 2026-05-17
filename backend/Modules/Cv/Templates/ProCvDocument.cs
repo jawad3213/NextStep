@@ -110,22 +110,26 @@ public class ProCvDocument : IDocument
             {
                 row.ConstantItem(DateColWidth).Column(dateCol =>
                 {
-                    dateCol.Item().Text(exp.Start ?? "").FontSize(8.5f).Bold();
-                    if (!string.IsNullOrWhiteSpace(exp.End))
-                        dateCol.Item().PaddingTop(1).Text(exp.End.ToUpperInvariant()).FontSize(7).FontColor(Faint);
-                    else
-                        dateCol.Item().PaddingTop(1).Text("PRESENT").FontSize(7).FontColor(Faint);
+                    dateCol.Item().Text(exp.Start).FontSize(8.5f).Bold();
+                    dateCol.Item().PaddingTop(1).Text(exp.End ?? "PRESENT").FontSize(7).FontColor(Faint);
                 });
 
                 row.RelativeItem().Column(descCol =>
                 {
                     descCol.Item().Text(exp.Role).FontSize(11).Bold();
                     descCol.Item().Text(exp.Company).FontSize(10).SemiBold().FontColor(NavyMid);
-                    if (exp.Bullets.Any())
+                    if (exp.Bullets is { Count: > 0 })
                     {
-                        descCol.Item().PaddingTop(4).Column(bc => {
-                            foreach(var bullet in exp.Bullets)
-                                bc.Item().Text($"• {bullet}").LineHeight(1.5f);
+                        descCol.Item().PaddingTop(4).Column(bulletsCol =>
+                        {
+                            foreach (var b in exp.Bullets)
+                            {
+                                bulletsCol.Item().PaddingBottom(2).Row(r =>
+                                {
+                                    r.AutoItem().PaddingRight(4).Text("•").FontSize(9f);
+                                    r.RelativeItem().Text(b).FontSize(9f).LineHeight(1.4f);
+                                });
+                            }
                         });
                     }
                 });

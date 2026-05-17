@@ -1,0 +1,160 @@
+<div class="flex flex-col lg:flex-row gap-8 items-start w-full animate-fade-in">
+  <!-- Main Content (Left, wider) -->
+  <div class="flex-1 min-w-0">
+    <h2 class="text-[28px] font-bold text-gray-900 mb-2">Ajouter une offre</h2>
+    <p class="text-[15px] text-gray-500 mb-8 max-w-[750px]">Préparez votre analyse en fournissant les détails du poste.<br>Plus les informations sont précises, meilleure sera la personnalisation de votre CV.</p>
+
+    <!-- Tabs -->
+    <div class="flex items-center gap-8 border-b border-gray-200 mb-8">
+      <button 
+        class="pb-3.5 text-[13px] font-bold tracking-wide uppercase flex items-center gap-2 border-b-2 transition-colors relative top-[1px]"
+        [class.border-emerald-500]="mode === 'text'"
+        [class.text-emerald-600]="mode === 'text'"
+        [class.border-transparent]="mode !== 'text'"
+        [class.text-gray-400]="mode !== 'text'"
+        (click)="mode = 'text'"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+        Coller
+      </button>
+      
+
+
+      <button 
+        class="pb-3.5 text-[13px] font-bold tracking-wide uppercase flex items-center gap-2 border-b-2 transition-colors relative top-[1px]"
+        [class.border-emerald-500]="mode === 'url'"
+        [class.text-emerald-600]="mode === 'url'"
+        [class.border-transparent]="mode !== 'url'"
+        [class.text-gray-400]="mode !== 'url'"
+        (click)="mode = 'url'"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+        URL
+      </button>
+    </div>
+
+    <h3 class="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-3">Description du poste</h3>
+    
+    @if (mode === 'text') {
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden flex flex-col min-h-[400px] focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all">
+        <textarea 
+          class="flex-1 w-full p-6 text-[15px] leading-relaxed text-gray-800 bg-transparent resize-none focus:outline-none placeholder:text-gray-400"
+          placeholder="Collez ici le texte intégral de l'offre d'emploi : missions, profil recherché, compétences techniques..."
+          [(ngModel)]="textValue"
+          (ngModelChange)="onTextChange($event)"
+        ></textarea>
+        
+        <div class="bg-[#F8FAFC] px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-between text-xs font-medium text-gray-500">
+          <div class="flex gap-8">
+            <div class="flex flex-col gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-gray-400">Mots</span>
+              <span class="text-gray-900 font-bold">{{ wordCount }} / 500</span>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-gray-400">Qualité de l'analyse</span>
+              <span class="text-gray-900 font-bold flex items-center gap-1.5">
+                <span class="flex gap-0.5">
+                  <span class="w-3 h-1 rounded-full" [class.bg-emerald-400]="textValue.length > 200" [class.bg-gray-300]="textValue.length <= 200"></span>
+                  <span class="w-3 h-1 rounded-full" [class.bg-emerald-400]="textValue.length > 500" [class.bg-gray-300]="textValue.length <= 500"></span>
+                  <span class="w-3 h-1 rounded-full" [class.bg-emerald-400]="textValue.length > 800" [class.bg-gray-300]="textValue.length <= 800"></span>
+                </span>
+                @if (textValue.length > 800) { EXCELLENTE }
+                @else if (textValue.length > 500) { BONNE }
+                @else if (textValue.length > 200) { FAIBLE }
+                @else { INSUFFISANTE }
+              </span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Saisie manuelle
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (mode === 'url') {
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col p-6 focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all">
+        <input 
+          class="w-full text-[15px] bg-transparent focus:outline-none placeholder:text-gray-400 text-gray-800"
+          placeholder="Collez ici l'URL de l'offre d'emploi..."
+          [(ngModel)]="urlValue"
+          (ngModelChange)="onUrlChange($event)"
+        >
+      </div>
+      
+      <div class="mt-4 flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+        <svg class="w-5 h-5 text-gray-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p class="text-sm text-gray-600 leading-relaxed">
+          Notre IA extraira automatiquement le contenu de la page web. Assurez-vous que l'URL est publiquement accessible.
+        </p>
+      </div>
+    }
+
+    <!-- Error message -->
+    @if (error) {
+      <div class="mt-4 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3">
+        <svg class="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span class="text-sm text-red-800">{{ error }}</span>
+      </div>
+    }
+
+    <!-- Actions -->
+    <div class="mt-8 flex justify-end">
+      <button 
+        class="bg-[#2B3440] text-white rounded-xl px-7 py-3.5 text-[14px] font-semibold tracking-wide hover:bg-[#1E2530] transition-colors flex items-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+        [disabled]="!canSubmit"
+        (click)="submit()"
+      >
+        @if (pipeline.isLoading()) {
+          <span class="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></span>
+          Analyse...
+        } @else {
+          Analyser l'offre
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        }
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Right Sidebar (Cards) - stretches when main sidebar is collapsed -->
+  <div class="w-full shrink-0"
+    [ngClass]="(sidebarService.isExpanded$ | async) ? 'lg:w-[300px]' : 'lg:w-[380px]'">
+    <!-- Card 1: Pourquoi analyser -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
+      <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-5 text-emerald-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 21h6m-3-19a6 6 0 00-6 6c0 2.22 1.2 4.14 3 5.19V17a2 2 0 002 2h2a2 2 0 002-2v-3.81c1.8-1.05 3-2.97 3-5.19a6 6 0 00-6-6z"></path>
+        </svg>
+      </div>
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Pourquoi analyser ?</h3>
+      <ul class="space-y-4">
+        <li class="flex items-start">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-[13px] leading-relaxed text-gray-700">Extraction automatique des mots-clés ATS essentiels.</span>
+        </li>
+        <li class="flex items-start">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-[13px] leading-relaxed text-gray-700">Identification des compétences prioritaires (Hard & Soft skills).</span>
+        </li>
+        <li class="flex items-start">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-[13px] leading-relaxed text-gray-700">Adaptation du ton et de la structure de votre CV au secteur.</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Card 2: Conseil Pro -->
+    <div class="bg-[#EFF6FF] rounded-2xl border border-blue-100 p-6 mb-6">
+      <h4 class="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-3">Conseil Pro</h4>
+      <p class="text-[13px] text-blue-900 leading-relaxed font-medium">
+        Évitez de ne copier que les puces. Incluez également le paragraphe de présentation de l'entreprise pour que Nexus puisse adapter votre accroche à leur culture.
+      </p>
+    </div>
+  </div>
+</div>

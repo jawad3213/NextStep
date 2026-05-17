@@ -1,24 +1,17 @@
-terraform {
-  required_version = ">= 1.0.0"
-}
-
-# Orchestrator: Launch and manage Vagrant VMs
-resource "null_resource" "vagrant_vms" {
-  # Trigger re-launch only if the Vagrantfile changes
-  triggers = {
-    vagrantfile_hash = filemd5("${path.module}/Vagrantfile")
-  }
-
-  # Action: Launch VMs
+# ── Orchestration des VMs (Vagrant) ─────────────────────────────
+resource "null_resource" "vagrant_up" {
   provisioner "local-exec" {
-    command = "vagrant up --provider vmware_desktop"
+    command     = "vagrant up"
     working_dir = path.module
   }
+}
 
-  # Action: Destroy VMs on 'terraform destroy'
+# ── Déploiement de l'Infrastructure (Ansible) ────────────────────
+resource "null_resource" "ansible_deploy" {
+  depends_on = [null_resource.vagrant_up]
+
   provisioner "local-exec" {
-    when    = destroy
-    command = "vagrant destroy -f"
+    command     = "ansible-playbook -i ${var.ansible_inventory_path} ${var.ansible_playbook_path}"
     working_dir = path.module
   }
 }

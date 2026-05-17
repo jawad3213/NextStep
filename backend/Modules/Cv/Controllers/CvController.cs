@@ -14,12 +14,14 @@ public class CvController : ControllerBase
     private readonly ICvService _cvService;
     private readonly ICvTemplateService _templateService;
     private readonly IUserService _userService;
+    private readonly ITemplateThumbnailService _thumbnailService;
 
-    public CvController(ICvService cvService, ICvTemplateService templateService, IUserService userService)
+    public CvController(ICvService cvService, ICvTemplateService templateService, IUserService userService, ITemplateThumbnailService thumbnailService)
     {
-        _cvService       = cvService;
-        _templateService = templateService;
-        _userService     = userService;
+        _cvService        = cvService;
+        _templateService  = templateService;
+        _userService      = userService;
+        _thumbnailService = thumbnailService;
     }
 
     // ─── Step 1: Template selection ────────────────────────────
@@ -45,6 +47,34 @@ public class CvController : ControllerBase
     public IActionResult GetFilterOptions()
     {
         return Ok(_templateService.GetFilterOptions());
+    }
+
+    // ─── Template Thumbnails (sample-data PDF previews) ──────
+
+    /// <summary>
+    /// Generate preview PDFs for all 5 templates using sample data.
+    /// POST /api/cv/templates/generate-thumbnails
+    /// </summary>
+    [HttpPost("templates/generate-thumbnails")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GenerateThumbnails()
+    {
+        await _thumbnailService.GenerateAllThumbnailsAsync();
+        return Ok(new { message = "Thumbnails generated for all templates." });
+    }
+
+    /// <summary>
+    /// Get the preview PDF for a template (rendered with sample data).
+    /// GET /api/cv/templates/{slug}/thumbnail
+    /// </summary>
+    [HttpGet("templates/{slug}/thumbnail")]
+    [AllowAnonymous]
+    public IActionResult GetThumbnail(string slug)
+    {
+        var pdfBytes = _thumbnailService.GetThumbnailPdf(slug.ToLowerInvariant());
+        if (pdfBytes is null)
+            return NotFound(new { error = $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first." });
+        return File(pdfBytes, "application/pdf", $"{slug}-preview.pdf");
     }
 
     // ─── Step 2: Preview (no storage) ──────────────────────────
@@ -167,6 +197,22 @@ public class CvController : ControllerBase
             var user = await _userService.EnsureUserCreatedAsync(User);
             var url = await _cvService.GetDownloadUrlAsync(user.Id, id);
             return Ok(new { downloadUrl = url });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+    }
+
+    /// <summary>
+    /// Download CV bytes via backend proxy (avoids browser DNS issues with internal MinIO host).
+    /// GET /api/cv/{id}/download-file
+    /// </summary>
+    [HttpGet("{id}/download-file")]
+    public async Task<IActionResult> DownloadFile(Guid id)
+    {
+        try
+        {
+            var user = await _userService.EnsureUserCreatedAsync(User);
+            var bytes = await _cvService.GetDownloadBytesAsync(user.Id, id);
+            return File(bytes, "application/pdf", $"cv-{id}.pdf");
         }
         catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
     }

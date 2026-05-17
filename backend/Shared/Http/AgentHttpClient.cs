@@ -23,7 +23,7 @@ public class AgentHttpClient : IAgentHttpClient
     {
         _client = client;
         _client.BaseAddress = new Uri(options.Value.Url);
-        _client.Timeout = TimeSpan.FromSeconds(120); // pipeline IA peut prendre du temps
+        _client.Timeout = TimeSpan.FromSeconds(600); // pipeline IA (6 agents + LLM + scraping) peut dépasser 2 min
         _logger = logger;
     }
 
@@ -35,23 +35,40 @@ public class AgentHttpClient : IAgentHttpClient
         string rawText,
         string userId,
         int templateId,
-        string offerId,
+        Guid offerId,
+        bool onlyAnalysis = false,
+        object? resumeData = null,
         CancellationToken ct = default)
     {
-        var payload = new
+        // On fusionne les données de base avec les données de reprise si présentes
+        var payload = new Dictionary<string, object>
         {
-            raw_text = rawText,
-            user_id = userId,
-            template_id = templateId,
-            offer_id = offerId
+            ["raw_text"] = rawText,
+            ["user_id"] = userId,
+            ["template_id"] = templateId,
+            ["offer_id"] = offerId.ToString(),
+            ["only_analysis"] = onlyAnalysis
         };
+
+        if (resumeData != null)
+        {
+            var resumeJson = JsonSerializer.Serialize(resumeData, JsonOptions);
+            var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(resumeJson, JsonOptions);
+            if (dict != null)
+            {
+                foreach (var kv in dict)
+                {
+                    payload[kv.Key] = kv.Value;
+                }
+            }
+        }
 
         var json = JsonSerializer.Serialize(payload, JsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        _logger.LogInformation("AgentHttpClient — POST /run-pipeline pour user_id={UserId}", userId);
+        _logger.LogInformation("AgentHttpClient — POST /run-pipeline (onlyAnalysis={OnlyAnalysis}) for user_id={UserId}", onlyAnalysis, userId);
 
-        var response = await _client.PostAsync("/run-pipeline", content, ct);
+        var response = await _client.PostAsync("/offer/run-pipeline", content, ct);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -79,12 +96,37 @@ public class AgentHttpClient : IAgentHttpClient
             raw_text = rawText,
             user_id = userId,
             template_id = 1,
+            offer_id = Guid.NewGuid().ToString(),
         };
 
         var json = JsonSerializer.Serialize(payload, JsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync("/analyze-offer", content, ct);
+        var response = await _client.PostAsync("/offer/analyze-offer", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync(ct);
+        return JsonDocument.Parse(responseJson);
+    }
+
+    /// <summary>
+    /// Appelle POST /match — Agents 2-3 uniquement (Matching profil ↔ offre).
+    /// </summary>
+    public async Task<JsonDocument> MatchProfileAsync(
+        string userId,
+        JsonElement analyzedOffer,
+        CancellationToken ct = default)
+    {
+        var payload = new Dictionary<string, object>
+        {
+            ["user_id"] = userId,
+            ["analyzed_offer"] = JsonSerializer.Deserialize<object>(analyzedOffer.GetRawText(), JsonOptions)!
+        };
+
+        var json = JsonSerializer.Serialize(payload, JsonOptions);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("/offer/match", content, ct);
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(ct);

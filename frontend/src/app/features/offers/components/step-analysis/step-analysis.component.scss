@@ -1,0 +1,22 @@
+.analysis-shell {
+  background-color: transparent;
+  font-family: inherit;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.analysis-shell.--loading {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

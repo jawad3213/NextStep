@@ -1,78 +1,211 @@
-<div class="layout-container" [class.sidebar-open]="isSidebarOpen()" [class.sidebar-collapsed]="isSidebarCollapsed()">
-  <!-- Mobile Overlay -->
-  <div class="sidebar-overlay" (click)="toggleSidebar()"></div>
+<div class="min-h-screen bg-gray-50 font-outfit xl:flex">
+  @if (showSidebar$ | async) {
+    <app-sidebar></app-sidebar>
+  }
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-header relative">
-      <div class="logo-text">
-        <div class="logo-icon-container">
-          <img src="/N-removebg-preview.png" alt="NextStep Logo" class="logo-img" />
+  @if ((showSidebar$ | async) && (isMobileOpen$ | async)) {
+    <div
+      class="fixed inset-0 z-40 bg-gray-900/50 xl:hidden"
+      (click)="sidebarService.setMobileOpen(false)"
+    ></div>
+  }
+
+  <div
+    class="flex min-h-screen min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out"
+    [ngClass]="{
+      'xl:ml-[290px]': (showSidebar$ | async) && ((isExpanded$ | async) || (isHovered$ | async)),
+      'xl:ml-[90px]': (showSidebar$ | async) && !(isExpanded$ | async) && !(isHovered$ | async),
+      'ml-0': isMobileOpen$ | async
+    }"
+  >
+    <header class="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur">
+      <div class="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
+        <div class="flex items-center gap-3">
+          @if (showSidebar$ | async) {
+            <button
+              type="button"
+              class="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+              (click)="handleSidebarToggle()"
+              aria-label="Toggle sidebar"
+            >
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <path d="M4 7H20M4 12H20M4 17H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </button>
+          } @else {
+            <div class="flex items-center gap-2 mr-2">
+              <img
+                src="/N__3_-removebg-preview.png"
+                alt="NextStep Logo"
+                class="h-10 w-10 object-contain"
+              />
+              <span class="hidden md:block text-lg font-bold text-gray-900 tracking-tight">NextStep</span>
+            </div>
+          }
+
+          @if (headerState$ | async; as headerState) {
+            <div class="min-w-0">
+              <h1 class="truncate text-lg font-semibold text-gray-900 md:text-[22px] leading-tight">
+                {{ headerState.title }}
+              </h1>
+              <p class="truncate text-[10px] font-medium uppercase tracking-[0.15em] text-gray-400 mt-0.5">
+                {{ headerState.eyebrow }}
+              </p>
+            </div>
+          }
         </div>
-        <span class="logo-label">NextStep</span>
-      </div>
-      <button class="close-mobile-sidebar" (click)="toggleSidebar()">✕</button>
-      
-      <!-- Desktop Collapse Toggle -->
-      <button class="desktop-collapse-btn absolute right-[-14px] top-6 bg-slate-800 text-slate-400 border border-slate-700 rounded-full p-1 hover:text-white transition-all hidden md:flex z-50 shadow-md items-center justify-center w-7 h-7" (click)="toggleDesktopSidebar()" title="Toggle Sidebar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 transform transition-transform" [class.rotate-180]="isSidebarCollapsed()">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-      </button>
-    </div>
 
-    <nav class="sidebar-nav">
-      @for (section of menuSections; track section.title) {
-        <div class="nav-section">
-          <h3 class="section-title">{{ section.title }}</h3>
-          <div class="section-items">
-            @for (item of section.items; track item.path) {
-              <a [routerLink]="item.path" 
-                 class="nav-item" 
-                 [class.active]="isActive(item.path)">
-                <span class="icon-container">
-                  @switch (item.iconName) {
-                    @case ('layout') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> }
-                    @case ('user') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> }
-                    @case ('briefcase') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> }
-                    @case ('file-text') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> }
-                    @case ('mail') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> }
-                    @case ('kanban') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M11 3v18M17 3v18"/><path d="M7 8h2M7 12h2M13 10h2M13 14h2M19 8h2M19 12h2"/></svg> }
-                    @case ('search-analytics') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M9 11h4M11 9v4"/></svg> }
-                    @case ('target') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> }
-                    @case ('cpu') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4V2M15 4V2M9 20v2M15 20v2M20 9h2M20 15h2M2 9h2M2 15h2M9 9h6v6H9z"/></svg> }
-                    @case ('bell') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> }
-                    @case ('settings') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> }
-                  }
+          <div class="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            (click)="toggleTheme()"
+            class="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-800"
+            [attr.aria-label]="theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          >
+            @if (theme() === 'dark') {
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"></circle>
+                <path d="M12 2.75V4.75M12 19.25V21.25M21.25 12H19.25M4.75 12H2.75M18.54 5.46L17.13 6.87M6.87 17.13L5.46 18.54M18.54 18.54L17.13 17.13M6.87 6.87L5.46 5.46" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            } @else {
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <path d="M21 14.25A8.25 8.25 0 1 1 9.75 3a6.75 6.75 0 1 0 11.25 11.25Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            }
+          </button>
+
+          @if (showSidebar$ | async) {
+            <button
+              type="button"
+              (click)="goToNotifications()"
+              class="relative flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-800"
+              aria-label="Open notifications"
+            >
+              @if (hasNotifications()) {
+                <span class="absolute right-0 top-0.5 flex h-2.5 w-2.5">
+                  <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-70"></span>
+                  <span class="relative inline-flex h-2.5 w-2.5 rounded-full border-2 border-white bg-orange-400"></span>
                 </span>
-                <span class="label">{{ item.label }}</span>
-              </a>
+              }
+
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none">
+                <path d="M10.75 2.3A.75.75 0 0 0 9.25 2.3v.54A6.38 6.38 0 0 0 3.63 9.17v5.29h-.3a.75.75 0 0 0 0 1.5h13.34a.75.75 0 0 0 0-1.5h-.3V9.17a6.38 6.38 0 0 0-5.62-6.33V2.3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+                <path d="M8 17.71c0 .41.34.75.75.75h2.5a.75.75 0 0 0 .75-.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+              </svg>
+            </button>
+          }
+
+          <div class="relative" data-user-menu>
+            <button
+              type="button"
+              (click)="toggleProfileMenu()"
+              class="flex items-center text-gray-700 transition hover:text-gray-900"
+              aria-label="Open user menu"
+            >
+              <span class="mr-3 flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#E8F0FF] text-sm font-semibold text-[#1E3A8A]">
+                @if (userPhoto()) {
+                  <img
+                    [src]="userPhoto()!"
+                    [alt]="userFullName()"
+                    class="h-full w-full object-cover"
+                  />
+                } @else {
+                  {{ userInitial() }}
+                }
+              </span>
+
+              <span class="text-left block mr-1">
+                <span class="block max-w-[132px] truncate text-sm font-medium text-gray-700">
+                  {{ userShortName() }}
+                </span>
+              </span>
+
+              <svg
+                class="hidden h-5 w-5 text-gray-500 transition-transform md:block"
+                [ngClass]="{ 'rotate-180': isProfileMenuOpen() }"
+                viewBox="0 0 18 20"
+                fill="none"
+              >
+                <path d="M4.3125 8.65625L9 13.3437L13.6875 8.65625" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </button>
+
+            @if (isProfileMenuOpen()) {
+              <div class="absolute right-0 z-40 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+                <div>
+                  <p class="block truncate text-sm font-medium text-gray-700">{{ userFullName() }}</p>
+                  <p class="mt-0.5 block truncate text-xs text-gray-500">{{ userEmail() }}</p>
+                </div>
+
+                @if (showSidebar$ | async) {
+                  <div class="mt-4 flex flex-col gap-1 border-b border-gray-200 pb-3">
+                    <button
+                      type="button"
+                      (click)="goToEditProfile()"
+                      class="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-700"
+                    >
+                      <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 20.5C16.6944 20.5 20.5 16.6944 20.5 12C20.5 7.30558 16.6944 3.5 12 3.5C7.30558 3.5 3.5 7.30558 3.5 12C3.5 16.6944 7.30558 20.5 12 20.5Z" stroke="currentColor" stroke-width="1.7"></path>
+                        <path d="M8.48 18.85v-.01c0-2.07 1.68-3.74 3.75-3.74h.54c2.07 0 3.75 1.67 3.75 3.74v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+                        <circle cx="12" cy="9.3" r="2.25" stroke="currentColor" stroke-width="1.7"></circle>
+                      </svg>
+                      <span>Edit profile</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="goToSettings()"
+                      class="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-700"
+                    >
+                      <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 15.25C13.7949 15.25 15.25 13.7949 15.25 12C15.25 10.2051 13.7949 8.75 12 8.75C10.2051 8.75 8.75 10.2051 8.75 12C8.75 13.7949 10.2051 15.25 12 15.25Z" stroke="currentColor" stroke-width="1.7"></path>
+                        <path d="M19.4 13.5 20.75 12 19.4 10.5l.16-2.01-1.96-.6-1.1-1.69-2 .4L12.75 5.5 11 6.6l-2-.4-1.1 1.69-1.96.6.16 2.01L4.75 12l1.35 1.5-.16 2.01 1.96.6 1.1 1.69 2-.4 1.75 1.1 1.75-1.1 2 .4 1.1-1.69 1.96-.6-.16-2.01Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+                      </svg>
+                      <span>Account Settings</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="goToSupport()"
+                      class="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-700"
+                    >
+                      <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 20.5C16.6944 20.5 20.5 16.6944 20.5 12C20.5 7.30558 16.6944 3.5 12 3.5C7.30558 3.5 3.5 7.30558 3.5 12C3.5 16.6944 7.30558 20.5 12 20.5Z" stroke="currentColor" stroke-width="1.7"></path>
+                        <path d="M12 16.6V10.95" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+                        <circle cx="12" cy="7.55" r=".9" fill="currentColor"></circle>
+                      </svg>
+                      <span>Support</span>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="mt-3 border-b border-gray-200"></div>
+                }
+
+                <button
+                  type="button"
+                  (click)="logout()"
+                  class="group mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-700"
+                >
+                  <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none">
+                    <path d="M14.35 5.5V9.75H12.85V5.5C12.85 4.26 13.86 3.25 15.1 3.25H18.5C19.74 3.25 20.75 4.26 20.75 5.5V18.5C20.75 19.74 19.74 20.75 18.5 20.75H15.1C13.86 20.75 12.85 19.74 12.85 18.5V14.25H14.35V18.5C14.35 18.91 14.69 19.25 15.1 19.25H18.5C18.91 19.25 19.25 18.91 19.25 18.5V5.5C19.25 5.09 18.91 4.75 18.5 4.75H15.1C14.69 4.75 14.35 5.09 14.35 5.5Z" fill="currentColor"></path>
+                    <path d="M3.25 12c0 .22.09.41.24.55l4.61 4.61a.75.75 0 1 0 1.06-1.06L5.81 12.75H16a.75.75 0 0 0 0-1.5H5.82l3.34-3.34a.75.75 0 1 0-1.06-1.06l-4.57 4.57A.76.76 0 0 0 3.25 12Z" fill="currentColor"></path>
+                  </svg>
+                  <span>Sign out</span>
+                </button>
+              </div>
             }
           </div>
-        </div>
-      }
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="user-brief">
-        <div class="avatar">S</div>
-        <div class="user-info">
-          <p class="name">Said N.</p>
-          <p class="status">Pro Account</p>
-        </div>
-        <button class="logout-btn" (click)="logout()" title="Logout">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
       </div>
     </div>
-  </aside>
+    </header>
 
-  <!-- Content Area -->
-  <main class="main-area">
-   
-
-    <div class="content-wrapper">
-      <router-outlet></router-outlet>
-    </div>
-  </main>
+    <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        class="w-full min-w-0 flex-1"
+        [ngClass]="(isFullBleedRoute$ | async) ? 'h-full max-w-none p-0' : 'mx-auto max-w-7xl p-4 md:p-6'"
+      >
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
 </div>

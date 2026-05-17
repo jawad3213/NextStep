@@ -1,0 +1,6 @@
+.git/
+.gitignore
+*.md
+bootstrap/
+scripts/
+terraform.tfvars.example

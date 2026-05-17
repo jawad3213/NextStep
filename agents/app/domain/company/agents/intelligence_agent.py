@@ -60,6 +60,12 @@ async def researcher_node(state: CompanyState) -> dict:
     job_title = state.get("job_title", "Poste recherché")
     logger.info(f"🔍 Researcher Agent — Deep Research for {company} (Poste: {job_title})")
     
+    # ⚡ Lancement des outils spécialisés en arrière-plan dès le début pour optimiser le temps
+    logger.info("⚡ Lancement de tous les outils spécialisés en arrière-plan (LinkedIn, Glassdoor, Salaire)...")
+    li_task = asyncio.create_task(linkedin_company_search(company))
+    gd_task = asyncio.create_task(glassdoor_search(company))
+    sal_task = asyncio.create_task(salary_data_search(company, job_title))
+    
     # 1. Smart Search (Focalisé uniquement sur la fiche générale / présentation d'entreprise)
     search_query = f"{company} présentation"
     search_results = await smart_search(search_query)
@@ -71,7 +77,7 @@ async def researcher_node(state: CompanyState) -> dict:
     
     if search_results:
         # 2. Sélection des meilleures URLs via LLM pour la présentation générale
-        llm = get_llm()
+        llm = get_llm(agent_name="company")
         if hasattr(llm, "bind"):
             llm = llm.bind(response_format={"type": "json_object"})
         selector_prompt = ChatPromptTemplate.from_template(_SELECTOR_PROMPT)
@@ -101,12 +107,7 @@ async def researcher_node(state: CompanyState) -> dict:
         search_warning = "⚠️ AVERTISSEMENT : 0 résultats récupérés en direct sur le web (blocage anti-bot ou absence de données récentes)."
         logger.warning(f"🚨 {search_warning}")
 
-    # 5. Lancement de tous les outils spécialisés en parallèle
-    logger.info("⚡ Lancement de tous les outils spécialisés en parallèle (LinkedIn, Glassdoor, Salaire)...")
-    li_task = linkedin_company_search(company)
-    gd_task = glassdoor_search(company)
-    sal_task = salary_data_search(company, job_title)
-    
+    # 5. Récupération des résultats des outils spécialisés lancés en parallèle
     li_data, gd_data, sal_data = await asyncio.gather(
         li_task, gd_task, sal_task
     )
@@ -186,7 +187,7 @@ async def analyst_node(state: CompanyState) -> dict:
             
     raw_data_str = "\n".join(formatted_data) if formatted_data else "Aucune donnée collectée."
 
-    llm = get_llm()
+    llm = get_llm(agent_name="company")
     if hasattr(llm, "bind"):
         llm = llm.bind(response_format={"type": "json_object"})
     analyst_prompt = ChatPromptTemplate.from_template(_ANALYST_PROMPT)
@@ -199,15 +200,6 @@ async def analyst_node(state: CompanyState) -> dict:
             "raw_data": raw_data_str
         })
         
-        # Log pour debug
-        import os
-        os.makedirs("scratch", exist_ok=True)
-        with open("scratch/raw_scraped_data.txt", "w", encoding="utf-8") as f:
-            f.write(raw_data_str)
-            
-        with open("scratch/analyst_raw_output.txt", "w", encoding="utf-8") as f:
-            f.write(response.content if hasattr(response, "content") else str(response))
-            
         # Décoder de manière très robuste
         synthesis = parse_json_markdown(response.content if hasattr(response, "content") else str(response))
         

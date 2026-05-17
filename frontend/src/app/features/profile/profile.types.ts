@@ -11,6 +11,7 @@ export interface PersonalInfo {
   country: string;
   linkedinUrl: string;
   githubUrl: string;
+  portfolioUrl: string;
   photoUrl: string | null;
   useAsHeadline: boolean;
 }
@@ -37,6 +38,7 @@ export interface Experience {
   current: boolean;
   type: 'Stage' | 'Alternance' | 'CDI' | 'CDD' | 'Freelance' | 'PFA' | 'PFE';
   description: string;
+  taches: string[];
 }
 
 export interface Skill {
@@ -48,7 +50,7 @@ export interface Skill {
 export interface Language {
   id: string;
   name: string;
-  level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2' | 'Natif';
+  level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2' | 'Natif' | 'Native';
 }
 
 export interface Project {
@@ -60,6 +62,7 @@ export interface Project {
   demoUrl: string;
   imageUrl?: string;
   isUniversity: boolean;
+  taches: string[];
 }
 
 export interface Certification {
@@ -86,6 +89,17 @@ export interface Profile {
     projets?: string;
     certifications?: string;
   };
+}
+
+export interface ProfileImportSummary {
+  personalFields: number;
+  experienceCount: number;
+  educationCount: number;
+  skillCount: number;
+  languageCount: number;
+  projectCount: number;
+  certificationCount: number;
+  hasSummary: boolean;
 }
 
 // Display Mappings for UI
@@ -120,5 +134,6 @@ export const LANGUAGE_LEVEL_LABELS: Record<string, string> = {
   'B2': 'Upper-Intermediate (B2)',
   'C1': 'Advanced (C1)',
   'C2': 'Proficient (C2)',
-  'Natif': 'Native'
+  'Natif': 'Native',
+  'Native': 'Native'
 };

@@ -33,7 +33,7 @@ describe('OnboardingGuards', () => {
 
   describe('onboardingGuard', () => {
     it('devrait autoriser l\'accès si l\'onboarding est complété', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true }));
+      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true, profileScore: 100 }));
       
       const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
       
@@ -46,7 +46,7 @@ describe('OnboardingGuards', () => {
     });
 
     it('devrait rediriger vers /onboarding si l\'onboarding n\'est pas complété', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false }));
+      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false, profileScore: 0 }));
       
       const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
       
@@ -57,11 +57,24 @@ describe('OnboardingGuards', () => {
         });
       }
     });
+
+    it('devrait rediriger vers /profile si onboarding partiel existe', () => {
+      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false, profileScore: 35 }));
+      
+      const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
+      
+      if (typeof result$ !== 'boolean' && 'subscribe' in result$) {
+        result$.subscribe(res => {
+          expect(mockRouter.parseUrl).toHaveBeenCalledWith('/profile?step=coordonnees');
+          expect(res).toBe(`UrlTree(/profile?step=coordonnees)`);
+        });
+      }
+    });
   });
 
   describe('alreadyOnboardedGuard', () => {
     it('devrait autoriser l\'accès (à la page onboarding) si NON complété', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false }));
+      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false, profileScore: 0 }));
       
       const result$ = TestBed.runInInjectionContext(() => alreadyOnboardedGuard(dummyRoute, dummyState));
       
@@ -73,7 +86,7 @@ describe('OnboardingGuards', () => {
     });
 
     it('devrait rediriger vers /dashboard si DEJA complété', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true }));
+      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true, profileScore: 100 }));
       
       const result$ = TestBed.runInInjectionContext(() => alreadyOnboardedGuard(dummyRoute, dummyState));
       

@@ -39,4 +39,31 @@ export class ExperienceComponent {
   getExperienceTypeLabel(t: string): string {
     return EXPERIENCE_TYPE_LABELS[t] || t;
   }
+
+  isEditingExperience(exp: Experience): boolean {
+    return !!this.newExperience?.id && this.isAddingExperience && this.newExperience.id === exp.id;
+  }
+
+  isCreatingExperience(): boolean {
+    return this.isAddingExperience && !this.newExperience?.id;
+  }
+
+  addTask() {
+    this.updateNew.emit({
+      field: 'taches',
+      value: [...(this.newExperience.taches || []), '']
+    });
+  }
+
+  updateTask(index: number, value: string) {
+    const nextTasks = [...(this.newExperience.taches || [])];
+    nextTasks[index] = value;
+    this.updateNew.emit({ field: 'taches', value: nextTasks });
+  }
+
+  removeTask(index: number) {
+    const nextTasks = [...(this.newExperience.taches || [])];
+    nextTasks.splice(index, 1);
+    this.updateNew.emit({ field: 'taches', value: nextTasks });
+  }
 }

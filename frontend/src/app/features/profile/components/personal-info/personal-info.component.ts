@@ -13,10 +13,15 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 export class PersonalInfoComponent {
   @Input({ required: true }) data!: any;
   @Output() dataChange = new EventEmitter<{field: string, value: any}>();
+  @Output() fieldBlur = new EventEmitter<{field: string, value: any}>();
   @Output() photoUpload = new EventEmitter<Event>();
 
   updateField(field: string, value: any) {
     this.dataChange.emit({ field, value });
+  }
+
+  onFieldBlur(field: string, value: any) {
+    this.fieldBlur.emit({ field, value });
   }
 
   triggerPhotoUpload(input: HTMLInputElement) {

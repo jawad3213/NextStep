@@ -16,19 +16,20 @@
 # main.py                  ← CE FICHIER (monte les routers)
 # ============================================================
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from resume.router import router as resume_router
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.offer_routes import router as offer_router
 from app.api.company_routes import router as company_router
 from app.api.cv_optimizer_routes import router as cv_optimizer_router
 from app.api.cv_engine_routes import router as cv_engine_router
-from app.domain.chatbot.router import router as chatbot_router
+from app.api.chatbot_routes import router as chatbot_router
+from app.api.resume_routes import router as resume_router
 
 # Compatibilité : ancien email_engine (M4 autonome)
 try:
-    from email_engine.router import router as email_router
+    from app.api.email_routes import router as email_router
     _email_router_available = True
 except ImportError:
     _email_router_available = False
@@ -39,10 +40,37 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ─── Migration DB au démarrage ─────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("🔄 Vérification des migrations DB...")
+    try:
+        from app.core.database import AsyncSessionFactory
+        from sqlalchemy import text
+        async with AsyncSessionFactory() as db:
+            result = await db.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'intel_entreprise' AND column_name = 'actualites'
+            """))
+            if not result.fetchone():
+                logger.info("📦 Ajout de la colonne 'actualites' à intel_entreprise...")
+                await db.execute(text("""
+                    ALTER TABLE intel_entreprise
+                    ADD COLUMN actualites JSONB
+                """))
+                await db.commit()
+                logger.info("✅ Colonne 'actualites' ajoutée avec succès")
+            else:
+                logger.info("✅ Colonne 'actualites' déjà présente")
+    except Exception as e:
+        logger.warning(f"⚠️ Migration DB ignorée: {e}")
+    yield
+
+
 # ─────────────────────────────────────────────────────────────
 # Application FastAPI
 # ─────────────────────────────────────────────────────────────
-app = FastAPI(
+app = FastAPI(lifespan=lifespan,
     title="NextStep — Agents IA",
     description="""\
 ## Architecture Agents IA (Domain-Driven + LangGraph)

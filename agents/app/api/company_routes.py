@@ -8,7 +8,7 @@
 import logging
 from fastapi import APIRouter, HTTPException
 
-from app.domain.company.schemas.company_schemas import CompanyAnalyzeRequest
+from app.domain.company.schemas.models import CompanyAnalyzeRequest
 from app.domain.company.service import company_service
 
 logger = logging.getLogger(__name__)

@@ -6,6 +6,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        brand: {
+          50: '#ecf3ff',
+          100: '#dde9ff',
+          200: '#c2d6ff',
+          300: '#9cb9ff',
+          400: '#7592ff',
+          500: '#465fff',
+          600: '#3641f5',
+          700: '#2a31d8',
+          800: '#252dae',
+          900: '#262e89',
+        },
         // Matching _variables.scss
         primary: {
           DEFAULT: '#0C1986',
@@ -30,6 +42,7 @@ module.exports = {
         }
       },
       fontFamily: {
+        outfit: ['Outfit', 'sans-serif'],
         lato: ['Lato', 'sans-serif'],
       },
       borderRadius: {

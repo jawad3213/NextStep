@@ -1,11 +1,19 @@
-output "app_ip" {
-  value = "${var.network_base}.${var.app_ip_suffix}"
+output "frontend_url" {
+  value       = "http://${var.vm1_ip}"
+  description = "Public URL to access the NextStep Frontend"
 }
 
-output "db_ip" {
-  value = "${var.network_base}.${var.db_ip_suffix}"
+output "backend_api_url" {
+  value       = "http://${var.vm1_ip}/api"
+  description = "URL to access the Backend API"
 }
 
-output "infrastructure_status" {
-  value = "Vagrant VMs are managed by Terraform. Use 'vagrant ssh <node>' to access."
+output "sonarqube_url" {
+  value       = "http://${var.vm2_ip}:9005"
+  description = "URL to access the SonarQube Dashboard"
+}
+
+output "grafana_url" {
+  value       = "http://${var.vm2_ip}:3000"
+  description = "URL to access the Grafana Dashboard"
 }

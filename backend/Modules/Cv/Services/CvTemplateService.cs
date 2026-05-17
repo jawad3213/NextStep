@@ -52,16 +52,14 @@ public class CvTemplateService : ICvTemplateService
         // Apply filters
         if (filter != null)
         {
-            if (!string.IsNullOrWhiteSpace(filter.Industry) &&
-                Enum.TryParse<CvIndustry>(filter.Industry, true, out var industry))
+            if (!string.IsNullOrWhiteSpace(filter.Industry))
             {
-                query = query.Where(t => t.Industries.Contains(industry));
+                query = query.Where(t => t.Industries.Contains(filter.Industry));
             }
 
-            if (!string.IsNullOrWhiteSpace(filter.ExperienceLevel) &&
-                Enum.TryParse<CvExperienceLevel>(filter.ExperienceLevel, true, out var level))
+            if (!string.IsNullOrWhiteSpace(filter.ExperienceLevel))
             {
-                query = query.Where(t => t.ExperienceLevels.Contains(level));
+                query = query.Where(t => t.ExperienceLevels.Contains(filter.ExperienceLevel));
             }
 
             if (!string.IsNullOrWhiteSpace(filter.Style) &&
@@ -156,27 +154,27 @@ public class CvTemplateService : ICvTemplateService
         Tags            = t.Tags,
     };
 
-    private static string IndustryLabel(CvIndustry i) => i switch
+    private static string IndustryLabel(string i) => i switch
     {
-        CvIndustry.AdministrativeAndOffice   => "Administrative & Office",
-        CvIndustry.BusinessAndManagement     => "Business & Management",
-        CvIndustry.CreativeAndDesign         => "Creative & Design",
-        CvIndustry.CustomerServiceAndRetail  => "Customer Service & Retail",
-        CvIndustry.EducationAndAcademic      => "Education & Academic",
-        CvIndustry.FinanceAndAccounting      => "Finance & Accounting",
-        CvIndustry.FoodServiceAndHospitality => "Food Service & Hospitality",
-        CvIndustry.HealthcareAndMedical      => "Healthcare & Medical",
-        CvIndustry.ITAndEngineering          => "IT & Engineering",
-        CvIndustry.MarketingAndSales         => "Marketing & Sales",
-        _                                    => "Other",
+        "AdministrativeAndOffice"   => "Administrative & Office",
+        "BusinessAndManagement"     => "Business & Management",
+        "CreativeAndDesign"         => "Creative & Design",
+        "CustomerServiceAndRetail"  => "Customer Service & Retail",
+        "EducationAndAcademic"      => "Education & Academic",
+        "FinanceAndAccounting"      => "Finance & Accounting",
+        "FoodServiceAndHospitality" => "Food Service & Hospitality",
+        "HealthcareAndMedical"      => "Healthcare & Medical",
+        "ITAndEngineering"          => "IT & Engineering",
+        "MarketingAndSales"         => "Marketing & Sales",
+        _                           => "Other",
     };
 
-    private static string LevelLabel(CvExperienceLevel l) => l switch
+    private static string LevelLabel(string l) => l switch
     {
-        CvExperienceLevel.StudentEntryLevel => "Student / Entry Level",
-        CvExperienceLevel.MidLevel          => "Mid Level",
-        CvExperienceLevel.SeniorExecutive   => "Senior / Executive",
-        _                                   => l.ToString(),
+        "StudentEntryLevel" => "Student / Entry Level",
+        "MidLevel"          => "Mid Level",
+        "SeniorExecutive"   => "Senior / Executive",
+        _                   => l,
     };
 
     private static List<string> ParseLayoutFlags(CvTemplateLayout layout)

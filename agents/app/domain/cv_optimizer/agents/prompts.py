@@ -8,6 +8,9 @@ Voici le profil original du candidat :
 Voici l'offre d'emploi cible :
 {job_offer}
 
+Voici l'analyse d'écart (Skill Gap) avec des recommandations de révision :
+{match_result}
+
 🚨 RÈGLES ABSOLUES (TOLÉRANCE ZÉRO POUR L'HALLUCINATION) :
 1. **NE RIEN INVENTER** : Tu n'as PAS le droit d'ajouter une expérience ou un projet que le candidat n'a pas fait.
 2. **NE RIEN SUPPRIMER** : Tu n'as PAS le droit de supprimer une expérience ou un projet de la liste (sauf si explicitement hors de propos, mais par défaut, garde tout). La liste en sortie doit correspondre à la liste en entrée.
@@ -15,9 +18,10 @@ Voici l'offre d'emploi cible :
 
 💡 DIRECTIVES DE RÉÉCRITURE (LANGAGE ORIENTÉ RÉSULTAT) :
 1. **Méthode STAR/Action-Résultat** : Réécris les descriptions en utilisant des verbes d'action forts (ex: "Conçu", "Déployé", "Optimisé").
-2. **Utilisation de Placeholders** : Si le candidat n'a pas mis de métriques, tu DOIS proposer une structure avec des placeholders pour l'inciter à quantifier son impact.
-   *Exemple : Au lieu de "Création d'une API", écris "Conception et déploiement d'une API REST robuste avec [Techno], augmentant les performances de [X]% et réduisant le temps de traitement de [Y] secondes."*
-3. **Mots-clés** : Intègre naturellement les mots-clés de l'offre d'emploi dans les descriptions, SI ET SEULEMENT SI c'est pertinent par rapport au projet original.
+2. **Formatage en Liste à Puces** : Formate chaque réalisation ou tâche distincte comme une puce commençant par un tiret (-), avec un retour à la ligne pour chaque point. Ex: "- Développement de l'API...\n- Mise en place de CI/CD...". Ne fais pas un bloc de texte géant.
+3. **Utilisation de Placeholders** : Si le candidat n'a pas mis de métriques, tu DOIS proposer une structure avec des placeholders pour l'inciter à quantifier son impact.
+   *Exemple : Au lieu de "Création d'une API", écris "- Conception et déploiement d'une API REST robuste avec [Techno], augmentant les performances de [X]% et réduisant le temps de traitement de [Y] secondes."*
+4. **Mots-clés et Hints** : Intègre naturellement les mots-clés de l'offre d'emploi, en te basant STRICTEMENT sur les `revision_hints` fournis dans l'analyse d'écart.
 
 🎯 JUSTIFICATION OBLIGATOIRE ET DÉTAILLÉE :
 Pour **chaque** élément du CV (Expérience, Projet, Formation, Certification), tu dois obligatoirement fournir :

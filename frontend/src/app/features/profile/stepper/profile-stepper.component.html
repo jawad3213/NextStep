@@ -1,47 +1,37 @@
 <div class="horizontal-stepper-container">
-  <div class="w-full px-4 md:px-8 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
+  <div class="w-full px-4 md:px-6 flex items-center justify-center gap-4">
     
-    <nav class="steps-tabs w-full md:flex-1 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-      @for (step of steps; track step.id; let i = $index) {
-        <div class="step-wrapper shrink-0">
+    <!-- Connected Node Stepper -->
+    <nav class="node-stepper-wrapper">
+      <div class="stepper-progress-bar">
+        <!-- Background bar -->
+        <div class="stepper-track"></div>
+        <!-- Active progress fill -->
+        <div class="stepper-fill" [style.width.%]="(currentIndex() / (steps.length - 1)) * 100"></div>
+      </div>
+      
+      <div class="stepper-nodes">
+        @for (step of steps; track step.id; let i = $index) {
           <button 
-            class="tab-btn" 
+            class="stepper-node" 
             [class.active]="currentStep() === step.id"
-            [class.completed]="isComplete(step.id)"
+            [class.completed]="isComplete(step.id) && currentStep() !== step.id"
+            [class.future]="!isComplete(step.id) && currentStep() !== step.id"
             (click)="setStep(step.id)"
             [attr.aria-label]="step.label"
           >
-            @if (isComplete(step.id) && currentStep() !== step.id) {
-              <mat-icon class="icon-completed">check</mat-icon>
-            } @else {
-              <span class="step-index">{{ i + 1 }}</span>
-            }
-            <span class="tab-label">{{ step.label }}</span>
-
-          </button>
-          
-          <!-- Connector line between tabs -->
-          @if (i < steps.length - 1) {
-            <div class="connector-line">
-              <div class="line-fill" [class.filled]="isComplete(step.id)"></div>
+            <div class="node-circle">
+              @if (isComplete(step.id) && currentStep() !== step.id) {
+                <mat-icon class="node-icon">check</mat-icon>
+              } @else {
+                <mat-icon class="node-icon step-icon">{{ step.icon }}</mat-icon>
+              }
             </div>
-          }
-        </div>
-      }
+            <span class="node-label">{{ step.label }}</span>
+          </button>
+        }
+      </div>
     </nav>
 
-    <!-- Global Progress Indicator (Hidden on very small screens to save space) -->
-    <div class="progress-mini hidden sm:flex items-center gap-3 shrink-0">
-      <span class="text-xs font-bold text-slate-500">Profile completed</span>
-      <div class="progress-ring">
-        <svg viewBox="0 0 36 36" class="circular-chart">
-          <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-          <path class="circle" [attr.stroke-dasharray]="completionPercentage() + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-        </svg>
-        <span class="percentage-text">{{ completionPercentage() }}%</span>
-      </div>
-    </div>
-
   </div>
-
 </div>

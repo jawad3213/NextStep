@@ -1,25 +1,23 @@
-variable "network_base" {
-  description = "Base network for the VMs"
+variable "vm1_ip" {
+  description = "IP address for the application VM"
   type        = string
-  default     = "192.168.99"
+  default     = "192.168.77.10"
 }
 
-variable "app_ip_suffix" {
-  description = "Suffix for the App VM IP"
+variable "vm2_ip" {
+  description = "IP address for the data/monitoring VM"
   type        = string
-  default     = "10"
+  default     = "192.168.77.11"
 }
 
-variable "db_ip_suffix" {
-  description = "Suffix for the DB VM IP"
+variable "ansible_inventory_path" {
+  description = "Path to the ansible inventory file"
   type        = string
-  default     = "11"
+  default     = "ansible/inventory.ini"
 }
 
-# Example of a sensitive variable structure
-variable "admin_password" {
-  description = "Admin password (sensitive)"
+variable "ansible_playbook_path" {
+  description = "Path to the main ansible playbook"
   type        = string
-  sensitive   = true
-  default     = "change-me-locally"
+  default     = "ansible/site.yml"
 }

@@ -321,41 +321,40 @@ using (var scope = app.Services.CreateScope())
             );
         ");
 
-        // Seed default templates if table is empty
+        // Seed default templates
         await context.Database.ExecuteSqlRawAsync(@"
+            DELETE FROM public.cv_template;
             INSERT INTO public.cv_template (slug, name, description, thumbnail_url, industries, experience_levels, style, layout, background_color, tags, sort_order)
-            SELECT * FROM (VALUES
-                ('modern',    'Modern',    'Dark blue header, two-column layout.',         '/api/cv/templates/modern/thumbnail',
-                 '[""ITAndEngineering"",""CreativeAndDesign"",""MarketingAndSales""]'::jsonb,
-                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Modern', 6, '#1B2A4A',
-                 '[""two-column"",""dark-header""]'::jsonb, 1),
-
-                ('classic',   'Classic',   'Clean single-column, Georgia name font.',      '/api/cv/templates/classic/thumbnail',
+            VALUES
+                ('chrono',    'Chrono',    'Minimal and structured timeline layout.',      '/api/cv/templates/chrono/thumbnail',
                  '[""AdministrativeAndOffice"",""EducationAndAcademic"",""FinanceAndAccounting"",""HealthcareAndMedical""]'::jsonb,
                  '[""StudentEntryLevel"",""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Traditional', 9, '#FFFFFF',
-                 '[""single-column"",""ATS-friendly"",""clean""]'::jsonb, 2),
-
-                ('executive', 'Executive', 'Salmon/peach four-quadrant design.',           '/api/cv/templates/executive/thumbnail',
-                 '[""BusinessAndManagement"",""FinanceAndAccounting"",""MarketingAndSales""]'::jsonb,
-                 '[""SeniorExecutive""]'::jsonb,
-                 'Elegant', 6, '#F4A68C',
-                 '[""two-column"",""premium"",""executive""]'::jsonb, 3),
-
-                ('pro',       'Pro',       'Navy sidebar with skill bars and SVG contact chips.', '/api/cv/templates/pro/thumbnail',
-                 '[""ITAndEngineering"",""CreativeAndDesign"",""BusinessAndManagement""]'::jsonb,
-                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Professional', 6, '#1E2A3A',
-                 '[""two-column"",""sidebar"",""skill-bars""]'::jsonb, 4),
+                 '[""single-column"",""ATS-friendly"",""clean""]'::jsonb, 1),
 
                 ('elegant',   'Elegant',   'Dark navy sidebar, spaced-letter headings.',   '/api/cv/templates/elegant/thumbnail',
                  '[""CreativeAndDesign"",""MarketingAndSales"",""BusinessAndManagement""]'::jsonb,
                  '[""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Elegant', 6, '#1A1F36',
-                 '[""two-column"",""sidebar"",""elegant""]'::jsonb, 5)
-            ) AS t(slug, name, description, thumbnail_url, industries, experience_levels, style, layout, background_color, tags, sort_order)
-            WHERE NOT EXISTS (SELECT 1 FROM public.cv_template LIMIT 1);
+                 '[""two-column"",""sidebar"",""elegant""]'::jsonb, 2),
+
+                ('circular',  'Circular',  'Blue sidebar with circular initials bubble.',  '/api/cv/templates/circular/thumbnail',
+                 '[""ITAndEngineering"",""CreativeAndDesign"",""BusinessAndManagement""]'::jsonb,
+                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Creative', 6, '#1E3A8A',
+                 '[""two-column"",""sidebar"",""circular""]'::jsonb, 3),
+
+                ('modern',    'Modern',    'Dark blue header, two-column layout.',         '/api/cv/templates/modern/thumbnail',
+                 '[""ITAndEngineering"",""CreativeAndDesign"",""MarketingAndSales""]'::jsonb,
+                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Modern', 6, '#1B2A4A',
+                 '[""two-column"",""dark-header""]'::jsonb, 4),
+
+                ('luxe',      'Luxe',      'Salmon/peach premium executive design.',       '/api/cv/templates/luxe/thumbnail',
+                 '[""BusinessAndManagement"",""FinanceAndAccounting"",""MarketingAndSales""]'::jsonb,
+                 '[""SeniorExecutive""]'::jsonb,
+                 'Elegant', 6, '#F4A68C',
+                 '[""two-column"",""premium"",""executive""]'::jsonb, 5);
         ");
 
         // Update thumbnail_url for existing templates that may have null

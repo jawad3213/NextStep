@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using QuestPDF.Fluent;
@@ -53,6 +56,7 @@ public interface ICvService
     /// Get a fresh pre-signed download URL for a saved CV.
     /// </summary>
     Task<string> GetDownloadUrlAsync(Guid userId, Guid historyId);
+    Task<byte[]> GetDownloadBytesAsync(Guid userId, Guid historyId);
 
     /// <summary>
     /// Delete a saved CV (removes from MinIO + database).
@@ -132,6 +136,13 @@ public class CvService : ICvService
     private readonly MinioOptions _minioOptions;
     private readonly AppDbContext _db;
     private readonly IAgentHttpClient _agentClient;
+    private static readonly string[] ActivitySignals =
+    {
+        "hackathon", "club", "association", "organisateur", "organizer",
+        "membre", "member", "volunteer", "benevole", "event", "community",
+        "it day", "prize", "prix", "participant", "formateur", "trainer",
+        "formation", "solihackathon", "itwave", "ids"
+    };
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -186,7 +197,7 @@ public class CvService : ICvService
         
         var response = await _agentClient.PostAsync<object, CvEngineResult>("/prepare-cv", request);
         
-        var data = response.CvJson ?? new CvData();
+        var data = SanitizeCvData(response.CvJson ?? new CvData());
 
         // 2.1. Sauvegarde automatique dans document_genere si lié à une offre
         if (jobId.HasValue && jobId.Value != Guid.Empty)
@@ -199,7 +210,7 @@ public class CvService : ICvService
                 var docGenere = await _db.DocumentsGeneres
                     .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature);
 
-                var jsonString = JsonSerializer.Serialize(data);
+                var jsonString = JsonSerializer.Serialize(data, _jsonOptions);
 
                 if (docGenere != null)
                 {
@@ -237,6 +248,7 @@ public class CvService : ICvService
 
     public byte[] PreviewFromData(string templateId, CvData data)
     {
+        data = SanitizeCvData(data);
         var document = CvDocumentFactory.Create(templateId, data);
         QuestPDF.Settings.License = LicenseType.Community;
         return document.GeneratePdf();
@@ -246,6 +258,8 @@ public class CvService : ICvService
 
     public async Task<CvSaveResult> SaveCvAsync(Guid userId, CvSaveRequest request)
     {
+        request.Data = SanitizeCvData(request.Data);
+
         // 1. Generate final PDF from the user-edited data
         var pdfBytes = PreviewFromData(request.TemplateSlug, request.Data);
 
@@ -282,6 +296,8 @@ public class CvService : ICvService
 
     public async Task<CvSaveResult> UpdateCvAsync(Guid userId, Guid historyId, CvSaveRequest request)
     {
+        request.Data = SanitizeCvData(request.Data);
+
         var history = await _db.CvHistories
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
             ?? throw new KeyNotFoundException("CV not found.");
@@ -340,8 +356,8 @@ public class CvService : ICvService
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
             ?? throw new KeyNotFoundException("CV not found.");
 
-        var data = JsonSerializer.Deserialize<CvData>(history.CvDataJson, _jsonOptions)
-                   ?? new CvData();
+        var data = SanitizeCvData(JsonSerializer.Deserialize<CvData>(history.CvDataJson, _jsonOptions)
+                   ?? new CvData());
 
         return new CvLoadResult
         {
@@ -365,6 +381,15 @@ public class CvService : ICvService
         return await _storageService.GetPresignedUrlAsync(history.ObjectKey, TimeSpan.FromHours(1));
     }
 
+    public async Task<byte[]> GetDownloadBytesAsync(Guid userId, Guid historyId)
+    {
+        var history = await _db.CvHistories
+            .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
+            ?? throw new KeyNotFoundException("CV not found.");
+
+        return await _storageService.DownloadFileAsync(history.ObjectKey);
+    }
+
     public async Task DeleteCvAsync(Guid userId, Guid historyId)
     {
         var history = await _db.CvHistories
@@ -373,6 +398,183 @@ public class CvService : ICvService
 
         _db.CvHistories.Remove(history);
         await _db.SaveChangesAsync();
+    }
+
+    public static CvData SanitizeCvData(CvData data)
+    {
+        data ??= new CvData();
+        data.Experience ??= new List<CvExperience>();
+        data.Activities ??= new List<CvActivity>();
+        data.Projects ??= new List<CvProject>();
+        data.Skills ??= new List<CvSkill>();
+        data.Certifications ??= new List<string>();
+        data.Languages ??= new List<string>();
+
+        data.Experience = NormalizeExperience(data.Experience, data.Activities);
+        data.Activities = DeduplicateActivities(data.Activities);
+        data.Projects = NormalizeProjects(data.Projects);
+        data.Skills = DeduplicateSkills(data.Skills).Take(18).ToList();
+        data.Certifications = DeduplicateStrings(data.Certifications).Take(6).ToList();
+        data.Languages = DeduplicateStrings(data.Languages).Take(6).ToList();
+        return data;
+    }
+
+    private static List<CvExperience> NormalizeExperience(List<CvExperience>? experiences, List<CvActivity>? activities)
+    {
+        var clean = new List<CvExperience>();
+        var seen = new HashSet<string>();
+        activities ??= new List<CvActivity>();
+
+        foreach (var exp in experiences ?? new List<CvExperience>())
+        {
+            exp.Role = CleanText(exp.Role);
+            exp.Company = CleanText(exp.Company);
+            exp.Start = NullIfEmpty(exp.Start);
+            exp.End = NullIfEmpty(exp.End);
+            exp.Bullets = DeduplicateStrings(exp.Bullets).Take(4).ToList();
+
+            if (string.IsNullOrWhiteSpace(exp.Role) && string.IsNullOrWhiteSpace(exp.Company))
+                continue;
+
+            if (LooksLikeActivity(exp))
+            {
+                activities.Add(new CvActivity
+                {
+                    Title = string.IsNullOrWhiteSpace(exp.Company) ? exp.Role : exp.Company,
+                    Role = string.IsNullOrWhiteSpace(exp.Company) ? null : exp.Role,
+                    Description = exp.Bullets.FirstOrDefault()
+                });
+                continue;
+            }
+
+            var key = NormalizeKey($"{exp.Role}|{exp.Company}");
+            if (!seen.Add(key)) continue;
+            clean.Add(exp);
+        }
+
+        return clean;
+    }
+
+    private static List<CvProject> NormalizeProjects(List<CvProject>? projects)
+    {
+        var clean = new List<CvProject>();
+        var seen = new HashSet<string>();
+
+        foreach (var project in projects ?? new List<CvProject>())
+        {
+            project.Title = CleanText(project.Title);
+            project.Description = NullIfEmpty(project.Description);
+            project.Bullets = DeduplicateStrings(project.Bullets).ToList();
+
+            if (string.IsNullOrWhiteSpace(project.Title))
+                continue;
+
+            var key = NormalizeKey(project.Title);
+            if (!seen.Add(key)) continue;
+
+            project.Bullets = project.Bullets
+                .Where(b => !IsSameMeaning(b, project.Description))
+                .Take(4)
+                .ToList();
+
+            // If bullets exist, avoid printing the same project story twice.
+            if (project.Bullets.Count > 0)
+                project.Description = null;
+
+            clean.Add(project);
+        }
+
+        return clean.Take(4).ToList();
+    }
+
+    private static List<CvActivity> DeduplicateActivities(List<CvActivity>? activities)
+    {
+        var clean = new List<CvActivity>();
+        var seen = new HashSet<string>();
+
+        foreach (var activity in activities ?? new List<CvActivity>())
+        {
+            activity.Title = CleanText(activity.Title);
+            activity.Role = NullIfEmpty(activity.Role);
+            activity.Description = NullIfEmpty(activity.Description);
+
+            if (string.IsNullOrWhiteSpace(activity.Title) && string.IsNullOrWhiteSpace(activity.Role))
+                continue;
+
+            var key = NormalizeKey($"{activity.Role}|{activity.Title}");
+            if (!seen.Add(key)) continue;
+            clean.Add(activity);
+        }
+
+        return clean.Take(5).ToList();
+    }
+
+    private static IEnumerable<string> DeduplicateStrings(IEnumerable<string>? values)
+    {
+        var seen = new HashSet<string>();
+        foreach (var value in values ?? Enumerable.Empty<string>())
+        {
+            var clean = CleanText(value);
+            if (string.IsNullOrWhiteSpace(clean)) continue;
+            if (seen.Add(NormalizeKey(clean))) yield return clean;
+        }
+    }
+
+    private static IEnumerable<CvSkill> DeduplicateSkills(IEnumerable<CvSkill>? skills)
+    {
+        var seen = new HashSet<string>();
+        foreach (var skill in skills ?? Enumerable.Empty<CvSkill>())
+        {
+            skill.Name = CleanText(skill.Name);
+            if (string.IsNullOrWhiteSpace(skill.Name)) continue;
+            if (!seen.Add(NormalizeKey(skill.Name))) continue;
+            skill.Level = Math.Clamp(skill.Level, 1, 5);
+            yield return skill;
+        }
+    }
+
+    private static bool LooksLikeActivity(CvExperience exp)
+    {
+        var text = NormalizeKey($"{exp.Role} {exp.Company} {string.Join(" ", exp.Bullets ?? new List<string>())}");
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        if (NormalizeKey(exp.Role).Contains("stage") || NormalizeKey(exp.Role).Contains("intern"))
+            return false;
+        return ActivitySignals.Any(signal => text.Contains(signal));
+    }
+
+    private static bool IsSameMeaning(string? left, string? right)
+    {
+        var a = NormalizeKey(left);
+        var b = NormalizeKey(right);
+        if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b)) return false;
+        return a == b || a.Contains(b) || b.Contains(a);
+    }
+
+    private static string CleanText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        return Regex.Replace(value.Trim(), @"\s+", " ");
+    }
+
+    private static string? NullIfEmpty(string? value)
+    {
+        var clean = CleanText(value);
+        return string.IsNullOrWhiteSpace(clean) ? null : clean;
+    }
+
+    private static string NormalizeKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (category != UnicodeCategory.NonSpacingMark)
+                builder.Append(char.ToLowerInvariant(ch));
+        }
+
+        return Regex.Replace(builder.ToString().Normalize(NormalizationForm.FormC), @"[^a-z0-9]+", " ").Trim();
     }
 
 }

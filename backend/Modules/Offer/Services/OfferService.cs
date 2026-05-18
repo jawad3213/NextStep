@@ -6,6 +6,8 @@ using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Offer.Repositories;
 using NextStep.data;
 using NextStep.Modules.Candidature.Models;
+using NextStep.Modules.Cv.Models;
+using NextStep.Modules.Cv.Services;
 
 namespace NextStep.Modules.Offer.Services;
 
@@ -17,6 +19,16 @@ public interface IOfferService
     Task<int> DeleteOffersAsync(Guid userId, List<Guid> offerIds, CancellationToken ct = default);
     Task SavePipelineResultAsync(Guid offerId, JsonDocument pipelineResult, Guid userId, CancellationToken ct = default);
     Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid offerId, CancellationToken ct = default);
+    Task<CvDraftDto?> GetCvDraftAsync(Guid userId, Guid offerId, CancellationToken ct = default);
+    Task<CvDraftDto> SaveCvDraftAsync(Guid userId, Guid offerId, JsonElement draft, CancellationToken ct = default);
+}
+
+public class CvDraftDto
+{
+    public Guid OfferId { get; set; }
+    public object? Data { get; set; }
+    public int Version { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
 }
 
 public class OfferService(
@@ -24,6 +36,13 @@ public class OfferService(
     AppDbContext db,
     ILogger<OfferService> logger) : IOfferService
 {
+    private static readonly JsonSerializerOptions CvJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false,
+    };
+
     public async Task<OffreEmploi> SaveOfferAsync(string rawText, string userId, CancellationToken ct = default)
     {
         Guid userGuid = Guid.TryParse(userId, out var parsedGuid) ? parsedGuid : Guid.Empty;
@@ -52,7 +71,7 @@ public class OfferService(
         await repository.UpdateAnalyseJsonAsync(offerId, fullJson, ct);
 
         var cvDataJson = root.TryGetProperty("cv_data", out var cd)
-            ? cd.GetRawText()
+            ? NormalizeDraftJson(cd)
             : null;
 
         // Analysis-only runs should only persist the offer analysis.
@@ -113,6 +132,82 @@ public class OfferService(
 
         var doc = JsonDocument.Parse(offre.AnalyseJson);
         return MapToDto(offre.Id, doc.RootElement, offre.TexteBrut);
+    }
+
+    public async Task<CvDraftDto?> GetCvDraftAsync(Guid userId, Guid offerId, CancellationToken ct = default)
+    {
+        await EnsureOfferOwnedAsync(userId, offerId, ct);
+
+        var document = await (
+            from c in db.Candidatures
+            join d in db.DocumentsGeneres on c.IdCandidature equals d.IdCandidature
+            where c.IdOffre == offerId && c.IdUtilisateur == userId
+            select d
+        ).FirstOrDefaultAsync(ct);
+
+        if (document?.CvContenuIaJson is null) return null;
+
+        return new CvDraftDto
+        {
+            OfferId = offerId,
+            Data = JsonSerializer.Deserialize<object>(document.CvContenuIaJson),
+            Version = document.Version,
+            UpdatedAtUtc = document.DateGeneration,
+        };
+    }
+
+    public async Task<CvDraftDto> SaveCvDraftAsync(Guid userId, Guid offerId, JsonElement draft, CancellationToken ct = default)
+    {
+        await EnsureOfferOwnedAsync(userId, offerId, ct);
+
+        var sanitized = NormalizeDraftJson(draft);
+        var candidature = await db.Candidatures
+            .FirstOrDefaultAsync(c => c.IdOffre == offerId && c.IdUtilisateur == userId, ct);
+
+        if (candidature == null)
+        {
+            candidature = new NextStep.Modules.Candidature.Models.Candidature
+            {
+                IdUtilisateur = userId,
+                IdOffre = offerId,
+                Statut = "EN_ATTENTE",
+                DateCreation = DateTime.UtcNow
+            };
+            db.Candidatures.Add(candidature);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var document = await db.DocumentsGeneres
+            .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature, ct);
+
+        var now = DateTime.UtcNow;
+        if (document == null)
+        {
+            document = new DocumentGenere
+            {
+                IdCandidature = candidature.IdCandidature,
+                CvContenuIaJson = sanitized,
+                Version = 1,
+                DateGeneration = now,
+            };
+            db.DocumentsGeneres.Add(document);
+        }
+        else
+        {
+            document.CvContenuIaJson = sanitized;
+            document.Version += 1;
+            document.DateGeneration = now;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return new CvDraftDto
+        {
+            OfferId = offerId,
+            Data = JsonSerializer.Deserialize<object>(sanitized),
+            Version = document.Version,
+            UpdatedAtUtc = document.DateGeneration,
+        };
     }
 
     public async Task<List<OfferHistoryItemDto>> GetHistoryAsync(Guid userId, CancellationToken ct = default)
@@ -198,6 +293,22 @@ public class OfferService(
         return offers.Count;
     }
 
+    private async Task EnsureOfferOwnedAsync(Guid userId, Guid offerId, CancellationToken ct)
+    {
+        var exists = await db.OffresEmploi.AnyAsync(o => o.Id == offerId && o.UtilisateurId == userId, ct);
+        if (!exists) throw new KeyNotFoundException($"Offer {offerId} not found.");
+    }
+
+    private static string NormalizeDraftJson(JsonElement draft)
+    {
+        var payload = draft.ValueKind == JsonValueKind.Object && draft.TryGetProperty("data", out var data)
+            ? data
+            : draft;
+        var cvData = JsonSerializer.Deserialize<CvData>(payload.GetRawText(), CvJsonOptions) ?? new CvData();
+        var sanitized = CvService.SanitizeCvData(cvData);
+        return JsonSerializer.Serialize(sanitized, CvJsonOptions);
+    }
+
     private static OfferAnalysisDto MapToDto(Guid offerId, JsonElement root, string? rawText = null)
     {
         var dto = new OfferAnalysisDto { OfferId = offerId, TexteBrut = rawText };
@@ -211,9 +322,28 @@ public class OfferService(
             dto.DescriptionPoste = ao.GetStringOrDefault("description_poste");
             dto.AnneesExperience = ao.GetStringAsIntOrDefault("annees_experience");
             dto.NiveauEtudes = ao.GetStringOrDefault("niveau_etudes");
+            dto.ModeTravail = ao.GetStringOrDefault("mode_travail") ?? ao.GetStringOrDefault("modeTravail");
             dto.CompetencesRequises = ao.GetStringList("competences_requises");
             dto.CompetencesSouhaitees = ao.GetStringList("competences_souhaitees");
             dto.KeywordsAts = ao.GetStringList("keywords_ats");
+        }
+
+        if (root.TryGetProperty("cv_data", out var cvData) && cvData.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.CvGeneratedContent = JsonSerializer.Deserialize<object>(cvData.GetRawText());
+        }
+        else if (root.TryGetProperty("cvData", out var cvDataCamel) && cvDataCamel.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.CvGeneratedContent = JsonSerializer.Deserialize<object>(cvDataCamel.GetRawText());
+        }
+
+        if (root.TryGetProperty("profile_data", out var profileData) && profileData.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.ProfileData = JsonSerializer.Deserialize<object>(profileData.GetRawText());
+        }
+        else if (root.TryGetProperty("profileData", out var profileDataCamel) && profileDataCamel.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            dto.ProfileData = JsonSerializer.Deserialize<object>(profileDataCamel.GetRawText());
         }
 
         if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)

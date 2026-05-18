@@ -15,14 +15,14 @@
         <span class="doc-score">Score ATS: {{ result?.atsScore }}%</span>
       </div>
       <div class="doc-preview cv-preview">
-        <!-- Mock CV visual -->
-        <div class="mock-cv">
-          <div class="mcv-header"></div>
-          <div class="mcv-body">
-            <div class="mcv-col"></div>
-            <div class="mcv-col w-main"></div>
+        @if (cvPreviewUrl) {
+          <iframe class="final-cv-frame" [src]="cvPreviewUrl"></iframe>
+        } @else {
+          <div class="final-cv-empty" [class.error]="previewError">
+            <strong>{{ isLoadingPreview ? 'Chargement du PDF final...' : (previewError || 'PDF final en preparation') }}</strong>
+            <span>Le fichier affiche ici est le meme fichier recupere par Telecharger PDF.</span>
           </div>
-        </div>
+        }
       </div>
       <button class="btn-download" (click)="downloadCv()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

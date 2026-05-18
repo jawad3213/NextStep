@@ -76,5 +76,5 @@ class CompanyAnalyzeRequest(BaseModel):
     company_name: str
     offer_data: dict
     profile_data: dict
-    user_id: int
+    user_id: str | int
 

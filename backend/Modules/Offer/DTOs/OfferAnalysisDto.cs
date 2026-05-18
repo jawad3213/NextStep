@@ -45,6 +45,12 @@ public class OfferAnalysisDto
     // ─── Métadonnées ───
     public DateTime DateAnalyse { get; set; } = DateTime.UtcNow;
     public List<string> Erreurs { get; set; } = [];
+
+    // Agents CV Optimizer + CV Engine
+    // This is the canonical generated CV payload used by the editor,
+    // live backend PDF preview, final save and download.
+    public object? CvGeneratedContent { get; set; }
+    public object? ProfileData { get; set; }
 }
 
 public class CompanyNewsItem

@@ -69,6 +69,51 @@ public class OfferController(
         return Ok(items);
     }
 
+    [HttpGet("{id:guid}/cv-draft")]
+    [ProducesResponseType(typeof(CvDraftDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCvDraft(Guid id, CancellationToken ct)
+    {
+        var dbUserId = await GetUserIdAsync();
+
+        try
+        {
+            var draft = await offerService.GetCvDraftAsync(dbUserId, id, ct);
+            return draft is null ? NotFound() : Ok(draft);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPatch("{id:guid}/cv-draft")]
+    [ProducesResponseType(typeof(CvDraftDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SaveCvDraft(Guid id, [FromBody] JsonElement draft, CancellationToken ct)
+    {
+        var dbUserId = await GetUserIdAsync();
+
+        try
+        {
+            var saved = await offerService.SaveCvDraftAsync(dbUserId, id, draft, ct);
+            return Ok(saved);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (JsonException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> BulkDelete([FromBody] BulkDeleteOffersDto dto, CancellationToken ct)

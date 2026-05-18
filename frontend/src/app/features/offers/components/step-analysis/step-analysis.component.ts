@@ -1,7 +1,12 @@
-import { Component, inject } from '@angular/core';
+﻿import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
+import { Router } from '@angular/router';
 import { PipelineResult, PipelineStateService } from '../../../../services/pipeline-state.service';
+import { environment } from '../../../../../environments/environment';
+import { ProfileService } from '../../../../services/profile.service';
 
 type SkillStatus = 'matched' | 'partial' | 'missing';
 type SkillCategory = 'technical' | 'soft';
@@ -41,6 +46,10 @@ interface RecommendationInsight {
 })
 export class StepAnalysisComponent {
   readonly pipeline = inject(PipelineStateService);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  private readonly profileService = inject(ProfileService);
+  private readonly agentsBaseUrl = environment.agentsBaseUrl;
 
   skillsOpen = true;
   softSkillsOpen = true;
@@ -48,6 +57,8 @@ export class StepAnalysisComponent {
   recommendationsOpen = true;
   companyInfoOpen = true;
   customCompanyName = '';
+  companyIntelLoading = false;
+  companyIntelError: string | null = null;
 
   readonly agentStages: AgentStage[] = [
     {
@@ -140,7 +151,10 @@ export class StepAnalysisComponent {
   }
 
   get workModeLabel(): string {
-    return this.result?.modeTravail || 'Non spécifié';
+    const data = this.result as unknown as Record<string, unknown> | null;
+    const camel = typeof data?.['modeTravail'] === 'string' ? data['modeTravail'] as string : '';
+    const snake = typeof data?.['mode_travail'] === 'string' ? data['mode_travail'] as string : '';
+    return camel || snake || 'Non specifie';
   }
 
   get salaryLabel(): string {
@@ -413,6 +427,27 @@ export class StepAnalysisComponent {
     return this.result?.companyNews ?? [];
   }
 
+  get hasCompanyIntelSnapshot(): boolean {
+    return !!this.getCompanyIntelSnapshot();
+  }
+
+  get companyIntelSummary(): string {
+    const snap = this.getCompanyIntelSnapshot();
+    return snap?.companyIntelPayload?.intelligence?.summary || '';
+  }
+
+  async showCompanyIntelDetails(): Promise<void> {
+    const snap = this.getCompanyIntelSnapshot();
+    if (!snap) return;
+    await this.router.navigate(['/offers/company-analysis'], {
+      state: {
+        companyIntelPayload: snap.companyIntelPayload,
+        companyName: snap.companyName,
+        jobTitle: snap.jobTitle
+      }
+    });
+  }
+
   getAgentStatus(agentName: string): 'done' | 'running' | 'todo' {
     const current = this.progress?.agentName;
     if (!current) return 'todo';
@@ -446,16 +481,120 @@ export class StepAnalysisComponent {
     this.pipeline.goToStep(1);
   }
 
-  searchCompanyDetailed(): void {
+  async searchCompanyDetailed(): Promise<void> {
     const res = this.result;
-    const company = (res?.companyName && res?.companyName !== 'Non spécifié') 
-      ? res?.companyName 
+    const company = (res?.companyName && res?.companyName !== 'Non spécifié')
+      ? res?.companyName
       : this.customCompanyName;
 
-    if (company && company !== '' && company !== 'Non spécifié') {
-      const query = `culture entreprise ${company} salaires actualités`;
-      window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+    if (!company || company === '' || company === 'Non spécifié') {
+      this.companyIntelError = "Nom d'entreprise manquant pour lancer l'analyse detaillee.";
+      return;
     }
+
+    this.companyIntelLoading = true;
+    this.companyIntelError = null;
+    this.pipeline.setLoading(true, "Recherche detaillee de l'entreprise en cours...");
+
+    try {
+      const fullProfile = await firstValueFrom(this.profileService.getFullProfile());
+      const payload = {
+        company_name: company,
+        user_id: 0,
+        profile_data: fullProfile ?? {},
+        offer_data: {
+          titre: this.headlineTitle || 'Poste',
+          entreprise: company,
+          typeContrat: this.result?.contractType || '',
+          localisation: this.result?.location || '',
+          competencesRequises: this.result?.requiredSkills || [],
+          competencesSouhaitees: this.result?.preferredSkills || [],
+          keywordsAts: [
+            ...(this.result?.keywordsPresent || []),
+            ...(this.result?.keywordsMissing || []),
+          ],
+          anneesExperience: this.result?.experienceYears ?? 0,
+          niveauEtudes: this.result?.educationLevel || '',
+          modeTravail: this.workModeLabel || '',
+          descriptionPoste: '',
+        }
+      };
+
+      const apiRes = await firstValueFrom(
+        this.http.post<any>(`${this.agentsBaseUrl}/company/analyze-company`, payload)
+      );
+
+      const interviewQuestions = apiRes?.intelligence?.interview_questions
+        ?? apiRes?.intelligence?.interviewQuestions
+        ?? [];
+      localStorage.setItem('nextstep.company.interview_questions', JSON.stringify(interviewQuestions));
+      sessionStorage.setItem('nextstep.company.last_payload', JSON.stringify({
+        companyIntelPayload: apiRes,
+        companyName: company,
+        jobTitle: this.headlineTitle || 'Poste'
+      }));
+      this.persistCompanyHistory(apiRes, company, this.headlineTitle || 'Poste');
+
+      await this.router.navigate(['/offers/company-analysis'], {
+        state: {
+          companyIntelPayload: apiRes,
+          companyName: company,
+          jobTitle: this.headlineTitle || 'Poste'
+        }
+      });
+    } catch (e: any) {
+      this.companyIntelError = e?.error?.detail || "Echec de l'analyse entreprise.";
+    } finally {
+      this.companyIntelLoading = false;
+      this.pipeline.setLoading(false);
+    }
+  }
+
+  private getCompanyIntelSnapshot():
+    | { companyIntelPayload: any; companyName: string; jobTitle: string }
+    | null {
+    try {
+      const raw = sessionStorage.getItem('nextstep.company.last_payload');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.companyIntelPayload) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private persistCompanyHistory(apiRes: any, companyName: string, jobTitle: string): void {
+    try {
+      const raw = localStorage.getItem('nextstep.company.history');
+      const current = raw ? JSON.parse(raw) : [];
+      const normalized = Array.isArray(current) ? current : [];
+      const company = (companyName || '').trim();
+      const title = (jobTitle || '').trim();
+      if (!company) return;
+
+      const entry = {
+        id: `${Date.now()}`,
+        companyName: company,
+        jobTitle: title,
+        analyzedAt: new Date().toISOString(),
+        data: {
+          nom: apiRes?.intelligence?.nom ?? company,
+          summary: apiRes?.intelligence?.summary ?? '',
+          compatibilityScore: apiRes?.score ?? 0
+        },
+        rawPayload: apiRes
+      };
+
+      const deduped = normalized.filter((h: any) =>
+        !(
+          String(h?.companyName || '').toLowerCase() === company.toLowerCase() &&
+          String(h?.jobTitle || '').toLowerCase() === title.toLowerCase()
+        )
+      );
+
+      localStorage.setItem('nextstep.company.history', JSON.stringify([entry, ...deduped].slice(0, 20)));
+    } catch {}
   }
 
   private buildFallbackRecommendations(): string[] {
@@ -537,3 +676,4 @@ export class StepAnalysisComponent {
       .trim();
   }
 }
+

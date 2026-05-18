@@ -1,4 +1,6 @@
 import logging
+import re
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional, List, Dict
@@ -29,11 +31,13 @@ def find_env_file() -> str:
 GROQ_DEFAULTS = {
     "offer_analyzer": "llama-3.1-8b-instant",
     "skill_gap": "llama-3.1-8b-instant",
-    "cv_optimizer": "llama-3.3-70b-versatile",
+    "cv_optimizer": "llama-3.1-8b-instant",
     "company": "llama-3.1-8b-instant",
     "resume": "llama-3.3-70b-versatile",
     "default": "llama-3.1-8b-instant",
 }
+
+_PROVIDER_COOLDOWNS: Dict[str, float] = {}
 
 class Settings(BaseSettings):
     """Configuration de l'application via variables d'environnement."""
@@ -43,9 +47,9 @@ class Settings(BaseSettings):
     DOTNET_BACKEND_URL: str = "http://localhost:5000"
     
     # --- LLM Core Settings ---
-    LLM_PROVIDER_PRIORITY: str = "groq,gemini,openai"
+    LLM_PROVIDER_PRIORITY: str = "groq,openai,gemini"
     LLM_PRIORITY_SKILL_GAP: str = "gemini,groq"
-    LLM_PRIORITY_CV_OPTIMIZER: str = "gemini,groq"
+    LLM_PRIORITY_CV_OPTIMIZER: str = "groq,openai,gemini"
     LLM_TEMPERATURE: float = 0.1
     LLM_MAX_TOKENS: int = 2000
     
@@ -141,6 +145,14 @@ def _create_provider_llm(
     model = _resolve_model(provider, agent_name)
 
     try:
+        # Some providers do not support OpenAI-style `response_format` in bind kwargs.
+        # We sanitize per provider to avoid runtime failures like:
+        # generate_content() got an unexpected keyword argument 'response_format'
+        effective_bound_kwargs = dict(bound_kwargs or {})
+        if provider == "gemini" and "response_format" in effective_bound_kwargs:
+            logger.info("[LLM] gemini: dropping unsupported bind kwarg 'response_format'")
+            effective_bound_kwargs.pop("response_format", None)
+
         if provider == "groq":
             if not settings.GROQ_API_KEY: return None
             from langchain_groq import ChatGroq
@@ -180,14 +192,69 @@ def _create_provider_llm(
                 logger.warning(f"{provider} ne supporte pas structured_output")
                 return None
 
-        if bound_kwargs:
-            llm = llm.bind(**bound_kwargs)
+        if effective_bound_kwargs:
+            llm = llm.bind(**effective_bound_kwargs)
 
         return llm
 
     except Exception as e:
         logger.warning(f"Echec init {provider}: {e}")
         return None
+
+def _cooldown_key(provider: str, agent_name: Optional[str]) -> str:
+    return f"{provider}:{agent_name or 'default'}"
+
+def _extract_retry_seconds(message: str) -> int:
+    patterns = [
+        r"retry in ([0-9]+(?:\.[0-9]+)?)s",
+        r"Please retry in ([0-9]+(?:\.[0-9]+)?)s",
+        r"seconds:\s*([0-9]+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            try:
+                return max(5, int(float(match.group(1))))
+            except Exception:
+                continue
+    return 60
+
+def _is_rate_limit_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return (
+        "429" in message
+        or "quota exceeded" in message
+        or "rate limit" in message
+        or "too many requests" in message
+    )
+
+def _mark_provider_cooldown(provider: str, agent_name: Optional[str], error: Exception) -> None:
+    seconds = _extract_retry_seconds(str(error))
+    until = time.time() + seconds
+    _PROVIDER_COOLDOWNS[_cooldown_key(provider, agent_name)] = until
+    logger.warning(
+        "[LLM] cooldown %s -> %s for %ss after rate limit",
+        provider,
+        agent_name or "default",
+        seconds,
+    )
+
+def _provider_on_cooldown(provider: str, agent_name: Optional[str]) -> bool:
+    key = _cooldown_key(provider, agent_name)
+    until = _PROVIDER_COOLDOWNS.get(key)
+    if not until:
+        return False
+    if until <= time.time():
+        _PROVIDER_COOLDOWNS.pop(key, None)
+        return False
+    remaining = int(until - time.time())
+    logger.info(
+        "[LLM] skip %s -> %s, provider cooling down for %ss",
+        provider,
+        agent_name or "default",
+        remaining,
+    )
+    return True
 
 class _LLMProvider(Runnable):
     """Wrapper Runnable avec fallback automatique multi-provider."""
@@ -233,6 +300,8 @@ class _LLMProvider(Runnable):
     def invoke(self, input, config=None, **kwargs):
         last_error = None
         for provider in self._get_providers():
+            if _provider_on_cooldown(provider, self._agent_name):
+                continue
             llm = _create_provider_llm(
                 provider, self._agent_name, self._temperature, 
                 self._bound_kwargs, self._structured_output
@@ -242,6 +311,8 @@ class _LLMProvider(Runnable):
                 logger.info(f"[LLM] {provider} -> {self._agent_name or 'default'}")
                 return llm.invoke(input, config=config, **kwargs)
             except Exception as e:
+                if _is_rate_limit_error(e):
+                    _mark_provider_cooldown(provider, self._agent_name, e)
                 logger.warning(f"{provider} failed: {e}")
                 last_error = e
         raise last_error or RuntimeError("Aucun provider LLM disponible")
@@ -249,6 +320,8 @@ class _LLMProvider(Runnable):
     async def ainvoke(self, input, config=None, **kwargs):
         last_error = None
         for provider in self._get_providers():
+            if _provider_on_cooldown(provider, self._agent_name):
+                continue
             llm = _create_provider_llm(
                 provider, self._agent_name, self._temperature, 
                 self._bound_kwargs, self._structured_output
@@ -258,6 +331,8 @@ class _LLMProvider(Runnable):
                 logger.info(f"[LLM] {provider} -> {self._agent_name or 'default'}")
                 return await llm.ainvoke(input, config=config, **kwargs)
             except Exception as e:
+                if _is_rate_limit_error(e):
+                    _mark_provider_cooldown(provider, self._agent_name, e)
                 logger.warning(f"{provider} failed: {e}")
                 last_error = e
         raise last_error or RuntimeError("Aucun provider LLM disponible")

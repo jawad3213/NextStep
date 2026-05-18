@@ -202,6 +202,22 @@ public class CvController : ControllerBase
     }
 
     /// <summary>
+    /// Download CV bytes via backend proxy (avoids browser DNS issues with internal MinIO host).
+    /// GET /api/cv/{id}/download-file
+    /// </summary>
+    [HttpGet("{id}/download-file")]
+    public async Task<IActionResult> DownloadFile(Guid id)
+    {
+        try
+        {
+            var user = await _userService.EnsureUserCreatedAsync(User);
+            var bytes = await _cvService.GetDownloadBytesAsync(user.Id, id);
+            return File(bytes, "application/pdf", $"cv-{id}.pdf");
+        }
+        catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+    }
+
+    /// <summary>
     /// Delete a saved CV (removes from MinIO + database).
     /// DELETE /api/cv/{id}
     /// </summary>

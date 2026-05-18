@@ -587,21 +587,27 @@
             }
 
             <div class="bg-slate-50/50 rounded-xl p-4 mb-8 border border-slate-100">
-              <h5 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Résultats de l'analyse :</h5>
-              <ul class="space-y-2 m-0 p-0 list-none">
-                <li class="flex items-center gap-2 text-xs text-slate-600">
-                  <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
-                  <span><strong>Culture :</strong> Valeurs, ambiance et environnement de travail.</span>
-                </li>
-                <li class="flex items-center gap-2 text-xs text-slate-600">
-                  <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
-                  <span><strong>Salaires :</strong> Estimations et fourchettes pour ce type de poste.</span>
-                </li>
-                <li class="flex items-center gap-2 text-xs text-slate-600">
-                  <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
-                  <span><strong>Actualités :</strong> Derniers projets, levées de fonds ou recrutements.</span>
-                </li>
-              </ul>
+              @if (hasCompanyIntelSnapshot) {
+                <h5 class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-3">Analyse entreprise disponible</h5>
+                <p class="text-xs text-slate-700 leading-relaxed mb-3">{{ companyIntelSummary }}</p>
+
+              } @else {
+                <h5 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Résultats de l'analyse :</h5>
+                <ul class="space-y-2 m-0 p-0 list-none">
+                  <li class="flex items-center gap-2 text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
+                    <span><strong>Culture :</strong> Valeurs, ambiance et environnement de travail.</span>
+                  </li>
+                  <li class="flex items-center gap-2 text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
+                    <span><strong>Salaires :</strong> Estimations et fourchettes pour ce type de poste.</span>
+                  </li>
+                  <li class="flex items-center gap-2 text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
+                    <span><strong>Actualités :</strong> Derniers projets, levées de fonds ou recrutements.</span>
+                  </li>
+                </ul>
+              }
             </div>
             
             <div class="flex flex-wrap gap-3 mb-8">
@@ -619,11 +625,26 @@
               </span>
             </div>
 
-            <div class="flex justify-end">
-              <button (click)="searchCompanyDetailed()" class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group">
-                <span class="material-symbols-outlined text-base group-hover:rotate-12 transition-transform">travel_explore</span>
-                Lancer la recherche détaillée
-              </button>
+            @if (companyIntelError) {
+              <div class="mb-4 text-xs text-red-600 font-semibold">{{ companyIntelError }}</div>
+            }
+            <div class="flex justify-end gap-2">
+              @if (hasCompanyIntelSnapshot) {
+                <button
+                  (click)="showCompanyIntelDetails()"
+                  class="flex items-center gap-2 rounded-xl bg-white px-6 py-2.5 text-[11px] font-bold text-slate-700 border border-slate-200 cursor-pointer hover:bg-slate-50">
+                  <span class="material-symbols-outlined text-base">visibility</span>
+                  Show details
+                </button>
+              } @else {
+                <button
+                  (click)="searchCompanyDetailed()"
+                  [disabled]="companyIntelLoading"
+                  class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group disabled:opacity-60 disabled:cursor-not-allowed">
+                  <span class="material-symbols-outlined text-base group-hover:rotate-12 transition-transform">travel_explore</span>
+                  {{ companyIntelLoading ? 'Recherche en cours...' : 'Lancer la recherche détaillée' }}
+                </button>
+              }
             </div>
           </div>
         </div>
@@ -632,6 +653,9 @@
 
     <!-- Final Action Bar -->
     <div class="col-span-12">
+      <div class="flex justify-end items-center py-4 px-2">
+        <p class="text-[10px] text-slate-400 uppercase tracking-widest m-0">Analyse terminée • Prêt pour la suite</p>
+      </div>
       <div class="flex justify-between items-center py-4 px-2">
         <button (click)="goBack()" class="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer bg-white">
           Retour à l'offre

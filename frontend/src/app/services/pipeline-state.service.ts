@@ -95,6 +95,8 @@ export interface PipelineResult {
   recommendationsWithPriority?: RecommendationPriorisee[];
   keywordWeights?: KeywordPondere[];
   profileStrengthsList?: string[];
+  profileData?: any;
+  cvGeneratedContent?: any;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -274,6 +276,8 @@ export class PipelineStateService {
       emailBody: '',
       recruiterName: '',
       coverLetterContent: '',
+      profileData: dto.profileData ?? dto.profile_data ?? undefined,
+      cvGeneratedContent: dto.cvGeneratedContent ?? dto.cv_data ?? dto.cvData ?? undefined,
     });
 
     // Bridge the raw text to the input signal for step 1 persistence

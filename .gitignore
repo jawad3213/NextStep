@@ -80,4 +80,29 @@ git-commit.ps1
 .terraform.lock.hcl
 
 # Vagrant
-vagrant-*.log
+vagrant-*.log
+
+# Scripts de migration
+extract-microservice.ps1
+setup-microservice-db.ps1
+Guide_Migration_Scripts_NextStep.md
+
+# --- Visual Studio ---
+.vs/
+*.userosscache
+*.sln.docstates
+
+# --- Fichiers temporaires & Logs ---
+*.log
+logs/
+*.bak
+*.tmp
+
+# --- Fichiers de test locaux (Brouillons) ---
+offer.txt
+offer copy.txt
+*copy*.txt
+
+# --- Configurations Locales ---
+appsettings.local.json
+secrets.json

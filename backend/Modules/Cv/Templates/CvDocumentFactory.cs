@@ -11,11 +11,12 @@ public static class CvDocumentFactory
     public static IDocument Create(string templateId, CvData data)
         => templateId.ToLowerInvariant() switch
         {
-            "modern"    => new ModernCvDocument(data),
-            "classic"   => new ClassicCvDocument(data),
-            "executive" => new ExecutiveCvDocument(data),
-            "pro"       => new ProCvDocument(data),
-            "elegant"   => new ElegantCvDocument(data),
-            _ => throw new ArgumentException($"Unknown CV template: '{templateId}'. Valid: modern, classic, executive, pro, elegant.")
+            "chrono" or "classic"    => new ClassicCvDocument(data),
+            "elegant"                => new ElegantCvDocument(data),
+            "circular"               => new CircularCvDocument(data),
+            "modern"                 => new ModernCvDocument(data),
+            "luxe" or "executive"    => new ExecutiveCvDocument(data),
+            "pro"                    => new ProCvDocument(data),
+            _ => throw new ArgumentException($"Unknown CV template: '{templateId}'. Valid: chrono, elegant, circular, modern, luxe.")
         };
 }

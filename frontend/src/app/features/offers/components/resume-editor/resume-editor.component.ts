@@ -1,10 +1,7 @@
-import { Component, Input, Output, EventEmitter, signal, effect, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, effect, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
-import { inject } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { OfferApiService } from '../../services/offer-api.service';
 
 export interface Candidate {
   name: string;
@@ -66,15 +63,13 @@ export interface CvGeneratedSchema {
   templateUrl: './resume-editor.component.html',
   styleUrls: ['./resume-editor.component.scss']
 })
-export class ResumeEditorComponent {
+export class ResumeEditorComponent implements OnInit, OnChanges {
   @Input() templateId: string = 'modern';
   @Input() offerId: string | null = null;
   @Input() initialData: any = null;
   @Output() back = new EventEmitter<void>();
   @Output() continue = new EventEmitter<void>();
-
-  private readonly offerApi = inject(OfferApiService);
-  private remoteDraftSyncEnabled = false;
+  @Output() dataChange = new EventEmitter<CvGeneratedSchema>();
 
   // DYNAMIC CHOSEN MODEL
   readonly activeTemplate = signal<string>('modern');
@@ -395,19 +390,24 @@ export class ResumeEditorComponent {
     }));
   }
 
-  // ── Auto-save to localStorage ──
+  // Local persistence is immediate; backend autosave is owned by StepGeneration
+  // so preview/save/export all share the same normalized data flow.
   private autoSave = effect(() => {
-    this.cvData();
+    const data = this.cvData();
+    const visibility = this.sectionVisibility();
+    this.dataChange.emit(data);
+    try {
+      localStorage.setItem('nextstep_cv_draft', JSON.stringify(data));
+      localStorage.setItem('nextstep_cv_visibility', JSON.stringify(visibility));
+    } catch {}
+
     clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
-      localStorage.setItem('nextstep_cv_draft', JSON.stringify(this.cvData()));
-      localStorage.setItem('nextstep_cv_visibility', JSON.stringify(this.sectionVisibility()));
       this.lastSaved.set(new Date().toLocaleTimeString());
-      // Remote PATCH disabled for now because /cv-draft endpoint is not available on backend.
-    }, 1000);
+    }, 300);
   });
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.activeTemplate.set(this.templateId);
     console.log('[CV-PIPELINE] ResumeEditor init', {
       templateId: this.templateId,
@@ -417,13 +417,14 @@ export class ResumeEditorComponent {
     });
     if (this.initialData) {
       this.hydrateFromGenerated(this.initialData);
-    }
-    const saved = localStorage.getItem('nextstep_cv_draft');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        this.hydrateFromGenerated(parsed);
-      } catch {}
+    } else {
+      const saved = localStorage.getItem('nextstep_cv_draft');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          this.hydrateFromGenerated(parsed);
+        } catch {}
+      }
     }
     const savedVis = localStorage.getItem('nextstep_cv_visibility');
     if (savedVis) {
@@ -442,6 +443,20 @@ export class ResumeEditorComponent {
       atsScore: data?.atsScore,
       matchingScore: data?.matchingScore,
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['templateId'] && changes['templateId'].currentValue) {
+      this.activeTemplate.set(changes['templateId'].currentValue);
+    }
+
+    if (
+      changes['initialData'] &&
+      !changes['initialData'].firstChange &&
+      changes['initialData'].currentValue
+    ) {
+      this.hydrateFromGenerated(changes['initialData'].currentValue);
+    }
   }
 
   private hydrateFromGenerated(generated: any): void {
@@ -501,7 +516,7 @@ export class ResumeEditorComponent {
     if (typeof value !== 'string') return '';
     const v = value.trim();
     if (!v) return '';
-    if (v.toLowerCase() === 'present' || v.toLowerCase() === 'pr�sent' || v.toLowerCase() === 'pr�sent') return '';
+    if (v.toLowerCase() === 'present' || v.toLowerCase() === 'pr�sent' || v.toLowerCase() === 'pr�sent') return '';
     const m = v.match(/^(\d{4})-(\d{2})/);
     if (m) return `${m[1]}-${m[2]}`;
     if (/^\d{4}-\d{2}$/.test(v)) return v;
@@ -659,4 +674,3 @@ export class ResumeEditorComponent {
     return date;
   }
 }
-

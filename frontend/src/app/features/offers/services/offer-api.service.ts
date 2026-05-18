@@ -67,6 +67,13 @@ export interface CvSaveResponse {
   fileSizeBytes: number;
 }
 
+export interface CvDraftResponse {
+  offerId: string;
+  data: any;
+  version: number;
+  updatedAtUtc: string;
+}
+
 export interface SkillDetail {
   nom: string;
   categorie: 'technique' | 'soft' | 'langue' | 'certification';
@@ -240,8 +247,12 @@ export class OfferApiService {
     });
   }
 
-  saveCvDraft(offerId: string, draft: any): Observable<any> {
-    return this.http.patch(`${this.base}/offers/${offerId}/cv-draft`, draft);
+  getCvDraft(offerId: string): Observable<CvDraftResponse> {
+    return this.http.get<CvDraftResponse>(`${this.base}/offers/${offerId}/cv-draft`);
+  }
+
+  saveCvDraft(offerId: string, draft: any): Observable<CvDraftResponse> {
+    return this.http.patch<CvDraftResponse>(`${this.base}/offers/${offerId}/cv-draft`, draft);
   }
 
   getCvHistory(): Observable<CvHistoryItem[]> {

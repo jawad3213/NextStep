@@ -210,7 +210,7 @@ public class CvService : ICvService
                 var docGenere = await _db.DocumentsGeneres
                     .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature);
 
-                var jsonString = JsonSerializer.Serialize(data);
+                var jsonString = JsonSerializer.Serialize(data, _jsonOptions);
 
                 if (docGenere != null)
                 {
@@ -400,7 +400,7 @@ public class CvService : ICvService
         await _db.SaveChangesAsync();
     }
 
-    private static CvData SanitizeCvData(CvData data)
+    public static CvData SanitizeCvData(CvData data)
     {
         data ??= new CvData();
         data.Experience ??= new List<CvExperience>();

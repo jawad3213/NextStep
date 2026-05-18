@@ -1,7 +1,7 @@
-import { Component, OnDestroy, OnInit, effect, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { Subscription, firstValueFrom, interval } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
 import { ResumeEditorComponent } from '../resume-editor/resume-editor.component';
 import { CvSaveResponse, OfferApiService } from '../../services/offer-api.service';
@@ -24,17 +24,28 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   pipeline = inject(PipelineStateService);
   private readonly offerApi = inject(OfferApiService);
   private readonly sanitizer = inject(DomSanitizer);
-  private pollSub: Subscription | null = null;
+  private previewDebounceId: number | null = null;
+  private autosaveDebounceId: number | null = null;
+  private previewRequestSub: Subscription | null = null;
+  private autosaveSub: Subscription | null = null;
+  private loadDraftSub: Subscription | null = null;
   private lastDraftHash = '';
   private previewBlobUrl: string | null = null;
   private readonly thumbnailUrlCache = new Map<string, SafeResourceUrl>();
   private readonly draftKey = 'nextstep_cv_draft';
   private readonly draftOfferKey = 'nextstep_cv_draft_offer_id';
+  private hasUserEditedDraft = false;
 
+  editorInitialData = signal<any | null>(null);
+  private editorDraft = signal<any | null>(null);
   livePreviewUrl: SafeResourceUrl | null = null;
   isRenderingPreview = false;
   showPreviewModal = false;
   previewError: string | null = null;
+  draftStatus: 'idle' | 'local' | 'saving' | 'saved' | 'error' = 'idle';
+  draftSavedAt: string | null = null;
+  draftVersion: number | null = null;
+  draftError: string | null = null;
   savedHistoryId: string | null = null;
   savedFileUrl: string | null = null;
   isSavingFinal = false;
@@ -71,6 +82,18 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     return data?.lineSpacing || '1.15';
   }
 
+  get draftStatusText(): string {
+    if (this.draftError) return this.draftError;
+    if (this.draftStatus === 'saving') return 'Autosave backend en cours...';
+    if (this.draftStatus === 'saved') {
+      const version = this.draftVersion ? ` v${this.draftVersion}` : '';
+      const time = this.draftSavedAt ? ` a ${this.draftSavedAt}` : '';
+      return `Brouillon synchronise${version}${time}`;
+    }
+    if (this.draftStatus === 'local') return 'Brouillon local protege, synchronisation en attente.';
+    return 'Brouillon pret.';
+  }
+
   toggleFontDropdown(): void {
     this.showFontDropdown = !this.showFontDropdown;
     this.showSizeDropdown = false;
@@ -96,47 +119,19 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   changeFontFamily(font: string): void {
-    const raw = localStorage.getItem(this.draftKey);
-    if (!raw) return;
-    try {
-      const draft = JSON.parse(raw);
-      draft.fontFamily = font;
-      localStorage.setItem(this.draftKey, JSON.stringify(draft));
-      this.refreshLivePreview();
-    } catch {}
+    this.patchCurrentDraft({ fontFamily: font });
   }
 
   changeThemeColor(color: string): void {
-    const raw = localStorage.getItem(this.draftKey);
-    if (!raw) return;
-    try {
-      const draft = JSON.parse(raw);
-      draft.themeColor = color;
-      localStorage.setItem(this.draftKey, JSON.stringify(draft));
-      this.refreshLivePreview();
-    } catch {}
+    this.patchCurrentDraft({ themeColor: color });
   }
 
   changeFontSize(size: string): void {
-    const raw = localStorage.getItem(this.draftKey);
-    if (!raw) return;
-    try {
-      const draft = JSON.parse(raw);
-      draft.fontSize = size;
-      localStorage.setItem(this.draftKey, JSON.stringify(draft));
-      this.refreshLivePreview();
-    } catch {}
+    this.patchCurrentDraft({ fontSize: size });
   }
 
   changeLineSpacing(spacing: string): void {
-    const raw = localStorage.getItem(this.draftKey);
-    if (!raw) return;
-    try {
-      const draft = JSON.parse(raw);
-      draft.lineSpacing = spacing;
-      localStorage.setItem(this.draftKey, JSON.stringify(draft));
-      this.refreshLivePreview();
-    } catch {}
+    this.patchCurrentDraft({ lineSpacing: spacing });
   }
 
   readonly realTemplates: RealCvTemplate[] = [
@@ -184,14 +179,15 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.prepareDraftForCurrentOffer();
-    this.refreshLivePreview();
-    this.pollSub = interval(1200).subscribe(() => this.refreshLivePreview());
+    this.hydrateInitialDraft();
   }
 
   ngOnDestroy(): void {
-    this.pollSub?.unsubscribe();
-    this.pollSub = null;
+    if (this.previewDebounceId !== null) window.clearTimeout(this.previewDebounceId);
+    if (this.autosaveDebounceId !== null) window.clearTimeout(this.autosaveDebounceId);
+    this.previewRequestSub?.unsubscribe();
+    this.autosaveSub?.unsubscribe();
+    this.loadDraftSub?.unsubscribe();
     if (this.previewBlobUrl) {
       window.URL.revokeObjectURL(this.previewBlobUrl);
       this.previewBlobUrl = null;
@@ -228,7 +224,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.savedFileUrl = null;
     this.savedDraftHash = '';
     this.lastDraftHash = '';
-    this.refreshLivePreview();
+    this.queueLivePreview();
   }
 
   templateThumbnailUrl(slug: string): SafeResourceUrl {
@@ -241,6 +237,29 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     );
     this.thumbnailUrlCache.set(slug, safeUrl);
     return safeUrl;
+  }
+
+  onEditorDataChange(rawData: any): void {
+    const data = this.normalizeCvForBackend(rawData);
+    const previous = this.editorDraft();
+    const previousHash = previous ? this.buildDraftHash(previous) : '';
+    const nextHash = this.buildDraftHash(data);
+
+    if (previousHash && previousHash === nextHash) {
+      this.writeLocalDraft(data);
+      return;
+    }
+
+    if (previousHash && previousHash !== nextHash) {
+      this.hasUserEditedDraft = true;
+    }
+
+    this.editorDraft.set(data);
+    this.writeLocalDraft(data);
+    this.draftStatus = 'local';
+    this.draftError = null;
+    this.queueLivePreview(data);
+    this.queueBackendAutosave(data);
   }
 
   async saveFinalCv(): Promise<CvSaveResponse> {
@@ -289,8 +308,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     }
   }
 
-  private refreshLivePreview(): void {
-    const data = this.currentCvData();
+  private queueLivePreview(data: any | null = this.currentCvData(), delayMs = 320): void {
     if (!data) return;
 
     const hash = this.buildDraftHash(data);
@@ -299,12 +317,35 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       this.savedFileUrl = null;
       this.savedDraftHash = '';
     }
-    if (hash === this.lastDraftHash || this.isRenderingPreview) return;
+
+    if (hash !== this.lastDraftHash || this.previewError) {
+      this.isRenderingPreview = true;
+      this.previewError = null;
+    }
+
+    if (this.previewDebounceId !== null) {
+      window.clearTimeout(this.previewDebounceId);
+    }
+
+    this.previewDebounceId = window.setTimeout(() => {
+      this.previewDebounceId = null;
+      this.renderLivePreview(data);
+    }, delayMs);
+  }
+
+  private renderLivePreview(data: any): void {
+    const hash = this.buildDraftHash(data);
+    if (hash === this.lastDraftHash && !this.previewError) {
+      this.isRenderingPreview = false;
+      return;
+    }
+
+    this.previewRequestSub?.unsubscribe();
     this.lastDraftHash = hash;
     this.isRenderingPreview = true;
     this.previewError = null;
 
-    this.offerApi.renderCvPreview(this.selectedTemplate, data).subscribe({
+    this.previewRequestSub = this.offerApi.renderCvPreview(this.selectedTemplate, data).subscribe({
       next: (blob) => {
         if (this.previewBlobUrl) {
           window.URL.revokeObjectURL(this.previewBlobUrl);
@@ -318,7 +359,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('[CV-PIPELINE] Live PDF preview failed', err);
-        this.livePreviewUrl = null;
+        this.lastDraftHash = '';
         this.previewError = err?.error?.message || err?.error || err?.message || 'Apercu PDF indisponible.';
         this.isRenderingPreview = false;
       }
@@ -341,6 +382,13 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
   }
 
+  private formatDraftTime(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
   private safeParseJson(raw: string | null): any | null {
     if (!raw) return null;
     try {
@@ -350,12 +398,110 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     }
   }
 
-  private currentCvData(): any | null {
+  private hydrateInitialDraft(): void {
+    const localDraft = this.readLocalDraftForCurrentOffer();
+    const fallback = localDraft || this.generatedCvData;
+
+    if (fallback) {
+      this.applyInitialDraft(fallback, localDraft ? 'local' : 'idle');
+    }
+
+    const offerId = this.currentOfferId;
+    if (!offerId) return;
+
+    this.loadDraftSub = this.offerApi.getCvDraft(offerId).subscribe({
+      next: (draft) => {
+        if (!draft?.data || this.hasUserEditedDraft) return;
+
+        this.applyInitialDraft(draft.data, 'saved');
+        this.draftVersion = draft.version ?? null;
+        this.draftSavedAt = this.formatDraftTime(draft.updatedAtUtc);
+      },
+      error: (err) => {
+        if (err?.status === 404) return;
+        console.warn('[CV-PIPELINE] Backend draft load failed', err);
+        this.draftError = 'Brouillon backend indisponible, copie locale conservee.';
+        this.draftStatus = this.editorDraft() ? 'local' : 'error';
+      }
+    });
+  }
+
+  private applyInitialDraft(rawData: any, status: 'idle' | 'local' | 'saved'): void {
+    if (this.autosaveDebounceId !== null) {
+      window.clearTimeout(this.autosaveDebounceId);
+      this.autosaveDebounceId = null;
+    }
+
+    const data = this.normalizeCvForBackend(rawData);
+    this.editorInitialData.set(data);
+    this.editorDraft.set(data);
+    this.writeLocalDraft(data);
+    this.draftStatus = status;
+    this.draftError = null;
+    this.queueLivePreview(data, 0);
+  }
+
+  private readLocalDraftForCurrentOffer(): any | null {
+    if (!this.currentOfferId) return null;
     const draftOfferId = localStorage.getItem(this.draftOfferKey);
-    const draftData = draftOfferId === this.currentOfferId
-      ? this.safeParseJson(localStorage.getItem(this.draftKey))
-      : null;
-    const data = draftData || this.generatedCvData;
+    if (draftOfferId !== this.currentOfferId) return null;
+    return this.safeParseJson(localStorage.getItem(this.draftKey));
+  }
+
+  private writeLocalDraft(data: any): void {
+    try {
+      localStorage.setItem(this.draftKey, JSON.stringify(data));
+      if (this.currentOfferId) {
+        localStorage.setItem(this.draftOfferKey, this.currentOfferId);
+      }
+    } catch (err) {
+      console.warn('[CV-PIPELINE] Local draft persistence failed', err);
+    }
+  }
+
+  private patchCurrentDraft(patch: Record<string, any>): void {
+    const data = this.currentCvData();
+    if (!data) return;
+    this.onEditorDataChange({ ...data, ...patch });
+  }
+
+  private queueBackendAutosave(data: any | null = this.currentCvData(), delayMs = 900): void {
+    if (!this.currentOfferId || !data) return;
+    if (this.autosaveDebounceId !== null) {
+      window.clearTimeout(this.autosaveDebounceId);
+    }
+
+    this.autosaveDebounceId = window.setTimeout(() => {
+      this.autosaveDebounceId = null;
+      this.persistBackendDraft(data);
+    }, delayMs);
+  }
+
+  private persistBackendDraft(data: any): void {
+    const offerId = this.currentOfferId;
+    if (!offerId) return;
+
+    this.autosaveSub?.unsubscribe();
+    this.draftStatus = 'saving';
+    this.draftError = null;
+
+    this.autosaveSub = this.offerApi.saveCvDraft(offerId, data).subscribe({
+      next: (draft) => {
+        this.draftStatus = 'saved';
+        this.draftVersion = draft?.version ?? this.draftVersion;
+        this.draftSavedAt = this.formatDraftTime(draft?.updatedAtUtc);
+        this.draftError = null;
+      },
+      error: (err) => {
+        console.warn('[CV-PIPELINE] Backend draft save failed', err);
+        this.draftStatus = 'error';
+        this.draftError = 'Autosave backend en attente. Le brouillon local est conserve.';
+      }
+    });
+  }
+
+  private currentCvData(): any | null {
+    const data = this.editorDraft() || this.readLocalDraftForCurrentOffer() || this.generatedCvData;
     return data ? this.normalizeCvForBackend(data) : null;
   }
 

@@ -37,7 +37,8 @@
       <app-resume-editor
         [templateId]="selectedTemplate"
         [offerId]="currentOfferId"
-        [initialData]="generatedCvData"
+        [initialData]="editorInitialData()"
+        (dataChange)="onEditorDataChange($event)"
         (back)="goBack()"
         (continue)="continueToResults()"
       />
@@ -95,6 +96,7 @@
         } @else {
           Le preview est regenere par <strong>/api/cv/preview/render</strong>. La sauvegarde utilise les memes donnees et le meme template.
         }
+        <span class="draft-sync-note">{{ draftStatusText }}</span>
       </div>
     </aside>
   </div>

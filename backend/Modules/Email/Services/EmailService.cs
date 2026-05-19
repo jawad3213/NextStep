@@ -254,7 +254,7 @@ public class EmailService : IEmailService
         return [];
     }
 
-    // ── Python response DTO (internal) ────────────────────────────────────────
+    // ── Python response DTO  ────────────────────────────────────────
     private sealed class PythonEmailResponse
     {
         public string Subject  { get; set; } = string.Empty;

@@ -87,7 +87,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       }
       this.previewBlobUrl = window.URL.createObjectURL(fileBlob);
       this.cvPreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-        `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0`
+        `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`
       );
     } catch (err: any) {
       this.previewError = err?.message || 'Apercu PDF indisponible.';

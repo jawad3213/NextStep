@@ -4,7 +4,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { PipelineStateService, PipelineStep } from '../../services/pipeline-state.service';
 import { OfferStepId } from './offers.types';
 import { OfferApiService } from './services/offer-api.service';
-import { OffersStepperComponent } from './stepper/offers-stepper.component';
 import { StepSubmitComponent } from './components/step-submit/step-submit.component';
 import { StepAnalysisComponent } from './components/step-analysis/step-analysis.component';
 import { StepTemplateComponent } from './components/step-template/step-template.component';
@@ -16,7 +15,6 @@ import { StepResultsComponent } from './components/step-results/step-results.com
   standalone: true,
   imports: [
     CommonModule,
-    OffersStepperComponent,
     StepSubmitComponent,
     StepAnalysisComponent,
     StepTemplateComponent,
@@ -116,9 +114,5 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     if (pipelineStep <= this.pipeline.currentStep() || isDone) {
       this.pipeline.goToStep(pipelineStep);
     }
-  }
-
-  backToList(): void {
-    this.router.navigate(['/offers']);
   }
 }

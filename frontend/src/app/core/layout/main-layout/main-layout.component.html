@@ -1,9 +1,9 @@
 <div class="min-h-screen bg-gray-50 font-outfit xl:flex">
-  @if (showSidebar$ | async) {
+  @if ((showSidebar$ | async) && !(isEditorFocusMode$ | async)) {
     <app-sidebar></app-sidebar>
   }
 
-  @if ((showSidebar$ | async) && (isMobileOpen$ | async)) {
+  @if ((showSidebar$ | async) && !(isEditorFocusMode$ | async) && (isMobileOpen$ | async)) {
     <div
       class="fixed inset-0 z-40 bg-gray-900/50 xl:hidden"
       (click)="sidebarService.setMobileOpen(false)"
@@ -13,11 +13,12 @@
   <div
     class="flex min-h-screen min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out"
     [ngClass]="{
-      'xl:ml-[290px]': (showSidebar$ | async) && ((isExpanded$ | async) || (isHovered$ | async)),
-      'xl:ml-[90px]': (showSidebar$ | async) && !(isExpanded$ | async) && !(isHovered$ | async),
+      'xl:ml-[290px]': (showSidebar$ | async) && !(isEditorFocusMode$ | async) && ((isExpanded$ | async) || (isHovered$ | async)),
+      'xl:ml-[90px]': (showSidebar$ | async) && !(isEditorFocusMode$ | async) && !(isExpanded$ | async) && !(isHovered$ | async),
       'ml-0': isMobileOpen$ | async
     }"
   >
+    @if (!(isEditorFocusMode$ | async)) {
     <header class="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur">
       <div class="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
         <div class="flex items-center gap-3">
@@ -51,6 +52,17 @@
               <p class="truncate text-[10px] font-medium uppercase tracking-[0.15em] text-gray-400 mt-0.5">
                 {{ headerState.eyebrow }}
               </p>
+            </div>
+          }
+
+          @if (isOfferPipelineRoute$ | async) {
+            <div class="offer-nav-inline ml-3">
+              <app-offers-stepper
+                [steps]="offerPipelineSteps"
+                [currentStep]="currentOfferPipelineStep()"
+                [stepStates]="offerPipelineStepStates()"
+                (stepClick)="goToOfferPipelineStep($any($event))"
+              />
             </div>
           }
         </div>
@@ -196,8 +208,9 @@
             }
           </div>
       </div>
-    </div>
+      </div>
     </header>
+    }
 
     <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div

@@ -15,7 +15,7 @@ public static class CvDocumentFactory
             "latex" or "tech-latex" or "tech_latex"       => new TechLatexCvDocument(data),
             _ => throw new ArgumentException($"Unknown CV template: '{templateId}'. Valid: modern, latex.")
         };
-}
+}   
 
 
 

@@ -1,7 +1,9 @@
-import { Component, Input, Output, EventEmitter, signal, effect, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, effect, OnInit, OnChanges, OnDestroy, SimpleChanges, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
+import { SafeResourceUrl } from '@angular/platform-browser';
+import { SidebarService } from '../../../../shared/services/sidebar.service';
 
 export interface Candidate {
   name: string;
@@ -84,6 +86,9 @@ export interface CvSection {
   items: CvSectionItem[];
 }
 
+type EditorPanelTab = 'templates' | 'design' | 'sections';
+type SupportedEditorTemplate = 'modern' | 'latex';
+
 @Component({
   selector: 'app-resume-editor',
   standalone: true,
@@ -96,12 +101,24 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   @Input() templateId: string = 'modern';
   @Input() offerId: string | null = null;
   @Input() initialData: any = null;
+  @Input() previewUrl: SafeResourceUrl | null = null;
+  @Input() isRenderingPreview: boolean = false;
+  @Input() previewError: string | null = null;
   @Output() back = new EventEmitter<void>();
   @Output() continue = new EventEmitter<void>();
   @Output() dataChange = new EventEmitter<CvGeneratedSchema>();
+  @Output() templateChange = new EventEmitter<SupportedEditorTemplate>();
+  private readonly sidebarService = inject(SidebarService);
 
   // DYNAMIC CHOSEN MODEL
   readonly activeTemplate = signal<string>('modern');
+  readonly supportedTemplateIds: SupportedEditorTemplate[] = ['modern', 'latex'];
+  readonly activePanelTab = signal<EditorPanelTab>('templates');
+  readonly isPanelOpen = signal<boolean>(true);
+  readonly activeAccentColor = signal<string>('green');
+  readonly documentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
+  readonly isEditingDocumentTitle = signal<boolean>(false);
+  readonly draftDocumentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
 
   // SIMULATED OPTIMIZATION LOADING
   readonly isImproving = signal<boolean>(false);
@@ -253,6 +270,20 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     { id: 'languages', label: 'Languages', placement: 'sidebar' as const },
   ];
 
+  readonly accentColorOptions = [
+    { id: 'rainbow', label: 'Default', cssClass: 'rainbow' },
+    { id: 'gray', label: 'Gray', cssClass: 'gray' },
+    { id: 'navy', label: 'Navy', cssClass: 'navy' },
+    { id: 'purple', label: 'Purple', cssClass: 'purple' },
+    { id: 'blue', label: 'Blue', cssClass: 'blue' },
+    { id: 'teal', label: 'Teal', cssClass: 'teal' },
+    { id: 'green', label: 'Green', cssClass: 'green' },
+    { id: 'red', label: 'Red', cssClass: 'red' },
+    { id: 'empty', label: 'No color', cssClass: 'empty' },
+  ] as const;
+
+  readonly recommendedAccentColors = ['olive', 'teal', 'blue', 'orange', 'slate', 'green', 'red', 'pink', 'black'] as const;
+
   toggleSection(section: string) {
     if (this.activeSection() === section) {
       this.activeSection.set(null); // Close if already open
@@ -262,7 +293,74 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   }
 
   setTemplate(id: string) {
+    if (!this.supportedTemplateIds.includes(id as SupportedEditorTemplate)) {
+      return;
+    }
+
+    if (this.activeTemplate() === id) {
+      return;
+    }
+
     this.activeTemplate.set(id);
+    this.templateChange.emit(id as SupportedEditorTemplate);
+  }
+
+  startDocumentTitleEdit(): void {
+    this.draftDocumentTitle.set(this.documentTitle());
+    this.isEditingDocumentTitle.set(true);
+  }
+
+  saveDocumentTitle(): void {
+    const nextTitle = this.draftDocumentTitle().trim();
+    if (nextTitle) {
+      this.documentTitle.set(nextTitle);
+    }
+    this.isEditingDocumentTitle.set(false);
+  }
+
+  cancelDocumentTitleEdit(): void {
+    this.draftDocumentTitle.set(this.documentTitle());
+    this.isEditingDocumentTitle.set(false);
+  }
+
+  openPanelTab(tab: EditorPanelTab): void {
+    this.activePanelTab.set(tab);
+    this.isPanelOpen.set(true);
+  }
+
+  closePanel(): void {
+    this.isPanelOpen.set(false);
+  }
+
+  togglePanel(): void {
+    this.isPanelOpen.update((isOpen) => !isOpen);
+  }
+
+  panelTitle(): string {
+    switch (this.activePanelTab()) {
+      case 'design':
+        return 'Design & formatting';
+      case 'sections':
+        return 'Add section';
+      default:
+        return 'Templates';
+    }
+  }
+
+  selectAccentColor(colorId: string): void {
+    this.activeAccentColor.set(colorId);
+  }
+
+  isSectionVisible(sectionId: string): boolean {
+    return !!this.sectionVisibility()[sectionId];
+  }
+
+  toggleFocusMode(): void {
+    this.sidebarService.toggleEditorFocusMode();
+  }
+
+  isFocusMode(): boolean {
+    return this.sidebarService.editorFocusModeValue;
   }
 
   onBack() {
@@ -786,7 +884,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
-    this.activeTemplate.set(this.templateId);
+    this.activeTemplate.set(this.normalizeTemplateId(this.templateId));
     console.log('[CV-PIPELINE] ResumeEditor init', {
       templateId: this.templateId,
       offerId: this.offerId,
@@ -825,7 +923,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['templateId'] && changes['templateId'].currentValue) {
-      this.activeTemplate.set(changes['templateId'].currentValue);
+      this.activeTemplate.set(this.normalizeTemplateId(changes['templateId'].currentValue));
     }
 
     if (
@@ -835,6 +933,10 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     ) {
       this.hydrateFromGenerated(changes['initialData'].currentValue);
     }
+  }
+
+  ngOnDestroy(): void {
+    this.sidebarService.setEditorFocusMode(false);
   }
 
   private hydrateFromGenerated(generated: any): void {
@@ -922,6 +1024,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     if (m) return `${m[1]}-${m[2]}`;
     if (/^\d{4}-\d{2}$/.test(v)) return v;
     return '';
+  }
+
+  private normalizeTemplateId(templateId: string | null | undefined): SupportedEditorTemplate {
+    const normalized = String(templateId ?? '').trim().toLowerCase();
+    return normalized === 'latex' || normalized === 'tech-latex' || normalized === 'tech_latex'
+      ? 'latex'
+      : 'modern';
   }
 
   private hydrateSectionState(rawSections: any): void {

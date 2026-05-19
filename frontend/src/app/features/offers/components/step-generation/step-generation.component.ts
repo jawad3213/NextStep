@@ -401,7 +401,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
         }
         this.previewBlobUrl = window.URL.createObjectURL(blob);
         this.livePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0`
+          `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`
         );
         this.previewError = null;
         this.isRenderingPreview = false;
@@ -824,7 +824,13 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private asStringArray(value: any): string[] {
-    return this.asArray(value).map((item: any) => String(item ?? '').trim()).filter(Boolean);
+    return this.asArray(value).map((item: any) => {
+      if (typeof item === 'string') return item.trim();
+      if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+      if (item && typeof item === 'object')
+        return this.cleanText(item.name ?? item.nom ?? item.label ?? item.title ?? '');
+      return String(item ?? '').trim();
+    }).filter(Boolean);
   }
 
   private toMonthValue(value: any): string {

@@ -196,7 +196,9 @@ public record SessionDetailDto(
     List<string> CoachingTips,
     List<QuestionEvaluationDto> QuestionEvaluations,
     string? BestAnswer = null,
-    string? WorstAnswer = null
+    string? WorstAnswer = null,
+    string? JobTitle = null,
+    string? Company = null
 );
 
 public record SessionSummaryDto(
@@ -209,7 +211,9 @@ public record SessionSummaryDto(
     string? Level,
     int? ScoreEntretien,
     DateTime DateSession,
-    DateTime? CompletedAt
+    DateTime? CompletedAt,
+    string? JobTitle = null,
+    string? Company = null
 );
 
 

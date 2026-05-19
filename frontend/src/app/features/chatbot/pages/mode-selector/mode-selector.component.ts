@@ -45,7 +45,7 @@ export class ModeSelectorComponent implements OnInit {
   selectedDuration = signal(20);
   selectedLanguage = signal('en');
   selectedFocus = signal<string[]>([]);
-  
+
   // ── Offer specifics
   selectedOfferId = signal<string | null>(null);
   selectedJobTitle = signal<string | null>(null);
@@ -58,7 +58,7 @@ export class ModeSelectorComponent implements OnInit {
   loadingHistory = signal(false);
   showDeleteConfirm = signal(false);
   sessionToDelete = signal<SessionSummary | null>(null);
-  
+
   // Notification Toast
   showToast = signal(false);
   toastMsg = signal('');
@@ -68,10 +68,26 @@ export class ModeSelectorComponent implements OnInit {
   readonly levels = LEVELS;
   readonly durations = DURATIONS;
   readonly languages = LANGUAGES;
-  readonly steps = STEPS;
+  steps = computed(() => {
+    if (this.selectedOfferId()) {
+      return [
+        { key: 'duration' as ArenaStep, label: 'Duration' },
+        { key: 'language' as ArenaStep, label: 'Language' },
+        { key: 'ready' as ArenaStep, label: 'Ready' },
+      ];
+    }
+    return [
+      { key: 'domain' as ArenaStep, label: 'Domain' },
+      { key: 'level' as ArenaStep, label: 'Level' },
+      { key: 'duration' as ArenaStep, label: 'Duration' },
+      { key: 'language' as ArenaStep, label: 'Language' },
+      { key: 'focus' as ArenaStep, label: 'Focus Areas' },
+      { key: 'ready' as ArenaStep, label: 'Ready' },
+    ];
+  });
 
   focusPool = computed(() => FOCUS_BY_DOMAIN[this.selectedDomain()] ?? FOCUS_BY_DOMAIN['software']);
-  stepIndex = computed(() => STEPS.findIndex(s => s.key === this.currentStep()));
+  stepIndex = computed(() => this.steps().findIndex(s => s.key === this.currentStep()));
 
   ngOnInit() {
     // Check if navigated from the Offers page with a pre-filled offer config
@@ -87,9 +103,9 @@ export class ModeSelectorComponent implements OnInit {
       this.selectedLanguage.set(config.language || 'en');
       this.selectedFocus.set(config.focus_areas || []);
 
-      // Go to stepper configuration immediately so the user can choose the duration!
+      // Go to stepper configuration starting at the first dynamic step (duration) for offer mode!
       this.view.set('arena');
-      this.currentStep.set('duration'); // Lands directly on the duration selection page!
+      this.currentStep.set('duration');
       return;
     }
 
@@ -147,7 +163,7 @@ export class ModeSelectorComponent implements OnInit {
 
       const payload = JSON.parse(atob(parts[1]));
       console.log('🔍 JWT Payload:', payload);
-      
+
       // Le userId se trouve dans le claim "sub"
       const userId = payload.sub || payload.userId;
       if (userId) {
@@ -221,8 +237,9 @@ export class ModeSelectorComponent implements OnInit {
 
 
   stepState(key: ArenaStep): 'done' | 'current' | 'locked' {
-    const idx = STEPS.findIndex(s => s.key === key);
+    const idx = this.steps().findIndex(s => s.key === key);
     const curr = this.stepIndex();
+    if (idx < 0) return 'locked';
     if (idx < curr) return 'done';
     if (idx === curr) return 'current';
     return 'locked';
@@ -239,7 +256,11 @@ export class ModeSelectorComponent implements OnInit {
     }
   }
 
-  canGoTo(key: ArenaStep): boolean { return this.stepIndex() >= STEPS.findIndex(s => s.key === key); }
+  canGoTo(key: ArenaStep): boolean {
+    const idx = this.steps().findIndex(s => s.key === key);
+    if (idx < 0) return false;
+    return this.stepIndex() >= idx;
+  }
   canContinue(): boolean {
     switch (this.currentStep()) {
       case 'domain': return !!this.selectedDomain();
@@ -255,10 +276,17 @@ export class ModeSelectorComponent implements OnInit {
   summaryLanguage() { return this.languages.find(l => l.key === this.selectedLanguage()); }
 
   selectMode(mode: 'offer' | 'arena') { if (mode === 'arena') this.view.set('arena'); else this.router.navigate(['/offers']); }
-  backToSelector() { this.view.set('selector'); this.currentStep.set('domain'); this.isLaunching.set(false); }
+  backToSelector() {
+    this.view.set('selector');
+    this.selectedOfferId.set(null);
+    this.selectedJobTitle.set(null);
+    this.selectedCompany.set(null);
+    this.currentStep.set('domain');
+    this.isLaunching.set(false);
+  }
   goToStep(key: ArenaStep) { if (this.canGoTo(key)) this.currentStep.set(key); }
-  next() { const idx = this.stepIndex(); if (idx < STEPS.length - 1) this.currentStep.set(STEPS[idx + 1].key); }
-  back() { const idx = this.stepIndex(); if (idx > 0) this.currentStep.set(STEPS[idx - 1].key); }
+  next() { const idx = this.stepIndex(); if (idx < this.steps().length - 1) this.currentStep.set(this.steps()[idx + 1].key); }
+  back() { const idx = this.stepIndex(); if (idx > 0) this.currentStep.set(this.steps()[idx - 1].key); }
 
   pickDomain(key: string) { this.selectedDomain.set(key); this.selectedFocus.set([]); setTimeout(() => this.next(), 220); }
   pickLevel(key: string) { this.selectedLevel.set(key as InterviewLevel); setTimeout(() => this.next(), 220); }

@@ -16,14 +16,14 @@
           <span class="back-arrow">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           </span>
-          <span>Back to Arena</span>
+          <span>Back to Session</span>
         </button>
         <div class="sc-topbar__center">
           <div class="sc-topbar__badge">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
             AI Salary Coach
           </div>
-          <h1 class="sc-topbar__title">{{ config.domain | titlecase }} &middot; {{ levelLabel() }}</h1>
+          <h1 class="sc-topbar__title">{{ config.job_title || (config.domain | titlecase) }} &middot; {{ levelLabel() }}</h1>
         </div>
         <button class="btn-primary" (click)="startCoach()">
           Start Coaching
@@ -36,11 +36,15 @@
         <div class="sc-hero__left">
           <div class="sc-hero__eyebrow">Market Salary Range</div>
           <div class="sc-hero__numbers">
-            <ng-container *ngIf="salary()">
+            <ng-container *ngIf="salary() && (salary()!.range_min > 0 || salary()!.range_max > 0)">
               <span class="hn-val">{{ salary()!.range_min | number }}</span>
               <span class="hn-dash">&mdash;</span>
               <span class="hn-val">{{ salary()!.range_max | number }}</span>
               <span class="hn-cur">{{ salary()!.currency }} / yr</span>
+            </ng-container>
+            <ng-container *ngIf="salary() && salary()!.range_min === 0 && salary()!.range_max === 0">
+              <span class="hn-val" style="font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Experience Focused</span>
+              <span class="hn-cur" style="font-size: 14px; margin-left: 8px; font-weight: 500; opacity: 0.85;">(Stage / PFE)</span>
             </ng-container>
             <ng-container *ngIf="!salary()">
               <span class="hn-val">18,000</span>
@@ -83,23 +87,29 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
             </div>
             <div class="stat-card__label">Your Target</div>
-            <div class="stat-card__val">{{ salary() ? salary()!.your_target : 24000 }}</div>
-            <div class="stat-card__sub">{{ salary() ? salary()!.currency : 'MAD' }}</div>
+            <div class="stat-card__val" [style.font-size.px]="(salary() && salary()!.range_min === 0) ? 18 : 24">
+              {{ (salary() && salary()!.range_min === 0) ? 'Return Offer' : (salary() ? salary()!.your_target : 24000) }}
+            </div>
+            <div class="stat-card__sub">{{ (salary() && salary()!.range_min === 0) ? 'CDI / CDD Focus' : (salary() ? salary()!.currency : 'MAD') }}</div>
           </div>
           <div class="stat-card stat-card--gold">
             <div class="stat-card__icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
             </div>
             <div class="stat-card__label">Median</div>
-            <div class="stat-card__val">{{ salary() ? median : 22000 }}</div>
-            <div class="stat-card__sub">{{ salary() ? salary()!.currency : 'MAD' }}</div>
+            <div class="stat-card__val" [style.font-size.px]="(salary() && salary()!.range_min === 0) ? 18 : 24">
+              {{ (salary() && salary()!.range_min === 0) ? 'Learning' : (salary() ? median : 22000) }}
+            </div>
+            <div class="stat-card__sub">{{ (salary() && salary()!.range_min === 0) ? 'High Priority' : (salary() ? salary()!.currency : 'MAD') }}</div>
           </div>
           <div class="stat-card stat-card--green">
             <div class="stat-card__icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             </div>
             <div class="stat-card__label">Confidence</div>
-            <div class="stat-card__val">{{ salary() ? salary()!.confidence_level : 'High' }}</div>
+            <div class="stat-card__val" [style.font-size.px]="(salary() && salary()!.range_min === 0) ? 18 : 24">
+              {{ (salary() && salary()!.range_min === 0) ? 'Maximized' : (salary() ? salary()!.confidence_level : 'High') }}
+            </div>
             <div class="stat-card__sub">Level</div>
           </div>
         </div>
@@ -271,8 +281,11 @@
         </div>
         <div class="coach-target">
           Target:
-          <ng-container *ngIf="salary()">
+          <ng-container *ngIf="salary() && (salary()!.range_min > 0 || salary()!.range_max > 0)">
             <strong>{{ salary()!.range_min | number }} &ndash; {{ salary()!.range_max | number }} {{ salary()!.currency }}</strong>
+          </ng-container>
+          <ng-container *ngIf="salary() && salary()!.range_min === 0 && salary()!.range_max === 0">
+            <strong>Stage / PFE Experience Focus</strong>
           </ng-container>
           <ng-container *ngIf="!salary()">
             <strong>18,000 &ndash; 28,000 MAD</strong>

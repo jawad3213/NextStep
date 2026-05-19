@@ -36,7 +36,7 @@ export interface Experience {
   startDate: string;
   endDate: string;
   current: boolean;
-  type: 'Stage' | 'Alternance' | 'CDI' | 'CDD' | 'Freelance' | 'PFA' | 'PFE';
+  type: 'Stage' | 'Alternance' | 'CDI' | 'CDD' | 'Freelance' | 'PFA' | 'PFE' | 'Internship' | 'Extracurricular';
   description: string;
   taches: string[];
 }
@@ -88,6 +88,8 @@ export interface Profile {
     competences?: string;
     projets?: string;
     certifications?: string;
+    languages?: string;
+    extraCurricular?: string;
   };
 }
 

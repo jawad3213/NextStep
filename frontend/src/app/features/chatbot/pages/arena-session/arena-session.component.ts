@@ -172,7 +172,7 @@ export class ArenaSessionComponent implements OnInit, OnDestroy, AfterViewChecke
         ? `${this.config.job_title} @ ${this.config.company}`
         : isOffer
           ? `Interview Prep — ${this.config.domain}`
-          : `${this.config.domain.charAt(0).toUpperCase() + this.config.domain.slice(1)} Arena`,
+          : `${this.config.domain.charAt(0).toUpperCase() + this.config.domain.slice(1)} Interview`,
       display_emoji: isOffer ? '🎯' : '⚡',
       session_id: this.sessionId(),
       questions: this.questions()

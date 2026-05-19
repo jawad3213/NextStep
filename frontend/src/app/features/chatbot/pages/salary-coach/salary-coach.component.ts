@@ -181,6 +181,8 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
   startCoach() {
     this.phase.set('coach');
     const salVal = this.salary();
+    const isInternship = salVal && salVal.range_min === 0 && salVal.range_max === 0;
+
     const rangeStr = salVal
       ? `${salVal.range_min.toLocaleString()} – ${salVal.range_max.toLocaleString()} ${salVal.currency}`
       : '18,000 – 28,000 MAD';
@@ -188,9 +190,16 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
     const lang = this.config?.language === 'fr' ? 'fr' : 'en';
     const sc = this.CONTENT[lang].scenarios[0];
     
-    const msg = lang === 'fr'
-      ? `Bonjour ! Je suis votre Coach Négociation IA.\n\nVotre fourchette cible : ${rangeStr}.\n\nMise en situation : "${sc.q}"\n\nQue dites-vous ?`
-      : `Hello! I am your AI Negotiation Coach.\n\nYour target range: ${rangeStr}.\n\nSimulation: "${sc.q}"\n\nWhat do you say?`;
+    let msg = '';
+    if (isInternship) {
+      msg = lang === 'fr'
+        ? `Bonjour ! 🎓 Je suis votre Coach de Négociation IA.\n\nPour ce stage, notre priorité absolue n'est pas la rémunération immédiate, mais la valeur que vous allez acquérir : l'apprentissage, l'expérience concrète et, surtout, comment maximiser vos chances de transformer ce stage en une offre d'embauche ferme (Return Offer) en fin de parcours.\n\nMise en situation : Le recruteur vous pose la question clé :\n"${sc.q}"\n\nQuelle est votre approche pour valoriser votre profil tout en ouvrant la porte à l'avenir ?`
+        : `Hello! 🎓 I am your AI Negotiation Coach.\n\nFor this internship, our top priority is not immediate compensation, but the long-term value you will build: learning, real-world impact, and most importantly, positioning yourself to secure a full-time return offer.\n\nSimulation: The recruiter asks the defining question:\n"${sc.q}"\n\nHow do you articulate your value while keeping the door wide open for the future?`;
+    } else {
+      msg = lang === 'fr'
+        ? `Bonjour ! 💼 Je suis votre Coach de Négociation IA.\n\nVotre objectif aujourd'hui est d'analyser et de cibler avec précision votre fourchette idéale de ${rangeStr} pour maximiser votre package global.\n\nMise en situation : Le recruteur vous pose la question cruciale :\n"${sc.q}"\n\nComment allez-vous argumenter pour ancrer les discussions au plus haut ?`
+        : `Hello! 💼 I am your AI Negotiation Coach.\n\nOur objective today is to target the ideal range of ${rangeStr} to maximize your global compensation package.\n\nSimulation: The recruiter asks the crucial question:\n"${sc.q}"\n\nHow will you frame your response to anchor the discussion at the highest level?`;
+    }
 
     this.messages.set([{
       role: 'ai',

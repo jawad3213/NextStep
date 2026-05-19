@@ -60,6 +60,70 @@ public class ArenaService : IArenaService
     /// </summary>
     public async Task<StartSessionResponse> StartSessionAsync(StartSessionRequest request)
     {
+        if (request.OfferId != null && !string.IsNullOrEmpty(request.UserId))
+        {
+            try
+            {
+                var internalUser = await _db.Utilisateurs
+                    .FirstOrDefaultAsync(u => u.KeycloakId.ToLower() == request.UserId.ToLower() || u.Id.ToString().ToLower() == request.UserId.ToLower());
+
+                if (internalUser != null)
+                {
+                    var offerGuid = Guid.Parse(request.OfferId);
+                    
+                    // 1. S'assurer que l'offre existe dans la table public.offre pour satisfaire la FK de candidature
+                    var offerExists = await CheckOfferExistsAsync(offerGuid);
+
+                    if (!offerExists)
+                    {
+                        // Récupérer les détails depuis public.offre_analysee pour créer l'entrée correspondante
+                        var offerDetails = await QueryOffreAnalyseeAsync(offerGuid);
+
+                        string title = "Offre de Stage";
+                        string company = "ALTEN Maroc";
+                        string location = "Maroc";
+                        if (offerDetails != null)
+                        {
+                            title = offerDetails.TitrePoste ?? title;
+                            company = offerDetails.Entreprise ?? company;
+                            location = offerDetails.Localisation ?? location;
+                        }
+
+                        var escTitle = title.Replace("'", "''");
+                        var escCompany = company.Replace("'", "''");
+                        var escLoc = location.Replace("'", "''");
+
+                        await _db.Database.ExecuteSqlRawAsync($"""
+                            INSERT INTO public.offre (id_offre, date_scraping, entreprise, localisation, url_source, description_brute, titre_poste)
+                            VALUES ('{offerGuid}', NOW(), '{escCompany}', '{escLoc}', '', 'Auto-created from chat session', '{escTitle}')
+                        """);
+                    }
+
+                    // 2. S'assurer qu'une candidature existe pour cet utilisateur et cette offre
+                    var candExists = await _db.Candidatures
+                        .AnyAsync(c => c.IdUtilisateur == internalUser.Id && c.IdOffre == offerGuid);
+
+                    if (!candExists)
+                    {
+                        var newCand = new NextStep.Modules.Candidature.Models.Candidature
+                        {
+                            IdCandidature = Guid.NewGuid(),
+                            IdUtilisateur = internalUser.Id,
+                            IdOffre = offerGuid,
+                            Statut = "ENTRETIEN",
+                            DateCreation = DateTime.UtcNow
+                        };
+                        _db.Candidatures.Add(newCand);
+                        await _db.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] StartSessionAsync auto-create candidature failed: {ex.Message}");
+            }
+        }
+
         // Python se charge de créer la session en DB et de retourner le session_id
         return await _agentClient.PostStartInterviewAsync(request);
     }
@@ -127,27 +191,75 @@ public class ArenaService : IArenaService
     {
         if (string.IsNullOrEmpty(userId)) return new List<SessionSummaryDto>();
 
-        // Jointure directe pour garantir que l'on trouve les sessions 
-        // quel que soit l'ID (Keycloak ou Interne) fourni dans le token.
+        // 1. Fetch sessions
         var query = from s in _db.SessionCoachings
                     join u in _db.Utilisateurs on s.IdUtilisateur equals u.Id
-                    where u.KeycloakId == userId || u.Id.ToString() == userId
+                    where u.KeycloakId.ToLower() == userId.ToLower() || u.Id.ToString().ToLower() == userId.ToLower()
                     where s.Status != "pending"
                     orderby s.DateSession descending
-                    select new SessionSummaryDto(
-                        s.IdSession.ToString(),
-                        s.Mode,
-                        s.Status,
-                        s.Language,
-                        s.DurationMinutes,
-                        s.Domain,
-                        s.Level,
-                        s.ScoreEntretien,
-                        s.DateSession,
-                        s.CompletedAt
-                    );
+                    select s;
 
-        return await query.ToListAsync();
+        var dbSessions = await query.ToListAsync();
+        var result = new List<SessionSummaryDto>();
+
+        foreach (var s in dbSessions)
+        {
+            string? jobTitle = null;
+            string? company = null;
+
+            if (s.Mode == "offer")
+            {
+                var candId = s.IdCandidature;
+                if (!candId.HasValue)
+                {
+                    // Fallback : Trouver la première candidature de l'utilisateur
+                    var candRow = await _db.Candidatures
+                        .FirstOrDefaultAsync(c => c.IdUtilisateur == s.IdUtilisateur);
+                    if (candRow != null)
+                    {
+                        candId = candRow.IdCandidature;
+                    }
+                }
+
+                if (candId.HasValue)
+                {
+                    var cand = await _db.Candidatures.FindAsync(candId.Value);
+                    if (cand != null)
+                    {
+                        try
+                        {
+                            var row = await QueryOffreAnalyseeAsync(cand.IdOffre);
+                            if (row != null)
+                            {
+                                jobTitle = row.TitrePoste;
+                                company = row.Entreprise;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"DEBUG GET_SESSIONS EXCEPTION: {ex.Message} - {ex.StackTrace}");
+                        }
+                    }
+                }
+            }
+
+            result.Add(new SessionSummaryDto(
+                s.IdSession.ToString(),
+                s.Mode,
+                s.Status,
+                s.Language,
+                s.DurationMinutes,
+                s.Domain,
+                s.Level,
+                s.ScoreEntretien,
+                s.DateSession,
+                s.CompletedAt,
+                jobTitle,
+                company
+            ));
+        }
+
+        return result;
     }
 
     public async Task<SessionDetailDto> GetSessionDetailAsync(string sessionId)
@@ -168,6 +280,44 @@ public class ArenaService : IArenaService
             ? JsonSerializer.Deserialize<FeedbackDto>(session.FeedbackJson, options)
             : null;
 
+        string? jobTitle = null;
+        string? company = null;
+
+        if (session.Mode == "offer")
+        {
+            var candId = session.IdCandidature;
+            if (!candId.HasValue)
+            {
+                var candRow = await _db.Candidatures
+                    .FirstOrDefaultAsync(c => c.IdUtilisateur == session.IdUtilisateur);
+                if (candRow != null)
+                {
+                    candId = candRow.IdCandidature;
+                }
+            }
+
+            if (candId.HasValue)
+            {
+                var cand = await _db.Candidatures.FindAsync(candId.Value);
+                if (cand != null)
+                {
+                    try
+                    {
+                        var row = await QueryOffreAnalyseeAsync(cand.IdOffre);
+                        if (row != null)
+                        {
+                            jobTitle = row.TitrePoste;
+                            company = row.Entreprise;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"DEBUG GET_SESSION_DETAIL EXCEPTION: {ex.Message} - {ex.StackTrace}");
+                    }
+                }
+            }
+        }
+
         return new SessionDetailDto(
             SessionId    : session.IdSession.ToString(),
             Mode         : session.Mode,
@@ -179,9 +329,11 @@ public class ArenaService : IArenaService
             Strengths    : feedback?.Strengths ?? [],
             Improvements : feedback?.Improvements ?? [],
             CoachingTips : feedback?.CoachingTips ?? [],
-            QuestionEvaluations : feedback?.QuestionEvaluations ?? [],
+            QuestionEvaluations: feedback?.QuestionEvaluations ?? [],
             BestAnswer   : feedback?.BestAnswer,
-            WorstAnswer  : feedback?.WorstAnswer
+            WorstAnswer  : feedback?.WorstAnswer,
+            JobTitle     : jobTitle,
+            Company      : company
         );
     }
 
@@ -193,7 +345,7 @@ public class ArenaService : IArenaService
         if (session == null) return false;
 
         var internalUser = await _db.Utilisateurs
-            .FirstOrDefaultAsync(u => u.KeycloakId == userId || u.Id.ToString() == userId);
+            .FirstOrDefaultAsync(u => u.KeycloakId.ToLower() == userId.ToLower() || u.Id.ToString().ToLower() == userId.ToLower());
 
         if (internalUser == null || session.IdUtilisateur != internalUser.Id)
         {
@@ -213,7 +365,7 @@ public class ArenaService : IArenaService
     {
         // Resolve Keycloak sub → internal UUID
         var internalUser = await _db.Utilisateurs
-            .FirstOrDefaultAsync(u => u.KeycloakId == userId || u.Id.ToString() == userId);
+            .FirstOrDefaultAsync(u => u.KeycloakId.ToLower() == userId.ToLower() || u.Id.ToString().ToLower() == userId.ToLower());
 
         if (internalUser == null) return [];
 
@@ -230,20 +382,8 @@ public class ArenaService : IArenaService
 
         foreach (var offreId in candidatureIds)
         {
-            var sql = $"""
-                SELECT id, id_offre, titre_poste, entreprise, localisation, type_contrat,
-                       competences_requises, annees_experience, date_analyse
-                FROM public.offre_analysee
-                WHERE id_offre = '{offreId}'
-                LIMIT 1
-            """;
-
-            var rows = await _db.Database
-                .SqlQueryRaw<OffreAnalyseeRaw>(sql)
-                .ToListAsync();
-
-            if (rows.Count == 0) continue;
-            var r = rows[0];
+            var r = await QueryOffreAnalyseeAsync(offreId);
+            if (r == null) continue;
 
             // Parse JSONB arrays
             List<string> skills = [];
@@ -255,16 +395,7 @@ public class ArenaService : IArenaService
             catch { /* ignore parse errors */ }
 
             // Get matching score from resultat_matching
-            int? matchScore = null;
-            var matchSql = $"""
-                SELECT score_global FROM public.resultat_matching
-                WHERE id_offre = '{offreId}' AND id_utilisateur = '{internalUser.Id}'
-                LIMIT 1
-            """;
-            var matchRows = await _db.Database
-                .SqlQueryRaw<MatchScoreRaw>(matchSql)
-                .ToListAsync();
-            if (matchRows.Count > 0) matchScore = matchRows[0].ScoreGlobal;
+            int? matchScore = await QueryMatchScoreAsync(offreId, internalUser.Id);
 
             result.Add(new UserOfferSummaryDto(
                 OfferId         : r.IdOffre.ToString(),
@@ -281,10 +412,133 @@ public class ArenaService : IArenaService
 
         return result;
     }
+
+    private async Task<bool> CheckOfferExistsAsync(Guid offerId)
+    {
+        var conn = _db.Database.GetDbConnection();
+        var wasOpen = conn.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await conn.OpenAsync();
+        try
+        {
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT 1 FROM public.offre WHERE id_offre = @idOffre LIMIT 1";
+                var p = cmd.CreateParameter();
+                p.ParameterName = "@idOffre";
+                p.Value = offerId;
+                cmd.Parameters.Add(p);
+                var val = await cmd.ExecuteScalarAsync();
+                return val != null && val != DBNull.Value;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] CheckOfferExistsAsync Exception: {ex.Message}");
+        }
+        finally
+        {
+            if (!wasOpen) await conn.CloseAsync();
+        }
+        return false;
+    }
+
+    private async Task<OffreAnalyseeRaw?> QueryOffreAnalyseeAsync(Guid idOffre)
+    {
+        var conn = _db.Database.GetDbConnection();
+        var wasOpen = conn.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await conn.OpenAsync();
+        try
+        {
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    SELECT id, id_offre, titre_poste, entreprise, localisation, type_contrat, competences_requises::text, annees_experience, date_analyse 
+                    FROM public.offre_analysee 
+                    WHERE id_offre = @idOffre 
+                    LIMIT 1
+                """;
+                var p = cmd.CreateParameter();
+                p.ParameterName = "@idOffre";
+                p.Value = idOffre;
+                cmd.Parameters.Add(p);
+
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        return new OffreAnalyseeRaw
+                        {
+                            Id = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0),
+                            IdOffre = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1),
+                            TitrePoste = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            Entreprise = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            Localisation = reader.IsDBNull(4) ? null : reader.GetString(4),
+                            TypeContrat = reader.IsDBNull(5) ? null : reader.GetString(5),
+                            CompetencesRequises = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            AnneesExperience = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                            DateAnalyse = reader.IsDBNull(8) ? DateTime.MinValue : reader.GetDateTime(8)
+                        };
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] QueryOffreAnalyseeAsync Exception: {ex.Message}");
+        }
+        finally
+        {
+            if (!wasOpen) await conn.CloseAsync();
+        }
+        return null;
+    }
+
+    private async Task<int?> QueryMatchScoreAsync(Guid idOffre, Guid idUtilisateur)
+    {
+        var conn = _db.Database.GetDbConnection();
+        var wasOpen = conn.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await conn.OpenAsync();
+        try
+        {
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    SELECT score_global FROM public.resultat_matching 
+                    WHERE id_offre = @idOffre AND id_utilisateur = @idUtilisateur 
+                    LIMIT 1
+                """;
+                
+                var p1 = cmd.CreateParameter();
+                p1.ParameterName = "@idOffre";
+                p1.Value = idOffre;
+                cmd.Parameters.Add(p1);
+
+                var p2 = cmd.CreateParameter();
+                p2.ParameterName = "@idUtilisateur";
+                p2.Value = idUtilisateur;
+                cmd.Parameters.Add(p2);
+
+                var val = await cmd.ExecuteScalarAsync();
+                if (val != null && val != DBNull.Value)
+                {
+                    return Convert.ToInt32(val);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] QueryMatchScoreAsync Exception: {ex.Message}");
+        }
+        finally
+        {
+            if (!wasOpen) await conn.CloseAsync();
+        }
+        return null;
+    }
 }
 
 // ── Raw query projection types ──
-file class OffreAnalyseeRaw
+public class OffreAnalyseeRaw
 {
     public Guid Id { get; set; }
     public Guid IdOffre { get; set; }
@@ -297,7 +551,7 @@ file class OffreAnalyseeRaw
     public DateTime DateAnalyse { get; set; }
 }
 
-file class MatchScoreRaw
+public class MatchScoreRaw
 {
     public int? ScoreGlobal { get; set; }
 }

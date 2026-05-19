@@ -212,7 +212,7 @@ CREATE INDEX idx_chat_user     ON chat_message(id_utilisateur, chat_type);
 -- ── Agent 2 output (Offer Analyzer) ───────────────────────────
 CREATE TABLE IF NOT EXISTS offre_analysee (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_offre UUID REFERENCES offre(id_offre) ON DELETE CASCADE,
+    id_offre UUID REFERENCES offres_emploi(id) ON DELETE CASCADE,
     titre_poste VARCHAR(200),
     entreprise VARCHAR(150),
     competences_requises JSONB,        -- ["Python", "Spark", ...]
@@ -232,7 +232,7 @@ CREATE INDEX idx_offre_analysee_id_offre ON offre_analysee(id_offre);
 CREATE TABLE IF NOT EXISTS intel_entreprise (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nom_entreprise VARCHAR(200) NOT NULL,
-    id_offre UUID REFERENCES offre(id_offre) ON DELETE CASCADE,
+    id_offre UUID REFERENCES offres_emploi(id) ON DELETE CASCADE,
     note_glassdoor FLOAT,
     score_culture FLOAT,
     salaire_min INTEGER,
@@ -251,7 +251,7 @@ CREATE INDEX idx_intel_entreprise_offre ON intel_entreprise(id_offre);
 -- ── Agent 4 output (Profile Matcher) ──────────────────────────
 CREATE TABLE IF NOT EXISTS resultat_matching (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_offre UUID REFERENCES offre(id_offre) ON DELETE CASCADE,
+    id_offre UUID REFERENCES offres_emploi(id) ON DELETE CASCADE,
     id_utilisateur UUID REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
     score_global INTEGER,              -- 0-100
     competences_manquantes JSONB,      -- ["Kafka", "Docker"]

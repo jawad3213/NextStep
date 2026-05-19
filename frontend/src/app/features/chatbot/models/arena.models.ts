@@ -102,6 +102,8 @@ export interface SessionSummary {
   scoreEntretien?: number;
   dateSession: string;
   completedAt?: string;
+  jobTitle?: string;
+  company?: string;
 }
 
 export interface SessionDetail extends SessionSummary {

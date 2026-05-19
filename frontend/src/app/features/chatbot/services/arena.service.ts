@@ -166,7 +166,9 @@ export class ArenaService {
       level: s.level,
       scoreEntretien: s.scoreEntretien !== undefined ? s.scoreEntretien : s.score_entretien,
       dateSession: s.dateSession || s.date_session,
-      completedAt: s.completedAt || s.completed_at
+      completedAt: s.completedAt || s.completed_at,
+      jobTitle: s.jobTitle || s.job_title,
+      company: s.company
     }))));
   }
 
@@ -194,7 +196,9 @@ export class ArenaService {
           correction: qe.correction
         })),
         bestAnswer: s.bestAnswer || s.best_answer,
-        worstAnswer: s.worstAnswer || s.worst_answer
+        worstAnswer: s.worstAnswer || s.worst_answer,
+        jobTitle: s.jobTitle || s.job_title,
+        company: s.company
       })));
   }
 

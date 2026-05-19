@@ -11,7 +11,7 @@
       <div class="session-info">
         <span class="emoji">{{ domainEmoji() }}</span>
         <div class="meta">
-          <h2>{{ config.job_title || (config.domain | titlecase) + ' Arena' }}</h2>
+          <h2>{{ config.job_title || (config.domain | titlecase) + ' Interview' }}</h2>
           <span class="subtitle"><span *ngIf="config.company">{{ config.company }} &bull; </span>{{ levelLabel() }} &bull; {{ config.duration_minutes }} min &bull; {{ langFlag() }}</span>
         </div>
       </div>
@@ -130,7 +130,7 @@
         <div class="start-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
         </div>
-        <h2>Ready for the Arena?</h2>
+        <h2>Ready for the Interview?</h2>
         <p>The AI will act as a senior recruiter. It will ask questions, follow up on your answers, and evaluate your performance.</p>
 
         <div class="rules">
@@ -149,7 +149,7 @@
         </div>
 
         <button class="btn-primary-large" (click)="startInterview()" [disabled]="isLoadingStart()">
-          <span *ngIf="!isLoadingStart()">Enter Arena</span>
+          <span *ngIf="!isLoadingStart()">Start Interview</span>
           <span *ngIf="isLoadingStart()">Connecting...</span>
         </button>
       </div>

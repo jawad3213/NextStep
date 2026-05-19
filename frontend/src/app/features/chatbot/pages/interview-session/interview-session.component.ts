@@ -58,13 +58,16 @@ export class InterviewSessionComponent implements OnInit, OnDestroy, AfterViewCh
     } else if (state?.arenaConfig) {
       const c = state.arenaConfig as any;
       this.config = {
-        mode: 'arena',
+        mode: c.offer_id ? 'offer' : 'arena',
         domain: c.domain, level: c.level,
         duration_minutes: c.duration_minutes,
         language: c.language, focus_areas: c.focus_areas,
-        display_title: c.display_title || `${this.titlecase(c.domain)} Arena`,
-        display_emoji: c.display_emoji || this.domainEmojiFor(c.domain),
-        session_id: c.session_id // On récupère l'ID passé
+        offer_id: c.offer_id,
+        job_title: c.job_title,
+        company: c.company,
+        display_title: c.offer_id && c.job_title ? `${c.job_title} @ ${c.company}` : (c.display_title || `${this.titlecase(c.domain)} Arena`),
+        display_emoji: c.offer_id ? '🎯' : (c.display_emoji || this.domainEmojiFor(c.domain)),
+        session_id: c.session_id
       };
     } else {
       this.router.navigate(['/chatbot']);

@@ -24,6 +24,8 @@ export interface Education {
   institution: string;
   location?: string;
   year: string;
+  startYear?: string;
+  endYear?: string;
   gpa?: string;
 }
 
@@ -41,8 +43,10 @@ export interface Language {
 
 export interface Project {
   title: string;
+  description?: string;
   bullets: string[];
   technologies?: string[];
+  dateRealisation?: string;
 }
 
 export interface Certification {

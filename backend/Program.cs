@@ -321,40 +321,22 @@ using (var scope = app.Services.CreateScope())
             );
         ");
 
-        // Seed default templates
+        // Seed default templates (only those with actual IDocument implementations)
         await context.Database.ExecuteSqlRawAsync(@"
             DELETE FROM public.cv_template;
             INSERT INTO public.cv_template (slug, name, description, thumbnail_url, industries, experience_levels, style, layout, background_color, tags, sort_order)
             VALUES
-                ('chrono',    'Chrono',    'Minimal and structured timeline layout.',      '/api/cv/templates/chrono/thumbnail',
-                 '[""AdministrativeAndOffice"",""EducationAndAcademic"",""FinanceAndAccounting"",""HealthcareAndMedical""]'::jsonb,
-                 '[""StudentEntryLevel"",""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Traditional', 9, '#FFFFFF',
-                 '[""single-column"",""ATS-friendly"",""clean""]'::jsonb, 1),
-
-                ('elegant',   'Elegant',   'Dark navy sidebar, spaced-letter headings.',   '/api/cv/templates/elegant/thumbnail',
-                 '[""CreativeAndDesign"",""MarketingAndSales"",""BusinessAndManagement""]'::jsonb,
-                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Elegant', 6, '#1A1F36',
-                 '[""two-column"",""sidebar"",""elegant""]'::jsonb, 2),
-
-                ('circular',  'Circular',  'Blue sidebar with circular initials bubble.',  '/api/cv/templates/circular/thumbnail',
-                 '[""ITAndEngineering"",""CreativeAndDesign"",""BusinessAndManagement""]'::jsonb,
-                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Creative', 6, '#1E3A8A',
-                 '[""two-column"",""sidebar"",""circular""]'::jsonb, 3),
-
                 ('modern',    'Modern',    'Dark blue header, two-column layout.',         '/api/cv/templates/modern/thumbnail',
                  '[""ITAndEngineering"",""CreativeAndDesign"",""MarketingAndSales""]'::jsonb,
                  '[""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Modern', 6, '#1B2A4A',
-                 '[""two-column"",""dark-header""]'::jsonb, 4),
+                 '[""two-column"",""dark-header""]'::jsonb, 1),
 
-                ('luxe',      'Luxe',      'Salmon/peach premium executive design.',       '/api/cv/templates/luxe/thumbnail',
-                 '[""BusinessAndManagement"",""FinanceAndAccounting"",""MarketingAndSales""]'::jsonb,
-                 '[""SeniorExecutive""]'::jsonb,
-                 'Elegant', 6, '#F4A68C',
-                 '[""two-column"",""premium"",""executive""]'::jsonb, 5);
+                ('latex',     'LaTeX Tech','Traditional ATS-friendly classic engineering structure.', '/api/cv/templates/latex/thumbnail',
+                 '[""ITAndEngineering"",""EducationAndAcademic""]'::jsonb,
+                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Traditional', 5, '#FFFFFF',
+                 '[""single-column"",""ATS-friendly"",""classic""]'::jsonb, 2);
         ");
 
         // Update thumbnail_url for existing templates that may have null
@@ -452,7 +434,7 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("DEBUG: CHECKING TEMPLATE THUMBNAILS...");
         var thumbnailService = scope.ServiceProvider.GetRequiredService<ITemplateThumbnailService>();
         var missing = thumbnailService.GetTemplateSlugs()
-            .Where(s => thumbnailService.GetThumbnailPdf(s) is null)
+            .Where(s => thumbnailService.GetThumbnailPng(s) is null)
             .ToList();
         if (missing.Count > 0)
         {

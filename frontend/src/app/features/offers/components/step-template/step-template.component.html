@@ -358,7 +358,7 @@
     <!-- Template Cards -->
     @for (tpl of filteredTemplates; track tpl.id) {
       <div (click)="selectTemplate(tpl.id)"
-        class="bg-white rounded-2xl overflow-hidden group cursor-pointer relative flex flex-col transition-all duration-300 shadow-sm border border-slate-200 hover:shadow-md"
+        class="group cursor-pointer relative flex flex-col transition-all duration-300"
         [class.ring-2]="pipeline.selectedTemplateId() === tpl.id"
         [class.ring-brand-500]="pipeline.selectedTemplateId() === tpl.id">
         @if (tpl.badge) {
@@ -373,8 +373,15 @@
             </span>
           </div>
         }
-        <div class="bg-slate-100 aspect-[1/1.4] w-full relative overflow-hidden p-4">
+        <div class="aspect-[1/1.4] w-full relative overflow-hidden bg-transparent">
           <div class="template-card-preview-shell">
+            @if (hasBackendThumbnail(tpl.id)) {
+              <img
+                class="w-full h-full object-cover bg-white"
+                [src]="templateThumbnailUrl(tpl.id)"
+                alt="{{ tpl.name }} thumbnail"
+                loading="lazy" />
+            } @else {
             <div class="template-demo template-demo--card"
               [class.variant-modern]="tpl.previewVariant === 'modern'"
               [class.variant-professional]="tpl.previewVariant === 'professional'"
@@ -619,6 +626,7 @@
                 </div>
               }
             </div>
+            }
           </div>
           <div class="absolute inset-0 bg-slate-800/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <div class="bg-brand-500 text-white font-bold py-2.5 px-5 rounded-full shadow-lg hover:bg-brand-600 transition-colors transform translate-y-4 group-hover:translate-y-0 duration-300 text-sm cursor-pointer">
@@ -626,9 +634,8 @@
             </div>
           </div>
         </div>
-        <div class="p-4 border-t border-slate-100 bg-white">
-          <h3 class="font-bold text-slate-800 text-base leading-tight mb-0.5">{{ tpl.name }}</h3>
-          <p class="text-xs text-slate-500">{{ tpl.description }}</p>
+        <div class="pt-3">
+          <h3 class="font-bold text-slate-800 text-base leading-tight">{{ tpl.name }}</h3>
         </div>
       </div>
     }

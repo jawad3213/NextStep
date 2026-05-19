@@ -52,7 +52,7 @@ public class CvController : ControllerBase
     // ─── Template Thumbnails (sample-data PDF previews) ──────
 
     /// <summary>
-    /// Generate preview PDFs for all 5 templates using sample data.
+    /// Generate preview PDFs for all templates using sample data.
     /// POST /api/cv/templates/generate-thumbnails
     /// </summary>
     [HttpPost("templates/generate-thumbnails")]
@@ -64,17 +64,37 @@ public class CvController : ControllerBase
     }
 
     /// <summary>
-    /// Get the preview PDF for a template (rendered with sample data).
+    /// Get the preview PNG thumbnail for a template (rendered with sample data).
     /// GET /api/cv/templates/{slug}/thumbnail
     /// </summary>
     [HttpGet("templates/{slug}/thumbnail")]
     [AllowAnonymous]
-    public IActionResult GetThumbnail(string slug)
+    public IActionResult GetThumbnailPng(string slug)
+    {
+        var imageBytes = _thumbnailService.GetThumbnailPng(slug.ToLowerInvariant());
+        if (imageBytes is null)
+            return NotFound(new { error = $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first." });
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers.Expires = "0";
+        return File(imageBytes, "image/png");
+    }
+
+    /// <summary>
+    /// Get the preview PDF thumbnail for a template (rendered with sample data).
+    /// GET /api/cv/templates/{slug}/thumbnail.pdf
+    /// </summary>
+    [HttpGet("templates/{slug}/thumbnail.pdf")]
+    [AllowAnonymous]
+    public IActionResult GetThumbnailPdf(string slug)
     {
         var pdfBytes = _thumbnailService.GetThumbnailPdf(slug.ToLowerInvariant());
         if (pdfBytes is null)
             return NotFound(new { error = $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first." });
-        return File(pdfBytes, "application/pdf", $"{slug}-preview.pdf");
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers.Expires = "0";
+        return File(pdfBytes, "application/pdf");
     }
 
     // ─── Step 2: Preview (no storage) ──────────────────────────
@@ -109,6 +129,7 @@ public class CvController : ControllerBase
     /// POST /api/cv/preview/render?template=modern
     /// </summary>
     [HttpPost("preview/render")]
+    [AllowAnonymous]
     public IActionResult PreviewRender([FromQuery] string template, [FromBody] CvData data)
     {
         try

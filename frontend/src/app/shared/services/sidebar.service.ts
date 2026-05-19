@@ -5,7 +5,7 @@ import { BehaviorSubject } from 'rxjs';
   providedIn: 'root'
 })
 export class SidebarService {
-  private readonly isExpandedSubject = new BehaviorSubject<boolean>(true);
+  private readonly isExpandedSubject = new BehaviorSubject<boolean>(false);
   private readonly isMobileOpenSubject = new BehaviorSubject<boolean>(false);
   private readonly isHoveredSubject = new BehaviorSubject<boolean>(false);
 

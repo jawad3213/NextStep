@@ -21,6 +21,7 @@
       <div class="template-selector-pill">
         <button [class.active]="activeTemplate() === 'modern'" (click)="setTemplate('modern')">Moderne</button>
         <button [class.active]="activeTemplate() === 'professional'" (click)="setTemplate('professional')">Pro</button>
+        <button [class.active]="activeTemplate() === 'latex'" (click)="setTemplate('latex')">LaTeX Tech</button>
         <button [class.active]="activeTemplate() === 'elegant'" (click)="setTemplate('elegant')">Élégant</button>
       </div>
     </div>
@@ -80,6 +81,10 @@
           <div class="form-field">
             <label>GitHub</label>
             <input type="text" [ngModel]="cvData().candidate.gitHub" (ngModelChange)="updateCandidateField('gitHub', $event)" placeholder="github.com/...">
+          </div>
+          <div class="form-field">
+            <label>Portfolio</label>
+            <input type="text" [ngModel]="cvData().candidate.portfolio" (ngModelChange)="updateCandidateField('portfolio', $event)" placeholder="your-site.dev">
           </div>
           <div class="form-field">
             <label>Photo</label>
@@ -182,6 +187,18 @@
                 <label>Titre</label>
                 <input type="text" [ngModel]="proj.title" (ngModelChange)="updateProject(projIdx, 'title', $event)">
               </div>
+              <div class="form-field">
+                <label>Description</label>
+                <textarea rows="2" [ngModel]="proj.description || ''" (ngModelChange)="updateProject(projIdx, 'description', $event)"></textarea>
+              </div>
+              <div class="form-field">
+                <label>Technologies</label>
+                <input type="text" [ngModel]="(proj.technologies || []).join(', ')" (ngModelChange)="updateProject(projIdx, 'technologies', parseCommaSeparatedList($event))" placeholder="Angular, .NET, PostgreSQL">
+              </div>
+              <div class="form-field">
+                <label>Date de realisation</label>
+                <input type="month" [ngModel]="proj.dateRealisation || ''" (ngModelChange)="updateProject(projIdx, 'dateRealisation', $event)">
+              </div>
               <div class="bullets-editor">
                 <label>Descriptions</label>
                 @for (bullet of proj.bullets; track $index; let bIdx = $index) {
@@ -225,6 +242,16 @@
               <div class="form-field">
                 <label>Année</label>
                 <input type="text" [ngModel]="edu.year" (ngModelChange)="updateEducation(eduIdx, 'year', $event)">
+              </div>
+              <div class="form-field-row">
+                <div class="form-field">
+                  <label>DÃ©but</label>
+                  <input type="text" [ngModel]="edu.startYear || ''" (ngModelChange)="updateEducation(eduIdx, 'startYear', $event)" placeholder="2020">
+                </div>
+                <div class="form-field">
+                  <label>Fin</label>
+                  <input type="text" [ngModel]="edu.endYear || ''" (ngModelChange)="updateEducation(eduIdx, 'endYear', $event)" placeholder="2024">
+                </div>
               </div>
             </div>
           }
@@ -287,11 +314,102 @@
         </div>
       </div>
 
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'activities'">
+        <div class="accordion-title-row" (click)="toggleSection('activities')">
+          <div class="accordion-title">Activities</div>
+          <button class="btn-add-action" (click)="addActivity(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list">
+          @for (activity of cvData().activities; track $index; let activityIdx = $index) {
+            <div class="skill-editor-row">
+              <input type="text" [ngModel]="activity" (ngModelChange)="updateActivity(activityIdx, $event)">
+              <button class="btn-delete" (click)="removeActivity(activityIdx)">âœ–</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="form-group-accordion" [class.expanded]="activeSection() === 'accomplishments'">
+        <div class="accordion-title-row" (click)="toggleSection('accomplishments')">
+          <div class="accordion-title">Accomplishments</div>
+          <button class="btn-add-action" (click)="addAccomplishment(); $event.stopPropagation()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list">
+          @for (item of cvData().accomplishments; track $index; let accomplishmentIdx = $index) {
+            <div class="skill-editor-row">
+              <input type="text" [ngModel]="item" (ngModelChange)="updateAccomplishment(accomplishmentIdx, $event)">
+              <button class="btn-delete" (click)="removeAccomplishment(accomplishmentIdx)">âœ–</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="form-group-accordion expanded">
+        <div class="accordion-title-row">
+          <div class="accordion-title">Section Organizer</div>
+          <button class="btn-add-action" (click)="addCustomSection()">+</button>
+        </div>
+        <div class="accordion-content scrollable-sub-list" cdkDropList (cdkDropListDropped)="dropSectionOrder($event)">
+          @for (sectionId of sectionOrder(); track sectionId) {
+            <div class="skill-editor-row" cdkDrag>
+              <span class="drag-handle-sm" cdkDragHandle>::</span>
+              <span>{{ sectionLabel(sectionId) }}</span>
+              <label class="visibility-toggle">
+                <input type="checkbox" [checked]="sectionVisibility()[sectionId]" (change)="toggleSectionVisibility(sectionId)">
+                <span>Visible</span>
+              </label>
+            </div>
+          }
+          @for (section of customSections(); track section.id) {
+            <div class="sub-item-editor">
+              <div class="sub-item-header">
+                <span class="sub-item-title">{{ section.title }}</span>
+                <div class="sub-item-actions">
+                  <label class="visibility-toggle">
+                    <input type="checkbox" [checked]="section.isVisible" (change)="toggleCustomSectionVisibility(section.id)">
+                    <span>Visible</span>
+                  </label>
+                  <button class="btn-delete" (click)="removeCustomSection(section.id)">âœ–</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Title</label>
+                <input type="text" [ngModel]="section.title" (ngModelChange)="updateCustomSectionTitle(section.id, $event)">
+              </div>
+              @for (item of section.items; track $index; let itemIdx = $index) {
+                <div class="sub-item-editor">
+                  <div class="form-field">
+                    <label>Item</label>
+                    <input type="text" [ngModel]="item.primaryText" (ngModelChange)="updateCustomSectionItem(section.id, itemIdx, 'primaryText', $event)">
+                  </div>
+                  <div class="form-field">
+                    <label>Subtitle</label>
+                    <input type="text" [ngModel]="item.secondaryText" (ngModelChange)="updateCustomSectionItem(section.id, itemIdx, 'secondaryText', $event)">
+                  </div>
+                  <div class="bullets-editor">
+                    <label>Details</label>
+                    @for (bullet of item.bullets; track $index; let bulletIdx = $index) {
+                      <div class="bullet-row">
+                        <textarea rows="2" [ngModel]="bullet" (ngModelChange)="updateCustomSectionBullet(section.id, itemIdx, bulletIdx, $event)"></textarea>
+                        <button class="btn-delete" (click)="removeCustomSectionBullet(section.id, itemIdx, bulletIdx)">âœ–</button>
+                      </div>
+                    }
+                    <button class="btn-add-bullet" (click)="addCustomSectionBullet(section.id, itemIdx)">+ Detail</button>
+                  </div>
+                  <button class="btn-delete" (click)="removeCustomSectionItem(section.id, itemIdx)">Remove item</button>
+                </div>
+              }
+              <button class="btn-add-bullet" (click)="addCustomSectionItem(section.id)">+ Item</button>
+            </div>
+          }
+        </div>
+      </div>
+
       <!-- SECTION VISIBILITY TOGGLES -->
       <div class="form-group-accordion expanded">
         <div class="accordion-title">👁️ Visibilité des sections</div>
         <div class="accordion-content">
-          @for (key of ['summary','experience','projects','education','skills','certifications','languages']; track key) {
+          @for (key of ['summary','experience','projects','education','skills','certifications','languages','activities','accomplishments']; track key) {
             <label class="visibility-toggle">
               <input type="checkbox" [checked]="sectionVisibility()[key]" (change)="toggleSectionVisibility(key)">
               <span>{{ key.charAt(0).toUpperCase() + key.slice(1) }}</span>
@@ -402,7 +520,18 @@
                     <div class="section-divider"></div>
                     @for (proj of cvData().projects; track $index) {
                       <div class="timeline-block">
-                        <p class="role-name font-bold">{{ proj.title }}</p>
+                        <div class="block-header">
+                          <span class="role-name font-bold">{{ proj.title }}</span>
+                          @if (proj.dateRealisation) {
+                            <span class="dates-range font-bold text-secondary">{{ formatDate(proj.dateRealisation) }}</span>
+                          }
+                        </div>
+                        @if (proj.technologies?.length) {
+                          <p class="company-subname font-bold">{{ proj.technologies?.join(', ') }}</p>
+                        }
+                        @if (proj.description) {
+                          <p class="company-subname">{{ proj.description }}</p>
+                        }
                         <ul class="resume-bullets">
                           @for (bullet of proj.bullets; track bullet) {
                             <li>{{ bullet }}</li>
@@ -421,9 +550,12 @@
                       <div class="education-block">
                         <div class="block-header">
                           <span class="degree-title font-bold">{{ edu.degree }}</span>
-                          <span class="dates-range text-secondary">{{ edu.year }}</span>
+                          <span class="dates-range text-secondary">{{ edu.startYear && edu.endYear ? edu.startYear + ' - ' + edu.endYear : edu.year }}</span>
                         </div>
                         <p class="school-name">{{ edu.institution }}</p>
+                        @if (edu.year && edu.startYear && edu.endYear) {
+                          <p class="school-name">{{ edu.year }}</p>
+                        }
                       </div>
                     }
                   </section>
@@ -443,7 +575,7 @@
               </div>
             </div>
 
-          } @else if (activeTemplate() === 'professional') {
+          } @else if (activeTemplate() === 'professional' || activeTemplate() === 'latex') {
             <div class="professional-theme-layout">
               <header class="classic-centered-header">
                 <div class="classic-photo-row">

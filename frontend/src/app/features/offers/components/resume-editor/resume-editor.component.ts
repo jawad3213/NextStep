@@ -27,6 +27,8 @@ export interface Education {
   degree: string;
   institution: string;
   year: string;
+  startYear?: string;
+  endYear?: string;
 }
 
 export interface Skill {
@@ -37,6 +39,9 @@ export interface Skill {
 
 export interface Project {
   title: string;
+  description?: string;
+  technologies?: string[];
+  dateRealisation?: string;
   bullets: string[];
 }
 
@@ -50,9 +55,33 @@ export interface CvGeneratedSchema {
   certifications: string[];
   languages: string[];
   activities: string[];
+  accomplishments: string[];
   atsScore: number;
   matchingScore: number;
   atsCoveragePct: number;
+}
+
+export interface CvSectionItem {
+  primaryText: string;
+  secondaryText?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  location?: string | null;
+  description?: string | null;
+  level?: number | null;
+  isMatched?: boolean;
+  bullets: string[];
+}
+
+export interface CvSection {
+  id: string;
+  type: string;
+  title: string;
+  placement: 'main' | 'sidebar';
+  isVisible: boolean;
+  order: number;
+  text?: string | null;
+  items: CvSectionItem[];
 }
 
 @Component({
@@ -86,7 +115,23 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     skills: true,
     certifications: true,
     languages: true,
+    activities: true,
+    accomplishments: true,
   });
+
+  readonly sectionOrder = signal<string[]>([
+    'summary',
+    'experience',
+    'projects',
+    'education',
+    'skills',
+    'certifications',
+    'languages',
+    'activities',
+    'accomplishments',
+  ]);
+
+  readonly customSections = signal<CvSection[]>([]);
 
   // Draft saved indicator
   readonly lastSaved = signal<string | null>(null);
@@ -184,6 +229,10 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       "Hackathon ENSA Winner",
       "Competitive Programming Club"
     ],
+    accomplishments: [
+      "Built full-stack and AI-powered projects with measurable delivery outcomes",
+      "Recognized in hackathon and team-based technical competitions"
+    ],
     atsScore: 85,
     matchingScore: 85,
     atsCoveragePct: 85.0
@@ -191,6 +240,18 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
   // ACTIVE ACCORDION SECTION STATE
   readonly activeSection = signal<string | null>('coordonnees');
+
+  readonly sectionDefinitions = [
+    { id: 'summary', label: 'Resume', placement: 'main' as const },
+    { id: 'experience', label: 'Experiences', placement: 'main' as const },
+    { id: 'projects', label: 'Projects', placement: 'main' as const },
+    { id: 'certifications', label: 'Certifications', placement: 'main' as const },
+    { id: 'activities', label: 'Activities', placement: 'main' as const },
+    { id: 'accomplishments', label: 'Accomplishments', placement: 'main' as const },
+    { id: 'education', label: 'Education', placement: 'sidebar' as const },
+    { id: 'skills', label: 'Skills', placement: 'sidebar' as const },
+    { id: 'languages', label: 'Languages', placement: 'sidebar' as const },
+  ];
 
   toggleSection(section: string) {
     if (this.activeSection() === section) {
@@ -206,6 +267,256 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
   onBack() {
     this.back.emit();
+  }
+
+  get orderedSections(): CvSection[] {
+    const standard = this.sectionOrder().map((id, index) => this.buildStandardSection(id, index)).filter(Boolean) as CvSection[];
+    const custom = [...this.customSections()]
+      .sort((a, b) => a.order - b.order)
+      .map((section) => ({ ...section, order: section.order + standard.length }));
+    return [...standard, ...custom];
+  }
+
+  private buildStandardSection(id: string, order: number): CvSection | null {
+    const data = this.cvData();
+    const visibility = this.sectionVisibility();
+    const def = this.sectionDefinitions.find(section => section.id === id);
+    if (!def) return null;
+
+    switch (id) {
+      case 'summary':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          text: data.summary,
+          items: [],
+        };
+      case 'experience':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.experience.map(exp => ({
+            primaryText: exp.role,
+            secondaryText: exp.company,
+            startDate: exp.start,
+            endDate: exp.end,
+            bullets: [...exp.bullets],
+          })),
+        };
+      case 'projects':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.projects.map(project => ({
+            primaryText: project.title,
+            secondaryText: Array.isArray(project.technologies) ? project.technologies.join(', ') : '',
+            startDate: project.dateRealisation ?? null,
+            description: project.description ?? null,
+            bullets: [...project.bullets],
+          })),
+        };
+      case 'education':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.education.map(education => ({
+            primaryText: education.degree,
+            secondaryText: education.institution,
+            startDate: education.startYear ?? null,
+            endDate: education.endYear ?? null,
+            description: education.year,
+            bullets: [],
+          })),
+        };
+      case 'skills':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.skills.map(skill => ({
+            primaryText: skill.name,
+            secondaryText: '',
+            level: skill.level,
+            isMatched: skill.isMatched,
+            bullets: [],
+          })),
+        };
+      case 'certifications':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.certifications.map(certification => ({
+            primaryText: certification,
+            secondaryText: '',
+            bullets: [],
+          })),
+        };
+      case 'languages':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.languages.map(language => ({
+            primaryText: language,
+            secondaryText: '',
+            bullets: [],
+          })),
+        };
+      case 'activities':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.activities.map(activity => ({
+            primaryText: activity,
+            secondaryText: '',
+            bullets: [],
+          })),
+        };
+      case 'accomplishments':
+        return {
+          id,
+          type: id,
+          title: def.label,
+          placement: def.placement,
+          isVisible: !!visibility[id],
+          order,
+          items: data.accomplishments.map(accomplishment => ({
+            primaryText: accomplishment,
+            secondaryText: '',
+            bullets: [],
+          })),
+        };
+      default:
+        return null;
+    }
+  }
+
+  toggleCustomSectionVisibility(sectionId: string): void {
+    this.customSections.update(sections =>
+      sections.map(section => section.id === sectionId ? { ...section, isVisible: !section.isVisible } : section)
+    );
+  }
+
+  addCustomSection(): void {
+    const nextIndex = this.customSections().length + 1;
+    this.customSections.update(sections => [
+      ...sections,
+      {
+        id: `custom-${Date.now()}`,
+        type: 'custom',
+        title: `Custom Section ${nextIndex}`,
+        placement: 'main',
+        isVisible: true,
+        order: sections.length,
+        text: null,
+        items: [{ primaryText: 'New item', secondaryText: '', bullets: ['Add details here'] }],
+      }
+    ]);
+  }
+
+  removeCustomSection(sectionId: string): void {
+    this.customSections.update(sections =>
+      sections
+        .filter(section => section.id !== sectionId)
+        .map((section, index) => ({ ...section, order: index }))
+    );
+  }
+
+  updateCustomSectionTitle(sectionId: string, title: string): void {
+    this.customSections.update(sections =>
+      sections.map(section => section.id === sectionId ? { ...section, title } : section)
+    );
+  }
+
+  updateCustomSectionItem(sectionId: string, itemIndex: number, field: keyof CvSectionItem, value: any): void {
+    this.customSections.update(sections => sections.map(section => {
+      if (section.id !== sectionId) return section;
+      const items = [...section.items];
+      items[itemIndex] = { ...items[itemIndex], [field]: value };
+      return { ...section, items };
+    }));
+  }
+
+  updateCustomSectionBullet(sectionId: string, itemIndex: number, bulletIndex: number, value: string): void {
+    this.customSections.update(sections => sections.map(section => {
+      if (section.id !== sectionId) return section;
+      const items = [...section.items];
+      const bullets = [...items[itemIndex].bullets];
+      bullets[bulletIndex] = value;
+      items[itemIndex] = { ...items[itemIndex], bullets };
+      return { ...section, items };
+    }));
+  }
+
+  addCustomSectionItem(sectionId: string): void {
+    this.customSections.update(sections => sections.map(section => {
+      if (section.id !== sectionId) return section;
+      return {
+        ...section,
+        items: [...section.items, { primaryText: 'New item', secondaryText: '', bullets: ['Add details here'] }]
+      };
+    }));
+  }
+
+  removeCustomSectionItem(sectionId: string, itemIndex: number): void {
+    this.customSections.update(sections => sections.map(section => {
+      if (section.id !== sectionId) return section;
+      return { ...section, items: section.items.filter((_, index) => index !== itemIndex) };
+    }));
+  }
+
+  addCustomSectionBullet(sectionId: string, itemIndex: number): void {
+    this.customSections.update(sections => sections.map(section => {
+      if (section.id !== sectionId) return section;
+      const items = [...section.items];
+      items[itemIndex] = { ...items[itemIndex], bullets: [...items[itemIndex].bullets, 'New detail'] };
+      return { ...section, items };
+    }));
+  }
+
+  removeCustomSectionBullet(sectionId: string, itemIndex: number, bulletIndex: number): void {
+    this.customSections.update(sections => sections.map(section => {
+      if (section.id !== sectionId) return section;
+      const items = [...section.items];
+      items[itemIndex] = { ...items[itemIndex], bullets: items[itemIndex].bullets.filter((_, index) => index !== bulletIndex) };
+      return { ...section, items };
+    }));
+  }
+
+  dropSectionOrder(event: CdkDragDrop<string[]>): void {
+    const ordered = [...this.sectionOrder()];
+    moveItemInArray(ordered, event.previousIndex, event.currentIndex);
+    this.sectionOrder.set(ordered);
   }
 
   // INTERACTIVE MUTATION HELPER METHODS
@@ -269,6 +580,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     });
   }
 
+  parseCommaSeparatedList(value: any): string[] {
+    return String(value ?? '')
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+
   updateProjectBullet(projIndex: number, bulletIndex: number, value: string) {
     this.cvData.update(data => {
       const projs = [...data.projects];
@@ -284,7 +602,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       ...data,
       projects: [
         ...data.projects,
-        { title: 'Nouveau Projet', bullets: ['Description de l\'architecture technique et de l\'impact du projet.'] }
+        {
+          title: 'Nouveau Projet',
+          description: 'Description du projet et de son impact.',
+          technologies: [],
+          dateRealisation: '',
+          bullets: ['Description de l\'architecture technique et de l\'impact du projet.']
+        }
       ]
     }));
   }
@@ -390,14 +714,61 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     }));
   }
 
+  addActivity(): void {
+    this.cvData.update(data => ({
+      ...data,
+      activities: [...data.activities, 'Nouvelle activite']
+    }));
+  }
+
+  updateActivity(index: number, value: string): void {
+    this.cvData.update(data => ({
+      ...data,
+      activities: data.activities.map((activity, activityIndex) => activityIndex === index ? value : activity)
+    }));
+  }
+
+  removeActivity(index: number): void {
+    this.cvData.update(data => ({
+      ...data,
+      activities: data.activities.filter((_, activityIndex) => activityIndex !== index)
+    }));
+  }
+
+  addAccomplishment(): void {
+    this.cvData.update(data => ({
+      ...data,
+      accomplishments: [...data.accomplishments, 'New accomplishment']
+    }));
+  }
+
+  updateAccomplishment(index: number, value: string): void {
+    this.cvData.update(data => ({
+      ...data,
+      accomplishments: data.accomplishments.map((item, accomplishmentIndex) => accomplishmentIndex === index ? value : item)
+    }));
+  }
+
+  removeAccomplishment(index: number): void {
+    this.cvData.update(data => ({
+      ...data,
+      accomplishments: data.accomplishments.filter((_, accomplishmentIndex) => accomplishmentIndex !== index)
+    }));
+  }
+
+  sectionLabel(sectionId: string): string {
+    return this.sectionDefinitions.find(section => section.id === sectionId)?.label ?? sectionId;
+  }
+
   // Local persistence is immediate; backend autosave is owned by StepGeneration
   // so preview/save/export all share the same normalized data flow.
   private autoSave = effect(() => {
     const data = this.cvData();
     const visibility = this.sectionVisibility();
-    this.dataChange.emit(data);
+    const payload = this.composeEditorPayload(data);
+    this.dataChange.emit(payload);
     try {
-      localStorage.setItem('nextstep_cv_draft', JSON.stringify(data));
+      localStorage.setItem('nextstep_cv_draft', JSON.stringify(payload));
       localStorage.setItem('nextstep_cv_visibility', JSON.stringify(visibility));
     } catch {}
 
@@ -406,6 +777,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       this.lastSaved.set(new Date().toLocaleTimeString());
     }, 300);
   });
+
+  private composeEditorPayload(data: CvGeneratedSchema): CvGeneratedSchema & { sections: CvSection[] } {
+    return {
+      ...data,
+      sections: this.orderedSections.map((section, index) => ({ ...section, order: index })),
+    };
+  }
 
   ngOnInit(): void {
     this.activeTemplate.set(this.templateId);
@@ -490,16 +868,39 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       },
       summary: normalized?.summary ?? current.summary,
       experience: Array.isArray(normalized?.experience) ? normalized.experience.map((e: any) => ({ ...e, start: this.toMonthValue(e?.start), end: this.toMonthValue(e?.end) })) : current.experience,
-      education: Array.isArray(normalized?.education) ? normalized.education : current.education,
+      education: Array.isArray(normalized?.education)
+        ? normalized.education.map((education: any) => ({
+            degree: String(education?.degree ?? ''),
+            institution: String(education?.institution ?? ''),
+            year: String(education?.year ?? ''),
+            startYear: String(education?.startYear ?? ''),
+            endYear: String(education?.endYear ?? ''),
+          }))
+        : current.education,
       skills: Array.isArray(normalized?.skills) ? normalized.skills : current.skills,
-      projects: Array.isArray(normalized?.projects) ? normalized.projects : current.projects,
+      projects: Array.isArray(normalized?.projects)
+        ? normalized.projects.map((project: any) => ({
+            title: String(project?.title ?? ''),
+            description: String(project?.description ?? ''),
+            technologies: Array.isArray(project?.technologies)
+              ? project.technologies.map((technology: any) => String(technology ?? '')).filter(Boolean)
+              : [],
+            dateRealisation: this.toMonthValue(project?.dateRealisation),
+            bullets: Array.isArray(project?.bullets)
+              ? project.bullets.map((bullet: any) => String(bullet ?? '')).filter(Boolean)
+              : [],
+          }))
+        : current.projects,
       certifications: Array.isArray(normalized?.certifications) ? normalized.certifications : current.certifications,
       languages: Array.isArray(normalized?.languages) ? normalized.languages : current.languages,
       activities: Array.isArray(normalized?.activities) ? normalized.activities : current.activities,
+      accomplishments: Array.isArray(normalized?.accomplishments) ? normalized.accomplishments : current.accomplishments,
       atsScore: normalized?.atsScore ?? current.atsScore,
       matchingScore: normalized?.matchingScore ?? current.matchingScore,
       atsCoveragePct: normalized?.atsCoveragePct ?? current.atsCoveragePct,
     }));
+
+    this.hydrateSectionState(normalized?.sections);
 
     const hydrated = this.cvData();
     console.log('[CV-PIPELINE] ResumeEditor hydration applied', {
@@ -521,6 +922,63 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     if (m) return `${m[1]}-${m[2]}`;
     if (/^\d{4}-\d{2}$/.test(v)) return v;
     return '';
+  }
+
+  private hydrateSectionState(rawSections: any): void {
+    if (!Array.isArray(rawSections) || rawSections.length === 0) {
+      return;
+    }
+
+    const standardIds = new Set(this.sectionDefinitions.map(section => section.id));
+    const ordered = [...rawSections]
+      .filter(section => section && typeof section === 'object')
+      .sort((a, b) => Number(a?.order ?? 0) - Number(b?.order ?? 0));
+
+    const visibility = { ...this.sectionVisibility() };
+    const order: string[] = [];
+    const custom: CvSection[] = [];
+
+    for (const section of ordered) {
+      const id = String(section?.id ?? section?.type ?? '').trim();
+      if (!id) continue;
+
+      if (standardIds.has(id)) {
+        visibility[id] = section?.isVisible !== false;
+        order.push(id);
+        continue;
+      }
+
+      custom.push({
+        id,
+        type: String(section?.type ?? 'custom'),
+        title: String(section?.title ?? 'Custom Section'),
+        placement: section?.placement === 'sidebar' ? 'sidebar' : 'main',
+        isVisible: section?.isVisible !== false,
+        order: custom.length,
+        text: typeof section?.text === 'string' ? section.text : null,
+        items: Array.isArray(section?.items)
+          ? section.items.map((item: any) => ({
+              primaryText: String(item?.primaryText ?? ''),
+              secondaryText: String(item?.secondaryText ?? ''),
+              startDate: item?.startDate ?? null,
+              endDate: item?.endDate ?? null,
+              location: item?.location ?? null,
+              description: item?.description ?? null,
+              level: typeof item?.level === 'number' ? item.level : null,
+              isMatched: !!item?.isMatched,
+              bullets: Array.isArray(item?.bullets) ? item.bullets.map((bullet: any) => String(bullet ?? '')) : [],
+            }))
+          : [],
+      });
+    }
+
+    const fallbackOrder = this.sectionDefinitions
+      .map(section => section.id)
+      .filter(id => !order.includes(id));
+
+    this.sectionVisibility.set(visibility);
+    this.sectionOrder.set([...order, ...fallbackOrder]);
+    this.customSections.set(custom);
   }
 
   // ── Drag-and-drop reorder ──

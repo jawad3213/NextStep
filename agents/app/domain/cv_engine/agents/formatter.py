@@ -24,6 +24,15 @@ ACTIVITY_KEYWORDS = {
 def _norm(value: Any) -> str:
     return str(value or "").strip().lower()
 
+def _clean_str(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    return str(value).strip()
+
+def _clean_optional_str(value: Any) -> Optional[str]:
+    clean = _clean_str(value)
+    return clean or None
+
 def _looks_like_activity(role: str, company: str, desc: str) -> bool:
     text = f"{_norm(role)} {_norm(company)} {_norm(desc)}"
     if "stage" in text or "intern" in text:
@@ -60,16 +69,16 @@ def build_questpdf_payload(
     logger.info("Debut de la fusion algorithmique CV Engine.")
 
     # 1. Contact
-    first_name = original_profile.get("prenom", "")
-    last_name = original_profile.get("nom", "")
+    first_name = _clean_str(original_profile.get("prenom"))
+    last_name = _clean_str(original_profile.get("nom"))
     candidate = QuestPDFCandidate(
         name=f"{first_name} {last_name}".strip(),
-        email=original_profile.get("email", ""),
-        phone=original_profile.get("telephone", ""),
-        location=original_profile.get("ville", ""),
-        linked_in=original_profile.get("linkedin"),
-        git_hub=original_profile.get("github"),
-        portfolio=original_profile.get("portfolio"),
+        email=_clean_str(original_profile.get("email")),
+        phone=_clean_optional_str(original_profile.get("telephone")),
+        location=_clean_optional_str(original_profile.get("ville")),
+        linked_in=_clean_optional_str(original_profile.get("linkedin")),
+        git_hub=_clean_optional_str(original_profile.get("github")),
+        portfolio=_clean_optional_str(original_profile.get("portfolio")),
     )
 
     # 2. Summary

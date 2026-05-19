@@ -140,7 +140,6 @@ public static class SampleCvData
             },
         ],
         ThemeColor = "#1B2A4A",
-        FontFamily = "Inter",
         AtsScore = 94,
         MatchingScore = 91,
         AtsCoveragePct = 88.5,

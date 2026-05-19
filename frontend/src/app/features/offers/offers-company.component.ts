@@ -55,7 +55,7 @@ interface CompanyHistoryItem {
                 </div>
 
                 <div class="card-details">
-                  <p class="summary-text">{{ item.data?.summary || 'Aucun résumé disponible.' }}</p>
+                  <p class="summary-text">{{ item.data.summary || 'Aucun résumé disponible.' }}</p>
                   
                   <div class="footer-meta">
                     <div class="date-info">
@@ -64,9 +64,9 @@ interface CompanyHistoryItem {
                     </div>
                     
                     <div class="actions">
-                      <div class="score-pill" [class.high]="(item.data?.compatibilityScore ?? 0) >= 70">
+                      <div class="score-pill" [class.high]="item.data.compatibilityScore >= 70">
                         <span class="score-dot"></span>
-                        {{ item.data?.compatibilityScore ?? 0 }}% Match
+                        {{ item.data.compatibilityScore }}% Match
                       </div>
                       <button class="btn-details" (click)="openDetails(item)">
                         Détails
@@ -303,10 +303,10 @@ export class OffersCompanyComponent {
     const payload = item.rawPayload ?? { 
       intelligence: {
         nom: item.companyName,
-        summary: item.data?.summary ?? '',
+        summary: item.data.summary ?? '',
         // Fallback with limited data if rawPayload was never saved
       }, 
-      score: item.data?.compatibilityScore ?? 0 
+      score: item.data.compatibilityScore 
     };
 
     this.router.navigate(['/offers/company-analysis'], {

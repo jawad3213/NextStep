@@ -31,17 +31,42 @@
     <section class="editor-column">
       <div class="column-heading">
         <p>Contenu editable</p>
-        <h3>Personnalisez les sections</h3>
+        <h3>{{ isAwaitingGeneratedCv ? 'Generation en direct' : 'Personnalisez les sections' }}</h3>
       </div>
 
-      <app-resume-editor
-        [templateId]="selectedTemplate"
-        [offerId]="currentOfferId"
-        [initialData]="editorInitialData()"
-        (dataChange)="onEditorDataChange($event)"
-        (back)="goBack()"
-        (continue)="continueToResults()"
-      />
+      @if (isAwaitingGeneratedCv) {
+        <div class="generation-waiting">
+          <div class="generation-waiting-card">
+            <p class="waiting-eyebrow">Pipeline IA active</p>
+            <h3>{{ generationProgressLabel }}</h3>
+            <div class="waiting-progress-track">
+              <div class="waiting-progress-fill" [style.width.%]="generationProgressPercent"></div>
+            </div>
+            <div class="waiting-progress-meta">
+              <span>Preparation du CV optimise</span>
+              <strong>{{ generationProgressPercent }}%</strong>
+            </div>
+
+            <div class="waiting-stage-list">
+              @for (stage of generationStages; track stage.key) {
+                <div class="waiting-stage" [class.running]="getGenerationStageStatus(stage.key) === 'running'" [class.done]="getGenerationStageStatus(stage.key) === 'done'">
+                  <span class="stage-dot"></span>
+                  <span>{{ stage.label }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      } @else {
+        <app-resume-editor
+          [templateId]="selectedTemplate"
+          [offerId]="currentOfferId"
+          [initialData]="editorInitialData()"
+          (dataChange)="onEditorDataChange($event)"
+          (back)="goBack()"
+          (continue)="continueToResults()"
+        />
+      }
     </section>
 
     <aside class="pdf-column">
@@ -60,16 +85,24 @@
       </div>
 
           @if (livePreviewUrl) {
-        <button class="pdf-preview-card" (click)="openPreviewModal()" title="Ouvrir le CV en grand">
+        <div class="pdf-preview-shell">
+          <div class="pdf-preview-toolbar">
+            <span>Faites defiler pour voir les pages suivantes</span>
+            <button class="preview-expand-btn" (click)="openPreviewModal()" type="button" title="Ouvrir le CV en grand">
+              Ouvrir en grand
+            </button>
+          </div>
+          <div class="pdf-preview-card">
             <iframe class="pdf-preview-frame" [src]="livePreviewUrl"></iframe>
-        </button>
+          </div>
+        </div>
           } @else {
             <div class="pdf-preview-empty" [class.error]="previewError">
-          <strong>{{ previewError ? 'Le backend a refuse le rendu PDF.' : 'Preparation du rendu PDF...' }}</strong>
+          <strong>{{ previewError ? 'Le backend a refuse le rendu PDF.' : (isAwaitingGeneratedCv ? 'Generation du CV en cours...' : 'Preparation du rendu PDF...') }}</strong>
               @if (previewError) {
                 <span>{{ previewError }}</span>
               } @else {
-            <span>Le meme flux sera utilise pour le PDF final.</span>
+            <span>{{ isAwaitingGeneratedCv ? generationProgressLabel : 'Le meme flux sera utilise pour le PDF final.' }}</span>
               }
             </div>
           }
@@ -82,7 +115,7 @@
             (click)="selectTemplate(tpl.slug)"
             type="button">
             <span class="thumb-frame">
-              <iframe [src]="templateThumbnailUrl(tpl.slug)" loading="lazy"></iframe>
+              <img [src]="templateThumbnailUrl(tpl.slug)" [alt]="tpl.label + ' thumbnail'" loading="lazy" />
             </span>
             <strong>{{ tpl.label }}</strong>
             <small>{{ tpl.tone }}</small>

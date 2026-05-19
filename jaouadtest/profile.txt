@@ -1,0 +1,297 @@
+{
+  "candidate": {
+    "name": "Alex Mercer",
+    "email": "alex.mercer@email.com",
+    "phone": "+1 (555) 123-4567",
+    "location": "San Francisco, CA",
+    "city": "San Francisco",
+    "country": "United States",
+    "title": "Senior Full-Stack Engineer",
+    "photoUrl": "https://storage.example.com/photos/alex-mercer.jpg",
+    "linkedIn": "linkedin.com/in/alexmercer",
+    "gitHub": "github.com/alexmercer",
+    "portfolio": "alexmercer.dev",
+    "useAsHeadline": true
+  },
+  "summary": "Senior Full-Stack Engineer with 8+ years of experience building scalable web applications. Expert in Angular, React, Node.js, and cloud-native architectures on AWS. Passionate about developer experience, CI/CD automation, and mentoring junior engineers. Proven track record of delivering high-impact SaaS platforms serving 50K+ users, reducing deployment times by 70%, and cutting infrastructure costs by 40% through event-driven microservices migration.",
+  "themeColor": "#1B2A4A",
+  "fontFamily": "Inter",
+  "fontSize": "base",
+  "selectedTemplate": "modern",
+  "atsScore": 94,
+  "matchingScore": 91,
+  "atsCoveragePct": 88.5,
+  "experience": [
+    {
+      "id": "exp-001",
+      "role": "Senior Full-Stack Engineer",
+      "company": "TechCorp Inc.",
+      "city": "San Francisco",
+      "location": "San Francisco, CA",
+      "type": "CDI",
+      "start": "2021-03",
+      "startDate": "2021-03-01T00:00:00Z",
+      "end": null,
+      "endDate": null,
+      "current": true,
+      "description": "Led the architecture and delivery of a next-generation SaaS platform",
+      "missions": "Led a team of 4 engineers, architected micro-frontend platform, designed CI/CD pipelines",
+      "bullets": [
+        "Architected and delivered a micro-frontend SaaS platform serving 50K+ users using Angular, Nx, and Module Federation",
+        "Designed CI/CD pipelines with GitHub Actions, Docker, and AWS ECS, reducing deployment time by 70%",
+        "Led a team of 4 engineers, conducting code reviews, sprint planning, and mentoring junior developers",
+        "Migrated legacy monolith to event-driven microservices on AWS Lambda + SQS, cutting infrastructure costs by 40%",
+        "Implemented comprehensive monitoring with Datadog and PagerDuty, achieving 99.9% uptime SLA"
+      ],
+      "taches": [
+        "Architecture micro-frontend",
+        "CI/CD pipeline design",
+        "Team leadership & mentoring",
+        "Cloud migration (monolith to microservices)",
+        "Performance optimization & monitoring"
+      ],
+      "isValid": true
+    },
+    {
+      "id": "exp-002",
+      "role": "Full-Stack Developer",
+      "company": "StartupXYZ",
+      "city": "Palo Alto",
+      "location": "Palo Alto, CA",
+      "type": "CDI",
+      "start": "2018-06",
+      "startDate": "2018-06-01T00:00:00Z",
+      "end": "2021-02",
+      "endDate": "2021-02-28T00:00:00Z",
+      "current": false,
+      "description": "Built core platform features for a fast-growing B2B SaaS startup",
+      "missions": "Developed real-time dashboard, RESTful APIs, end-to-end testing infrastructure",
+      "bullets": [
+        "Built real-time dashboard with React, Redux, and WebSockets for live data visualization",
+        "Developed RESTful APIs with Node.js, Express, and PostgreSQL handling 1M+ requests/day",
+        "Implemented end-to-end testing with Cypress and integration tests with Supertest, achieving 90% code coverage",
+        "Containerized all services with Docker and orchestrated with docker-compose for local development",
+        "Optimized database queries with indexing and caching strategies, reducing API latency by 60%"
+      ],
+      "taches": [
+        "Frontend development (React, Redux)",
+        "API development (Node.js, Express)",
+        "Testing automation",
+        "Containerization",
+        "Database optimization"
+      ],
+      "isValid": true
+    },
+    {
+      "id": "exp-003",
+      "role": "Junior Developer",
+      "company": "WebAgency Co.",
+      "city": "Los Angeles",
+      "location": "Los Angeles, CA",
+      "type": "CDI",
+      "start": "2016-09",
+      "startDate": "2016-09-01T00:00:00Z",
+      "end": "2018-05",
+      "endDate": "2018-05-31T00:00:00Z",
+      "current": false,
+      "description": "Started career building client-facing web applications",
+      "missions": "Developed responsive landing pages, created API documentation, automated database tasks",
+      "bullets": [
+        "Developed responsive landing pages and SPAs using AngularJS and Bootstrap",
+        "Created REST API documentation with Swagger/OpenAPI for client-facing integrations",
+        "Automated database migrations and backups with Python scripts and cron jobs",
+        "Collaborated with design team to implement pixel-perfect UI components"
+      ],
+      "taches": [
+        "Frontend development (AngularJS)",
+        "API documentation",
+        "Database automation",
+        "UI implementation"
+      ],
+      "isValid": true
+    }
+  ],
+  "education": [
+    {
+      "id": "edu-001",
+      "degree": "M.Sc. in Computer Science",
+      "institution": "Stanford University",
+      "city": "Stanford",
+      "location": "Stanford, CA",
+      "year": "2016",
+      "startYear": "2014",
+      "endYear": "2016",
+      "current": false,
+      "specialization": "Distributed Systems",
+      "mention": "Summa Cum Laude",
+      "gpa": "3.9"
+    },
+    {
+      "id": "edu-002",
+      "degree": "B.Sc. in Software Engineering",
+      "institution": "UC Berkeley",
+      "city": "Berkeley",
+      "location": "Berkeley, CA",
+      "year": "2014",
+      "startYear": "2010",
+      "endYear": "2014",
+      "current": false,
+      "specialization": "Software Engineering",
+      "mention": "Magna Cum Laude",
+      "gpa": "3.8"
+    }
+  ],
+  "technicalSkills": [
+    { "id": "sk-001", "name": "Angular", "level": 5, "category": "Frontend", "typeCompetence": "Technique", "isMatched": true },
+    { "id": "sk-002", "name": "React", "level": 4, "category": "Frontend", "typeCompetence": "Technique", "isMatched": true },
+    { "id": "sk-003", "name": "Node.js", "level": 5, "category": "Backend", "typeCompetence": "Technique", "isMatched": true },
+    { "id": "sk-004", "name": "TypeScript", "level": 5, "category": "Language", "typeCompetence": "Technique", "isMatched": true },
+    { "id": "sk-005", "name": "PostgreSQL", "level": 4, "category": "Database", "typeCompetence": "Technique", "isMatched": true },
+    { "id": "sk-006", "name": "Docker", "level": 4, "category": "DevOps", "typeCompetence": "Technique", "isMatched": false },
+    { "id": "sk-007", "name": "AWS", "level": 4, "category": "Cloud", "typeCompetence": "Technique", "isMatched": true },
+    { "id": "sk-008", "name": "Python", "level": 3, "category": "Backend", "typeCompetence": "Technique", "isMatched": false },
+    { "id": "sk-009", "name": "GraphQL", "level": 3, "category": "API", "typeCompetence": "Technique", "isMatched": false },
+    { "id": "sk-010", "name": "Redis", "level": 3, "category": "Database", "typeCompetence": "Technique", "isMatched": false },
+    { "id": "sk-011", "name": "Kubernetes", "level": 3, "category": "DevOps", "typeCompetence": "Technique", "isMatched": true },
+    { "id": "sk-012", "name": "RabbitMQ", "level": 3, "category": "Messaging", "typeCompetence": "Technique", "isMatched": false },
+    { "id": "sk-013", "name": "Leadership", "level": 4, "category": "Soft Skills", "typeCompetence": "Comportemental", "isMatched": true },
+    { "id": "sk-014", "name": "Project Management", "level": 4, "category": "Soft Skills", "typeCompetence": "Comportemental", "isMatched": true },
+    { "id": "sk-015", "name": "Agile/Scrum", "level": 5, "category": "Methodology", "typeCompetence": "Methodologie", "isMatched": true }
+  ],
+  "softSkills": [
+    { "id": "ss-001", "name": "Leadership", "level": 4, "description": "Team leadership, mentoring, and technical guidance for junior engineers" },
+    { "id": "ss-002", "name": "Project Management", "level": 4, "description": "Sprint planning, task prioritization, and cross-functional coordination" },
+    { "id": "ss-003", "name": "Agile/Scrum", "level": 5, "description": "Expert in Scrum ceremonies, backlog grooming, and iterative delivery" },
+    { "id": "ss-004", "name": "Communication", "level": 5, "description": "Clear technical writing, stakeholder presentations, and team collaboration" },
+    { "id": "ss-005", "name": "Problem Solving", "level": 5, "description": "Analytical thinking, debugging complex systems, and architectural decision-making" },
+    { "id": "ss-006", "name": "Team Collaboration", "level": 4, "description": "Cross-team collaboration, code review culture, and knowledge sharing" }
+  ],
+  "languages": [
+    "English — Native (C2)",
+    "French — Professional (C1)",
+    "Spanish — Conversational (B1)",
+    "German — Beginner (A1)"
+  ],
+  "projects": [
+    {
+      "id": "prj-001",
+      "title": "Open Source — ngx-dashboard",
+      "description": "Open-source Angular component library for building analytics dashboards with real-time data visualization capabilities",
+      "technologies": ["Angular", "TypeScript", "Storybook", "RXJS", "D3.js"],
+      "technologiesUtilisees": "Angular, TypeScript, Storybook, RXJS, D3.js",
+      "stack": ["Angular", "TypeScript", "Storybook", "RXJS", "D3.js"],
+      "lienProjet": "https://github.com/alexmercer/ngx-dashboard",
+      "githubUrl": "https://github.com/alexmercer/ngx-dashboard",
+      "demoUrl": "https://ngx-dashboard-demo.vercel.app",
+      "imageUrl": "https://storage.example.com/projects/ngx-dashboard.png",
+      "isUniversity": false,
+      "dateRealisation": "2022-06-01T00:00:00Z",
+      "bullets": [
+        "Published on npm with 2K+ weekly downloads and 400+ GitHub stars",
+        "Built 20+ reusable components with comprehensive Storybook documentation and 95% test coverage",
+        "Implemented tree-shakable module structure reducing bundle size by 40% compared to competitors"
+      ],
+      "taches": [
+        "Component library architecture",
+        "npm package publishing & maintenance",
+        "Documentation with Storybook",
+        "Unit & integration testing",
+        "Performance optimization & bundle size reduction"
+      ]
+    },
+    {
+      "id": "prj-002",
+      "title": "E-Commerce Platform — ShopFlow",
+      "description": "Full-stack e-commerce solution with real-time inventory management, multi-tenant marketplace architecture, and integrated payment processing",
+      "technologies": ["Node.js", "React", "MongoDB", "RabbitMQ", "Stripe", "Redis"],
+      "technologiesUtilisees": "Node.js, React, MongoDB, RabbitMQ, Stripe, Redis",
+      "stack": ["Node.js", "React", "MongoDB", "RabbitMQ", "Stripe", "Redis"],
+      "lienProjet": "https://github.com/alexmercer/shopflow",
+      "githubUrl": "https://github.com/alexmercer/shopflow",
+      "demoUrl": "https://shopflow-demo.herokuapp.com",
+      "imageUrl": null,
+      "isUniversity": false,
+      "dateRealisation": "2021-03-01T00:00:00Z",
+      "bullets": [
+        "Architected microservices with Node.js, RabbitMQ, and MongoDB for product catalog, orders, and payments",
+        "Integrated Stripe Connect for marketplace payments and Plaid for identity verification",
+        "Built real-time inventory tracking system with WebSocket notifications, reducing overselling by 99%"
+      ],
+      "taches": [
+        "Microservices architecture",
+        "Payment integration (Stripe Connect)",
+        "Real-time inventory system",
+        "Marketplace multi-tenant support"
+      ]
+    },
+    {
+      "id": "prj-003",
+      "title": "University Research — ML Pipeline Optimizer",
+      "description": "Master's thesis project: distributed machine learning pipeline optimizer for cloud environments",
+      "technologies": ["Python", "TensorFlow", "Kubernetes", "Apache Spark", "AWS SageMaker"],
+      "technologiesUtilisees": "Python, TensorFlow, Kubernetes, Apache Spark, AWS SageMaker",
+      "stack": ["Python", "TensorFlow", "Kubernetes", "Apache Spark", "AWS SageMaker"],
+      "lienProjet": null,
+      "githubUrl": null,
+      "demoUrl": null,
+      "imageUrl": null,
+      "isUniversity": true,
+      "dateRealisation": "2016-05-01T00:00:00Z",
+      "bullets": [
+        "Designed a distributed ML pipeline optimizer that reduced training time by 35% on AWS Spot Instances",
+        "Published findings in IEEE International Conference on Cloud Computing (acceptance rate: 22%)"
+      ],
+      "taches": [
+        "Machine learning pipeline optimization",
+        "Cloud cost optimization",
+        "Academic research & publication"
+      ]
+    }
+  ],
+  "certifications": [
+    "AWS Solutions Architect — Professional (Amazon Web Services)",
+    "Google Cloud Professional Data Engineer (Google Cloud)",
+    "Certified Kubernetes Administrator (CKA) (CNCF)"
+  ],
+  "activities": [
+    {
+      "id": "act-001",
+      "title": "Tech Meetup Organizer",
+      "role": "Co-Organizer",
+      "description": "Co-organizing a local Angular meetup with 300+ members, monthly talks, workshops, and hackathons",
+      "startDate": "2022-01",
+      "endDate": null,
+      "organisation": "SF Angular Meetup",
+      "bullets": [
+        "Organized 24+ monthly meetups with industry speakers from Google, Microsoft, and Netflix",
+        "Grew community from 50 to 300+ members through targeted outreach and social media campaigns"
+      ]
+    },
+    {
+      "id": "act-002",
+      "title": "Open Source Contributor",
+      "role": "Contributor",
+      "description": "Active contributor to Angular Material and Nx workspaces projects with 100+ merged PRs",
+      "startDate": "2020-03",
+      "endDate": null,
+      "organisation": "Angular / Nx",
+      "bullets": [
+        "Contributed 45+ pull requests to Angular Material CDK, focusing on accessibility improvements",
+        "Added Stepper keyboard navigation support used by 100K+ developers worldwide"
+      ]
+    },
+    {
+      "id": "act-003",
+      "title": "Tech Blog Writer",
+      "role": "Author",
+      "description": "Write technical articles on Medium and Dev.to about Angular, TypeScript, and software architecture",
+      "startDate": "2019-06",
+      "endDate": null,
+      "organisation": "Personal Blog",
+      "bullets": [
+        "Published 30+ articles with 500K+ total reads and 10K+ followers across platforms",
+        "Featured in Angular Weekly newsletter and JavaScript Weekly"
+      ]
+    }
+  ]
+}

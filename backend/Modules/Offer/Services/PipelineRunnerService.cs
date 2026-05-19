@@ -44,7 +44,7 @@ public class PipelineRunnerService : IPipelineRunnerService
         try
         {
             await SendProgress(offerId, "analyzing_offer", "running", 10, "Analyse initiale...", "offer_analyzer");
-            var keepAliveTask = SendKeepAliveAsync(offerId, pipelineCt);
+            var keepAliveTask = SendKeepAliveAsync(offerId, "analysis", pipelineCt);
 
             using var scope = _scopeFactory.CreateScope();
             var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
@@ -84,7 +84,7 @@ public class PipelineRunnerService : IPipelineRunnerService
         try
         {
             await SendProgress(offerId, "generating_cv", "running", 10, "Génération du CV optimisé...", "cv_optimizer");
-            var keepAliveTask = SendKeepAliveAsync(offerId, pipelineCt);
+            var keepAliveTask = SendKeepAliveAsync(offerId, "generation", pipelineCt);
 
             using var scope = _scopeFactory.CreateScope();
             var offerService = scope.ServiceProvider.GetRequiredService<IOfferService>();
@@ -133,8 +133,43 @@ public class PipelineRunnerService : IPipelineRunnerService
     /// Sends periodic keep-alive progress events every 15 seconds so the frontend
     /// knows the pipeline is still running and does not display a timeout error.
     /// </summary>
-    private async Task SendKeepAliveAsync(Guid offerId, CancellationToken ct)
+    private async Task SendKeepAliveAsync(Guid offerId, string mode, CancellationToken ct)
     {
+        if (mode == "generation")
+        {
+            var generationSteps = new[]
+            {
+                (20, "Preparation du contexte candidat...", "profile_context"),
+                (38, "Consolidation de l'analyse existante...", "analysis_context"),
+                (65, "Optimisation du CV...", "cv_optimizer"),
+                (82, "Generation du CV final...", "cv_engine"),
+            };
+
+            try
+            {
+                foreach (var (pct, msg, agent) in generationSteps)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(15), ct);
+                    await SendProgress(offerId, "pipeline_running", "running", pct, msg, agent);
+                }
+
+                var generationHeartbeat = 85;
+                while (!ct.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(20), ct);
+                    if (generationHeartbeat < 89) generationHeartbeat++;
+                    await SendProgress(offerId, "pipeline_running", "running", generationHeartbeat,
+                        "Finalisation en cours...", "db_persist");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when pipeline completes - silently exit
+            }
+
+            return;
+        }
+
         var steps = new[]
         {
             (15, "Analyse de l'offre en cours...", "offer_analyzer"),

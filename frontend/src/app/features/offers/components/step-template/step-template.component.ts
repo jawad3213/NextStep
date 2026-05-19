@@ -5,6 +5,9 @@ import { PipelineStateService } from '../../../../services/pipeline-state.servic
 import { OfferApiService, ResumePipelineResponse } from '../../services/offer-api.service';
 import { ProfileService } from '../../../../services/profile.service';
 import { firstValueFrom } from 'rxjs';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { environment } from '../../../../../environments/environment';
+import { SignalRService } from '../../../../services/signalr.service';
 
 interface CvTemplate {
   id: string;
@@ -18,7 +21,7 @@ interface CvTemplate {
   tag: string;
   accent: string;
   previewType: 'sidebar' | 'centered' | 'header-band' | 'top-bar' | 'split' | 'creative';
-  previewVariant: 'modern' | 'professional' | 'elegant';
+  previewVariant: 'modern' | 'professional' | 'elegant' | 'latex';
 }
 
 interface TemplatePreviewData {
@@ -194,7 +197,12 @@ export class StepTemplateComponent {
   pipeline = inject(PipelineStateService);
   private readonly offerApi = inject(OfferApiService);
   private readonly profileService = inject(ProfileService);
+  private readonly sanitizer = inject(DomSanitizer);
+  private readonly signalR = inject(SignalRService);
   readonly previewData = SAMPLE_PREVIEW;
+  private readonly thumbnailUrlCache = new Map<string, SafeResourceUrl>();
+  private readonly backendThumbnailSlugs = new Set<string>(['modern', 'latex']);
+  private readonly thumbnailNonce = Date.now();
 
   readonly filterIndustry = signal<string[]>([]);
   readonly filterExperience = signal<string[]>([]);
@@ -216,46 +224,18 @@ export class StepTemplateComponent {
 
   readonly templates: CvTemplate[] = [
     {
-      id: 'chrono',
-      name: 'Chrono',
-      description: 'Modern • IT & Engineering • Green Accent',
-      badge: { label: 'popular', variant: 'primary' },
+      id: 'latex',
+      name: 'LaTeX Tech',
+      description: 'Traditional • ATS-friendly • Classic engineering structure',
+      badge: { label: 'recommended', variant: 'secondary' },
       industry: 'IT & Engineering',
       experience: 'Mid Level',
-      style: 'Modern',
-      layout: 'Two Column',
-      tag: 'popular',
-      accent: 'Green',
-      previewType: 'sidebar',
-      previewVariant: 'modern',
-    },
-    {
-      id: 'elegant',
-      name: 'Elegant',
-      description: 'Elegant • Professional • Dark Teal Accent',
-      badge: { label: 'recommended', variant: 'secondary' },
-      industry: 'Finance & Accounting',
-      experience: 'Senior / Executive',
-      style: 'Elegant',
-      layout: 'Two Column',
+      style: 'Traditional',
+      layout: 'One Column',
       tag: 'recommended',
-      accent: 'Teal',
-      previewType: 'sidebar',
-      previewVariant: 'elegant',
-    },
-    {
-      id: 'circular',
-      name: 'Circular',
-      description: 'Creative • Unique Wavy Sidebar • Blue Accent',
-      badge: { label: 'recommended', variant: 'secondary' },
-      industry: 'Creative & Design',
-      experience: 'Mid Level',
-      style: 'Creative',
-      layout: 'Two Column',
-      tag: 'recommended',
-      accent: 'Blue',
-      previewType: 'creative',
-      previewVariant: 'modern',
+      accent: 'Slate',
+      previewType: 'centered',
+      previewVariant: 'latex',
     },
     {
       id: 'modern',
@@ -271,21 +251,23 @@ export class StepTemplateComponent {
       previewType: 'sidebar',
       previewVariant: 'modern',
     },
-    {
-      id: 'luxe',
-      name: 'Luxe',
-      description: 'Corporate • Minimalist Centered • Burgundy Accent',
-      badge: { label: 'recommended', variant: 'secondary' },
-      industry: 'Business & Management',
-      experience: 'Senior / Executive',
-      style: 'Corporate',
-      layout: 'One Column',
-      tag: 'recommended',
-      accent: 'Burgundy',
-      previewType: 'centered',
-      previewVariant: 'professional',
-    },
   ];
+
+  hasBackendThumbnail(slug: string): boolean {
+    return this.backendThumbnailSlugs.has(slug);
+  }
+
+  templateThumbnailUrl(slug: string): SafeResourceUrl {
+    const cached = this.thumbnailUrlCache.get(slug);
+    if (cached) return cached;
+
+    const origin = new URL(environment.apiBaseUrl).origin;
+    const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+      `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.thumbnailNonce}#toolbar=0&navpanes=0&scrollbar=0`
+    );
+    this.thumbnailUrlCache.set(slug, safeUrl);
+    return safeUrl;
+  }
 
   get filteredTemplates(): CvTemplate[] {
     const industries = this.filterIndustry();
@@ -348,6 +330,7 @@ export class StepTemplateComponent {
     const selected = this.pipeline.selectedTemplateId();
     const templateIdMap: Record<string, number> = {
       chrono: 1,
+      latex: 1,
       elegant: 2,
       circular: 3,
       modern: 4,
@@ -356,7 +339,23 @@ export class StepTemplateComponent {
     const templateId = templateIdMap[selected] ?? 1;
 
     this.pipeline.pipelineError.set(null);
+    this.pipeline.markStepDone(2);
+    this.pipeline.goToStep(4);
     this.pipeline.setLoading(true, 'Génération CV (cv_optimizer + cv_engine) en cours...');
+
+    this.pipeline.currentAgentProgress.set({
+      step: 'generating_cv',
+      agentName: 'cv_optimizer',
+      label: 'Lancement de la generation du CV...',
+      status: 'running',
+      progressPercent: 5
+    });
+
+    try {
+      await this.signalR.joinOfferGroup(offerId);
+    } catch (err) {
+      console.warn('[CV-PIPELINE] SignalR join failed, falling back to polling only', err);
+    }
 
     const localProfile = await firstValueFrom(this.profileService.getFullProfile()).catch((err) => {
       console.warn('[CV-PIPELINE] profile fallback unavailable', err);
@@ -392,8 +391,13 @@ export class StepTemplateComponent {
           });
         }
         this.pipeline.setLoading(false);
-        this.pipeline.markStepDone(2);
-        this.pipeline.goToStep(4);
+        this.pipeline.currentAgentProgress.set({
+          step: 'generating_cv',
+          agentName: 'db_persist',
+          label: 'CV genere, ouverture de l editeur...',
+          status: 'done',
+          progressPercent: 100
+        });
       },
       error: (err) => {
         this.pipeline.setLoading(false);

@@ -6,6 +6,7 @@ import { PipelineStateService } from '../../../../services/pipeline-state.servic
 import { ResumeEditorComponent } from '../resume-editor/resume-editor.component';
 import { CvSaveResponse, OfferApiService } from '../../services/offer-api.service';
 import { environment } from '../../../../../environments/environment';
+import { SignalRService } from '../../../../services/signalr.service';
 
 interface RealCvTemplate {
   slug: string;
@@ -24,6 +25,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   pipeline = inject(PipelineStateService);
   private readonly offerApi = inject(OfferApiService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly signalR = inject(SignalRService);
   private previewDebounceId: number | null = null;
   private autosaveDebounceId: number | null = null;
   private previewRequestSub: Subscription | null = null;
@@ -31,7 +33,8 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   private loadDraftSub: Subscription | null = null;
   private lastDraftHash = '';
   private previewBlobUrl: string | null = null;
-  private readonly thumbnailUrlCache = new Map<string, SafeResourceUrl>();
+  private readonly thumbnailUrlCache = new Map<string, string>();
+  private readonly thumbnailNonce = Date.now();
   private readonly draftKey = 'nextstep_cv_draft';
   private readonly draftOfferKey = 'nextstep_cv_draft_offer_id';
   private hasUserEditedDraft = false;
@@ -59,13 +62,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   ];
 
   // Floating designer bar state
-  showFontDropdown = false;
   showSizeDropdown = false;
-
-  get currentFontFamily(): string {
-    const data = this.currentCvData();
-    return data?.fontFamily || 'Lato';
-  }
 
   get currentThemeColor(): string {
     const data = this.currentCvData();
@@ -95,18 +92,16 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   toggleFontDropdown(): void {
-    this.showFontDropdown = !this.showFontDropdown;
+    // Font family customization is intentionally disabled.
     this.showSizeDropdown = false;
   }
 
   toggleSizeDropdown(): void {
     this.showSizeDropdown = !this.showSizeDropdown;
-    this.showFontDropdown = false;
   }
 
   selectFont(font: string): void {
-    this.changeFontFamily(font);
-    this.showFontDropdown = false;
+    void font;
   }
 
   selectSize(size: string): void {
@@ -116,10 +111,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   selectThemeColor(color: string): void {
     this.changeThemeColor(color);
-  }
-
-  changeFontFamily(font: string): void {
-    this.patchCurrentDraft({ fontFamily: font });
   }
 
   changeThemeColor(color: string): void {
@@ -135,19 +126,21 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   readonly realTemplates: RealCvTemplate[] = [
-    { slug: 'chrono', label: 'Chrono', tone: 'Green Accent' },
-    { slug: 'elegant', label: 'Elegant', tone: 'Dark Teal' },
-    { slug: 'circular', label: 'Circular', tone: 'Wavy Sidebar' },
+    { slug: 'latex', label: 'LaTeX Tech', tone: 'Classic Engineering' },
     { slug: 'modern', label: 'Modern', tone: 'Tech Minimal' },
-    { slug: 'luxe', label: 'Luxe', tone: 'Premium Centered' },
   ];
 
+  readonly generationStages = [
+    { key: 'profile_context', label: 'Contexte candidat' },
+    { key: 'analysis_context', label: 'Analyse consolidee' },
+    { key: 'cv_optimizer', label: 'CV optimizer' },
+    { key: 'cv_engine', label: 'CV engine' },
+    { key: 'db_persist', label: 'Finalisation' },
+  ] as const;
+
   private readonly templateMap: Record<string, string> = {
-    chrono: 'chrono',
-    elegant: 'elegant',
-    circular: 'circular',
+    latex: 'latex',
     modern: 'modern',
-    luxe: 'luxe',
   };
 
   private readonly generationTrace = effect(() => {
@@ -165,6 +158,13 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     });
   });
 
+  private readonly generatedCvSync = effect(() => {
+    const generated = this.generatedCvData;
+    if (!this.hasRenderableCvData(generated)) return;
+    if (!generated || this.hasUserEditedDraft || this.editorDraft()) return;
+    this.applyInitialDraft(generated, 'idle');
+  });
+
   get selectedTemplate(): string {
     const id = this.pipeline.selectedTemplateId();
     return this.templateMap[id] || 'modern';
@@ -178,7 +178,42 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     return this.pipeline.currentOfferId();
   }
 
+  get generationAgentProgress() {
+    return this.pipeline.currentAgentProgress();
+  }
+
+  get generationProgressLabel(): string {
+    return this.generationAgentProgress?.label || 'Generation du CV en cours...';
+  }
+
+  get generationProgressPercent(): number {
+    return this.generationAgentProgress?.progressPercent ?? 5;
+  }
+
+  get isAwaitingGeneratedCv(): boolean {
+    return !this.editorInitialData() && !this.generatedCvData;
+  }
+
+  private hasRenderableCvData(data: any | null | undefined): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const candidate = data?.candidate;
+    const hasIdentity = !!this.cleanText(candidate?.name)
+      || !!this.cleanText(candidate?.email)
+      || !!this.cleanText(data?.summary);
+    const hasSections = this.asArray(data?.experience).length > 0
+      || this.asArray(data?.education).length > 0
+      || this.asArray(data?.skills).length > 0
+      || this.asArray(data?.projects).length > 0;
+    return hasIdentity || hasSections;
+  }
+
   ngOnInit(): void {
+    const offerId = this.currentOfferId;
+    if (offerId) {
+      void this.signalR.joinOfferGroup(offerId).catch((err) => {
+        console.warn('[CV-PIPELINE] SignalR join failed from generation step', err);
+      });
+    }
     this.hydrateInitialDraft();
   }
 
@@ -227,16 +262,30 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.queueLivePreview();
   }
 
-  templateThumbnailUrl(slug: string): SafeResourceUrl {
+  getGenerationStageStatus(stageKey: string): 'done' | 'running' | 'todo' {
+    const current = this.generationAgentProgress?.agentName;
+    if (!current) return stageKey === 'cv_optimizer' ? 'running' : 'todo';
+
+    const order = this.generationStages.map((stage) => stage.key);
+    const currentIndex = order.indexOf(current as typeof order[number]);
+    const targetIndex = order.indexOf(stageKey as typeof order[number]);
+
+    if (currentIndex === -1) {
+      return stageKey === 'cv_optimizer' ? 'running' : 'todo';
+    }
+    if (targetIndex < currentIndex) return 'done';
+    if (targetIndex === currentIndex) return 'running';
+    return 'todo';
+  }
+
+  templateThumbnailUrl(slug: string): string {
     const cached = this.thumbnailUrlCache.get(slug);
     if (cached) return cached;
 
     const origin = new URL(environment.apiBaseUrl).origin;
-    const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-      `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail#toolbar=0&navpanes=0&scrollbar=0`
-    );
-    this.thumbnailUrlCache.set(slug, safeUrl);
-    return safeUrl;
+    const url = `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.thumbnailNonce}`;
+    this.thumbnailUrlCache.set(slug, url);
+    return url;
   }
 
   onEditorDataChange(rawData: any): void {
@@ -309,7 +358,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private queueLivePreview(data: any | null = this.currentCvData(), delayMs = 320): void {
-    if (!data) return;
+    if (!this.hasRenderableCvData(data)) return;
 
     const hash = this.buildDraftHash(data);
     if (this.savedDraftHash && this.savedDraftHash !== hash) {
@@ -358,10 +407,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
         this.isRenderingPreview = false;
       },
       error: (err) => {
-        console.error('[CV-PIPELINE] Live PDF preview failed', err);
-        this.lastDraftHash = '';
-        this.previewError = err?.error?.message || err?.error || err?.message || 'Apercu PDF indisponible.';
-        this.isRenderingPreview = false;
+        void this.handlePreviewRenderError(err);
       }
     });
   }
@@ -400,11 +446,15 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   private hydrateInitialDraft(): void {
     const localDraft = this.readLocalDraftForCurrentOffer();
-    const fallback = localDraft || this.generatedCvData;
+    const validLocalDraft = this.hasRenderableCvData(localDraft) ? localDraft : null;
+    const validGenerated = this.hasRenderableCvData(this.generatedCvData) ? this.generatedCvData : null;
+    const fallback = validLocalDraft || validGenerated;
 
     if (fallback) {
-      this.applyInitialDraft(fallback, localDraft ? 'local' : 'idle');
+      this.applyInitialDraft(fallback, validLocalDraft ? 'local' : 'idle');
     }
+
+    if (!fallback) return;
 
     const offerId = this.currentOfferId;
     if (!offerId) return;
@@ -412,6 +462,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.loadDraftSub = this.offerApi.getCvDraft(offerId).subscribe({
       next: (draft) => {
         if (!draft?.data || this.hasUserEditedDraft) return;
+        if (!this.hasRenderableCvData(draft.data)) return;
 
         this.applyInitialDraft(draft.data, 'saved');
         this.draftVersion = draft.version ?? null;
@@ -433,6 +484,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     }
 
     const data = this.normalizeCvForBackend(rawData);
+    if (!this.hasRenderableCvData(data)) return;
     this.editorInitialData.set(data);
     this.editorDraft.set(data);
     this.writeLocalDraft(data);
@@ -466,7 +518,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private queueBackendAutosave(data: any | null = this.currentCvData(), delayMs = 900): void {
-    if (!this.currentOfferId || !data) return;
+    if (!this.currentOfferId || !this.hasRenderableCvData(data)) return;
     if (this.autosaveDebounceId !== null) {
       window.clearTimeout(this.autosaveDebounceId);
     }
@@ -505,6 +557,38 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     return data ? this.normalizeCvForBackend(data) : null;
   }
 
+  private async handlePreviewRenderError(err: any): Promise<void> {
+    console.error('[CV-PIPELINE] Live PDF preview failed', err);
+    this.lastDraftHash = '';
+    this.previewError = await this.extractHttpErrorMessage(err, 'Apercu PDF indisponible.');
+    this.isRenderingPreview = false;
+  }
+
+  private async extractHttpErrorMessage(err: any, fallback: string): Promise<string> {
+    const payload = err?.error;
+    if (typeof payload === 'string' && payload.trim()) return payload;
+    if (payload?.message) return String(payload.message);
+    if (payload?.error) return String(payload.error);
+
+    if (payload instanceof Blob) {
+      try {
+        const text = await payload.text();
+        if (!text) return err?.message || fallback;
+
+        try {
+          const parsed = JSON.parse(text);
+          return parsed?.error || parsed?.message || text;
+        } catch {
+          return text;
+        }
+      } catch {
+        return err?.message || fallback;
+      }
+    }
+
+    return err?.message || fallback;
+  }
+
   private prepareDraftForCurrentOffer(): void {
     const offerId = this.currentOfferId;
     const generated = this.generatedCvData;
@@ -534,6 +618,9 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private normalizeCvForBackend(data: any): any {
+    const { fontFamily, sections, ...rawWithoutFontFamily } = data ?? {};
+    void fontFamily;
+    void sections;
     const candidate = data?.candidate ?? {};
     const activities = this.normalizeActivities(data?.activities);
     const experience = this.asArray(data?.experience)
@@ -555,14 +642,17 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
         return false;
       });
     const projects = this.normalizeProjects(data?.projects);
+    const normalizedSections = this.normalizeSections(data?.sections);
 
     return {
-      ...data,
+      ...rawWithoutFontFamily,
+      themeColor: this.cleanText(data?.themeColor) || null,
       candidate: {
         name: this.cleanText(candidate?.name),
         email: this.cleanText(candidate?.email),
         phone: this.cleanText(candidate?.phone),
         location: this.cleanText(candidate?.location),
+        photoUrl: candidate?.photoUrl ?? null,
         linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? null,
         gitHub: candidate?.gitHub ?? candidate?.github ?? null,
         portfolio: candidate?.portfolio ?? null,
@@ -573,6 +663,8 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
         degree: this.cleanText(edu?.degree),
         institution: this.cleanText(edu?.institution),
         year: this.cleanText(edu?.year),
+        startYear: this.cleanText(edu?.startYear),
+        endYear: this.cleanText(edu?.endYear),
       })),
       skills: this.asArray(data?.skills).map((skill: any) => ({
         name: this.cleanText(skill?.name),
@@ -583,10 +675,59 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       certifications: this.dedupeStrings(this.asStringArray(data?.certifications)).slice(0, 6),
       languages: this.dedupeStrings(this.asStringArray(data?.languages)).slice(0, 6),
       activities: this.dedupeActivities(activities).slice(0, 5),
+      sections: normalizedSections,
       atsScore: Number(data?.atsScore ?? 0),
       matchingScore: Number(data?.matchingScore ?? 0),
       atsCoveragePct: Number(data?.atsCoveragePct ?? data?.atsScore ?? 0),
     };
+  }
+
+  private normalizeSections(value: any): any[] {
+    return this.asArray(value)
+      .map((section: any, index: number) => ({
+        id: this.cleanText(section?.id) || `section-${index + 1}`,
+        type: this.cleanText(section?.type) || 'custom',
+        title: this.cleanText(section?.title),
+        placement: section?.placement === 'sidebar' ? 'sidebar' : 'main',
+        isVisible: section?.isVisible !== false,
+        order: Number.isFinite(Number(section?.order)) ? Number(section.order) : index,
+        text: this.cleanText(section?.text) || null,
+        items: this.asArray(section?.items)
+          .map((item: any) => ({
+            primaryText: this.stringifySectionText(item?.primaryText),
+            secondaryText: this.stringifySectionText(item?.secondaryText),
+            startDate: this.cleanText(item?.startDate) || null,
+            endDate: this.cleanText(item?.endDate) || null,
+            location: this.cleanText(item?.location) || null,
+            description: this.cleanText(item?.description) || null,
+            level: item?.level == null ? null : Math.min(5, Math.max(1, Number(item.level))),
+            isMatched: !!item?.isMatched,
+            bullets: this.dedupeStrings(this.asStringArray(item?.bullets)),
+          }))
+          .filter((item: any) =>
+            !!item.primaryText ||
+            !!item.secondaryText ||
+            !!item.description ||
+            item.bullets.length > 0
+          ),
+      }))
+      .filter((section: any) => !!section.title || !!section.text || section.items.length > 0);
+  }
+
+  private stringifySectionText(value: any): string {
+    if (typeof value === 'string') return this.cleanText(value);
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (value && typeof value === 'object') {
+      return this.cleanText(
+        value.name
+        ?? value.label
+        ?? value.title
+        ?? value.value
+        ?? value.primaryText
+        ?? ''
+      );
+    }
+    return '';
   }
 
   private normalizeActivities(value: any): any[] {
@@ -614,13 +755,15 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
           .slice(0, 4);
         return {
           title: this.cleanText(project?.title ?? project?.name),
-          description: bullets.length > 0 ? null : description,
+          description,
+          technologies: this.dedupeStrings(this.asStringArray(project?.technologies)),
+          dateRealisation: this.toMonthValue(project?.dateRealisation),
           bullets,
         };
       })
       .filter((project: any) => {
-        if (!project.title && project.bullets.length === 0) return false;
-        const key = this.normalizeKey(project.title);
+        if (!project.title && !project.description && project.bullets.length === 0) return false;
+        const key = this.normalizeKey(`${project.title}|${project.description ?? ''}`);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

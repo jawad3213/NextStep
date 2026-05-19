@@ -198,6 +198,9 @@ public class CvService : ICvService
         var response = await _agentClient.PostAsync<object, CvEngineResult>("/prepare-cv", request);
         
         var data = SanitizeCvData(response.CvJson ?? new CvData());
+        // Visual customization is not owned by AI agent output.
+        // We ignore agent-provided styling and keep it user-side only.
+        data.ThemeColor = null;
 
         // 2.1. Sauvegarde automatique dans document_genere si lié à une offre
         if (jobId.HasValue && jobId.Value != Guid.Empty)
@@ -404,11 +407,21 @@ public class CvService : ICvService
     {
         data ??= new CvData();
         data.Experience ??= new List<CvExperience>();
+        data.Education ??= new List<CvEducation>();
         data.Activities ??= new List<CvActivity>();
         data.Projects ??= new List<CvProject>();
         data.Skills ??= new List<CvSkill>();
+        data.TechnicalSkills ??= new List<CvSkill>();
+        data.SoftSkills ??= new List<CvSkill>();
         data.Certifications ??= new List<string>();
         data.Languages ??= new List<string>();
+        data.Sections ??= new List<CvSection>();
+
+        // Accept multiple inbound payload shapes:
+        // - skills
+        // - technicalSkills + softSkills
+        // Keep canonical list in data.Skills for template mapping.
+        data.Skills = MergeSkillSources(data.Skills, data.TechnicalSkills, data.SoftSkills);
 
         data.Experience = NormalizeExperience(data.Experience, data.Activities);
         data.Activities = DeduplicateActivities(data.Activities);
@@ -416,6 +429,16 @@ public class CvService : ICvService
         data.Skills = DeduplicateSkills(data.Skills).Take(18).ToList();
         data.Certifications = DeduplicateStrings(data.Certifications).Take(6).ToList();
         data.Languages = DeduplicateStrings(data.Languages).Take(6).ToList();
+
+        data.Sections = data.Sections.Count > 0
+            ? CvSectionMapper.NormalizeSections(data.Sections)
+            : CvSectionMapper.BuildSectionsFromLegacy(data);
+
+        // Important architecture rule:
+        // Keep CvData (legacy/raw model) as the source of truth and fully expressive.
+        // Sections are a rendering projection for templates/editing, not a write-back source.
+        // This lets each template choose what to display without mutating canonical data.
+        data.Sections = CvSectionMapper.NormalizeSections(data.Sections);
         return data;
     }
 
@@ -464,6 +487,8 @@ public class CvService : ICvService
         {
             project.Title = CleanText(project.Title);
             project.Description = NullIfEmpty(project.Description);
+            project.DateRealisation = NullIfEmpty(project.DateRealisation);
+            project.Technologies = DeduplicateStrings(project.Technologies).ToList();
             project.Bullets = DeduplicateStrings(project.Bullets).ToList();
 
             if (string.IsNullOrWhiteSpace(project.Title))
@@ -476,10 +501,6 @@ public class CvService : ICvService
                 .Where(b => !IsSameMeaning(b, project.Description))
                 .Take(4)
                 .ToList();
-
-            // If bullets exist, avoid printing the same project story twice.
-            if (project.Bullets.Count > 0)
-                project.Description = null;
 
             clean.Add(project);
         }
@@ -497,6 +518,8 @@ public class CvService : ICvService
             activity.Title = CleanText(activity.Title);
             activity.Role = NullIfEmpty(activity.Role);
             activity.Description = NullIfEmpty(activity.Description);
+            activity.StartDate = NullIfEmpty(activity.StartDate);
+            activity.EndDate = NullIfEmpty(activity.EndDate);
 
             if (string.IsNullOrWhiteSpace(activity.Title) && string.IsNullOrWhiteSpace(activity.Role))
                 continue;
@@ -531,6 +554,27 @@ public class CvService : ICvService
             skill.Level = Math.Clamp(skill.Level, 1, 5);
             yield return skill;
         }
+    }
+
+    private static List<CvSkill> MergeSkillSources(
+        IEnumerable<CvSkill>? skills,
+        IEnumerable<CvSkill>? technicalSkills,
+        IEnumerable<CvSkill>? softSkills)
+    {
+        var merged = new List<CvSkill>();
+        merged.AddRange(skills ?? Enumerable.Empty<CvSkill>());
+        merged.AddRange(technicalSkills ?? Enumerable.Empty<CvSkill>());
+
+        foreach (var skill in softSkills ?? Enumerable.Empty<CvSkill>())
+        {
+            if (string.IsNullOrWhiteSpace(skill.Category))
+                skill.Category = "Soft Skills";
+            if (string.IsNullOrWhiteSpace(skill.TypeCompetence))
+                skill.TypeCompetence = "Comportemental";
+            merged.Add(skill);
+        }
+
+        return merged;
     }
 
     private static bool LooksLikeActivity(CvExperience exp)

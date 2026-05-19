@@ -210,6 +210,13 @@ export class SignalRService {
       });
 
       this.pipeline.markStepDone(1);
+      this.pipeline.currentAgentProgress.set({
+        step: 'pipeline_completed',
+        agentName: 'db_persist',
+        label: 'Pipeline termine',
+        status: 'done',
+        progressPercent: 100,
+      });
 
       const gapsCount = r.competencesManquantes?.length ?? r.missingSkills?.length ?? 0;
       if (gapsCount > 0) {

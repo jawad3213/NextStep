@@ -117,6 +117,21 @@ COMPENSATION REQUIREMENTS:
 - Target: {db_target}
 (If specific DB min/max/currency are provided above, use them as your primary source of truth for the range, and calculate target/script around them!)
 
+STRICT BEHAVIORAL RULES:
+1. PRIORITY FOR SALARY RANGE:
+   - Priority 1: If Min range and Max range from the DB are not 0, use them exactly.
+   - Priority 2: If DB is 0, but Market Intel has reliable salary figures, use them.
+   - Priority 3 (Fallback - Do Not Hallucinate): If no exact amount is found, set "range_min": 0 and "range_max": 0. In the negotiation script steps or phrases, clearly state: "I couldn't find the exact salary amount for this position, but the typical range for similar roles in {location} is around [estimated interval]."
+   - If you are completely unsure about the range, do not output any interval (keep range_min and range_max at 0) and instead include a dedicated step/phrase stating: "I couldn't find the exact salary details, but the salary coach is here to guide you in negotiating this position regardless of the starting figure."
+2. INTERNSHIPS (STAGE/PFE) RULE:
+   - If the Contract Type is "stage", "pfe", or any form of "internship", it is completely fine to display the typical salary range of this profession to give them a long-term goal.
+   - However, you MUST explicitly state in the script and advice that as an intern, the primary focus is not high compensation. Rather, they are there to earn valuable real-world experience, learn, and secure a full-time return offer once hired.
+   - Provide script steps emphasizing: "As an intern, my primary objective is to learn, gain solid experience, and add maximum value to the team, with the hope of transitioning into a full-time role once hired."
+3. LANGUAGE RULE:
+   - You MUST write all the text, strategies, tactics, reasons, and phrases in the requested language: {language}.
+   - The requested language is either "fr" (French) or "en" (English). If {language} is "fr", you MUST write in French. Otherwise, default to English.
+   - For example, if {language} is "fr", the internship advice should say: "En tant que stagiaire, mon objectif principal est d'apprendre, d'acquérir une solide expérience et d'apporter un maximum de valeur à l'équipe, dans l'espoir de décrocher un poste à temps plein une fois embauché."
+
 Return ONLY a valid JSON object matching this schema:
 {{
   "range_min": 0,

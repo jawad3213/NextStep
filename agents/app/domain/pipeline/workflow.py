@@ -390,6 +390,7 @@ async def cv_engine_node(state: PipelineState) -> dict:
 async def db_persist_node(state: PipelineState) -> dict:
     from app.core.database import AsyncSessionFactory
     from app.core.models import OffreAnalysee, ResultatMatching
+    from sqlalchemy import select
     import uuid
 
     offer_id = state.get("offer_id")
@@ -403,6 +404,14 @@ async def db_persist_node(state: PipelineState) -> dict:
     try:
         async with AsyncSessionFactory() as db:
             o_uuid = uuid.UUID(offer_id)
+
+            # Supprimer l'ancienne analyse si elle existe
+            existing_analyses = await db.execute(
+                select(OffreAnalysee).where(OffreAnalysee.id_offre == o_uuid)
+            )
+            for old_ana in existing_analyses.scalars().all():
+                await db.delete(old_ana)
+
             db.add(OffreAnalysee(
                 id_offre=o_uuid,
                 titre_poste=analyzed_offer.get("titre", ""),
@@ -421,6 +430,15 @@ async def db_persist_node(state: PipelineState) -> dict:
                     except ValueError:
                         pass
                 if u_uuid:
+                    # Supprimer l'ancien matching s'il existe
+                    existing_matchings = await db.execute(
+                        select(ResultatMatching)
+                        .where(ResultatMatching.id_offre == o_uuid)
+                        .where(ResultatMatching.id_utilisateur == u_uuid)
+                    )
+                    for old_match in existing_matchings.scalars().all():
+                        await db.delete(old_match)
+
                     db.add(ResultatMatching(
                         id_offre=o_uuid,
                         id_utilisateur=u_uuid,

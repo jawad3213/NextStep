@@ -100,17 +100,22 @@ async def questions_node(state: InterviewPrepState) -> dict:
         company = state.offer_context.company
         match   = state.offer_context.match
 
-        # 1. Fusionner les questions connues de la base de données (seed) et de la recherche en direct Tavily
+        # 1. Récupérer d'abord les questions connues de la base de données (seed)
         db_questions = company.known_questions if company.known_questions else []
-        web_questions = await search_interview_questions(
-            offer.company_name, offer.job_title
-        )
-        
-        # Combiner sans doublons
         combined_questions = list(db_questions)
-        for q in web_questions:
-            if q not in combined_questions:
-                combined_questions.append(q)
+
+        # Si la base de données ne contient aucune question connue pour cette entreprise,
+        # on fait une recherche en direct sur Tavily en fallback
+        if not combined_questions:
+            logger.info(f"[QUESTIONS] Aucune question en base pour {offer.company_name}. Lancement de Tavily...")
+            web_questions = await search_interview_questions(
+                offer.company_name, offer.job_title
+            )
+            for q in web_questions:
+                if q not in combined_questions:
+                    combined_questions.append(q)
+        else:
+            logger.info(f"[QUESTIONS] {len(combined_questions)} questions trouvées en base pour {offer.company_name}. Bypass de Tavily.")
 
         # 2. Construire le prompt avec tout le contexte
         prompt = QUESTIONS_PROMPT_OFFER.format(
@@ -411,6 +416,7 @@ async def salary_node(state: InterviewPrepState) -> dict:
         currency = c.currency if c.currency else "USD"
         extra = (
             f"Company: {o.company_name}\n"
+            f"Contract Type: {o.contract_type}\n"
             f"Candidate strengths: {', '.join(state.offer_context.match.strengths)}\n"
         )
     else:
@@ -428,6 +434,10 @@ async def salary_node(state: InterviewPrepState) -> dict:
     # Recherche données marché
     market_data = await search_salary_data(job_title, location)
 
+    lang = "en"
+    if state.arena_config and state.arena_config.language:
+        lang = state.arena_config.language
+
     prompt = SALARY_PROMPT.format(
         job_title=job_title,
         location=location,
@@ -437,6 +447,7 @@ async def salary_node(state: InterviewPrepState) -> dict:
         db_min=db_min,
         db_max=db_max,
         db_target=db_target,
+        language=lang,
     )
 
     lc_messages = [

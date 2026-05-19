@@ -41,7 +41,7 @@ from app.domain.chatbot.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns
+from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
 
 # SERVICE 3 — START INTERVIEW (Tab 2)
 async def start_interview_service(
@@ -50,6 +50,7 @@ async def start_interview_service(
     arena_config: ArenaConfigSchema | None,
     user_id: str,
     db: AsyncSession,
+    session_id: str | None = None,
 ) -> StartInterviewResponse:
     """Démarre la session. Crée la ligne en DB. Retourne le message d'ouverture."""
 
@@ -61,8 +62,11 @@ async def start_interview_service(
     cfg = arena_config
     try:
         cand_id = await get_candidature_id(offer_id, user_id, db)
+        internal_uid = await get_internal_user_id(user_id, db)
+        session_uuid = uuid.UUID(session_id) if session_id else uuid.uuid4()
         session_db = SessionCoaching(
-            id_utilisateur=uuid.UUID(user_id) if user_id else None,
+            id_session=session_uuid,
+            id_utilisateur=internal_uid,
             id_candidature=cand_id,
             mode=mode,
             language=cfg.language if cfg else "en",
@@ -70,7 +74,7 @@ async def start_interview_service(
             domain=cfg.domain if cfg else None,
             level=cfg.level if cfg else None,
             focus_areas=cfg.focus_areas if cfg else None,
-            status="in_progress",
+            status="started",
         )
         db.add(session_db)
         await db.commit()
@@ -102,9 +106,10 @@ async def start_interview_service(
 
     # Sauvegarder le message d'ouverture
     try:
+        internal_uid = await get_internal_user_id(user_id, db)
         db.add(ChatMessage(
             thread_id=uuid.UUID(session_id),
-            id_utilisateur=uuid.UUID(user_id) if user_id else None,
+            id_utilisateur=internal_uid,
             id_session=uuid.UUID(session_id),
             chat_type="interview",
             sender="ai",
@@ -156,11 +161,11 @@ async def send_message_service(
     # Sauvegarder user + ai dans chat_message
     try:
         session_uuid = uuid.UUID(session_id)
-        user_uuid    = uuid.UUID(user_id) if user_id else None
+        internal_uid = await get_internal_user_id(user_id, db)
 
         db.add(ChatMessage(
             thread_id=session_uuid,
-            id_utilisateur=user_uuid,
+            id_utilisateur=internal_uid,
             id_session=session_uuid,
             chat_type="interview",
             sender="user",
@@ -168,7 +173,7 @@ async def send_message_service(
         ))
         db.add(ChatMessage(
             thread_id=session_uuid,
-            id_utilisateur=user_uuid,
+            id_utilisateur=internal_uid,
             id_session=session_uuid,
             chat_type="interview",
             sender="ai",

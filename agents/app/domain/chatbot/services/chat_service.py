@@ -41,7 +41,7 @@ from app.domain.chatbot.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns
+from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
 
 # SERVICE 2 — FREE CHAT (Tab 1 chat)
 async def free_chat_service(
@@ -75,18 +75,18 @@ async def free_chat_service(
     # Sauvegarder les 2 messages (user + ai) dans chat_message
     try:
         thread_uuid = uuid.UUID(thread_id) if thread_id else uuid.uuid4()
-        user_uuid   = uuid.UUID(user_id)   if user_id   else None
+        internal_uid = await get_internal_user_id(user_id, db)
 
         db.add(ChatMessage(
             thread_id=thread_uuid,
-            id_utilisateur=user_uuid,
+            id_utilisateur=internal_uid,
             chat_type="questions",
             sender="user",
             content=user_input,
         ))
         db.add(ChatMessage(
             thread_id=thread_uuid,
-            id_utilisateur=user_uuid,
+            id_utilisateur=internal_uid,
             chat_type="questions",
             sender="ai",
             content=ai_content,

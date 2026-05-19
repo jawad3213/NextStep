@@ -81,6 +81,15 @@ class CompanyService:
             except ValueError:
                 pass
 
+        # Supprimer l'ancienne intelligence si elle existe pour cette offre
+        if offer_uuid:
+            from sqlalchemy import select
+            existing_intel = await db.execute(
+                select(IntelEntreprise).where(IntelEntreprise.id_offre == offer_uuid)
+            )
+            for old_intel in existing_intel.scalars().all():
+                await db.delete(old_intel)
+
         salaries = intel.get("salaries", [])
         salaire_min = None
         salaire_max = None

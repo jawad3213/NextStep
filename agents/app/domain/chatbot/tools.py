@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_tavily():
-    return TavilyClient(api_key=get_settings().tavily_api_key)
+    return TavilyClient(api_key=get_settings().TAVILY_API_KEY)
 
 
 async def search_interview_questions(company: str, job_title: str) -> list[str]:

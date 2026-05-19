@@ -78,7 +78,7 @@ class TestGetOfferContext:
         assert result is None
 
     @pytest.mark.asyncio
-    @patch('app.domain.chatbot.service.get_internal_user_id', new=AsyncMock(return_value=uuid.UUID("11111111-1111-1111-1111-111111111111")))
+    @patch('app.domain.chatbot.services.context_service.get_internal_user_id', new=AsyncMock(return_value=uuid.UUID("11111111-1111-1111-1111-111111111111")))
     async def test_retourne_contexte_complet_offer_mode(
         self, mock_db, offer_id, user_id,
         mock_offre_row, mock_intel_row, mock_match_row
@@ -119,7 +119,7 @@ class TestGetOfferContext:
         assert "Python" in result.match.strengths
 
     @pytest.mark.asyncio
-    @patch('app.domain.chatbot.service.get_internal_user_id', new=AsyncMock(return_value=uuid.UUID("11111111-1111-1111-1111-111111111111")))
+    @patch('app.domain.chatbot.services.context_service.get_internal_user_id', new=AsyncMock(return_value=uuid.UUID("11111111-1111-1111-1111-111111111111")))
     async def test_fonctionne_sans_match_data(
         self, mock_db, offer_id, user_id,
         mock_offre_row, mock_intel_row
@@ -169,7 +169,7 @@ class TestGenerateQuestionsService:
         fake_graph_result = {"questions": mock_questions_result}
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_graph_result)
         ):
             result = await service.generate_questions_service(
@@ -209,10 +209,10 @@ class TestGenerateQuestionsService:
 
         # On mock aussi get_offer_context_from_db pour retourner un contexte
         with patch(
-            "app.domain.chatbot.service.get_offer_context_from_db",
+            "app.domain.chatbot.services.questions_service.get_offer_context_from_db",
             new=AsyncMock(return_value=mock_offer_context)
         ), patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_graph_result)
         ):
             result = await service.generate_questions_service(
@@ -237,7 +237,7 @@ class TestGenerateQuestionsService:
         mock_db.execute = AsyncMock(return_value=make_execute_result(None))
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value={"questions": []})
         ):
             result = await service.generate_questions_service(
@@ -275,7 +275,7 @@ class TestFreeChatService:
         }
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             result = await service.free_chat_service(
@@ -308,7 +308,7 @@ class TestFreeChatService:
         }
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             await service.free_chat_service(
@@ -359,7 +359,7 @@ class TestStartInterviewService:
 
         session_id = "55555555-5555-5555-5555-555555555555"
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             result = await service.start_interview_service(
@@ -395,7 +395,7 @@ class TestStartInterviewService:
 
         session_id = "55555555-5555-5555-5555-555555555555"
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             result = await service.start_interview_service(
@@ -433,7 +433,7 @@ class TestSendMessageService:
         }
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             result = await service.send_message_service(
@@ -464,7 +464,7 @@ class TestSendMessageService:
         }
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             await service.send_message_service(
@@ -501,7 +501,7 @@ class TestEndInterviewService:
         fake_result = {"feedback": mock_feedback_result}
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             result = await service.end_interview_service(
@@ -541,7 +541,7 @@ class TestEndInterviewService:
         fake_result = {"feedback": mock_feedback_result}
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             await service.end_interview_service(
@@ -570,7 +570,7 @@ class TestEndInterviewService:
         mock_db, _ = mock_db_with_session
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value={"feedback": None})
         ):
             result = await service.end_interview_service(
@@ -604,7 +604,7 @@ class TestGetSalaryService:
         fake_result = {"salary": mock_salary_result}
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             result = await service.get_salary_service(
@@ -637,7 +637,7 @@ class TestGetSalaryService:
             "app.domain.chatbot.service.get_offer_context_from_db",
             new=AsyncMock(return_value=mock_offer_context)
         ), patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
             result = await service.get_salary_service(
@@ -659,7 +659,7 @@ class TestGetSalaryService:
         mock_db.execute = AsyncMock(return_value=make_execute_result(None))
 
         with patch(
-            "app.domain.chatbot.service.interview_graph.ainvoke",
+            "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value={"salary": None})
         ):
             result = await service.get_salary_service(

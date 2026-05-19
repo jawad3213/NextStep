@@ -41,7 +41,7 @@ from app.domain.chatbot.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns
+from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
 
 # SERVICE 1 — QUESTIONS (Tab 1)
 async def generate_questions_service(
@@ -81,8 +81,9 @@ async def generate_questions_service(
     # 4. Sauvegarder en DB (session temporaire pour les questions générées)
     try:
         cand_id = await get_candidature_id(offer_id, user_id, db)
+        internal_uid = await get_internal_user_id(user_id, db)
         session_db = SessionCoaching(
-            id_utilisateur=uuid.UUID(user_id) if user_id else None,
+            id_utilisateur=internal_uid,
             id_candidature=cand_id,
             mode=mode,
             language=arena_config.language if arena_config else "en",

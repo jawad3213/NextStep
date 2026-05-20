@@ -25,6 +25,124 @@ export interface OfferHistoryItem {
   dateCreation: string;
 }
 
+export type ScrapeProvider = 'linkedin' | 'indeed' | 'glassdoor';
+
+export interface LinkedInJobsSearchRequest {
+  keywords: string;
+  location?: string;
+  limit?: number;
+  posted_since_seconds?: number;
+  search_url?: string;
+  fetch_details?: boolean;
+  it_only?: boolean;
+}
+
+export interface LinkedInScrapedJob {
+  job_id?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  posted_at_text?: string | null;
+  url?: string | null;
+  description?: string | null;
+  employment_type?: string | null;
+  seniority_level?: string | null;
+  job_function?: string | null;
+  industries?: string[];
+  source: string;
+  search_url?: string | null;
+  is_it_offer?: boolean;
+  matched_it_terms?: string[];
+}
+
+export interface LinkedInJobsSearchResponse {
+  keywords?: string | null;
+  location?: string | null;
+  total_found: number;
+  total_returned: number;
+  it_only: boolean;
+  search_urls: string[];
+  jobs: LinkedInScrapedJob[];
+  errors: string[];
+}
+
+export interface IndeedJobsSearchRequest {
+  keywords: string;
+  location?: string;
+  limit?: number;
+  search_url?: string;
+  fetch_details?: boolean;
+  it_only?: boolean;
+  country_code?: string;
+}
+
+export interface IndeedScrapedJob {
+  job_id?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  posted_at_text?: string | null;
+  url?: string | null;
+  description?: string | null;
+  employment_type?: string | null;
+  seniority_level?: string | null;
+  job_function?: string | null;
+  industries?: string[];
+  source: string;
+  search_url?: string | null;
+  is_it_offer?: boolean;
+  matched_it_terms?: string[];
+}
+
+export interface IndeedJobsSearchResponse {
+  keywords?: string | null;
+  location?: string | null;
+  total_found: number;
+  total_returned: number;
+  it_only: boolean;
+  search_urls: string[];
+  jobs: IndeedScrapedJob[];
+  errors: string[];
+}
+
+export interface GlassdoorJobsSearchRequest {
+  keywords: string;
+  location?: string;
+  limit?: number;
+  search_url?: string;
+  fetch_details?: boolean;
+  it_only?: boolean;
+}
+
+export interface GlassdoorScrapedJob {
+  job_id?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  posted_at_text?: string | null;
+  url?: string | null;
+  description?: string | null;
+  employment_type?: string | null;
+  seniority_level?: string | null;
+  job_function?: string | null;
+  industries?: string[];
+  source: string;
+  search_url?: string | null;
+  is_it_offer?: boolean;
+  matched_it_terms?: string[];
+}
+
+export interface GlassdoorJobsSearchResponse {
+  keywords?: string | null;
+  location?: string | null;
+  total_found: number;
+  total_returned: number;
+  it_only: boolean;
+  search_urls: string[];
+  jobs: GlassdoorScrapedJob[];
+  errors: string[];
+}
+
 export interface PdfGeneratePayload {
   templateId: string;
 }
@@ -133,6 +251,7 @@ export interface OfferAnalysisResponse {
 export class OfferApiService {
   private http = inject(HttpClient);
   private base = environment.apiBaseUrl;
+  private agentsBase = environment.agentsBaseUrl;
 
   submitOffer(payload: OfferSubmitPayload): Observable<OfferSubmitResponse> {
     return this.http.post<OfferSubmitResponse>(
@@ -143,6 +262,18 @@ export class OfferApiService {
 
   getOffersHistory(): Observable<OfferHistoryItem[]> {
     return this.http.get<OfferHistoryItem[]>(`${this.base}/offers`);
+  }
+
+  searchLinkedInJobs(payload: LinkedInJobsSearchRequest): Observable<LinkedInJobsSearchResponse> {
+    return this.http.post<LinkedInJobsSearchResponse>(`${this.agentsBase}/linkedin-jobs/search`, payload);
+  }
+
+  searchIndeedJobs(payload: IndeedJobsSearchRequest): Observable<IndeedJobsSearchResponse> {
+    return this.http.post<IndeedJobsSearchResponse>(`${this.agentsBase}/indeed-jobs/search`, payload);
+  }
+
+  searchGlassdoorJobs(payload: GlassdoorJobsSearchRequest): Observable<GlassdoorJobsSearchResponse> {
+    return this.http.post<GlassdoorJobsSearchResponse>(`${this.agentsBase}/glassdoor-jobs/search`, payload);
   }
 
   bulkDeleteOffers(offerIds: string[]): Observable<{ deletedCount: number }> {
@@ -269,10 +400,14 @@ export class OfferApiService {
     });
   }
 
-  renderCvPreview(templateSlug: string, data: any): Observable<Blob> {
-    return this.http.post(`${this.base}/cv/preview/render?template=${encodeURIComponent(templateSlug)}`, data, {
+  renderCvPreview(templateSlug: string, data: any, format: 'pdf' | 'png' = 'pdf'): Observable<Blob> {
+    return this.http.post(
+      `${this.base}/cv/preview/render?template=${encodeURIComponent(templateSlug)}&format=${format}`,
+      data,
+      {
       responseType: 'blob'
-    });
+      }
+    );
   }
 
   saveFinalCv(templateSlug: string, title: string, data: any): Observable<CvSaveResponse> {

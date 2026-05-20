@@ -101,11 +101,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   @Input() templateId: string = 'modern';
   @Input() offerId: string | null = null;
   @Input() initialData: any = null;
+  @Input() previewImageUrl: string | null = null;
   @Input() previewUrl: SafeResourceUrl | null = null;
   @Input() isRenderingPreview: boolean = false;
   @Input() previewError: string | null = null;
   @Output() back = new EventEmitter<void>();
   @Output() continue = new EventEmitter<void>();
+  @Output() download = new EventEmitter<void>();
   @Output() dataChange = new EventEmitter<CvGeneratedSchema>();
   @Output() templateChange = new EventEmitter<SupportedEditorTemplate>();
   private readonly sidebarService = inject(SidebarService);
@@ -119,6 +121,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   readonly documentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
   readonly isEditingDocumentTitle = signal<boolean>(false);
   readonly draftDocumentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
+  readonly activePreviewSection = signal<string | null>('summary');
+  readonly editingSectionTitle = signal<string | null>(null);
+  readonly sectionTitleOverrides = signal<Record<string, string>>({});
+  readonly previewZoom = signal<number>(100);
+  readonly minPreviewZoom = 70;
+  readonly maxPreviewZoom = 130;
+  private readonly previewZoomStep = 10;
 
   // SIMULATED OPTIMIZATION LOADING
   readonly isImproving = signal<boolean>(false);
@@ -351,8 +360,148 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     this.activeAccentColor.set(colorId);
   }
 
+  accentColorHex(): string {
+    const colors: Record<string, string> = {
+      rainbow: '#11610c',
+      gray: '#6f7781',
+      navy: '#1d3f91',
+      purple: '#6f42c1',
+      blue: '#2f9be5',
+      teal: '#18a7a0',
+      green: '#11610c',
+      red: '#b93317',
+      empty: '#0f172a',
+      olive: '#586c2f',
+      orange: '#c65b1b',
+      slate: '#334155',
+      pink: '#be3b7b',
+      black: '#111827',
+    };
+    return colors[this.activeAccentColor()] ?? colors['green'];
+  }
+
   isSectionVisible(sectionId: string): boolean {
     return !!this.sectionVisibility()[sectionId];
+  }
+
+  setActivePreviewSection(sectionId: string): void {
+    this.activePreviewSection.set(sectionId);
+  }
+
+  selectedSection(): CvSection | null {
+    return this.orderedSections.find(section => section.id === this.activePreviewSection()) ?? null;
+  }
+
+  openSectionInspector(sectionId: string): void {
+    this.setActivePreviewSection(sectionId);
+    this.activePanelTab.set('sections');
+    this.isPanelOpen.set(true);
+  }
+
+  startSectionTitleEdit(sectionId: string): void {
+    this.editingSectionTitle.set(sectionId);
+    this.activePreviewSection.set(sectionId);
+  }
+
+  stopSectionTitleEdit(): void {
+    this.editingSectionTitle.set(null);
+  }
+
+  updateSectionTitle(sectionId: string, value: string): void {
+    this.sectionTitleOverrides.update((titles) => ({
+      ...titles,
+      [sectionId]: value.trimStart(),
+    }));
+  }
+
+  hidePreviewSection(sectionId: string): void {
+    if (sectionId.startsWith('custom-')) {
+      this.toggleCustomSectionVisibility(sectionId);
+    } else {
+      this.toggleSectionVisibility(sectionId);
+    }
+  }
+
+  moveSection(sectionId: string, direction: -1 | 1): void {
+    const order = [...this.sectionOrder()];
+    const index = order.indexOf(sectionId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= order.length) return;
+    moveItemInArray(order, index, nextIndex);
+    this.sectionOrder.set(order);
+  }
+
+  canMoveSection(sectionId: string, direction: -1 | 1): boolean {
+    const order = this.sectionOrder();
+    const index = order.indexOf(sectionId);
+    const nextIndex = index + direction;
+    return index >= 0 && nextIndex >= 0 && nextIndex < order.length;
+  }
+
+  visibleMainSections(): CvSection[] {
+    return this.orderedSections.filter(section => section.isVisible && section.placement === 'main');
+  }
+
+  visibleSidebarSections(): CvSection[] {
+    return this.orderedSections.filter(section => section.isVisible && section.placement === 'sidebar');
+  }
+
+  visibleTemplateSections(): CvSection[] {
+    return this.orderedSections.filter(section => section.isVisible);
+  }
+
+  sectionById(sectionId: string): CvSection | null {
+    return this.orderedSections.find(section => section.id === sectionId) ?? null;
+  }
+
+  sectionItems(sectionId: string): CvSectionItem[] {
+    return this.sectionById(sectionId)?.items ?? [];
+  }
+
+  contactLine(): string {
+    return [
+      this.cvData().candidate.email,
+      this.cvData().candidate.phone,
+      this.cvData().candidate.location,
+      this.cvData().candidate.linkedIn,
+      this.cvData().candidate.gitHub,
+      this.cvData().candidate.portfolio,
+    ]
+      .filter((value) => !!String(value ?? '').trim())
+      .join(' | ');
+  }
+
+  skillPercent(level: number | null | undefined): number {
+    return Math.max(20, Math.min(100, (Number(level ?? 1) || 1) * 20));
+  }
+
+  previewSectionIcon(sectionId: string): string {
+    const icons: Record<string, string> = {
+      summary: 'description',
+      experience: 'work',
+      projects: 'deployed_code',
+      education: 'school',
+      skills: 'bolt',
+      certifications: 'workspace_premium',
+      languages: 'translate',
+      activities: 'interests',
+      accomplishments: 'military_tech',
+    };
+    return icons[sectionId] ?? 'article';
+  }
+
+  activityLine(item: CvSectionItem): string {
+    const title = String(item.primaryText ?? '').trim();
+    const role = String(item.secondaryText ?? '').trim();
+    if (title && role) return `${title} - ${role}`;
+    return title || role;
+  }
+
+  languageLine(): string {
+    return this.sectionItems('languages')
+      .map((item) => String(item.primaryText ?? '').trim())
+      .filter(Boolean)
+      .join('   •   ');
   }
 
   toggleFocusMode(): void {
@@ -386,7 +535,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -397,7 +546,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -413,7 +562,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -429,7 +578,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -446,7 +595,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -462,7 +611,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -476,7 +625,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -490,7 +639,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -504,7 +653,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         return {
           id,
           type: id,
-          title: def.label,
+          title: this.sectionLabel(id),
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
@@ -553,6 +702,12 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   updateCustomSectionTitle(sectionId: string, title: string): void {
     this.customSections.update(sections =>
       sections.map(section => section.id === sectionId ? { ...section, title } : section)
+    );
+  }
+
+  updateCustomSectionText(sectionId: string, text: string): void {
+    this.customSections.update(sections =>
+      sections.map(section => section.id === sectionId ? { ...section, text } : section)
     );
   }
 
@@ -855,7 +1010,8 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   }
 
   sectionLabel(sectionId: string): string {
-    return this.sectionDefinitions.find(section => section.id === sectionId)?.label ?? sectionId;
+    const override = this.sectionTitleOverrides()[sectionId]?.trim();
+    return override || (this.sectionDefinitions.find(section => section.id === sectionId)?.label ?? sectionId);
   }
 
   // Local persistence is immediate; backend autosave is owned by StepGeneration
@@ -964,6 +1120,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         phone: normalized?.candidate?.phone ?? current.candidate.phone,
         location: normalized?.candidate?.location ?? current.candidate.location,
         title: normalized?.candidate?.title ?? current.candidate.title,
+        photoUrl: normalized?.candidate?.photoUrl ?? current.candidate.photoUrl,
         linkedIn: normalized?.candidate?.linkedIn ?? current.candidate.linkedIn,
         gitHub: normalized?.candidate?.gitHub ?? current.candidate.gitHub,
         portfolio: normalized?.candidate?.portfolio ?? current.candidate.portfolio,
@@ -995,7 +1152,9 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
         : current.projects,
       certifications: Array.isArray(normalized?.certifications) ? normalized.certifications : current.certifications,
       languages: Array.isArray(normalized?.languages) ? normalized.languages : current.languages,
-      activities: Array.isArray(normalized?.activities) ? normalized.activities : current.activities,
+      activities: Array.isArray(normalized?.activities)
+        ? normalized.activities.map((activity: any) => String(activity?.title ?? activity ?? '')).filter(Boolean)
+        : current.activities,
       accomplishments: Array.isArray(normalized?.accomplishments) ? normalized.accomplishments : current.accomplishments,
       atsScore: normalized?.atsScore ?? current.atsScore,
       matchingScore: normalized?.matchingScore ?? current.matchingScore,
@@ -1223,7 +1382,21 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   }
 
   exportPdf() {
-    window.print();
+    this.download.emit();
+  }
+
+  zoomIn(): void {
+    this.previewZoom.update((value) => Math.min(value + this.previewZoomStep, this.maxPreviewZoom));
+  }
+
+  zoomOut(): void {
+    this.previewZoom.update((value) => Math.max(value - this.previewZoomStep, this.minPreviewZoom));
+  }
+
+  onPreviewWheel(event: WheelEvent): void {
+    if (event.ctrlKey) {
+      event.preventDefault();
+    }
   }
 
   getBubbleGradient(): string {

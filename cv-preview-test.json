@@ -1,0 +1,48 @@
+{
+  "candidate": {
+    "name": "Alex Mercer",
+    "email": "alex.mercer@email.com",
+    "phone": "+1 (555) 123-4567",
+    "location": "San Francisco, CA",
+    "linkedIn": "linkedin.com/in/alexmercer",
+    "gitHub": "github.com/alexmercer",
+    "portfolio": "alexmercer.dev"
+  },
+  "summary": "Senior Full-Stack Engineer with experience building scalable web applications.",
+  "experience": [
+    {
+      "role": "Senior Full-Stack Engineer",
+      "company": "TechCorp Inc.",
+      "start": "2021-03",
+      "end": null,
+      "bullets": ["Built and shipped multiple applications."]
+    }
+  ],
+  "education": [
+    {
+      "degree": "M.Sc. in Computer Science",
+      "institution": "Stanford University",
+      "year": "2016"
+    }
+  ],
+  "skills": [
+    { "name": "Angular", "level": 5, "isMatched": true },
+    { "name": "TypeScript", "level": 5, "isMatched": true }
+  ],
+  "projects": [
+    {
+      "title": "ngx-dashboard",
+      "description": "Open-source Angular component library",
+      "technologies": [],
+      "bullets": ["Published and maintained package."]
+    }
+  ],
+  "certifications": [],
+  "languages": [],
+  "activities": [],
+  "sections": [],
+  "themeColor": "#1B2A4A",
+  "atsScore": 94,
+  "matchingScore": 91,
+  "atsCoveragePct": 88.5
+}

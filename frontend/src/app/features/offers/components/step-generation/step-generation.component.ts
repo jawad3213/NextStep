@@ -32,7 +32,8 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   private autosaveSub: Subscription | null = null;
   private loadDraftSub: Subscription | null = null;
   private lastDraftHash = '';
-  private previewBlobUrl: string | null = null;
+  private previewImageBlobUrl: string | null = null;
+  private previewPdfBlobUrl: string | null = null;
   private readonly thumbnailUrlCache = new Map<string, string>();
   private readonly thumbnailNonce = Date.now();
   private readonly draftKey = 'nextstep_cv_draft';
@@ -42,6 +43,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   editorInitialData = signal<any | null>(null);
   private editorDraft = signal<any | null>(null);
   livePreviewUrl: SafeResourceUrl | null = null;
+  livePreviewImageUrl: string | null = null;
   isRenderingPreview = false;
   showPreviewModal = false;
   previewError: string | null = null;
@@ -223,9 +225,13 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.previewRequestSub?.unsubscribe();
     this.autosaveSub?.unsubscribe();
     this.loadDraftSub?.unsubscribe();
-    if (this.previewBlobUrl) {
-      window.URL.revokeObjectURL(this.previewBlobUrl);
-      this.previewBlobUrl = null;
+    if (this.previewImageBlobUrl) {
+      window.URL.revokeObjectURL(this.previewImageBlobUrl);
+      this.previewImageBlobUrl = null;
+    }
+    if (this.previewPdfBlobUrl) {
+      window.URL.revokeObjectURL(this.previewPdfBlobUrl);
+      this.previewPdfBlobUrl = null;
     }
   }
 
@@ -244,8 +250,11 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   openPreviewModal(): void {
-    if (!this.livePreviewUrl) return;
-    this.showPreviewModal = true;
+    const data = this.currentCvData();
+    if (!data) return;
+    this.ensurePdfPreview(data, () => {
+      this.showPreviewModal = true;
+    });
   }
 
   closePreviewModal(): void {
@@ -259,6 +268,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.savedFileUrl = null;
     this.savedDraftHash = '';
     this.lastDraftHash = '';
+    this.livePreviewUrl = null;
     this.queueLivePreview();
   }
 
@@ -347,8 +357,19 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       if (!this.savedHistoryId) throw new Error('Historique CV introuvable.');
 
       this.isDownloadingFinal = true;
-      const blob = await firstValueFrom(this.offerApi.downloadCvHistoryFile(this.savedHistoryId));
-      this.downloadBlob(blob);
+      try {
+        const blob = await firstValueFrom(this.offerApi.downloadCvHistoryFile(this.savedHistoryId));
+        if (!blob || blob.size === 0) {
+          throw new Error('PDF vide recu depuis le backend.');
+        }
+        this.downloadBlob(blob);
+      } catch {
+        const signed = await firstValueFrom(this.offerApi.getCvDownloadUrl(this.savedHistoryId));
+        if (!signed?.downloadUrl) {
+          throw new Error('Lien de telechargement PDF indisponible.');
+        }
+        this.downloadFromUrl(this.normalizeDownloadUrl(signed.downloadUrl));
+      }
     } catch (err: any) {
       console.error('[CV-PIPELINE] Final CV download failed', err);
       this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Telechargement PDF indisponible.');
@@ -367,19 +388,12 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       this.savedDraftHash = '';
     }
 
-    if (hash !== this.lastDraftHash || this.previewError) {
-      this.isRenderingPreview = true;
-      this.previewError = null;
-    }
-
-    if (this.previewDebounceId !== null) {
-      window.clearTimeout(this.previewDebounceId);
-    }
-
-    this.previewDebounceId = window.setTimeout(() => {
-      this.previewDebounceId = null;
-      this.renderLivePreview(data);
-    }, delayMs);
+    void delayMs;
+    this.lastDraftHash = hash;
+    this.isRenderingPreview = false;
+    this.previewError = null;
+    this.livePreviewImageUrl = null;
+    this.livePreviewUrl = null;
   }
 
   private renderLivePreview(data: any): void {
@@ -394,17 +408,34 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.isRenderingPreview = true;
     this.previewError = null;
 
-    this.previewRequestSub = this.offerApi.renderCvPreview(this.selectedTemplate, data).subscribe({
+    this.previewRequestSub = this.offerApi.renderCvPreview(this.selectedTemplate, data, 'png').subscribe({
       next: (blob) => {
-        if (this.previewBlobUrl) {
-          window.URL.revokeObjectURL(this.previewBlobUrl);
+        const blobType = (blob.type || '').toLowerCase();
+
+        if (blobType.startsWith('image/')) {
+          if (this.previewImageBlobUrl) {
+            window.URL.revokeObjectURL(this.previewImageBlobUrl);
+          }
+          this.previewImageBlobUrl = window.URL.createObjectURL(blob);
+          this.livePreviewImageUrl = this.previewImageBlobUrl;
+          this.previewError = null;
+          this.isRenderingPreview = false;
+          return;
         }
-        this.previewBlobUrl = window.URL.createObjectURL(blob);
-        this.livePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`
-        );
-        this.previewError = null;
-        this.isRenderingPreview = false;
+
+        this.livePreviewImageUrl = null;
+
+        if (blobType.includes('pdf')) {
+          this.applyPdfPreviewBlob(blob);
+          this.previewError = null;
+          this.isRenderingPreview = false;
+          return;
+        }
+
+        this.ensurePdfPreview(data, () => {
+          this.previewError = null;
+          this.isRenderingPreview = false;
+        });
       },
       error: (err) => {
         void this.handlePreviewRenderError(err);
@@ -426,6 +457,23 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
+  }
+
+  private downloadFromUrl(url: string): void {
+    const offerId = this.currentOfferId || 'candidat';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `CV_${offerId}_${this.selectedTemplate}.pdf`;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  private normalizeDownloadUrl(url: string): string {
+    return url
+      .replace('http://minio:9000', 'http://localhost:9000')
+      .replace('https://minio:9000', 'http://localhost:9000');
   }
 
   private formatDraftTime(value: string | null | undefined): string | null {
@@ -555,6 +603,33 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   private currentCvData(): any | null {
     const data = this.editorDraft() || this.readLocalDraftForCurrentOffer() || this.generatedCvData;
     return data ? this.normalizeCvForBackend(data) : null;
+  }
+
+  private ensurePdfPreview(data: any, onReady?: () => void): void {
+    if (this.livePreviewUrl) {
+      onReady?.();
+      return;
+    }
+
+    this.offerApi.renderCvPreview(this.selectedTemplate, data, 'pdf').subscribe({
+      next: (blob) => {
+        this.applyPdfPreviewBlob(blob);
+        onReady?.();
+      },
+      error: () => {
+        this.livePreviewUrl = null;
+      }
+    });
+  }
+
+  private applyPdfPreviewBlob(blob: Blob): void {
+    if (this.previewPdfBlobUrl) {
+      window.URL.revokeObjectURL(this.previewPdfBlobUrl);
+    }
+    this.previewPdfBlobUrl = window.URL.createObjectURL(blob);
+    this.livePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+      `${this.previewPdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`
+    );
   }
 
   private async handlePreviewRenderError(err: any): Promise<void> {

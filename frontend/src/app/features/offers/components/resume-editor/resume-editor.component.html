@@ -72,11 +72,11 @@
         <span class="material-symbols-outlined">{{ isFocusMode() ? 'fullscreen_exit' : 'fullscreen' }}</span>
       </button>
       <span class="toolbar-divider"></span>
-      <button class="zoom-btn" type="button" title="Zoom out">
+      <button class="zoom-btn" type="button" title="Zoom out" (click)="zoomOut()" [disabled]="previewZoom() <= minPreviewZoom">
         <span class="material-symbols-outlined">remove</span>
       </button>
-      <span class="zoom-value">100 %</span>
-      <button class="zoom-btn" type="button" title="Zoom in">
+      <span class="zoom-value">{{ previewZoom() }} %</span>
+      <button class="zoom-btn" type="button" title="Zoom in" (click)="zoomIn()" [disabled]="previewZoom() >= maxPreviewZoom">
         <span class="material-symbols-outlined">add</span>
       </button>
       <span class="toolbar-divider"></span>
@@ -118,13 +118,80 @@
 
       <div class="template-grid">
         <button class="template-thumb" [class.active]="activeTemplate() === 'modern'" type="button" (click)="setTemplate('modern')">
-          <div class="thumb-preview modern">
-            <img class="thumb-image" src="/thumbnails/modern.png" alt="Modern CV template thumbnail">
+          <div class="thumb-preview modern" [style.--accent-color]="accentColorHex()" aria-label="Modern interactive CV template thumbnail">
+            <div class="thumb-resume-page thumb-modern-page">
+              <aside class="thumb-resume-sidebar">
+                <div class="thumb-photo"></div>
+                <span class="thumb-sidebar-name"></span>
+                <span class="thumb-sidebar-title"></span>
+                <span class="thumb-contact-row"></span>
+                <span class="thumb-contact-row long"></span>
+                <span class="thumb-contact-row"></span>
+                <span class="thumb-sidebar-section-title"></span>
+                <span class="thumb-skill-row"></span>
+                <span class="thumb-skill-row"></span>
+                <span class="thumb-skill-row short"></span>
+              </aside>
+              <section class="thumb-resume-main">
+                <div class="thumb-main-header">
+                  <span class="thumb-main-name"></span>
+                  <span class="thumb-main-title"></span>
+                  <span class="thumb-main-link"></span>
+                  <span class="thumb-main-link short"></span>
+                </div>
+                <div class="thumb-section-card selected">
+                  <div class="thumb-section-head">
+                    <span class="thumb-section-icon"></span>
+                    <span class="thumb-section-title"></span>
+                    <span class="thumb-mini-action"></span>
+                    <span class="thumb-mini-action icon"></span>
+                    <span class="thumb-mini-action icon danger"></span>
+                  </div>
+                  <span class="thumb-entry-title"></span>
+                  <span class="thumb-entry-line"></span>
+                  <span class="thumb-entry-line wide"></span>
+                </div>
+                <div class="thumb-section-card">
+                  <div class="thumb-section-head">
+                    <span class="thumb-section-icon"></span>
+                    <span class="thumb-section-title short"></span>
+                  </div>
+                  <span class="thumb-entry-title short"></span>
+                  <span class="thumb-entry-line wide"></span>
+                </div>
+              </section>
+            </div>
           </div>
         </button>
         <button class="template-thumb" [class.active]="activeTemplate() === 'latex'" type="button" (click)="setTemplate('latex')">
-          <div class="thumb-preview latex">
-            <img class="thumb-image" src="/thumbnails/latex.png" alt="Latex CV template thumbnail">
+          <div class="thumb-preview latex" [style.--accent-color]="accentColorHex()" aria-label="Tech one-column CV template thumbnail">
+            <div class="thumb-resume-page thumb-latex-page">
+              <section class="thumb-resume-main">
+                <div class="thumb-main-header">
+                  <span class="thumb-main-name"></span>
+                  <span class="thumb-main-title"></span>
+                  <span class="thumb-main-link wide"></span>
+                </div>
+                <div class="thumb-section-card selected">
+                  <div class="thumb-section-head">
+                    <span class="thumb-section-icon"></span>
+                    <span class="thumb-section-title"></span>
+                    <span class="thumb-mini-action"></span>
+                  </div>
+                  <span class="thumb-entry-title"></span>
+                  <span class="thumb-entry-line wide"></span>
+                  <span class="thumb-entry-line"></span>
+                </div>
+                <div class="thumb-section-card">
+                  <div class="thumb-section-head">
+                    <span class="thumb-section-icon"></span>
+                    <span class="thumb-section-title short"></span>
+                  </div>
+                  <span class="thumb-entry-line wide"></span>
+                  <span class="thumb-entry-line"></span>
+                </div>
+              </section>
+            </div>
           </div>
         </button>
       </div>
@@ -209,30 +276,382 @@
             }
           </div>
         </section>
+
+        @if (selectedSection(); as selected) {
+        <section class="selected-section-inspector">
+          <div class="inspector-header">
+            <div>
+              <p>Selected section</p>
+              <h3>{{ selected.title }}</h3>
+            </div>
+            <button class="visibility-btn" type="button" [class.visible]="selected.isVisible" (click)="hidePreviewSection(selected.id)">
+              {{ selected.isVisible ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+
+          <label class="inspector-field">
+            <span>Section title</span>
+            <input [ngModel]="selected.title" (ngModelChange)="updateSectionTitle(selected.id, $event)" placeholder="Section title">
+          </label>
+
+          @switch (selected.id) {
+            @case ('summary') {
+            <label class="inspector-field">
+              <span>Summary</span>
+              <textarea rows="6" [ngModel]="cvData().summary" (ngModelChange)="updateSummary($event)"></textarea>
+            </label>
+            }
+            @case ('experience') {
+            <div class="inspector-list">
+              @for (experience of cvData().experience; track experience.role + experience.company + $index; let i = $index) {
+              <div class="inspector-card">
+                <label class="inspector-field"><span>Role</span><input [ngModel]="experience.role" (ngModelChange)="updateExperience(i, 'role', $event)"></label>
+                <label class="inspector-field"><span>Company</span><input [ngModel]="experience.company" (ngModelChange)="updateExperience(i, 'company', $event)"></label>
+                <div class="inspector-split">
+                  <label class="inspector-field"><span>Start</span><input type="month" [ngModel]="experience.start" (ngModelChange)="updateExperience(i, 'start', $event)"></label>
+                  <label class="inspector-field"><span>End</span><input type="month" [ngModel]="experience.end" (ngModelChange)="updateExperience(i, 'end', $event)"></label>
+                </div>
+                @for (bullet of experience.bullets; track bullet + $index; let bulletIndex = $index) {
+                <label class="inspector-field">
+                  <span>Bullet {{ bulletIndex + 1 }}</span>
+                  <textarea rows="2" [ngModel]="bullet" (ngModelChange)="updateExperienceBullet(i, bulletIndex, $event)"></textarea>
+                </label>
+                }
+              </div>
+              }
+            </div>
+            }
+            @case ('projects') {
+            <div class="inspector-list">
+              @for (project of cvData().projects; track project.title + $index; let i = $index) {
+              <div class="inspector-card">
+                <label class="inspector-field"><span>Title</span><input [ngModel]="project.title" (ngModelChange)="updateProject(i, 'title', $event)"></label>
+                <label class="inspector-field"><span>Description</span><textarea rows="2" [ngModel]="project.description" (ngModelChange)="updateProject(i, 'description', $event)"></textarea></label>
+                <label class="inspector-field"><span>Technologies</span><input [ngModel]="project.technologies?.join(', ')" (ngModelChange)="updateProject(i, 'technologies', parseCommaSeparatedList($event))"></label>
+              </div>
+              }
+            </div>
+            }
+            @case ('education') {
+            <div class="inspector-list">
+              @for (education of cvData().education; track education.degree + education.institution + $index; let i = $index) {
+              <div class="inspector-card">
+                <label class="inspector-field"><span>Degree</span><input [ngModel]="education.degree" (ngModelChange)="updateEducation(i, 'degree', $event)"></label>
+                <label class="inspector-field"><span>Institution</span><input [ngModel]="education.institution" (ngModelChange)="updateEducation(i, 'institution', $event)"></label>
+                <label class="inspector-field"><span>Year</span><input [ngModel]="education.year" (ngModelChange)="updateEducation(i, 'year', $event)"></label>
+              </div>
+              }
+            </div>
+            }
+            @case ('skills') {
+            <div class="inspector-list">
+              @for (skill of cvData().skills; track skill.name + $index; let i = $index) {
+              <div class="inspector-card inspector-skill-card">
+                <input [ngModel]="skill.name" (ngModelChange)="updateSkill(i, 'name', $event)">
+                <input type="range" min="1" max="5" [ngModel]="skill.level" (ngModelChange)="updateSkill(i, 'level', +$event)">
+              </div>
+              }
+            </div>
+            }
+            @case ('languages') {
+            <div class="inspector-list">
+              @for (language of cvData().languages; track language + $index; let i = $index) {
+              <label class="inspector-field"><span>Language {{ i + 1 }}</span><input [ngModel]="language" (ngModelChange)="updateLanguage(i, $event)"></label>
+              }
+            </div>
+            }
+            @case ('certifications') {
+            <div class="inspector-list">
+              @for (certification of cvData().certifications; track certification + $index; let i = $index) {
+              <label class="inspector-field"><span>Certification {{ i + 1 }}</span><input [ngModel]="certification" (ngModelChange)="updateCertification(i, $event)"></label>
+              }
+            </div>
+            }
+          }
+        </section>
+        }
       </div>
       }
     </aside>
     }
 
     <main class="preview-canvas-container">
-      @if (isRenderingPreview) {
-      <div class="preview-state-card">
-        <div class="preview-spinner"></div>
-        <p>Rendering real template preview...</p>
+      <div
+        class="qpdf-preview-shell"
+        (wheel)="onPreviewWheel($event)"
+        [style.--preview-zoom]="previewZoom() / 100"
+        [style.--accent-color]="accentColorHex()"
+      >
+        @if (isRenderingPreview) {
+        <div class="html-preview-status">
+          <span class="preview-spinner"></span>
+          <span>Updating preview</span>
+        </div>
+        }
+        @if (previewError) {
+        <div class="html-preview-warning">{{ previewError }}</div>
+        }
+
+        <div class="qpdf-preview-stage">
+          @if (activeTemplate() === 'modern') {
+          <article class="qpdf-page qpdf-modern-page">
+            <header class="qpdf-modern-header">
+              <div class="qpdf-header-avatar">
+                @if (cvData().candidate.photoUrl) {
+                <img [src]="cvData().candidate.photoUrl" alt="Candidate photo">
+                } @else {
+                <span>{{ (cvData().candidate.name || 'CV').slice(0, 2).toUpperCase() }}</span>
+                }
+              </div>
+              <div class="qpdf-header-copy">
+                <h1>{{ cvData().candidate.name }}</h1>
+                <p>{{ contactLine() }}</p>
+              </div>
+            </header>
+
+            <div class="qpdf-modern-body">
+              <aside class="qpdf-modern-sidebar">
+                @for (section of visibleSidebarSections(); track section.id) {
+                <section class="qpdf-section qpdf-sidebar-section" [class.active]="activePreviewSection() === section.id" (click)="setActivePreviewSection(section.id)">
+                  <div class="qpdf-overlay-toolbar">
+                    <button type="button" (click)="openSectionInspector(section.id); $event.stopPropagation()">Edit</button>
+                    <button type="button" (click)="hidePreviewSection(section.id); $event.stopPropagation()">Hide</button>
+                  </div>
+                  <h2>{{ section.title }}</h2>
+                  <div class="qpdf-rule"></div>
+
+                  @switch (section.id) {
+                    @case ('skills') {
+                    <div class="qpdf-skill-list">
+                      @for (skill of cvData().skills; track skill.name + $index) {
+                      <div class="qpdf-skill-row">
+                        <div class="qpdf-skill-meta">
+                          <span>{{ skill.name }}</span>
+                          <strong [class.matched]="skill.isMatched">{{ skillPercent(skill.level) }}%</strong>
+                        </div>
+                        <div class="qpdf-skill-track">
+                          <span class="qpdf-skill-fill" [class.matched]="skill.isMatched" [style.width.%]="skillPercent(skill.level)"></span>
+                        </div>
+                      </div>
+                      }
+                    </div>
+                    }
+                    @case ('education') {
+                    <div class="qpdf-sidebar-item-list">
+                      @for (education of cvData().education; track education.degree + education.institution + $index) {
+                      <article class="qpdf-education-item">
+                        <div class="qpdf-education-head">
+                          <strong>{{ education.degree }}</strong>
+                          <span>{{ education.startYear || education.endYear ? (education.startYear || education.year) + (education.endYear ? ' - ' + education.endYear : '') : education.year }}</span>
+                        </div>
+                        <p>{{ education.institution }}</p>
+                        @if (education.year && !education.startYear && !education.endYear) {
+                        <small>{{ education.year }}</small>
+                        }
+                      </article>
+                      }
+                    </div>
+                    }
+                    @default {
+                    <ul class="qpdf-sidebar-bullets">
+                      @for (item of section.items; track item.primaryText + $index) {
+                      <li>{{ item.primaryText }}</li>
+                      }
+                    </ul>
+                    }
+                  }
+                </section>
+                }
+              </aside>
+
+              <section class="qpdf-modern-main">
+                @for (section of visibleMainSections(); track section.id) {
+                <section class="qpdf-section qpdf-main-section" [class.active]="activePreviewSection() === section.id" (click)="setActivePreviewSection(section.id)">
+                  <div class="qpdf-overlay-toolbar">
+                    <button type="button" (click)="openSectionInspector(section.id); $event.stopPropagation()">Edit</button>
+                    @if (canMoveSection(section.id, -1)) {
+                    <button type="button" (click)="moveSection(section.id, -1); $event.stopPropagation()">Up</button>
+                    }
+                    @if (canMoveSection(section.id, 1)) {
+                    <button type="button" (click)="moveSection(section.id, 1); $event.stopPropagation()">Down</button>
+                    }
+                    <button type="button" (click)="hidePreviewSection(section.id); $event.stopPropagation()">Hide</button>
+                  </div>
+                  <h2>{{ section.title }}</h2>
+                  <div class="qpdf-rule"></div>
+
+                  @switch (section.id) {
+                    @case ('summary') {
+                    <p class="qpdf-summary">{{ cvData().summary }}</p>
+                    }
+                    @case ('experience') {
+                    @for (experience of cvData().experience; track experience.role + experience.company + $index) {
+                    <article class="qpdf-main-item">
+                      <div class="qpdf-main-item-head">
+                        <strong>{{ experience.role }}</strong>
+                        <span>{{ formatDate(experience.start) }}@if (experience.end) { - {{ formatDate(experience.end) }} }</span>
+                      </div>
+                      <p class="qpdf-subtle">{{ experience.company }}</p>
+                      <ul class="qpdf-main-bullets">
+                        @for (bullet of experience.bullets; track bullet + $index) {
+                        <li>{{ bullet }}</li>
+                        }
+                      </ul>
+                    </article>
+                    }
+                    }
+                    @case ('projects') {
+                    @for (item of sectionItems('projects'); track item.primaryText + $index) {
+                    <article class="qpdf-main-item">
+                      <div class="qpdf-main-item-head">
+                        <strong>{{ item.primaryText }}</strong>
+                        @if (item.startDate) {
+                        <span>{{ formatDate(item.startDate) }}</span>
+                        }
+                      </div>
+                      @if (item.secondaryText) {
+                      <p class="qpdf-accent-line">{{ item.secondaryText }}</p>
+                      }
+                      @if (item.description) {
+                      <p class="qpdf-subtle italic">{{ item.description }}</p>
+                      }
+                      <ul class="qpdf-main-bullets">
+                        @for (bullet of item.bullets; track bullet + $index) {
+                        <li>{{ bullet }}</li>
+                        }
+                      </ul>
+                    </article>
+                    }
+                    }
+                    @case ('activities') {
+                    @for (item of sectionItems('activities'); track item.primaryText + $index) {
+                    <article class="qpdf-main-item qpdf-activity-item">
+                      <p class="qpdf-activity-line">{{ activityLine(item) }}</p>
+                      @if (item.description) {
+                      <p class="qpdf-subtle">{{ item.description }}</p>
+                      }
+                    </article>
+                    }
+                    }
+                    @default {
+                    <ul class="qpdf-main-bullets compact">
+                      @for (item of section.items; track item.primaryText + $index) {
+                      <li>{{ item.primaryText }}</li>
+                      }
+                    </ul>
+                    }
+                  }
+                </section>
+                }
+              </section>
+            </div>
+          </article>
+          } @else {
+          <article class="qpdf-page qpdf-latex-page">
+            <header class="qpdf-latex-header">
+              <h1>{{ cvData().candidate.name }}</h1>
+              <p>{{ contactLine() }}</p>
+              <div class="qpdf-rule"></div>
+            </header>
+
+            <section class="qpdf-latex-content">
+              @for (section of visibleTemplateSections(); track section.id) {
+              <section class="qpdf-section qpdf-latex-section" [class.active]="activePreviewSection() === section.id" (click)="setActivePreviewSection(section.id)">
+                <div class="qpdf-overlay-toolbar">
+                  <button type="button" (click)="openSectionInspector(section.id); $event.stopPropagation()">Edit</button>
+                  @if (canMoveSection(section.id, -1)) {
+                  <button type="button" (click)="moveSection(section.id, -1); $event.stopPropagation()">Up</button>
+                  }
+                  @if (canMoveSection(section.id, 1)) {
+                  <button type="button" (click)="moveSection(section.id, 1); $event.stopPropagation()">Down</button>
+                  }
+                  <button type="button" (click)="hidePreviewSection(section.id); $event.stopPropagation()">Hide</button>
+                </div>
+
+                <h2>{{ section.title.toUpperCase() }}</h2>
+                <div class="qpdf-rule"></div>
+
+                @switch (section.id) {
+                  @case ('summary') {
+                  <p class="qpdf-summary latex">{{ cvData().summary }}</p>
+                  }
+                  @case ('skills') {
+                  <div class="qpdf-inline-grid">
+                    @for (skill of cvData().skills; track skill.name + $index) {
+                    <span>{{ skill.name }}</span>
+                    }
+                  </div>
+                  }
+                  @case ('languages') {
+                  <p class="qpdf-inline-line">{{ languageLine() }}</p>
+                  }
+                  @case ('experience') {
+                  @for (experience of cvData().experience; track experience.role + experience.company + $index) {
+                  <article class="qpdf-latex-item">
+                    <div class="qpdf-main-item-head">
+                      <strong>{{ experience.role }}</strong>
+                      <span>{{ formatDate(experience.start) }}@if (experience.end) { - {{ formatDate(experience.end) }} }</span>
+                    </div>
+                    <p class="qpdf-subtle italic">{{ experience.company }}</p>
+                    <ul class="qpdf-main-bullets">
+                      @for (bullet of experience.bullets; track bullet + $index) {
+                      <li>{{ bullet }}</li>
+                      }
+                    </ul>
+                  </article>
+                  }
+                  }
+                  @case ('projects') {
+                  @for (item of sectionItems('projects'); track item.primaryText + $index) {
+                  <article class="qpdf-latex-item">
+                    <div class="qpdf-main-item-head">
+                      <div class="qpdf-project-line">
+                        <strong>{{ item.primaryText }}</strong>
+                        @if (item.description) {
+                        <span class="qpdf-project-description">: {{ item.description }}</span>
+                        }
+                      </div>
+                      @if (item.startDate) {
+                      <span>{{ formatDate(item.startDate) }}</span>
+                      }
+                    </div>
+                    @if (item.secondaryText) {
+                    <p class="qpdf-tech-line"><strong>Technologies: </strong>{{ item.secondaryText }}</p>
+                    }
+                    <ul class="qpdf-main-bullets">
+                      @for (bullet of item.bullets; track bullet + $index) {
+                      <li>{{ bullet }}</li>
+                      }
+                    </ul>
+                  </article>
+                  }
+                  }
+                  @case ('education') {
+                  @for (education of cvData().education; track education.degree + education.institution + $index) {
+                  <article class="qpdf-latex-item">
+                    <div class="qpdf-main-item-head">
+                      <strong>{{ education.degree }}</strong>
+                      <span>{{ education.startYear || education.endYear ? (education.startYear || education.year) + (education.endYear ? ' - ' + education.endYear : '') : education.year }}</span>
+                    </div>
+                    <p class="qpdf-subtle italic">{{ education.institution }}</p>
+                  </article>
+                  }
+                  }
+                  @default {
+                  <ul class="qpdf-main-bullets compact">
+                    @for (item of section.items; track item.primaryText + $index) {
+                    <li>{{ item.primaryText }}</li>
+                    }
+                  </ul>
+                  }
+                }
+              </section>
+              }
+            </section>
+          </article>
+          }
+        </div>
       </div>
-      } @else if (previewError) {
-      <div class="preview-state-card preview-error-card">
-        <p>{{ previewError }}</p>
-      </div>
-      } @else if (previewUrl) {
-      <div class="pdf-preview-shell">
-        <iframe class="pdf-preview-frame" [src]="previewUrl" title="CV PDF preview"></iframe>
-      </div>
-      } @else {
-      <div class="preview-state-card">
-        <p>PDF preview will appear here once the backend render is ready.</p>
-      </div>
-      }
     </main>
 
     <div class="score-card">

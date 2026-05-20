@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Cv.Models;
 using NextStep.Modules.Cv.Services;
 using NextStep.Modules.Identity.Services;
+using PDFtoImage;
 
 namespace NextStep.Modules.Cv.Controllers;
 
@@ -130,11 +131,18 @@ public class CvController : ControllerBase
     /// </summary>
     [HttpPost("preview/render")]
     [AllowAnonymous]
-    public IActionResult PreviewRender([FromQuery] string template, [FromBody] CvData data)
+    public IActionResult PreviewRender([FromQuery] string template, [FromBody] CvData data, [FromQuery] string format = "pdf")
     {
         try
         {
             var pdfBytes = _cvService.PreviewFromData(template, data);
+            if (string.Equals(format, "png", StringComparison.OrdinalIgnoreCase))
+            {
+                using var imageStream = new MemoryStream();
+                Conversion.SavePng(imageStream, pdfBytes, page: 0);
+                return File(imageStream.ToArray(), "image/png", $"preview-{template}.png");
+            }
+
             return File(pdfBytes, "application/pdf", $"preview-{template}.pdf");
         }
         catch (ArgumentException ex) { return BadRequest(ex.Message); }

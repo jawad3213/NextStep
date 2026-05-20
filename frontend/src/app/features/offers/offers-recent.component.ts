@@ -1,14 +1,44 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-import { MOCK_OFFERS, OfferCard } from './offers-data';
+
+import {
+  GlassdoorScrapedJob,
+  IndeedScrapedJob,
+  LinkedInScrapedJob,
+  OfferApiService,
+  ScrapeProvider,
+} from './services/offer-api.service';
+
+type ProviderSummary = {
+  key: ScrapeProvider;
+  label: string;
+  tone: string;
+  available: boolean;
+  helper: string;
+};
+
+type ScrapedOfferCard = {
+  id: string;
+  provider: ScrapeProvider;
+  providerLabel: string;
+  title: string;
+  company: string;
+  location: string;
+  postedAtText: string;
+  tags: string[];
+  description: string;
+  employmentType: string;
+  seniorityLevel: string;
+  url: string;
+  matchingScore?: number;
+};
 
 @Component({
   selector: 'app-offers-recent',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './offers-recent.component.html',
   styleUrl: './offers.component.scss',
   animations: [
@@ -24,88 +54,200 @@ import { MOCK_OFFERS, OfferCard } from './offers-data';
     ])
   ]
 })
-export class OffersRecentComponent {
-  readonly offers: OfferCard[] = MOCK_OFFERS;
+export class OffersRecentComponent implements OnInit {
+  private readonly offerApi = inject(OfferApiService);
+
+  readonly providers: ProviderSummary[] = [
+    {
+      key: 'linkedin',
+      label: 'LinkedIn',
+      tone: 'bg-sky-50 text-sky-700 border-sky-200',
+      available: true,
+      helper: 'Live Scrapling agent',
+    },
+    {
+      key: 'indeed',
+      label: 'Indeed',
+      tone: 'bg-violet-50 text-violet-700 border-violet-200',
+      available: true,
+      helper: 'Live Scrapling agent',
+    },
+    {
+      key: 'glassdoor',
+      label: 'Glassdoor',
+      tone: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      available: true,
+      helper: 'Live Scrapling agent',
+    },
+  ];
+
+  readonly selectedProvider = signal<ScrapeProvider>('linkedin');
+  readonly keywords = signal('software engineer');
+  readonly location = signal('Morocco');
+  readonly postedSinceSeconds = signal(86400);
+  readonly limit = signal(12);
+  readonly indeedCountryCode = signal('ma');
 
   readonly searchTerm = signal('');
-  readonly filterContract = signal('');
-  readonly filterStatus = signal('');
-  readonly sortBy = signal<'date' | 'score' | 'company' | 'daysLeft'>('date');
-  readonly viewMode = signal<'list' | 'grid'>('list');
+  readonly sortBy = signal<'recent' | 'company' | 'title'>('recent');
+  readonly viewMode = signal<'list' | 'grid'>('grid');
 
-  readonly pageSize = signal(6);
-  readonly currentPage = signal(1);
+  readonly isLoading = signal(false);
+  readonly lastUpdated = signal<Date | null>(null);
+  readonly errorMessage = signal('');
+  readonly providerNotice = signal('');
+  readonly offers = signal<ScrapedOfferCard[]>([]);
 
-  get filteredOffers(): OfferCard[] {
+  readonly filteredOffers = computed(() => {
     const search = this.searchTerm().trim().toLowerCase();
-    const contract = this.filterContract();
-    const status = this.filterStatus();
     const sort = this.sortBy();
-
-    let result = this.offers.filter(o => {
-      const matchSearch = !search ||
-        o.title.toLowerCase().includes(search) ||
-        o.company.toLowerCase().includes(search) ||
-        o.location.toLowerCase().includes(search) ||
-        o.tags.some(t => t.toLowerCase().includes(search));
-
-      const matchContract = !contract || o.tags.some(t => t.toLowerCase().includes(contract.toLowerCase()));
-      const matchStatus = !status || o.status === status;
-
-      return matchSearch && matchContract && matchStatus;
+    const result = this.offers().filter((offer) => {
+      if (!search) return true;
+      return (
+        offer.title.toLowerCase().includes(search) ||
+        offer.company.toLowerCase().includes(search) ||
+        offer.location.toLowerCase().includes(search) ||
+        offer.tags.some((tag) => tag.toLowerCase().includes(search))
+      );
     });
 
     result.sort((a, b) => {
       switch (sort) {
-        case 'score': return (b.matchingScore ?? 0) - (a.matchingScore ?? 0);
-        case 'company': return a.company.localeCompare(b.company);
-        case 'daysLeft': return (a.daysLeft ?? 0) - (b.daysLeft ?? 0);
-        case 'date': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'company':
+          return a.company.localeCompare(b.company);
+        case 'title':
+          return a.title.localeCompare(b.title);
+        case 'recent':
+        default:
+          return (this.extractHours(a.postedAtText) ?? Number.MAX_SAFE_INTEGER)
+            - (this.extractHours(b.postedAtText) ?? Number.MAX_SAFE_INTEGER);
       }
     });
-
     return result;
+  });
+
+  readonly providerCount = computed(() => {
+    const counts = new Map<ScrapeProvider, number>([
+      ['linkedin', 0],
+      ['indeed', 0],
+      ['glassdoor', 0],
+    ]);
+    for (const offer of this.offers()) {
+      counts.set(offer.provider, (counts.get(offer.provider) ?? 0) + 1);
+    }
+    return counts;
+  });
+
+  ngOnInit(): void {
+    this.scrapeOffers();
   }
 
-  get paginatedOffers(): OfferCard[] {
-    return this.filteredOffers.slice(0, this.currentPage() * this.pageSize());
+  selectProvider(provider: ProviderSummary): void {
+    this.selectedProvider.set(provider.key);
+    if (!provider.available) {
+      this.providerNotice.set(`${provider.label} is not connected yet. Add its backend scraping endpoint, then this page is ready to consume it.`);
+      this.offers.set([]);
+      this.errorMessage.set('');
+      return;
+    }
+    this.providerNotice.set('');
+    this.scrapeOffers();
   }
 
-  get hasMore(): boolean {
-    return this.paginatedOffers.length < this.filteredOffers.length;
+  scrapeOffers(): void {
+    if (!['linkedin', 'indeed', 'glassdoor'].includes(this.selectedProvider())) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    this.providerNotice.set('');
+
+    if (this.selectedProvider() === 'linkedin') {
+      this.offerApi.searchLinkedInJobs({
+        keywords: this.keywords(),
+        location: this.location(),
+        limit: this.limit(),
+        posted_since_seconds: this.postedSinceSeconds(),
+        fetch_details: true,
+        it_only: true,
+      }).subscribe({
+        next: (response) => {
+          this.offers.set((response.jobs ?? []).map((job) => this.mapLinkedInJob(job)));
+          this.lastUpdated.set(new Date());
+          if (response.errors?.length) {
+            this.providerNotice.set(response.errors.join(' | '));
+          }
+          this.isLoading.set(false);
+        },
+        error: (err) => {
+          this.errorMessage.set(err?.error?.detail || 'Unable to fetch scraped offers right now.');
+          this.offers.set([]);
+          this.isLoading.set(false);
+        }
+      });
+      return;
+    }
+
+    if (this.selectedProvider() === 'indeed') {
+      this.offerApi.searchIndeedJobs({
+        keywords: this.keywords(),
+        location: this.location(),
+        limit: this.limit(),
+        fetch_details: true,
+        it_only: true,
+        country_code: this.indeedCountryCode(),
+      }).subscribe({
+        next: (response) => {
+          this.offers.set((response.jobs ?? []).map((job) => this.mapIndeedJob(job)));
+          this.lastUpdated.set(new Date());
+          if (response.errors?.length) {
+            this.providerNotice.set(response.errors.join(' | '));
+          }
+          this.isLoading.set(false);
+        },
+        error: (err) => {
+          this.errorMessage.set(err?.error?.detail || 'Unable to fetch scraped offers right now.');
+          this.offers.set([]);
+          this.isLoading.set(false);
+        }
+      });
+      return;
+    }
+
+    this.offerApi.searchGlassdoorJobs({
+      keywords: this.keywords(),
+      location: this.location(),
+      limit: this.limit(),
+      fetch_details: false,
+      it_only: true,
+    }).subscribe({
+      next: (response) => {
+        this.offers.set((response.jobs ?? []).map((job) => this.mapGlassdoorJob(job)));
+        this.lastUpdated.set(new Date());
+        if (response.errors?.length) {
+          this.providerNotice.set(response.errors.join(' | '));
+        }
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.error?.detail || 'Unable to fetch scraped offers right now.');
+        this.offers.set([]);
+        this.isLoading.set(false);
+      }
+    });
   }
 
   onSearchInput(value: string): void {
     this.searchTerm.set(value);
-    this.currentPage.set(1);
   }
 
   onSortChange(value: string): void {
-    this.sortBy.set(value as 'date' | 'score' | 'company' | 'daysLeft');
-    this.currentPage.set(1);
+    this.sortBy.set(value as 'recent' | 'company' | 'title');
   }
 
-  onFilterContractChange(value: string): void {
-    this.filterContract.set(value);
-    this.currentPage.set(1);
-  }
-
-  onFilterStatusChange(value: string): void {
-    this.filterStatus.set(value);
-    this.currentPage.set(1);
-  }
-
-  loadMore(): void {
-    this.currentPage.update(p => p + 1);
-  }
-
-  getRecencyLabel(date: Date): string {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Ajouté aujourd'hui";
-    if (days === 1) return 'Ajouté hier';
-    return `Ajouté il y a ${days} jours`;
+  getProviderChip(provider: ScrapeProvider): ProviderSummary {
+    return this.providers.find((item) => item.key === provider) ?? this.providers[0];
   }
 
   getBubbleGradient(company: string): string {
@@ -122,19 +264,79 @@ export class OffersRecentComponent {
     return colors[sum % colors.length];
   }
 
-  getScoreClass(score: number): string {
-    if (score >= 70) return 'text-green-600';
-    if (score >= 50) return 'text-amber-500';
-    return 'text-red-500';
+  getInitials(value: string): string {
+    const parts = value.split(' ').filter(Boolean);
+    if (parts.length === 0) return 'NS';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 
-  getStatusConfig(status: OfferCard['status']): { bg: string; text: string; dot: string } {
-    const map: Record<string, { bg: string; text: string; dot: string }> = {
-      cv_genere: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
-      analysee: { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
-      non_traitee: { bg: 'bg-slate-100', text: 'text-slate-500', dot: 'bg-slate-400' },
+  formatLastUpdated(): string {
+    const value = this.lastUpdated();
+    if (!value) return 'No sync yet';
+    return value.toLocaleString();
+  }
+
+  private mapLinkedInJob(job: LinkedInScrapedJob): ScrapedOfferCard {
+    return {
+      id: job.job_id || job.url || `${job.title}-${job.company}`,
+      provider: 'linkedin',
+      providerLabel: 'LinkedIn',
+      title: job.title,
+      company: job.company || 'Company',
+      location: job.location || 'Location not specified',
+      postedAtText: job.posted_at_text || 'Unknown',
+      tags: (job.matched_it_terms || []).slice(0, 5),
+      description: job.description || 'No description returned by the scraper.',
+      employmentType: job.employment_type || 'Not specified',
+      seniorityLevel: job.seniority_level || 'Not specified',
+      url: job.url || '#',
+      matchingScore: job.is_it_offer ? 100 : undefined,
     };
-    const key = status as string;
-    return map[key] || map['non_traitee'];
+  }
+
+  private mapIndeedJob(job: IndeedScrapedJob): ScrapedOfferCard {
+    return {
+      id: job.job_id || job.url || `${job.title}-${job.company}`,
+      provider: 'indeed',
+      providerLabel: 'Indeed',
+      title: job.title,
+      company: job.company || 'Company',
+      location: job.location || 'Location not specified',
+      postedAtText: job.posted_at_text || 'Unknown',
+      tags: (job.matched_it_terms || []).slice(0, 5),
+      description: job.description || 'No description returned by the scraper.',
+      employmentType: job.employment_type || 'Not specified',
+      seniorityLevel: job.seniority_level || 'Not specified',
+      url: job.url || '#',
+      matchingScore: job.is_it_offer ? 100 : undefined,
+    };
+  }
+
+  private mapGlassdoorJob(job: GlassdoorScrapedJob): ScrapedOfferCard {
+    return {
+      id: job.job_id || job.url || `${job.title}-${job.company}`,
+      provider: 'glassdoor',
+      providerLabel: 'Glassdoor',
+      title: job.title,
+      company: job.company || 'Company',
+      location: job.location || 'Location not specified',
+      postedAtText: job.posted_at_text || 'Unknown',
+      tags: (job.matched_it_terms || []).slice(0, 5),
+      description: job.description || 'No description returned by the scraper.',
+      employmentType: job.employment_type || 'Not specified',
+      seniorityLevel: job.seniority_level || 'Not specified',
+      url: job.url || '#',
+      matchingScore: job.is_it_offer ? 100 : undefined,
+    };
+  }
+
+  private extractHours(value: string): number | null {
+    const lower = (value || '').toLowerCase();
+    const hourMatch = lower.match(/(\d+)\s*hour/);
+    if (hourMatch) return Number(hourMatch[1]);
+    const dayMatch = lower.match(/(\d+)\s*day/);
+    if (dayMatch) return Number(dayMatch[1]) * 24;
+    return null;
   }
 }

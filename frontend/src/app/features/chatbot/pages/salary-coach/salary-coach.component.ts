@@ -17,21 +17,21 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
 
   config!: ArenaConfig;
 
-  salary         = signal<SalaryResult | null>(null);
-  loading        = signal(true);
-  activeStep     = signal(0);
+  salary = signal<SalaryResult | null>(null);
+  loading = signal(true);
+  activeStep = signal(0);
 
-  phase          = signal<'market' | 'coach'>('market');
-  messages       = signal<ChatMessage[]>([]);
-  userInput      = '';
-  isTyping       = signal(false);
-  threadId       = crypto.randomUUID();
+  phase = signal<'market' | 'coach'>('market');
+  messages = signal<ChatMessage[]>([]);
+  userInput = '';
+  isTyping = signal(false);
+  threadId = crypto.randomUUID();
 
-  scenarioIdx      = signal(0);
-  scenarioAnswer   = '';
-  showFeedback     = signal(false);
+  scenarioIdx = signal(0);
+  scenarioAnswer = '';
+  showFeedback = signal(false);
   scenarioFeedback = signal('');
-  scenarioLoading  = signal(false);
+  scenarioLoading = signal(false);
 
   private needsScroll = false;
 
@@ -143,7 +143,7 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
       .replace('{{currency}}', s ? s.currency : 'MAD');
   }
 
-  constructor(private svc: ArenaService, private router: Router) {}
+  constructor(private svc: ArenaService, private router: Router) { }
 
   ngOnInit() {
     const state = history.state as { arenaConfig?: ArenaConfig };
@@ -151,14 +151,14 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
     this.config = state.arenaConfig;
     this.loading.set(false);
     this.svc.getSalary(this.config).subscribe({
-      next: r  => { this.salary.set(r); },
-      error: () => {},
+      next: r => { this.salary.set(r); },
+      error: () => { },
     });
   }
 
   ngAfterViewChecked() {
     if (this.needsScroll) {
-      try { const el = this.chatScroll?.nativeElement; if (el) el.scrollTop = el.scrollHeight; } catch {}
+      try { const el = this.chatScroll?.nativeElement; if (el) el.scrollTop = el.scrollHeight; } catch { }
       this.needsScroll = false;
     }
   }
@@ -166,6 +166,21 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
   get median(): number {
     const s = this.salary();
     return s ? Math.round((s.range_min + s.range_max) / 2) : 0;
+  }
+
+  get isInternship(): boolean {
+    const jobTitleLower = (this.config?.job_title || '').toLowerCase();
+    const domainLower = (this.config?.domain || '').toLowerCase();
+    return jobTitleLower.includes('stage') ||
+      jobTitleLower.includes('pfe') ||
+      jobTitleLower.includes('pfa') ||
+      jobTitleLower.includes('intern') ||
+      jobTitleLower.includes('stagiaire') ||
+      domainLower.includes('stage') ||
+      domainLower.includes('pfe') ||
+      domainLower.includes('pfa') ||
+      domainLower.includes('intern') ||
+      domainLower.includes('stagiaire');
   }
 
   thumbPct(): number {
@@ -181,24 +196,51 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
   startCoach() {
     this.phase.set('coach');
     const salVal = this.salary();
-    const isInternship = salVal && salVal.range_min === 0 && salVal.range_max === 0;
-
-    const rangeStr = salVal
-      ? `${salVal.range_min.toLocaleString()} – ${salVal.range_max.toLocaleString()} ${salVal.currency}`
-      : '18,000 – 28,000 MAD';
-
+    const isInternship = this.isInternship;
     const lang = this.config?.language === 'fr' ? 'fr' : 'en';
     const sc = this.CONTENT[lang].scenarios[0];
-    
+
+    // Determine the range text
+    let rangeText = '';
+    const hasRange = salVal && (salVal.range_min > 0 || salVal.range_max > 0);
+    if (hasRange) {
+      rangeText = `${salVal!.range_min.toLocaleString()} – ${salVal!.range_max.toLocaleString()} ${salVal!.currency}`;
+    }
+
     let msg = '';
     if (isInternship) {
-      msg = lang === 'fr'
-        ? `Bonjour ! 🎓 Je suis votre Coach de Négociation IA.\n\nPour ce stage, notre priorité absolue n'est pas la rémunération immédiate, mais la valeur que vous allez acquérir : l'apprentissage, l'expérience concrète et, surtout, comment maximiser vos chances de transformer ce stage en une offre d'embauche ferme (Return Offer) en fin de parcours.\n\nMise en situation : Le recruteur vous pose la question clé :\n"${sc.q}"\n\nQuelle est votre approche pour valoriser votre profil tout en ouvrant la porte à l'avenir ?`
-        : `Hello! 🎓 I am your AI Negotiation Coach.\n\nFor this internship, our top priority is not immediate compensation, but the long-term value you will build: learning, real-world impact, and most importantly, positioning yourself to secure a full-time return offer.\n\nSimulation: The recruiter asks the defining question:\n"${sc.q}"\n\nHow do you articulate your value while keeping the door wide open for the future?`;
+      if (lang === 'fr') {
+        msg = `Bonjour ! 🎓 Je suis votre Coach de Négociation IA.\n\n`;
+        if (hasRange) {
+          msg += `Le salaire professionnel typique pour ce métier est estimé à **${rangeText}**. `;
+        }
+        msg += `Néanmoins, comme il s'agit d'une opportunité de stage, votre objectif principal aujourd'hui n'est pas de négocier ce salaire immédiatement. Vous êtes là avant tout pour apprendre, acquérir de l'expérience pratique et prouver votre valeur afin de négocier stratégiquement une embauche future (Return Offer en CDI/CDD) à la fin de votre stage.\n\nMise en situation : Le recruteur vous demande :\n"${sc.q}"\n\nQue répondez-vous pour exprimer votre motivation d'apprentissage tout en gardant une vision d'embauche future ?`;
+      } else {
+        msg = `Hello! 🎓 I am your AI Negotiation Coach.\n\n`;
+        if (hasRange) {
+          msg += `The typical professional salary for this role is estimated at **${rangeText}**. `;
+        }
+        msg += `However, since this is an internship opportunity, our primary focus today is not immediate salary negotiation. You are here to learn, gain real-world experience, and demonstrate your value in order to strategically secure a full-time return offer (CDI/CDD) at the end of your internship.\n\nSimulation: The recruiter asks:\n"${sc.q}"\n\nWhat do you say to show your drive to learn while positioning yourself for a future full-time role?`;
+      }
     } else {
-      msg = lang === 'fr'
-        ? `Bonjour ! 💼 Je suis votre Coach de Négociation IA.\n\nVotre objectif aujourd'hui est d'analyser et de cibler avec précision votre fourchette idéale de ${rangeStr} pour maximiser votre package global.\n\nMise en situation : Le recruteur vous pose la question cruciale :\n"${sc.q}"\n\nComment allez-vous argumenter pour ancrer les discussions au plus haut ?`
-        : `Hello! 💼 I am your AI Negotiation Coach.\n\nOur objective today is to target the ideal range of ${rangeStr} to maximize your global compensation package.\n\nSimulation: The recruiter asks the crucial question:\n"${sc.q}"\n\nHow will you frame your response to anchor the discussion at the highest level?`;
+      // Job offer or arena
+      if (lang === 'fr') {
+        msg = `Bonjour ! 💼 Je suis votre Coach de Négociation IA.\n\n`;
+        if (hasRange) {
+          msg += `Votre objectif aujourd'hui est d'analyser et de cibler avec précision votre fourchette idéale de **${rangeText}** pour maximiser votre package global.\n\n`;
+        } else {
+          msg += `Nous n'avons pas trouvé de fourchette de salaire exacte pour ce poste ou sur Internet. Cependant, nous allons travailler ensemble sur vos techniques de négociation pour viser une rémunération compétitive sur le marché.\n\n`;
+        }
+        msg += `Mise en situation : Le recruteur vous pose la question cruciale :\n"${sc.q}"\n\nComment allez-vous argumenter pour ancrer les discussions au plus haut ?`;
+      } else {
+        msg = `Hello! 💼 I am your AI Negotiation Coach.\n\n`;
+        if (hasRange) {
+          msg += `Our objective today is to target the ideal range of **${rangeText}** to maximize your global compensation package.\n\n`;
+        } else {
+          msg += `We could not find an exact salary range for this position on the internet or in our database. However, we will work together on your negotiation strategies to target a competitive market rate.\n\n`;
+        }
+        msg += `Simulation: The recruiter asks the crucial question:\n"${sc.q}"\n\nHow will you frame your response to anchor the discussion at the highest level?`;
+      }
     }
 
     this.messages.set([{
@@ -218,18 +260,18 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
     const s = this.salary();
     const ctx = s
       ? { rangeMin: s.range_min, rangeMax: s.range_max, currency: s.currency, yourTarget: s.your_target }
-      : { rangeMin: 18000, rangeMax: 28000, currency: 'MAD', yourTarget: 24000 };
+      : { rangeMin: 0, rangeMax: 0, currency: 'MAD', yourTarget: 0 };
     const langName = this.config?.language === 'fr' ? 'French' : 'English';
     const msgWithLang = `[MANDATORY: Respond in ${langName}] ${v}`;
-    
-    this.svc.salaryCoach(msgWithLang, this.threadId, ctx, this.messages().map(m => ({ role: m.role, content: m.content }))).subscribe({
+
+    this.svc.salaryCoach(msgWithLang, this.threadId, ctx, this.messages().map(m => ({ role: m.role, content: m.content })), this.config!).subscribe({
       next: r => {
         this.messages.update(m => [...m, { role: 'ai', content: r.response, timestamp: new Date() }]);
         this.isTyping.set(false);
         this.needsScroll = true;
       },
       error: () => {
-        const errorMsg = this.config?.language === 'fr' 
+        const errorMsg = this.config?.language === 'fr'
           ? "Je suis momentanément indisponible. Consultez les scripts dans l'onglet Données marché."
           : "I am temporarily unavailable. Please check the scripts in the Market Data tab.";
         this.messages.update(m => [...m, { role: 'ai', content: errorMsg, timestamp: new Date() }]);
@@ -247,12 +289,12 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
     const s = this.salary();
     const ctx = s
       ? { rangeMin: s.range_min, rangeMax: s.range_max, currency: s.currency, yourTarget: s.your_target }
-      : { rangeMin: 18000, rangeMax: 28000, currency: 'MAD', yourTarget: 24000 };
+      : { rangeMin: 0, rangeMax: 0, currency: 'MAD', yourTarget: 0 };
     const lang = this.config?.language === 'fr' ? 'fr' : 'en';
     const langName = lang === 'fr' ? 'French' : 'English';
     const prompt = `[MANDATORY: Respond in ${langName}] Scenario: "${this.currentScenario().q}" — My response: "${this.scenarioAnswer}" — Short feedback in 2-3 sentences.`;
-    
-    this.svc.salaryCoach(prompt, this.threadId + '-q', ctx, []).subscribe({
+
+    this.svc.salaryCoach(prompt, this.threadId + '-q', ctx, [], this.config!).subscribe({
       next: r => { this.scenarioFeedback.set(r.response); this.showFeedback.set(true); this.scenarioLoading.set(false); },
       error: () => {
         const fallback = lang === 'fr'

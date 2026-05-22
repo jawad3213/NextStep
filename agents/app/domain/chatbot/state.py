@@ -158,6 +158,7 @@ class InterviewPrepState(BaseModel):
     # ── Contexte selon le mode ────────────────────────────────
     offer_context: Optional[OfferContext] = None  # mode offer seulement
     arena_config: Optional[ArenaConfig] = None    # mode arena seulement
+    chat_type: Optional[str] = None
  
     # ── Messages — s'accumulent grâce à operator.add ─────────
     # NOTE: Pydantic + LangGraph → on gère l'accumulation manuellement

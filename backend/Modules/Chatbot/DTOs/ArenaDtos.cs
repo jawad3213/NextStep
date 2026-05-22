@@ -63,7 +63,9 @@ public record FreeChatRequest(
     string? Mode = null,
     string? UserId = null,
     string? OfferId = null,
-    ArenaConfigDto? ArenaConfig = null
+    ArenaConfigDto? ArenaConfig = null,
+    string? ChatType = null,
+    SalaryContextDto? SalaryContext = null
 );
 
 public record FreeChatResponse(
@@ -235,7 +237,9 @@ public record SalaryCoachRequest(
     List<MessageTurnDto> History,
     string? Mode = null,
     string? UserId = null,
-    string? OfferId = null
+    string? OfferId = null,
+    string? ChatType = null,
+    ArenaConfigDto? ArenaConfig = null
 );
 
 public record SalaryCoachResponse(

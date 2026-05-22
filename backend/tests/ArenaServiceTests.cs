@@ -204,7 +204,9 @@ public class ArenaServiceTests : IDisposable
             Mode: "arena",
             UserId: "user-123",
             OfferId: null,
-            ArenaConfig: null
+            ArenaConfig: null,
+            ChatType: "salary",
+            SalaryContext: mockContext
         );
 
         var mockAgentResponse = new FreeChatResponse("Anchor at 25k", "thread-123");

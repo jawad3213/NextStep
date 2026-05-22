@@ -142,13 +142,17 @@ export class ArenaService {
     userInput: string,
     threadId: string,
     salaryCtx: { rangeMin: number; rangeMax: number; currency: string; yourTarget: number },
-    history: { role: string; content: string }[]
+    history: { role: string; content: string }[],
+    config: ArenaConfig
   ): Observable<{ status: string; response: string }> {
     return this.http.post<any>(`${this.api}/salary-coach`, {
       userInput: userInput,
       threadId: threadId,
       salaryContext: salaryCtx,
       history,
+      offerId: config?.offer_id || null,
+      arenaConfig: config ? mapConfig(config) : null,
+      mode: config?.offer_id ? 'offer' : 'arena'
     });
   }
 

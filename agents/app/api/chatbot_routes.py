@@ -80,6 +80,10 @@ async def free_chat(
             offer_id=req.offer_id,
             user_id=req.user_id,
             db=db,
+            mode=req.mode,
+            chat_type=req.chat_type,
+            arena_config=req.arena_config,
+            salary_context=req.salary_context,
         )
     except Exception as e:
         logger.error(f"free_chat error: {e}")

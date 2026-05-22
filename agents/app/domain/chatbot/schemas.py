@@ -50,6 +50,14 @@ class QuestionsRequest(BaseModel):
     user_token: str = ""
 
 
+class SalaryContextSchema(BaseModel):
+    """Informations de salaire actuelles de l'interface."""
+    range_min: int = 0
+    range_max: int = 0
+    currency: str = "MAD"
+    your_target: int = 0
+
+
 class FreeChatRequest(BaseModel):
     """Tab 1 — Question libre dans le chat."""
     user_input: str
@@ -58,6 +66,10 @@ class FreeChatRequest(BaseModel):
     offer_id: Optional[str] = None
     user_id: str = ""
     user_token: str = ""
+    mode: Optional[str] = None
+    chat_type: Optional[str] = None
+    arena_config: Optional[ArenaConfigSchema] = None
+    salary_context: Optional[SalaryContextSchema] = None
 
 
 class StartInterviewRequest(BaseModel):

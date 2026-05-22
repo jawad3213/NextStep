@@ -172,7 +172,9 @@ public class ArenaService : IArenaService
             Mode: request.Mode ?? "arena",
             UserId: request.UserId ?? "",
             OfferId: request.OfferId,
-            ArenaConfig: null
+            ArenaConfig: request.ArenaConfig,
+            ChatType: request.ChatType ?? "salary",
+            SalaryContext: request.SalaryContext
         );
 
         var response = await _agentClient.PostFreeChatAsync(freeChatReq);

@@ -44,6 +44,7 @@ from app.domain.chatbot.prompts import (
     EVALUATOR_PROMPT,
     SALARY_PROMPT,
     FREE_CHAT_PROMPT,
+    SALARY_COACH_FREE_CHAT_PROMPT,
 )
 
 # cette ligne crée un "canal" de logs personnalisé pour ce fichier
@@ -190,25 +191,81 @@ async def questions_node(state: InterviewPrepState) -> dict:
 
 async def free_chat_node(state: InterviewPrepState) -> dict:
     """
-    Répond aux questions libres de l'utilisateur dans le tab Questions.
+    Répond aux questions libres de l'utilisateur dans le tab Questions ou dans le tab Salary Coach.
     Ex: 'Comment répondre à la Q2 ?' / 'Quelles questions sur Kafka ?'
     """
-    logger.info("[FREE_CHAT] Answering free question")
+    logger.info(f"[FREE_CHAT] Answering free question. chat_type={state.chat_type}")
     llm = get_llm(temperature=0.5)
 
-    # Construire le contexte
-    ctx = ""
-    if state.offer_context:
-        o = state.offer_context.offer
-        c = state.offer_context.company
-        ctx = (
-            f"Company: {o.company_name}\n"
-            f"Role: {o.job_title}\n"
-            f"Summary: {c.company_summary}\n"
-            f"Required skills: {', '.join(o.required_skills)}\n"
-        )
+    if state.chat_type == "salary":
+        db_min = 0
+        db_max = 0
+        db_target = 0
+        currency = "MAD"
+        contract_type = "Full-time"
+        job_title = "Software Engineer"
+        location = "Morocco"
 
-    system = FREE_CHAT_PROMPT.format(context=ctx)
+        if state.offer_context:
+            o = state.offer_context.offer
+            c = state.offer_context.company
+            job_title = o.job_title
+            location = o.location if o.location else "Morocco"
+            db_min = c.salary_min
+            db_max = c.salary_max
+            db_target = int(c.salary_min + (c.salary_max - c.salary_min) * 0.8) if c.salary_max > c.salary_min else c.salary_min
+            currency = c.currency if c.currency else "MAD"
+            
+            # Détection et normalisation robuste du type de contrat stage/PFE/PFA
+            raw_contract = (o.contract_type or "").lower()
+            title_lower = (o.job_title or "").lower()
+            if "stage" in raw_contract or "pfe" in raw_contract or "pfa" in raw_contract or "intern" in raw_contract or \
+               "stage" in title_lower or "pfe" in title_lower or "pfa" in title_lower or "intern" in title_lower or "stagiaire" in title_lower:
+                contract_type = "stage"
+            else:
+                contract_type = o.contract_type if o.contract_type else "Full-time"
+        elif state.arena_config:
+            cfg = state.arena_config
+            domain_name = cfg.domain if cfg else "Software Engineer"
+            level_name  = cfg.level.capitalize() if cfg else ""
+            job_title = f"{level_name} {domain_name} Engineer" if "Engineer" not in domain_name else f"{level_name} {domain_name}"
+            location  = "Morocco"
+            
+            # Détection et normalisation robuste du type de contrat stage/PFE/PFA
+            title_lower = job_title.lower()
+            if "stage" in title_lower or "pfe" in title_lower or "pfa" in title_lower or "intern" in title_lower or "stagiaire" in title_lower:
+                contract_type = "stage"
+            else:
+                contract_type = "Full-time"
+
+            if state.salary:
+                db_min = state.salary.range_min
+                db_max = state.salary.range_max
+                currency = state.salary.currency
+                db_target = state.salary.your_target
+
+        system = SALARY_COACH_FREE_CHAT_PROMPT.format(
+            job_title=job_title,
+            location=location,
+            contract_type=contract_type,
+            db_min=db_min,
+            db_max=db_max,
+            currency=currency,
+            db_target=db_target
+        )
+    else:
+        # Construire le contexte classique
+        ctx = ""
+        if state.offer_context:
+            o = state.offer_context.offer
+            c = state.offer_context.company
+            ctx = (
+                f"Company: {o.company_name}\n"
+                f"Role: {o.job_title}\n"
+                f"Summary: {c.company_summary}\n"
+                f"Required skills: {', '.join(o.required_skills)}\n"
+            )
+        system = FREE_CHAT_PROMPT.format(context=ctx)
 
     # Historique des 6 derniers messages
     lc_messages = [SystemMessage(content=system)]
@@ -414,9 +471,19 @@ async def salary_node(state: InterviewPrepState) -> dict:
         db_max = c.salary_max
         db_target = int(c.salary_min + (c.salary_max - c.salary_min) * 0.8) if c.salary_max > c.salary_min else c.salary_min
         currency = c.currency if c.currency else "USD"
+        
+        # Détection et normalisation robuste du type de contrat stage/PFE/PFA
+        raw_contract = (o.contract_type or "").lower()
+        title_lower = (o.job_title or "").lower()
+        if "stage" in raw_contract or "pfe" in raw_contract or "pfa" in raw_contract or "intern" in raw_contract or \
+           "stage" in title_lower or "pfe" in title_lower or "pfa" in title_lower or "intern" in title_lower or "stagiaire" in title_lower:
+            contract_type = "stage"
+        else:
+            contract_type = o.contract_type if o.contract_type else "Full-time"
+
         extra = (
             f"Company: {o.company_name}\n"
-            f"Contract Type: {o.contract_type}\n"
+            f"Contract Type: {contract_type}\n"
             f"Candidate strengths: {', '.join(state.offer_context.match.strengths)}\n"
         )
     else:

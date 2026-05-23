@@ -200,7 +200,9 @@ public record SessionDetailDto(
     string? BestAnswer = null,
     string? WorstAnswer = null,
     string? JobTitle = null,
-    string? Company = null
+    string? Company = null,
+    string Language = "en",
+    int DurationMinutes = 20
 );
 
 public record SessionSummaryDto(

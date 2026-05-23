@@ -1,6 +1,6 @@
-<!-- TOAST NOTIFICATION -->
+﻿<!-- TOAST NOTIFICATION -->
 <div class="toast-box" [class.toast-box--show]="showToast()">
-  <div class="toast-icon">✓</div>
+  <div class="toast-icon">Ô£ô</div>
   <div class="toast-msg">{{ toastMsg() }}</div>
 </div>
 
@@ -35,7 +35,7 @@
           <li><span class="feat-dot feat-dot--blue"></span> Tailored to your target company</li>
           <li><span class="feat-dot feat-dot--blue"></span> Uses your CV context</li>
         </ul>
-        <div class="mode-card__cta mode-card__cta--blue">Select Mode <span class="cta-arrow">→</span></div>
+        <div class="mode-card__cta mode-card__cta--blue">Select Mode <span class="cta-arrow">ÔåÆ</span></div>
       </div>
 
       <div class="mode-card mode-card--arena" (click)="selectMode('arena')">
@@ -55,7 +55,7 @@
           <li><span class="feat-dot feat-dot--gold"></span> 100+ simulated scenarios</li>
           <li><span class="feat-dot feat-dot--gold"></span> Instant STAR feedback</li>
         </ul>
-        <div class="mode-card__cta mode-card__cta--gold">Select Mode <span class="cta-arrow">→</span></div>
+        <div class="mode-card__cta mode-card__cta--gold">Select Mode <span class="cta-arrow">ÔåÆ</span></div>
       </div>
     </div>
 
@@ -63,141 +63,43 @@
 
     <!-- ZONE: PAST SESSIONS -->
     <section class="past-sessions-zone">
-      <div class="past-sessions-header">
-        <h2 class="zone-title">My Past Sessions</h2>
-        <span class="sessions-count" *ngIf="pastSessions().length > 0">
-          {{ filteredSessions().length }} session(s) found
-        </span>
-      </div>
+      <h2 class="zone-title"> My Past Sessions</h2>
 
-      <!-- Filters & Actions Bar (Inspired by offers/dashboard filter toolbar) -->
-      <div class="history-filter-bar" *ngIf="pastSessions().length > 0">
-        <div class="filter-search-wrap">
-          <input type="text"
-                 [value]="historySearchQuery()"
-                 (input)="onSearchInput($event)"
-                 placeholder="Search session..."
-                 class="filter-search-input" />
-          <span class="material-symbols-outlined search-icon">search</span>
-        </div>
-        
-        <div class="filter-dropdown-wrap">
-          <select [value]="selectedHistoryFilter()"
-                  (change)="onFilterChange($event)"
-                  class="filter-select">
-            <option value="all">All Sessions ({{ totalCount() }})</option>
-            <option value="arena">🏟️ Arena Mode ({{ arenaCount() }})</option>
-            <option value="offer">📋 Offer-Based Mode ({{ offerCount() }})</option>
-          </select>
-          <span class="material-symbols-outlined select-icon">expand_more</span>
-        </div>
-
-        <div class="filter-results-count">
-          <strong>{{ filteredSessions().length }}</strong> session(s) found
-        </div>
-      </div>
-
-      <div class="history-grid" *ngIf="filteredSessions().length > 0; else noHistory">
-        <div class="history-card" 
-             [class.history-card--arena]="s.mode === 'arena'"
-             [class.history-card--offer]="s.mode === 'offer'"
-             *ngFor="let s of filteredSessions()">
-          
-          <!-- Top Section: Main Info & Score -->
-          <div class="h-card__top">
-            <div class="h-card__main-info">
-              <!-- Initials bubble with dynamic color gradient -->
-              <div class="h-card__bubble" [style.background]="getModeGradient(s)">
-                {{ getModeInitials(s) }}
-              </div>
-              
-              <div class="h-card__details">
-                <h3 class="h-card__title">
-                  <ng-container *ngIf="s.mode === 'arena'; else offerCardTitle">
-                    {{ s.domain | titlecase }} Interview
-                  </ng-container>
-                  <ng-template #offerCardTitle>
-                    {{ s.jobTitle || (s.domain | titlecase) }}
-                  </ng-template>
-                </h3>
-                
-                <!-- Badges & Company metadata -->
-                <div class="h-card__badges">
-                  <span class="mode-badge" [class.mode-badge--arena]="s.mode === 'arena'" [class.mode-badge--offer]="s.mode === 'offer'">
-                    {{ s.mode === 'arena' ? '🏟️ Arena' : '📋 Offer' }}
-                  </span>
-                  <span class="lang-badge">
-                    {{ getLanguageLabel(s.language) }}
-                  </span>
-                  <span class="company-name" *ngIf="s.mode === 'offer' && s.company">
-                    &bull; {{ s.company }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Score Gauge (Inspired by matchingScore block) -->
-            <div class="h-card__score">
-              <div class="h-card__score-block" *ngIf="s.scoreEntretien !== undefined && s.scoreEntretien !== null; else noScore"
-                   [class.score-block--high]="s.scoreEntretien >= 75" 
-                   [class.score-block--mid]="s.scoreEntretien >= 50 && s.scoreEntretien < 75" 
-                   [class.score-block--low]="s.scoreEntretien < 50">
-                <span class="score-percent">{{ s.scoreEntretien }}%</span>
-                <span class="score-lbl">Score</span>
-              </div>
-              <ng-template #noScore>
-                <div class="h-card__score-block score-block--none">
-                  <span class="score-percent">--</span>
-                  <span class="score-lbl">Score</span>
-                </div>
+      <div class="history-grid" *ngIf="pastSessions().length > 0; else noHistory">
+        <div class="history-card" *ngFor="let s of pastSessions()">
+          <div class="h-card__content">
+            <div class="h-card__title">
+              <ng-container *ngIf="s.mode === 'arena'; else offerCardTitle">
+                ­ƒÅƒ´©Å Arena ┬À {{ s.domain | titlecase }}
+              </ng-container>
+              <ng-template #offerCardTitle>
+                ­ƒôï Offer ┬À {{ s.jobTitle || (s.domain | titlecase) }}
               </ng-template>
             </div>
-          </div>
-
-          <!-- Divider line -->
-          <div class="h-card__divider"></div>
-
-          <!-- Bottom Section: Metadata & Actions -->
-          <div class="h-card__bottom">
-            <!-- Extra details (duration, level, date) -->
             <div class="h-card__meta">
-              <span class="meta-item">
-                <span class="material-symbols-outlined meta-icon">schedule</span>
-                {{ s.durationMinutes }} min
-              </span>
-              <span class="meta-divider">&bull;</span>
-              <span class="meta-item">
-                <span class="material-symbols-outlined meta-icon">trending_up</span>
-                {{ s.level | titlecase }}
-              </span>
-              <span class="meta-divider">&bull;</span>
-              <span class="meta-item">
-                <span class="material-symbols-outlined meta-icon">calendar_today</span>
-                {{ s.dateSession | date:'d MMM yyyy' }}
-              </span>
+              Score: <span class="h-card__score" [class.low]="(s.scoreEntretien ?? 0) < 70">{{ s.scoreEntretien ?? '--'
+                }}/100</span>
+              &nbsp;┬À&nbsp; {{ s.dateSession | date:'d MMM yyyy' }}
             </div>
-            
-            <!-- Actions buttons (View details and delete) -->
-            <div class="h-card__actions">
-              <button class="h-card__btn" [class.h-card__btn--arena]="s.mode === 'arena'" (click)="viewDetails(s)">View Details</button>
-              <button class="h-card__delete" (click)="deleteSession($event, s)" title="Delete">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  <line x1="10" y1="11" x2="10" y2="17"></line>
-                  <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
-              </button>
-            </div>
+          </div>
+          <div class="h-card__actions">
+            <button class="h-card__btn" (click)="viewDetails(s)">View Details</button>
+            <button class="h-card__delete" (click)="deleteSession($event, s)" title="Delete">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
 
       <ng-template #noHistory>
         <div class="no-history-box" *ngIf="!loadingHistory()">
-          <p *ngIf="pastSessions().length === 0">No past sessions found yet. Start practicing to see your history!</p>
-          <p *ngIf="pastSessions().length > 0">No sessions found for the selected filters.</p>
+          <p>No past sessions found yet. Start practicing to see your history!</p>
         </div>
         <div class="loading-history" *ngIf="loadingHistory()">
           <div class="spinner"></div>
@@ -207,86 +109,41 @@
     </section>
 
     <!-- MODAL DETAIL SESSION -->
-    <div class="modal-overlay"
-         *ngIf="showDetailModal()"
-         [style.left]="modalOverlayLeft()"
-         [style.transition]="'left 300ms ease-in-out'"
-         (click)="closeModal()">
-      <div class="modal-box" [class.modal-box--arena]="selectedSession()?.mode === 'arena'" [class.modal-box--offer]="selectedSession()?.mode === 'offer'" (click)="$event.stopPropagation()">
-        <button class="modal-close" (click)="closeModal()">✕</button>
+    <div class="modal-overlay" *ngIf="showDetailModal()" (click)="closeModal()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <button class="modal-close" (click)="closeModal()">Ô£ò</button>
 
         <ng-container *ngIf="selectedSession() as s">
           <!-- Premium Score Header -->
           <div class="modal-eval-header">
-            <div class="eval-score-circle"
-                 [class.eval-score-circle--high]="s.globalScore >= 75"
-                 [class.eval-score-circle--mid]="s.globalScore >= 50 && s.globalScore < 75"
-                 [class.eval-score-circle--low]="s.globalScore < 50">
-              <span class="score-num">{{ s.globalScore }}%</span>
+            <div class="eval-score-circle">
+              <span class="score-num">{{ s.globalScore }}</span>
               <span class="score-label">Score</span>
             </div>
             <div class="eval-meta">
               <h2 class="eval-title">
                 <ng-container *ngIf="s.mode === 'arena'; else offerModalTitle">
-                  {{ s.domain | titlecase }} Interview
+                  Arena ┬À {{ s.domain | titlecase }} Interview
                 </ng-container>
                 <ng-template #offerModalTitle>
-                  {{ s.jobTitle || (s.domain | titlecase) }}
+                  Offer ┬À {{ s.jobTitle || (s.domain | titlecase) }} Interview
                 </ng-template>
               </h2>
-              <div class="eval-meta-badges">
-                <span class="mode-badge" [class.mode-badge--arena]="s.mode === 'arena'" [class.mode-badge--offer]="s.mode === 'offer'">
-                  {{ s.mode === 'arena' ? '🏟️ Arena' : '📋 Offer' }}
-                </span>
-                <span class="lang-badge">
-                  {{ getLanguageLabel(s.language) }}
-                </span>
-                <span class="company-name" *ngIf="s.mode === 'offer' && s.company">
-                  &bull; {{ s.company }}
-                </span>
-              </div>
-              <div class="eval-meta-details">
-                <span class="meta-item">
-                  <span class="material-symbols-outlined meta-icon">schedule</span>
-                  {{ s.durationMinutes }} min
-                </span>
-                <span class="meta-divider">&bull;</span>
-                <span class="meta-item">
-                  <span class="material-symbols-outlined meta-icon">trending_up</span>
-                  {{ s.level | titlecase }}
-                </span>
-                <span class="meta-divider">&bull;</span>
-                <span class="meta-item">
-                  <span class="material-symbols-outlined meta-icon">calendar_today</span>
-                  {{ s.dateSession | date:'d MMM yyyy' }}
-                </span>
-              </div>
+              <p class="eval-subtitle">{{ s.level | titlecase }} &bull; {{ s.dateSession | date:'d MMM yyyy' }}</p>
             </div>
           </div>
 
           <div class="modal-scroll-area">
             <!-- Skill Breakdown -->
             <div class="eval-section card dimensions-card">
-              <h3 class="section-title">
-                <span class="material-symbols-outlined section-icon">analytics</span>
-                Performance Breakdown
-              </h3>
+              <h3 class="section-title">Performance Breakdown</h3>
               <div class="dim-row" *ngFor="let d of s.dimensions">
                 <div class="dim-info">
                   <span class="dim-name">{{ d.name }}</span>
-                  <span class="dim-score"
-                        [class.dim-score--high]="d.score >= 7.5"
-                        [class.dim-score--mid]="d.score >= 5.0 && d.score < 7.5"
-                        [class.dim-score--low]="d.score < 5.0">
-                    {{ d.score }}/10
-                  </span>
+                  <span class="dim-score">{{ d.score }}/10</span>
                 </div>
                 <div class="dim-bar">
-                  <div class="dim-fill"
-                       [class.dim-fill--high]="d.score >= 7.5"
-                       [class.dim-fill--mid]="d.score >= 5.0 && d.score < 7.5"
-                       [class.dim-fill--low]="d.score < 5.0"
-                       [style.width.%]="d.score * 10"></div>
+                  <div class="dim-fill" [style.width.%]="d.score * 10"></div>
                 </div>
                 <p class="dim-comment">{{ d.comment }}</p>
               </div>
@@ -326,19 +183,13 @@
             </div>
 
             <!-- BEST / WORST -->
-            <div class="eval-section highlights-grid" *ngIf="s.bestAnswer || s.worstAnswer">
+            <div class="eval-section highlights-grid">
               <div class="highlight-box highlight-box--green" *ngIf="s.bestAnswer">
-                <div class="highlight-tag">
-                  <span class="material-symbols-outlined highlight-icon">thumb_up</span>
-                  Best Response Highlight
-                </div>
+                <div class="highlight-tag">Best Response Highlight</div>
                 <p>{{ s.bestAnswer }}</p>
               </div>
               <div class="highlight-box highlight-box--red" *ngIf="s.worstAnswer">
-                <div class="highlight-tag">
-                  <span class="material-symbols-outlined highlight-icon">trending_down</span>
-                  Opportunity to Improve
-                </div>
+                <div class="highlight-tag">Opportunity to Improve</div>
                 <p>{{ s.worstAnswer }}</p>
               </div>
             </div>
@@ -356,12 +207,7 @@
                 <div class="q-eval-item" *ngFor="let qe of s.questionEvaluations">
                   <div class="q-eval-top">
                     <span class="q-eval-txt">{{ qe.question }}</span>
-                    <span class="q-eval-score"
-                          [class.q-eval-score--high]="qe.score >= 75"
-                          [class.q-eval-score--mid]="qe.score >= 50 && qe.score < 75"
-                          [class.q-eval-score--low]="qe.score < 50">
-                      {{ qe.score }}%
-                    </span>
+                    <span class="q-eval-score" [class.low]="qe.score < 70">{{ qe.score }}%</span>
                   </div>
                   <div class="q-eval-answer">
                     <strong>Your Answer:</strong> {{ qe.userAnswer }}
@@ -392,13 +238,9 @@
     </div>
 
     <!-- MODAL CONFIRM DELETE -->
-    <div class="modal-overlay modal-overlay--delete"
-         *ngIf="showDeleteConfirm()"
-         [style.left]="modalOverlayLeft()"
-         [style.transition]="'left 300ms ease-in-out'"
-         (click)="cancelDelete()">
+    <div class="modal-overlay modal-overlay--delete" *ngIf="showDeleteConfirm()" (click)="cancelDelete()">
       <div class="modal-box modal-box--confirm" (click)="$event.stopPropagation()">
-        <div class="modal-confirm-icon">⚠️</div>
+        <div class="modal-confirm-icon">ÔÜá´©Å</div>
         <h3 class="modal-confirm-title">Delete this session?</h3>
         <p class="modal-confirm-desc">
           This action cannot be undone. All data from this session will be permanently deleted.
@@ -439,7 +281,7 @@
           [class.stepper-item--done]="stepState(step.key) === 'done'"
           [class.stepper-item--locked]="stepState(step.key) === 'locked'" (click)="goToStep(step.key)">
           <div class="stepper-dot">
-            <ng-container *ngIf="stepState(step.key) === 'done'">✓</ng-container>
+            <ng-container *ngIf="stepState(step.key) === 'done'">Ô£ô</ng-container>
             <ng-container *ngIf="stepState(step.key) !== 'done'">{{ steps().indexOf(step) + 1 }}</ng-container>
           </div>
           <div class="stepper-text">
@@ -522,7 +364,7 @@
                   <span class="summary-val">{{ selectedCompany() }}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-key">Durée</span>
+                  <span class="summary-key">Dur├®e</span>
                   <span class="summary-val">{{ selectedDuration() }} min</span>
                 </div>
                 <div class="summary-row">
@@ -550,7 +392,7 @@
               </ng-template>
             </div>
             <button class="launch-btn" (click)="launch()">
-              <div class="launch-pulse"></div> {{ selectedOfferId() ? "Commencer la préparation" : "Start Arena Interview" }}
+              <div class="launch-pulse"></div> {{ selectedOfferId() ? "Commencer la pr├®paration" : "Start Arena Interview" }}
             </button>
           </div>
 
@@ -569,10 +411,10 @@
 
         <!-- NAVIGATION FOOTER -->
         <div class="step-nav" *ngIf="currentStep() !== 'ready' && !isLaunching()">
-          <button class="btn-ghost" (click)="back()" [disabled]="currentStep() === steps()[0].key">← Back</button>
+          <button class="btn-ghost" (click)="back()" [disabled]="currentStep() === steps()[0].key">ÔåÉ Back</button>
           <div class="step-counter">Step {{ stepIndex() + 1 }} of {{ steps().length }}</div>
           <button class="btn-next" (click)="next()" [disabled]="!canContinue()">{{ currentStep() === 'focus' ? 'Skip /
-            Next' : 'Next →' }}</button>
+            Next' : 'Next ÔåÆ' }}</button>
         </div>
       </main>
     </div>

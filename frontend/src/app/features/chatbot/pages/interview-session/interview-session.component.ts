@@ -181,11 +181,10 @@ export class InterviewSessionComponent implements OnInit, OnDestroy, AfterViewCh
         this.finalScore.set(r.score);
         this.phase.set('results');
       },
-      error: (err) => {
-        console.error('Evaluation Error:', err);
-        // Au lieu d'un faux 65, on affiche une erreur ou on reste en live
+      error: () => {
+        // Evaluation failed — inform the user and stay in live phase
         alert("Evaluation failed. The AI is taking too long to respond. Please try again.");
-        this.phase.set('live'); 
+        this.phase.set('live');
       },
     });
   }

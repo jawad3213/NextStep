@@ -89,14 +89,12 @@ public class ArenaService : IArenaService
                             location = offerDetails.Localisation ?? location;
                         }
 
-                        var escTitle = title.Replace("'", "''");
-                        var escCompany = company.Replace("'", "''");
-                        var escLoc = location.Replace("'", "''");
-
-                        await _db.Database.ExecuteSqlRawAsync($"""
+                        // Use EF Core parameterized SQL to safely insert the offer row
+                        await _db.Database.ExecuteSqlAsync(
+                            $"""
                             INSERT INTO public.offre (id_offre, date_scraping, entreprise, localisation, url_source, description_brute, titre_poste)
-                            VALUES ('{offerGuid}', NOW(), '{escCompany}', '{escLoc}', '', 'Auto-created from chat session', '{escTitle}')
-                        """);
+                            VALUES ({offerGuid}, NOW(), {company}, {location}, '', 'Auto-created from chat session', {title})
+                            """);
                     }
 
                     // 2. S'assurer qu'une candidature existe pour cet utilisateur et cette offre
@@ -118,9 +116,9 @@ public class ArenaService : IArenaService
                     }
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[DEBUG] StartSessionAsync auto-create candidature failed: {ex.Message}");
+                // Auto-create candidature failed silently — session creation continues
             }
         }
 
@@ -237,9 +235,9 @@ public class ArenaService : IArenaService
                                 company = row.Entreprise;
                             }
                         }
-                        catch (Exception ex)
+                        catch
                         {
-                            Console.WriteLine($"DEBUG GET_SESSIONS EXCEPTION: {ex.Message} - {ex.StackTrace}");
+                            // Ignore
                         }
                     }
                 }
@@ -312,9 +310,9 @@ public class ArenaService : IArenaService
                             company = row.Entreprise;
                         }
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine($"DEBUG GET_SESSION_DETAIL EXCEPTION: {ex.Message} - {ex.StackTrace}");
+                        // Offer detail lookup failed silently
                     }
                 }
             }
@@ -335,7 +333,9 @@ public class ArenaService : IArenaService
             BestAnswer   : feedback?.BestAnswer,
             WorstAnswer  : feedback?.WorstAnswer,
             JobTitle     : jobTitle,
-            Company      : company
+            Company      : company,
+            Language     : session.Language,
+            DurationMinutes : session.DurationMinutes
         );
     }
 
@@ -433,9 +433,9 @@ public class ArenaService : IArenaService
                 return val != null && val != DBNull.Value;
             }
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[DEBUG] CheckOfferExistsAsync Exception: {ex.Message}");
+            // Offer existence check failed — assume not exists
         }
         finally
         {
@@ -484,9 +484,9 @@ public class ArenaService : IArenaService
                 }
             }
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[DEBUG] QueryOffreAnalyseeAsync Exception: {ex.Message}");
+            // Query failed silently — returns null
         }
         finally
         {
@@ -527,9 +527,9 @@ public class ArenaService : IArenaService
                 }
             }
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[DEBUG] QueryMatchScoreAsync Exception: {ex.Message}");
+            // Match score lookup failed silently — returns null
         }
         finally
         {

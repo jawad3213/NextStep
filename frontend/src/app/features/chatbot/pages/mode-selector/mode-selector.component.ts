@@ -1,9 +1,13 @@
-import { Component, signal, computed, OnInit, inject } from '@angular/core';
+import { Component, signal, computed, OnInit, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { combineLatest, map } from 'rxjs';
 import { ArenaService } from '../../services/arena.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
+import { SidebarService } from '../../../../shared/services/sidebar.service';
 import {
   ArenaConfig, DOMAINS, LEVELS, DURATIONS, LANGUAGES,
   FOCUS_BY_DOMAIN, InterviewLevel, SessionSummary, SessionDetail
@@ -33,6 +37,24 @@ export class ModeSelectorComponent implements OnInit {
   private router = inject(Router);
   private arenaService = inject(ArenaService);
   private authService = inject(AuthService);
+  private sidebarService = inject(SidebarService);
+  private platformId = inject(PLATFORM_ID);
+
+  // Reactive left offset for the modal overlay:
+  // When the sidebar is visible at xl, offset the fixed overlay
+  // so flexbox centers the modal in the VISIBLE content area, not behind the sidebar.
+  readonly modalOverlayLeft = toSignal(
+    combineLatest([
+      this.sidebarService.isExpanded$,
+      this.sidebarService.isHovered$,
+    ]).pipe(
+      map(([expanded, hovered]) => {
+        if (!isPlatformBrowser(this.platformId) || window.innerWidth < 1280) return '0px';
+        return (expanded || hovered) ? '290px' : '90px';
+      })
+    ),
+    { initialValue: '0px' }
+  );
 
   // ── Views & steps
   view = signal<View>('selector');
@@ -58,6 +80,35 @@ export class ModeSelectorComponent implements OnInit {
   loadingHistory = signal(false);
   showDeleteConfirm = signal(false);
   sessionToDelete = signal<SessionSummary | null>(null);
+
+  // ── History Filter & Counts
+  selectedHistoryFilter = signal<'all' | 'arena' | 'offer'>('all');
+  historySearchQuery = signal<string>('');
+
+  totalCount = computed(() => this.pastSessions().length);
+  arenaCount = computed(() => this.pastSessions().filter(s => s.mode === 'arena').length);
+  offerCount = computed(() => this.pastSessions().filter(s => s.mode === 'offer').length);
+
+  filteredSessions = computed(() => {
+    const filter = this.selectedHistoryFilter();
+    const query = this.historySearchQuery().toLowerCase().trim();
+    let sessions = this.pastSessions();
+
+    if (filter !== 'all') {
+      sessions = sessions.filter(s => s.mode === filter);
+    }
+
+    if (query) {
+      sessions = sessions.filter(s => {
+        const domainMatch = s.domain?.toLowerCase().includes(query);
+        const jobMatch = s.jobTitle?.toLowerCase().includes(query);
+        const companyMatch = s.company?.toLowerCase().includes(query);
+        return domainMatch || jobMatch || companyMatch;
+      });
+    }
+
+    return sessions;
+  });
 
   // Notification Toast
   showToast = signal(false);
@@ -123,7 +174,6 @@ export class ModeSelectorComponent implements OnInit {
     // Récupère le token JWT depuis Keycloak
     const token = this.authService.getToken();
     if (!token) {
-      console.warn('❌ Token Keycloak manquant!');
       this.pastSessions.set([]);
       return;
     }
@@ -131,24 +181,18 @@ export class ModeSelectorComponent implements OnInit {
     // Décode le token pour extraire le userId (claim "sub")
     const userId = this.extractUserIdFromToken(token);
     if (!userId) {
-      console.warn('❌ userId manquant dans le token!');
       this.pastSessions.set([]);
       return;
     }
 
-    console.log('✅ userId trouvé:', userId);
     this.loadingHistory.set(true);
 
     this.arenaService.getSessions(userId).subscribe({
       next: (sessions) => {
-        console.log('✅ Sessions chargées:', sessions.length);
-        console.log('📊 Réponse API complète:', sessions);
         this.pastSessions.set(sessions);
         this.loadingHistory.set(false);
       },
-      error: (err) => {
-        console.error('❌ Erreur chargement historique:', err);
-        console.error('📡 Détails erreur:', err.status, err.message);
+      error: () => {
         this.pastSessions.set([]);
         this.loadingHistory.set(false);
       }
@@ -162,16 +206,10 @@ export class ModeSelectorComponent implements OnInit {
       if (parts.length !== 3) return null;
 
       const payload = JSON.parse(atob(parts[1]));
-      console.log('🔍 JWT Payload:', payload);
 
       // Le userId se trouve dans le claim "sub"
-      const userId = payload.sub || payload.userId;
-      if (userId) {
-        console.log('✅ userId extrait du token:', userId);
-      }
-      return userId || null;
-    } catch (error) {
-      console.error('❌ Erreur décodage token:', error);
+      return payload.sub || payload.userId || null;
+    } catch {
       return null;
     }
   }
@@ -203,22 +241,17 @@ export class ModeSelectorComponent implements OnInit {
   }
 
   confirmDeleteSession() {
-    console.log('🗑️ Tentative de suppression de la session:', this.sessionToDelete()?.sessionId);
     const session = this.sessionToDelete();
-    if (!session) {
-      console.warn('⚠️ Aucune session à supprimer (sessionToDelete est null)');
-      return;
-    }
+    if (!session) return;
 
     this.arenaService.deleteSession(session.sessionId).subscribe({
       next: () => {
-        console.log('✅ Session supprimée avec succès');
         this.pastSessions.update(list => list.filter(s => s.sessionId !== session.sessionId));
         this.triggerToast('Session deleted successfully!');
         this.cancelDelete();
       },
-      error: (err) => {
-        console.error('❌ Erreur suppression:', err);
+      error: () => {
+        // Silently fail — toast could be added here if needed
       }
     });
   }
@@ -232,6 +265,50 @@ export class ModeSelectorComponent implements OnInit {
   closeModal() {
     this.showDetailModal.set(false);
     this.selectedSession.set(null);
+  }
+
+  setHistoryFilter(filter: 'all' | 'arena' | 'offer') {
+    this.selectedHistoryFilter.set(filter);
+  }
+
+  onSearchInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.historySearchQuery.set(input.value);
+  }
+
+  onFilterChange(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    this.selectedHistoryFilter.set(select.value as 'all' | 'arena' | 'offer');
+  }
+
+  getModeInitials(s: SessionSummary): string {
+    if (s.mode === 'offer' && s.company) {
+      return s.company.slice(0, 2).toUpperCase();
+    }
+    const domainObj = this.domains.find(d => d.key === s.domain);
+    if (domainObj) {
+      return domainObj.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return 'AI';
+  }
+
+  getModeGradient(s: SessionSummary): string {
+    if (s.mode === 'offer') {
+      return 'linear-gradient(135deg, #465FFF 0%, #0C1986 100%)';
+    } else {
+      const hash = s.domain ? s.domain.charCodeAt(0) : 0;
+      if (hash % 2 === 0) {
+        return 'linear-gradient(135deg, #EC9F05 0%, #FF4E00 100%)';
+      } else {
+        return 'linear-gradient(135deg, #7F00FF 0%, #E100FF 100%)';
+      }
+    }
+  }
+
+  getLanguageLabel(langKey: string | null | undefined): string {
+    if (!langKey) return '🌐 EN';
+    const lang = this.languages.find(l => l.key === langKey.toLowerCase());
+    return lang ? `${lang.flag} ${langKey.toUpperCase()}` : '🌐 ' + langKey.toUpperCase();
   }
 
 

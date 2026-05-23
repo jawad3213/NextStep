@@ -1,10 +1,15 @@
 import { Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
 import { ResumeEditorComponent } from '../resume-editor/resume-editor.component';
-import { CvSaveResponse, OfferApiService } from '../../services/offer-api.service';
+import {
+  CvDesignConfig,
+  CvRenderResponse,
+  CvSaveResponse,
+  OfferApiService
+} from '../../services/offer-api.service';
 import { environment } from '../../../../../environments/environment';
 import { SignalRService } from '../../../../services/signalr.service';
 
@@ -12,6 +17,12 @@ interface RealCvTemplate {
   slug: string;
   label: string;
   tone: string;
+}
+
+interface CvEditorDraft {
+  cvData: any;
+  designConfig: CvDesignConfig;
+  htmlSnapshot?: string | null;
 }
 
 @Component({
@@ -32,8 +43,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   private autosaveSub: Subscription | null = null;
   private loadDraftSub: Subscription | null = null;
   private lastDraftHash = '';
-  private previewImageBlobUrl: string | null = null;
-  private previewPdfBlobUrl: string | null = null;
   private readonly thumbnailUrlCache = new Map<string, string>();
   private readonly thumbnailNonce = Date.now();
   private readonly draftKey = 'nextstep_cv_draft';
@@ -42,10 +51,10 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   editorInitialData = signal<any | null>(null);
   private editorDraft = signal<any | null>(null);
-  livePreviewUrl: SafeResourceUrl | null = null;
-  livePreviewImageUrl: string | null = null;
+  private readonly designConfigState = signal<CvDesignConfig>(this.defaultDesignConfig('modern'));
+  renderedHtml: SafeHtml | null = null;
+  private renderedHtmlSnapshot: string | null = null;
   isRenderingPreview = false;
-  showPreviewModal = false;
   previewError: string | null = null;
   draftStatus: 'idle' | 'local' | 'saving' | 'saved' | 'error' = 'idle';
   draftSavedAt: string | null = null;
@@ -58,74 +67,10 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   private savedDraftHash = '';
   private readonly activitySignals = [
     'hackathon', 'club', 'association', 'organisateur', 'organizer',
-    'membre', 'member', 'volunteer', 'benevole', 'bénévole', 'event',
+    'membre', 'member', 'volunteer', 'benevole', 'benevole', 'event',
     'community', 'communaut', 'it day', 'prize', 'prix', 'participant',
     'formateur', 'trainer', 'formation', 'solihackathon', 'itwave', 'ids'
   ];
-
-  // Floating designer bar state
-  showSizeDropdown = false;
-
-  get currentThemeColor(): string {
-    const data = this.currentCvData();
-    return data?.themeColor || '#1A91F0';
-  }
-
-  get currentFontSize(): string {
-    const data = this.currentCvData();
-    return data?.fontSize || '14px';
-  }
-
-  get currentLineSpacing(): string {
-    const data = this.currentCvData();
-    return data?.lineSpacing || '1.15';
-  }
-
-  get draftStatusText(): string {
-    if (this.draftError) return this.draftError;
-    if (this.draftStatus === 'saving') return 'Autosave backend en cours...';
-    if (this.draftStatus === 'saved') {
-      const version = this.draftVersion ? ` v${this.draftVersion}` : '';
-      const time = this.draftSavedAt ? ` a ${this.draftSavedAt}` : '';
-      return `Brouillon synchronise${version}${time}`;
-    }
-    if (this.draftStatus === 'local') return 'Brouillon local protege, synchronisation en attente.';
-    return 'Brouillon pret.';
-  }
-
-  toggleFontDropdown(): void {
-    // Font family customization is intentionally disabled.
-    this.showSizeDropdown = false;
-  }
-
-  toggleSizeDropdown(): void {
-    this.showSizeDropdown = !this.showSizeDropdown;
-  }
-
-  selectFont(font: string): void {
-    void font;
-  }
-
-  selectSize(size: string): void {
-    this.changeFontSize(size);
-    this.showSizeDropdown = false;
-  }
-
-  selectThemeColor(color: string): void {
-    this.changeThemeColor(color);
-  }
-
-  changeThemeColor(color: string): void {
-    this.patchCurrentDraft({ themeColor: color });
-  }
-
-  changeFontSize(size: string): void {
-    this.patchCurrentDraft({ fontSize: size });
-  }
-
-  changeLineSpacing(spacing: string): void {
-    this.patchCurrentDraft({ lineSpacing: spacing });
-  }
 
   readonly realTemplates: RealCvTemplate[] = [
     { slug: 'latex', label: 'LaTeX Tech', tone: 'Classic Engineering' },
@@ -145,26 +90,11 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     modern: 'modern',
   };
 
-  private readonly generationTrace = effect(() => {
-    const offerId = this.pipeline.currentOfferId();
-    const result = this.pipeline.pipelineResult();
-    const generated = result?.cvGeneratedContent;
-    console.log('[CV-PIPELINE] StepGeneration state', {
-      offerId,
-      hasPipelineResult: !!result,
-      hasGeneratedCv: !!generated,
-      hasCandidate: !!generated?.candidate,
-      experienceCount: Array.isArray(generated?.experience) ? generated.experience.length : 0,
-      skillsCount: Array.isArray(generated?.skills) ? generated.skills.length : 0,
-      languagesCount: Array.isArray(generated?.languages) ? generated.languages.length : 0
-    });
-  });
-
   private readonly generatedCvSync = effect(() => {
     const generated = this.generatedCvData;
     if (!this.hasRenderableCvData(generated)) return;
     if (!generated || this.hasUserEditedDraft || this.editorDraft()) return;
-    this.applyInitialDraft(generated, 'idle');
+    this.applyInitialDraft({ cvData: generated, designConfig: this.defaultDesignConfig(this.selectedTemplate) }, 'idle');
   });
 
   get selectedTemplate(): string {
@@ -196,6 +126,10 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     return !this.editorInitialData() && !this.generatedCvData;
   }
 
+  get currentDesignConfig(): CvDesignConfig {
+    return this.designConfigState();
+  }
+
   private hasRenderableCvData(data: any | null | undefined): boolean {
     if (!data || typeof data !== 'object') return false;
     const candidate = data?.candidate;
@@ -225,14 +159,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.previewRequestSub?.unsubscribe();
     this.autosaveSub?.unsubscribe();
     this.loadDraftSub?.unsubscribe();
-    if (this.previewImageBlobUrl) {
-      window.URL.revokeObjectURL(this.previewImageBlobUrl);
-      this.previewImageBlobUrl = null;
-    }
-    if (this.previewPdfBlobUrl) {
-      window.URL.revokeObjectURL(this.previewPdfBlobUrl);
-      this.previewPdfBlobUrl = null;
-    }
   }
 
   async continueToResults(): Promise<void> {
@@ -249,27 +175,16 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.pipeline.goToStep(3);
   }
 
-  openPreviewModal(): void {
-    const data = this.currentCvData();
-    if (!data) return;
-    this.ensurePdfPreview(data, () => {
-      this.showPreviewModal = true;
-    });
-  }
-
-  closePreviewModal(): void {
-    this.showPreviewModal = false;
-  }
-
   selectTemplate(slug: string): void {
     if (slug === this.selectedTemplate) return;
     this.pipeline.selectedTemplateId.set(slug);
+    this.designConfigState.set(this.defaultDesignConfig(slug));
     this.savedHistoryId = null;
     this.savedFileUrl = null;
     this.savedDraftHash = '';
     this.lastDraftHash = '';
-    this.livePreviewUrl = null;
     this.queueLivePreview();
+    this.queueBackendAutosave();
   }
 
   getGenerationStageStatus(stageKey: string): 'done' | 'running' | 'todo' {
@@ -301,11 +216,11 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   onEditorDataChange(rawData: any): void {
     const data = this.normalizeCvForBackend(rawData);
     const previous = this.editorDraft();
-    const previousHash = previous ? this.buildDraftHash(previous) : '';
-    const nextHash = this.buildDraftHash(data);
+    const previousHash = previous ? this.buildDraftHash(previous, this.currentDesignConfig) : '';
+    const nextHash = this.buildDraftHash(data, this.currentDesignConfig);
 
     if (previousHash && previousHash === nextHash) {
-      this.writeLocalDraft(data);
+      this.writeLocalDraft(data, this.currentDesignConfig);
       return;
     }
 
@@ -314,11 +229,20 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     }
 
     this.editorDraft.set(data);
-    this.writeLocalDraft(data);
+    this.writeLocalDraft(data, this.currentDesignConfig);
     this.draftStatus = 'local';
     this.draftError = null;
     this.queueLivePreview(data);
     this.queueBackendAutosave(data);
+  }
+
+  onDesignConfigChange(config: CvDesignConfig): void {
+    this.designConfigState.set({ ...config });
+    this.writeLocalDraft(this.currentCvData(), config);
+    this.draftStatus = 'local';
+    this.draftError = null;
+    this.queueLivePreview();
+    this.queueBackendAutosave();
   }
 
   async saveFinalCv(): Promise<CvSaveResponse> {
@@ -332,11 +256,17 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.pipeline.setLoading(true, 'Sauvegarde du PDF final...');
     try {
       const saved = await firstValueFrom(
-        this.offerApi.saveFinalCv(this.selectedTemplate, `CV_${offerId}`, data)
+        this.offerApi.saveFinalCv(
+          this.selectedTemplate,
+          `CV_${offerId}`,
+          data,
+          this.currentDesignConfig,
+          this.renderedHtmlSnapshot
+        )
       );
       this.savedHistoryId = saved?.historyId ?? null;
       this.savedFileUrl = saved?.fileUrl ?? null;
-      this.savedDraftHash = this.buildDraftHash(data);
+      this.savedDraftHash = this.buildDraftHash(data, this.currentDesignConfig);
       this.pipeline.cvDownloadUrl.set(saved?.fileUrl ?? null);
       return saved;
     } catch (err) {
@@ -350,26 +280,21 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   async downloadFinalPdf(): Promise<void> {
     try {
-      if (!this.savedHistoryId || this.savedDraftHash !== this.buildDraftHash(this.currentCvData())) {
-        await this.saveFinalCv();
-      }
-
-      if (!this.savedHistoryId) throw new Error('Historique CV introuvable.');
+      const data = this.currentCvData();
+      if (!data) throw new Error('CV introuvable pour le telechargement.');
 
       this.isDownloadingFinal = true;
-      try {
-        const blob = await firstValueFrom(this.offerApi.downloadCvHistoryFile(this.savedHistoryId));
-        if (!blob || blob.size === 0) {
-          throw new Error('PDF vide recu depuis le backend.');
-        }
-        this.downloadBlob(blob);
-      } catch {
-        const signed = await firstValueFrom(this.offerApi.getCvDownloadUrl(this.savedHistoryId));
-        if (!signed?.downloadUrl) {
-          throw new Error('Lien de telechargement PDF indisponible.');
-        }
-        this.downloadFromUrl(this.normalizeDownloadUrl(signed.downloadUrl));
+      const blob = await firstValueFrom(this.offerApi.exportCvPdf({
+        templateSlug: this.selectedTemplate,
+        data,
+        designConfig: this.currentDesignConfig,
+        htmlSnapshot: this.renderedHtmlSnapshot
+      }));
+
+      if (!blob || blob.size === 0) {
+        throw new Error('PDF vide recu depuis le backend.');
       }
+      this.downloadBlob(blob);
     } catch (err: any) {
       console.error('[CV-PIPELINE] Final CV download failed', err);
       this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Telechargement PDF indisponible.');
@@ -381,23 +306,25 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   private queueLivePreview(data: any | null = this.currentCvData(), delayMs = 320): void {
     if (!this.hasRenderableCvData(data)) return;
 
-    const hash = this.buildDraftHash(data);
+    const hash = this.buildDraftHash(data, this.currentDesignConfig);
     if (this.savedDraftHash && this.savedDraftHash !== hash) {
       this.savedHistoryId = null;
       this.savedFileUrl = null;
       this.savedDraftHash = '';
     }
 
-    void delayMs;
-    this.lastDraftHash = hash;
-    this.isRenderingPreview = false;
-    this.previewError = null;
-    this.livePreviewImageUrl = null;
-    this.livePreviewUrl = null;
+    if (this.previewDebounceId !== null) {
+      window.clearTimeout(this.previewDebounceId);
+    }
+
+    this.previewDebounceId = window.setTimeout(() => {
+      this.previewDebounceId = null;
+      this.renderLivePreview(data);
+    }, delayMs);
   }
 
   private renderLivePreview(data: any): void {
-    const hash = this.buildDraftHash(data);
+    const hash = this.buildDraftHash(data, this.currentDesignConfig);
     if (hash === this.lastDraftHash && !this.previewError) {
       this.isRenderingPreview = false;
       return;
@@ -408,43 +335,33 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.isRenderingPreview = true;
     this.previewError = null;
 
-    this.previewRequestSub = this.offerApi.renderCvPreview(this.selectedTemplate, data, 'png').subscribe({
-      next: (blob) => {
-        const blobType = (blob.type || '').toLowerCase();
-
-        if (blobType.startsWith('image/')) {
-          if (this.previewImageBlobUrl) {
-            window.URL.revokeObjectURL(this.previewImageBlobUrl);
-          }
-          this.previewImageBlobUrl = window.URL.createObjectURL(blob);
-          this.livePreviewImageUrl = this.previewImageBlobUrl;
-          this.previewError = null;
-          this.isRenderingPreview = false;
-          return;
-        }
-
-        this.livePreviewImageUrl = null;
-
-        if (blobType.includes('pdf')) {
-          this.applyPdfPreviewBlob(blob);
-          this.previewError = null;
-          this.isRenderingPreview = false;
-          return;
-        }
-
-        this.ensurePdfPreview(data, () => {
-          this.previewError = null;
-          this.isRenderingPreview = false;
-        });
+    this.previewRequestSub = this.offerApi.renderCvPreview({
+      templateSlug: this.selectedTemplate,
+      data,
+      designConfig: this.currentDesignConfig
+    }).subscribe({
+      next: (response) => {
+        this.applyRenderedPreview(response);
+        this.previewError = null;
+        this.isRenderingPreview = false;
       },
-      error: (err) => {
-        void this.handlePreviewRenderError(err);
+      error: async (err) => {
+        console.error('[CV-PIPELINE] Live HTML preview failed', err);
+        this.lastDraftHash = '';
+        this.previewError = await this.extractHttpErrorMessage(err, 'Apercu HTML indisponible.');
+        this.isRenderingPreview = false;
       }
     });
   }
 
-  private buildDraftHash(data: any): string {
-    return JSON.stringify({ t: this.selectedTemplate, data });
+  private applyRenderedPreview(response: CvRenderResponse): void {
+    this.designConfigState.set({ ...response.designConfig });
+    this.renderedHtmlSnapshot = response.html;
+    this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(response.html);
+  }
+
+  private buildDraftHash(data: any, designConfig: CvDesignConfig): string {
+    return JSON.stringify({ t: this.selectedTemplate, data, designConfig });
   }
 
   private downloadBlob(blob: Blob): void {
@@ -457,23 +374,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
-  }
-
-  private downloadFromUrl(url: string): void {
-    const offerId = this.currentOfferId || 'candidat';
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `CV_${offerId}_${this.selectedTemplate}.pdf`;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-
-  private normalizeDownloadUrl(url: string): string {
-    return url
-      .replace('http://minio:9000', 'http://localhost:9000')
-      .replace('https://minio:9000', 'http://localhost:9000');
   }
 
   private formatDraftTime(value: string | null | undefined): string | null {
@@ -494,25 +394,26 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   private hydrateInitialDraft(): void {
     const localDraft = this.readLocalDraftForCurrentOffer();
-    const validLocalDraft = this.hasRenderableCvData(localDraft) ? localDraft : null;
+    const validLocalDraft = localDraft && this.hasRenderableCvData(localDraft.cvData) ? localDraft : null;
     const validGenerated = this.hasRenderableCvData(this.generatedCvData) ? this.generatedCvData : null;
-    const fallback = validLocalDraft || validGenerated;
+    const fallback = validLocalDraft ?? (validGenerated
+      ? { cvData: validGenerated, designConfig: this.defaultDesignConfig(this.selectedTemplate) }
+      : null);
 
     if (fallback) {
       this.applyInitialDraft(fallback, validLocalDraft ? 'local' : 'idle');
     }
 
-    if (!fallback) return;
+    if (!this.currentOfferId) return;
 
-    const offerId = this.currentOfferId;
-    if (!offerId) return;
-
-    this.loadDraftSub = this.offerApi.getCvDraft(offerId).subscribe({
+    this.loadDraftSub = this.offerApi.getCvDraft(this.currentOfferId).subscribe({
       next: (draft) => {
         if (!draft?.data || this.hasUserEditedDraft) return;
-        if (!this.hasRenderableCvData(draft.data)) return;
+        const parsedDraft = this.asEditorDraft(draft.data);
+        if (parsedDraft === null) return;
+        if (!this.hasRenderableCvData(parsedDraft.cvData)) return;
 
-        this.applyInitialDraft(draft.data, 'saved');
+        this.applyInitialDraft(parsedDraft, 'saved');
         this.draftVersion = draft.version ?? null;
         this.draftSavedAt = this.formatDraftTime(draft.updatedAtUtc);
       },
@@ -525,44 +426,46 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     });
   }
 
-  private applyInitialDraft(rawData: any, status: 'idle' | 'local' | 'saved'): void {
+  private applyInitialDraft(rawDraft: CvEditorDraft, status: 'idle' | 'local' | 'saved'): void {
     if (this.autosaveDebounceId !== null) {
       window.clearTimeout(this.autosaveDebounceId);
       this.autosaveDebounceId = null;
     }
 
-    const data = this.normalizeCvForBackend(rawData);
+    const data = this.normalizeCvForBackend(rawDraft.cvData);
     if (!this.hasRenderableCvData(data)) return;
     this.editorInitialData.set(data);
     this.editorDraft.set(data);
-    this.writeLocalDraft(data);
+    this.designConfigState.set({ ...this.defaultDesignConfig(this.selectedTemplate), ...rawDraft.designConfig });
+    this.renderedHtmlSnapshot = rawDraft.htmlSnapshot ?? null;
+    this.writeLocalDraft(data, this.currentDesignConfig);
     this.draftStatus = status;
     this.draftError = null;
     this.queueLivePreview(data, 0);
   }
 
-  private readLocalDraftForCurrentOffer(): any | null {
+  private readLocalDraftForCurrentOffer(): CvEditorDraft | null {
     if (!this.currentOfferId) return null;
     const draftOfferId = localStorage.getItem(this.draftOfferKey);
     if (draftOfferId !== this.currentOfferId) return null;
-    return this.safeParseJson(localStorage.getItem(this.draftKey));
+    return this.asEditorDraft(this.safeParseJson(localStorage.getItem(this.draftKey)));
   }
 
-  private writeLocalDraft(data: any): void {
+  private writeLocalDraft(data: any | null, designConfig: CvDesignConfig): void {
+    if (!data) return;
     try {
-      localStorage.setItem(this.draftKey, JSON.stringify(data));
+      const draft: CvEditorDraft = {
+        cvData: data,
+        designConfig,
+        htmlSnapshot: this.renderedHtmlSnapshot
+      };
+      localStorage.setItem(this.draftKey, JSON.stringify(draft));
       if (this.currentOfferId) {
         localStorage.setItem(this.draftOfferKey, this.currentOfferId);
       }
     } catch (err) {
       console.warn('[CV-PIPELINE] Local draft persistence failed', err);
     }
-  }
-
-  private patchCurrentDraft(patch: Record<string, any>): void {
-    const data = this.currentCvData();
-    if (!data) return;
-    this.onEditorDataChange({ ...data, ...patch });
   }
 
   private queueBackendAutosave(data: any | null = this.currentCvData(), delayMs = 900): void {
@@ -585,7 +488,13 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.draftStatus = 'saving';
     this.draftError = null;
 
-    this.autosaveSub = this.offerApi.saveCvDraft(offerId, data).subscribe({
+    const payload: CvEditorDraft = {
+      cvData: data,
+      designConfig: this.currentDesignConfig,
+      htmlSnapshot: this.renderedHtmlSnapshot
+    };
+
+    this.autosaveSub = this.offerApi.saveCvDraft(offerId, payload).subscribe({
       next: (draft) => {
         this.draftStatus = 'saved';
         this.draftVersion = draft?.version ?? this.draftVersion;
@@ -601,42 +510,45 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private currentCvData(): any | null {
-    const data = this.editorDraft() || this.readLocalDraftForCurrentOffer() || this.generatedCvData;
+    const data = this.editorDraft()?.candidate ? this.editorDraft() : this.readLocalDraftForCurrentOffer()?.cvData || this.generatedCvData;
     return data ? this.normalizeCvForBackend(data) : null;
   }
 
-  private ensurePdfPreview(data: any, onReady?: () => void): void {
-    if (this.livePreviewUrl) {
-      onReady?.();
-      return;
-    }
-
-    this.offerApi.renderCvPreview(this.selectedTemplate, data, 'pdf').subscribe({
-      next: (blob) => {
-        this.applyPdfPreviewBlob(blob);
-        onReady?.();
-      },
-      error: () => {
-        this.livePreviewUrl = null;
-      }
-    });
+  private defaultDesignConfig(templateSlug: string): CvDesignConfig {
+    return templateSlug === 'latex'
+      ? {
+          themeColor: '#111827',
+          fontFamily: "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
+          fontSize: '13px',
+          lineSpacing: '1.38',
+          sectionSpacing: '1rem',
+          sidebarWidth: '0%'
+        }
+      : {
+          themeColor: '#2d3a8c',
+          fontFamily: "Inter, 'Segoe UI', Arial, sans-serif",
+          fontSize: '14px',
+          lineSpacing: '1.45',
+          sectionSpacing: '1.2rem',
+          sidebarWidth: '31%'
+        };
   }
 
-  private applyPdfPreviewBlob(blob: Blob): void {
-    if (this.previewPdfBlobUrl) {
-      window.URL.revokeObjectURL(this.previewPdfBlobUrl);
+  private asEditorDraft(value: any): CvEditorDraft | null {
+    if (!value || typeof value !== 'object') return null;
+    if (value.cvData && typeof value.cvData === 'object') {
+      return {
+        cvData: value.cvData,
+        designConfig: { ...this.defaultDesignConfig(this.selectedTemplate), ...(value.designConfig ?? {}) },
+        htmlSnapshot: typeof value.htmlSnapshot === 'string' ? value.htmlSnapshot : null
+      };
     }
-    this.previewPdfBlobUrl = window.URL.createObjectURL(blob);
-    this.livePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-      `${this.previewPdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`
-    );
-  }
 
-  private async handlePreviewRenderError(err: any): Promise<void> {
-    console.error('[CV-PIPELINE] Live PDF preview failed', err);
-    this.lastDraftHash = '';
-    this.previewError = await this.extractHttpErrorMessage(err, 'Apercu PDF indisponible.');
-    this.isRenderingPreview = false;
+    return {
+      cvData: value,
+      designConfig: this.defaultDesignConfig(this.selectedTemplate),
+      htmlSnapshot: null
+    };
   }
 
   private async extractHttpErrorMessage(err: any, fallback: string): Promise<string> {
@@ -649,7 +561,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       try {
         const text = await payload.text();
         if (!text) return err?.message || fallback;
-
         try {
           const parsed = JSON.parse(text);
           return parsed?.error || parsed?.message || text;
@@ -662,34 +573,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     }
 
     return err?.message || fallback;
-  }
-
-  private prepareDraftForCurrentOffer(): void {
-    const offerId = this.currentOfferId;
-    const generated = this.generatedCvData;
-    const draftOfferId = localStorage.getItem(this.draftOfferKey);
-
-    if (!offerId || !generated) return;
-
-    if (draftOfferId === offerId) {
-      const draft = this.safeParseJson(localStorage.getItem(this.draftKey));
-      if (draft && !this.shouldReplaceDraft(draft, generated)) return;
-    }
-
-    localStorage.setItem(this.draftKey, JSON.stringify(generated));
-    localStorage.setItem(this.draftOfferKey, offerId);
-  }
-
-  private shouldReplaceDraft(draft: any, generated: any): boolean {
-    const draftName = String(draft?.candidate?.name ?? '').trim().toLowerCase();
-    const generatedName = String(generated?.candidate?.name ?? '').trim();
-    const draftEmail = String(draft?.candidate?.email ?? '').trim();
-    const generatedEmail = String(generated?.candidate?.email ?? '').trim();
-
-    if (!draftName || draftName === 'candidat') return !!generatedName && generatedName.toLowerCase() !== 'candidat';
-    if (!draftEmail && generatedEmail) return true;
-    if (!Array.isArray(draft?.skills) || draft.skills.length === 0) return Array.isArray(generated?.skills) && generated.skills.length > 0;
-    return false;
   }
 
   private normalizeCvForBackend(data: any): any {
@@ -721,7 +604,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
     return {
       ...rawWithoutFontFamily,
-      themeColor: this.cleanText(data?.themeColor) || null,
       candidate: {
         name: this.cleanText(candidate?.name),
         email: this.cleanText(candidate?.email),

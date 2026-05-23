@@ -2,8 +2,9 @@ import { Component, Input, Output, EventEmitter, signal, effect, OnInit, OnChang
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
-import { SafeResourceUrl } from '@angular/platform-browser';
+import { SafeHtml } from '@angular/platform-browser';
 import { SidebarService } from '../../../../shared/services/sidebar.service';
+import { CvDesignConfig } from '../../services/offer-api.service';
 
 export interface Candidate {
   name: string;
@@ -101,14 +102,15 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   @Input() templateId: string = 'modern';
   @Input() offerId: string | null = null;
   @Input() initialData: any = null;
-  @Input() previewImageUrl: string | null = null;
-  @Input() previewUrl: SafeResourceUrl | null = null;
+  @Input() renderedHtml: SafeHtml | null = null;
+  @Input() designConfig: CvDesignConfig | null = null;
   @Input() isRenderingPreview: boolean = false;
   @Input() previewError: string | null = null;
   @Output() back = new EventEmitter<void>();
   @Output() continue = new EventEmitter<void>();
   @Output() download = new EventEmitter<void>();
   @Output() dataChange = new EventEmitter<CvGeneratedSchema>();
+  @Output() designConfigChange = new EventEmitter<CvDesignConfig>();
   @Output() templateChange = new EventEmitter<SupportedEditorTemplate>();
   private readonly sidebarService = inject(SidebarService);
 
@@ -118,6 +120,11 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   readonly activePanelTab = signal<EditorPanelTab>('templates');
   readonly isPanelOpen = signal<boolean>(true);
   readonly activeAccentColor = signal<string>('green');
+  readonly fontFamily = signal<string>("Inter, 'Segoe UI', Arial, sans-serif");
+  readonly fontSize = signal<string>('14px');
+  readonly lineSpacing = signal<string>('1.45');
+  readonly sectionSpacing = signal<string>('1.2rem');
+  readonly sidebarWidth = signal<string>('31%');
   readonly documentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
   readonly isEditingDocumentTitle = signal<boolean>(false);
   readonly draftDocumentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
@@ -292,6 +299,15 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   ] as const;
 
   readonly recommendedAccentColors = ['olive', 'teal', 'blue', 'orange', 'slate', 'green', 'red', 'pink', 'black'] as const;
+  readonly fontFamilyOptions = [
+    "Inter, 'Segoe UI', Arial, sans-serif",
+    "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
+    "'Georgia', 'Times New Roman', serif"
+  ];
+  readonly fontSizeOptions = ['12px', '13px', '14px', '15px', '16px'];
+  readonly lineSpacingOptions = ['1.25', '1.38', '1.45', '1.55', '1.7'];
+  readonly sectionSpacingOptions = ['0.8rem', '1rem', '1.2rem', '1.4rem', '1.6rem'];
+  readonly sidebarWidthOptions = ['26%', '29%', '31%', '34%', '37%'];
 
   toggleSection(section: string) {
     if (this.activeSection() === section) {
@@ -358,6 +374,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
   selectAccentColor(colorId: string): void {
     this.activeAccentColor.set(colorId);
+    this.emitDesignConfig();
   }
 
   accentColorHex(): string {
@@ -378,6 +395,31 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       black: '#111827',
     };
     return colors[this.activeAccentColor()] ?? colors['green'];
+  }
+
+  updateFontFamily(fontFamily: string): void {
+    this.fontFamily.set(fontFamily);
+    this.emitDesignConfig();
+  }
+
+  updateFontSize(fontSize: string): void {
+    this.fontSize.set(fontSize);
+    this.emitDesignConfig();
+  }
+
+  updateLineSpacing(lineSpacing: string): void {
+    this.lineSpacing.set(lineSpacing);
+    this.emitDesignConfig();
+  }
+
+  updateSectionSpacing(sectionSpacing: string): void {
+    this.sectionSpacing.set(sectionSpacing);
+    this.emitDesignConfig();
+  }
+
+  updateSidebarWidth(sidebarWidth: string): void {
+    this.sidebarWidth.set(sidebarWidth);
+    this.emitDesignConfig();
   }
 
   isSectionVisible(sectionId: string): boolean {
@@ -1041,6 +1083,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.activeTemplate.set(this.normalizeTemplateId(this.templateId));
+    this.hydrateDesignConfig(this.designConfig);
     console.log('[CV-PIPELINE] ResumeEditor init', {
       templateId: this.templateId,
       offerId: this.offerId,
@@ -1088,6 +1131,10 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       changes['initialData'].currentValue
     ) {
       this.hydrateFromGenerated(changes['initialData'].currentValue);
+    }
+
+    if (changes['designConfig']) {
+      this.hydrateDesignConfig(changes['designConfig'].currentValue);
     }
   }
 
@@ -1247,6 +1294,68 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     this.sectionVisibility.set(visibility);
     this.sectionOrder.set([...order, ...fallbackOrder]);
     this.customSections.set(custom);
+  }
+
+  private hydrateDesignConfig(config: CvDesignConfig | null | undefined): void {
+    const next = config ?? this.defaultDesignConfig(this.activeTemplate());
+    this.fontFamily.set(next.fontFamily);
+    this.fontSize.set(next.fontSize);
+    this.lineSpacing.set(next.lineSpacing);
+    this.sectionSpacing.set(next.sectionSpacing);
+    this.sidebarWidth.set(next.sidebarWidth);
+    this.activeAccentColor.set(this.colorIdFromHex(next.themeColor));
+  }
+
+  private emitDesignConfig(): void {
+    this.designConfigChange.emit({
+      themeColor: this.accentColorHex(),
+      fontFamily: this.fontFamily(),
+      fontSize: this.fontSize(),
+      lineSpacing: this.lineSpacing(),
+      sectionSpacing: this.sectionSpacing(),
+      sidebarWidth: this.activeTemplate() === 'latex' ? '0%' : this.sidebarWidth()
+    });
+  }
+
+  private colorIdFromHex(hex: string | null | undefined): string {
+    const normalized = String(hex ?? '').trim().toLowerCase();
+    const pairs: Record<string, string> = {
+      '#6f7781': 'gray',
+      '#1d3f91': 'navy',
+      '#6f42c1': 'purple',
+      '#2f9be5': 'blue',
+      '#18a7a0': 'teal',
+      '#11610c': 'green',
+      '#b93317': 'red',
+      '#0f172a': 'black',
+      '#586c2f': 'olive',
+      '#c65b1b': 'orange',
+      '#334155': 'slate',
+      '#be3b7b': 'pink',
+      '#111827': 'black',
+      '#2d3a8c': 'navy'
+    };
+    return pairs[normalized] ?? 'green';
+  }
+
+  private defaultDesignConfig(templateId: string): CvDesignConfig {
+    return this.normalizeTemplateId(templateId) === 'latex'
+      ? {
+          themeColor: '#111827',
+          fontFamily: "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
+          fontSize: '13px',
+          lineSpacing: '1.38',
+          sectionSpacing: '1rem',
+          sidebarWidth: '0%'
+        }
+      : {
+          themeColor: '#2d3a8c',
+          fontFamily: "Inter, 'Segoe UI', Arial, sans-serif",
+          fontSize: '14px',
+          lineSpacing: '1.45',
+          sectionSpacing: '1.2rem',
+          sidebarWidth: '31%'
+        };
   }
 
   // ── Drag-and-drop reorder ──

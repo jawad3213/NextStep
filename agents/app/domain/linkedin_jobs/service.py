@@ -16,9 +16,11 @@ class LinkedInJobsService:
         location: str | None = None,
         limit: int = 20,
         posted_since_seconds: int | None = None,
+        posted_window: str | None = None,
         search_url: str | None = None,
         fetch_details: bool = True,
         it_only: bool = True,
+        contract_types: list[str] | None = None,
     ) -> dict:
         logger.info(
             "LinkedInJobsService.search_jobs - keywords=%s location=%s limit=%s",
@@ -31,9 +33,11 @@ class LinkedInJobsService:
             "location": location,
             "limit": limit,
             "posted_since_seconds": posted_since_seconds,
+            "posted_window": posted_window,
             "search_url": search_url,
             "fetch_details": fetch_details,
             "it_only": it_only,
+            "contract_types": contract_types or [],
             "messages": [],
             "errors": [],
             "raw_jobs": [],

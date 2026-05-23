@@ -10,26 +10,35 @@ from app.domain.linkedin_jobs.tools.scrapling_tool import (
 logger = logging.getLogger(__name__)
 
 
+def _effective_fetch_limit(state: dict) -> int:
+    requested_limit = max(1, int(state.get("limit", 20) or 20))
+    overfetch_limit = max(requested_limit * 3, requested_limit + 20, 30)
+    return min(overfetch_limit, 150)
+
+
 async def build_search_urls_node(state: dict) -> dict:
+    fetch_limit = _effective_fetch_limit(state)
     urls = build_search_urls(
         keywords=state.get("keywords"),
         location=state.get("location"),
-        limit=state.get("limit", 20),
+        limit=fetch_limit,
         posted_since_seconds=state.get("posted_since_seconds"),
+        posted_window=state.get("posted_window"),
         search_url=state.get("search_url"),
     )
     if not urls:
         return {"errors": ["No LinkedIn search URL could be built from the provided input."]}
-    logger.info("LinkedIn jobs graph built %s search urls", len(urls))
-    return {"search_urls": urls}
+    logger.info("LinkedIn jobs graph built %s search urls for fetch limit %s", len(urls), fetch_limit)
+    return {"search_urls": urls, "fetch_limit": fetch_limit}
 
 
 async def scrape_listing_jobs_node(state: dict) -> dict:
+    fetch_limit = state.get("fetch_limit") or _effective_fetch_limit(state)
     jobs = await fetch_listing_jobs(
         search_urls=state.get("search_urls", []),
-        limit=state.get("limit", 20),
+        limit=fetch_limit,
     )
-    logger.info("LinkedIn jobs graph collected %s listing jobs", len(jobs))
+    logger.info("LinkedIn jobs graph collected %s listing jobs from fetch limit %s", len(jobs), fetch_limit)
     return {"raw_jobs": jobs}
 
 
@@ -49,6 +58,8 @@ async def finalize_jobs_node(state: dict) -> dict:
         jobs=enriched_jobs,
         it_only=state.get("it_only", True),
         limit=state.get("limit", 20),
+        posted_window=state.get("posted_window"),
+        contract_types=state.get("contract_types", []),
     )
     logger.info("LinkedIn jobs graph returning %s jobs after filtering", len(filtered))
     return {

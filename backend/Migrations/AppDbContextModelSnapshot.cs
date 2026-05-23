@@ -141,6 +141,13 @@ namespace NextStep.Migrations
                         .HasDefaultValue("{}")
                         .HasColumnName("cv_data_json");
 
+                    b.Property<string>("DesignConfigJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("{}")
+                        .HasColumnName("design_config_json");
+
                     b.Property<long>("FileSizeBytes")
                         .HasColumnType("bigint")
                         .HasColumnName("file_size_bytes");
@@ -150,6 +157,10 @@ namespace NextStep.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("file_url");
+
+                    b.Property<string>("HtmlSnapshot")
+                        .HasColumnType("text")
+                        .HasColumnName("html_snapshot");
 
                     b.Property<string>("ObjectKey")
                         .IsRequired()

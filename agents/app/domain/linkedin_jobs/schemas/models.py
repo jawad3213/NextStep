@@ -18,6 +18,10 @@ class LinkedInJobSearchRequest(BaseModel):
         ge=3600,
         description="LinkedIn guest API recency filter in seconds.",
     )
+    posted_window: Optional[str] = Field(
+        default=None,
+        description="Normalized recency bucket: 24h, 3d, 7d, 14d, 30d, or any.",
+    )
     search_url: Optional[str] = Field(
         default=None,
         description="Optional full LinkedIn jobs search URL. When present it overrides generated search URLs.",
@@ -29,6 +33,10 @@ class LinkedInJobSearchRequest(BaseModel):
     it_only: bool = Field(
         default=True,
         description="When true, keep only job offers that match the built-in IT keyword heuristic.",
+    )
+    contract_types: List[str] = Field(
+        default_factory=list,
+        description="Optional normalized contract type filters, such as internship, cdi, cdd, or freelance.",
     )
 
     @model_validator(mode="after")
@@ -47,6 +55,7 @@ class LinkedInJobOffer(BaseModel):
     url: Optional[str] = None
     description: Optional[str] = None
     employment_type: Optional[str] = None
+    normalized_contract_type: Optional[str] = None
     seniority_level: Optional[str] = None
     job_function: Optional[str] = None
     industries: List[str] = Field(default_factory=list)

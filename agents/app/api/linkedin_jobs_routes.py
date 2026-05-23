@@ -29,9 +29,11 @@ async def scrape_linkedin_jobs(payload: LinkedInJobSearchRequest) -> LinkedInJob
             location=payload.location,
             limit=payload.limit,
             posted_since_seconds=payload.posted_since_seconds,
+            posted_window=payload.posted_window,
             search_url=payload.search_url,
             fetch_details=payload.fetch_details,
             it_only=payload.it_only,
+            contract_types=payload.contract_types,
         )
         return LinkedInJobSearchResponse(**result)
     except Exception as exc:

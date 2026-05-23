@@ -143,6 +143,91 @@ export interface GlassdoorJobsSearchResponse {
   errors: string[];
 }
 
+export type PostedWindow = '24h' | '3d' | '7d' | '14d' | '30d' | 'any';
+export type NormalizedContractType =
+  | 'internship'
+  | 'cdi'
+  | 'cdd'
+  | 'freelance'
+  | 'alternance'
+  | 'part_time'
+  | 'full_time'
+  | 'temporary'
+  | 'other';
+
+export interface SourcedOfferSearchRequest {
+  keywords?: string | null;
+  location?: string | null;
+  providers?: ScrapeProvider[];
+  limit?: number;
+  postedWindow?: PostedWindow;
+  contractTypes?: NormalizedContractType[];
+  indeedCountryCode?: string | null;
+  workflowState?: 'saved' | 'shortlisted' | 'archived' | null;
+}
+
+export interface ScrapeSessionDto {
+  id: string;
+  keywords?: string | null;
+  location?: string | null;
+  providers: string[];
+  countryCode?: string | null;
+  postedWindow: PostedWindow;
+  contractTypes: NormalizedContractType[];
+  limit: number;
+  resultCount: number;
+  warnings: string[];
+  errors: string[];
+  createdAtUtc: string;
+}
+
+export interface SourcedOfferListItemDto {
+  id: string;
+  provider: ScrapeProvider;
+  providerJobId?: string | null;
+  externalUrl?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  description?: string | null;
+  postedAtText?: string | null;
+  postedWindow?: PostedWindow | null;
+  rawContractType?: string | null;
+  normalizedContractType?: NormalizedContractType | null;
+  employmentType?: string | null;
+  seniorityLevel?: string | null;
+  matchedItTerms: string[];
+  isSaved: boolean;
+  isShortlisted: boolean;
+  isArchived: boolean;
+  promotedOfferId?: string | null;
+  firstSeenAtUtc: string;
+  lastSeenAtUtc: string;
+  scrapedAtUtc: string;
+}
+
+export interface SourcedOfferDetailDto extends SourcedOfferListItemDto {
+  sourceQuery: Record<string, unknown>;
+  similarOffers: SourcedOfferListItemDto[];
+}
+
+export interface SourcedOfferSearchResponse {
+  session?: ScrapeSessionDto | null;
+  offers: SourcedOfferListItemDto[];
+  warnings: string[];
+}
+
+export interface SourcedOfferUpdateRequest {
+  isSaved?: boolean;
+  isShortlisted?: boolean;
+  isArchived?: boolean;
+}
+
+export interface PromoteSourcedOfferResponse {
+  offerId: string;
+  alreadyPromoted: boolean;
+}
+
 export interface PdfGeneratePayload {
   templateId: string;
 }
@@ -183,6 +268,41 @@ export interface CvSaveResponse {
   historyId: string;
   fileUrl: string;
   fileSizeBytes: number;
+}
+
+export interface CvDesignConfig {
+  themeColor: string;
+  fontFamily: string;
+  fontSize: string;
+  lineSpacing: string;
+  sectionSpacing: string;
+  sidebarWidth: string;
+}
+
+export interface CvRenderRequest {
+  templateSlug: string;
+  data: any;
+  designConfig: CvDesignConfig;
+}
+
+export interface CvRenderResponse {
+  templateSlug: string;
+  designConfig: CvDesignConfig;
+  html: string;
+}
+
+export interface CvPreviewResponse {
+  templateSlug: string;
+  data: any;
+  designConfig: CvDesignConfig;
+  html: string;
+}
+
+export interface CvExportPdfRequest {
+  templateSlug: string;
+  data: any;
+  designConfig: CvDesignConfig;
+  htmlSnapshot?: string | null;
 }
 
 export interface CvDraftResponse {
@@ -262,6 +382,36 @@ export class OfferApiService {
 
   getOffersHistory(): Observable<OfferHistoryItem[]> {
     return this.http.get<OfferHistoryItem[]>(`${this.base}/offers`);
+  }
+
+  searchSourcedOffers(payload: SourcedOfferSearchRequest): Observable<SourcedOfferSearchResponse> {
+    return this.http.post<SourcedOfferSearchResponse>(`${this.base}/sourced-offers/search`, payload);
+  }
+
+  getSourcedOffers(params: SourcedOfferSearchRequest = {}): Observable<SourcedOfferListItemDto[]> {
+    const query = new URLSearchParams();
+    if (params.keywords) query.set('keywords', params.keywords);
+    if (params.location) query.set('location', params.location);
+    for (const provider of params.providers ?? []) query.append('providers', provider);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.postedWindow) query.set('postedWindow', params.postedWindow);
+    for (const contractType of params.contractTypes ?? []) query.append('contractTypes', contractType);
+    if (params.indeedCountryCode) query.set('indeedCountryCode', params.indeedCountryCode);
+    if (params.workflowState) query.set('workflowState', params.workflowState);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.http.get<SourcedOfferListItemDto[]>(`${this.base}/sourced-offers${suffix}`);
+  }
+
+  getSourcedOffer(id: string): Observable<SourcedOfferDetailDto> {
+    return this.http.get<SourcedOfferDetailDto>(`${this.base}/sourced-offers/${id}`);
+  }
+
+  updateSourcedOffer(id: string, payload: SourcedOfferUpdateRequest): Observable<SourcedOfferDetailDto> {
+    return this.http.patch<SourcedOfferDetailDto>(`${this.base}/sourced-offers/${id}`, payload);
+  }
+
+  promoteSourcedOffer(id: string): Observable<PromoteSourcedOfferResponse> {
+    return this.http.post<PromoteSourcedOfferResponse>(`${this.base}/sourced-offers/${id}/promote`, {});
   }
 
   searchLinkedInJobs(payload: LinkedInJobsSearchRequest): Observable<LinkedInJobsSearchResponse> {
@@ -400,21 +550,30 @@ export class OfferApiService {
     });
   }
 
-  renderCvPreview(templateSlug: string, data: any, format: 'pdf' | 'png' = 'pdf'): Observable<Blob> {
-    return this.http.post(
-      `${this.base}/cv/preview/render?template=${encodeURIComponent(templateSlug)}&format=${format}`,
-      data,
-      {
-      responseType: 'blob'
-      }
-    );
+  previewCv(templateSlug: string, offerId?: string | null): Observable<CvPreviewResponse> {
+    const params = new URLSearchParams();
+    params.set('template', templateSlug);
+    if (offerId) params.set('offerId', offerId);
+    return this.http.post<CvPreviewResponse>(`${this.base}/cv/preview?${params.toString()}`, {});
   }
 
-  saveFinalCv(templateSlug: string, title: string, data: any): Observable<CvSaveResponse> {
+  renderCvPreview(request: CvRenderRequest): Observable<CvRenderResponse> {
+    return this.http.post<CvRenderResponse>(`${this.base}/cv/preview/render`, request);
+  }
+
+  exportCvPdf(request: CvExportPdfRequest): Observable<Blob> {
+    return this.http.post(`${this.base}/cv/export/pdf`, request, {
+      responseType: 'blob'
+    });
+  }
+
+  saveFinalCv(templateSlug: string, title: string, data: any, designConfig: CvDesignConfig, htmlSnapshot?: string | null): Observable<CvSaveResponse> {
     return this.http.post<CvSaveResponse>(`${this.base}/cv/save`, {
       templateSlug,
       title,
-      data
+      data,
+      designConfig,
+      htmlSnapshot
     });
   }
 }

@@ -27,11 +27,12 @@
       [templateId]="selectedTemplate"
       [offerId]="currentOfferId"
       [initialData]="editorInitialData()"
-      [previewImageUrl]="livePreviewImageUrl"
-      [previewUrl]="livePreviewUrl"
+      [renderedHtml]="renderedHtml"
+      [designConfig]="currentDesignConfig"
       [isRenderingPreview]="isRenderingPreview"
       [previewError]="previewError"
       (dataChange)="onEditorDataChange($event)"
+      (designConfigChange)="onDesignConfigChange($event)"
       (download)="downloadFinalPdf()"
       (templateChange)="selectTemplate($event)"
       (back)="goBack()"
@@ -39,18 +40,3 @@
     />
   }
 </div>
-
-@if (showPreviewModal && livePreviewUrl) {
-  <div class="preview-modal-backdrop" (click)="closePreviewModal()">
-    <div class="preview-modal" (click)="$event.stopPropagation()">
-      <div class="preview-modal-header">
-        <div>
-          <p>Apercu final</p>
-          <h3>PDF genere par le backend</h3>
-        </div>
-        <button class="close-btn" (click)="closePreviewModal()">&times;</button>
-      </div>
-      <iframe class="preview-modal-frame" [src]="livePreviewUrl"></iframe>
-    </div>
-  </div>
-}

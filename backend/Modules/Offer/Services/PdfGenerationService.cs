@@ -30,24 +30,26 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<PdfGenerateResultDto> GeneratePdfAsync(
         Guid userId, Guid offerId, string templateId, CancellationToken ct = default)
     {
-        _logger.LogInformation("PDFGen — Generating PDF for offer {OfferId}, template {Template}", offerId, templateId);
+        _logger.LogInformation("PDFGen - Generating PDF for offer {OfferId}, template {Template}", offerId, templateId);
 
         try
         {
-            await SendProgress(offerId, 10, "Préparation des données CV...");
+            await SendProgress(offerId, 10, "Preparation des donnees CV...");
 
             var preview = await _cvService.PreviewCvAsync(userId, templateId, offerId);
 
-            await SendProgress(offerId, 50, "Génération du PDF avec QuestPDF...");
+            await SendProgress(offerId, 50, "Generation du PDF HTML/CSS...");
 
             var saveResult = await _cvService.SaveCvAsync(userId, new CvSaveRequest
             {
                 TemplateSlug = templateId,
                 Title = $"CV_{offerId}",
-                Data = preview.Data
+                Data = preview.Data,
+                DesignConfig = preview.DesignConfig,
+                HtmlSnapshot = preview.Html
             });
 
-            await SendProgress(offerId, 100, "PDF généré avec succès !");
+            await SendProgress(offerId, 100, "PDF genere avec succes !");
 
             var result = new PdfGenerateResultDto
             {
@@ -59,12 +61,12 @@ public class PdfGenerationService : IPdfGenerationService
             await _hubContext.Clients.Group(offerId.ToString())
                 .SendAsync("GenerationCompleted", result, CancellationToken.None);
 
-            _logger.LogInformation("PDFGen — ✅ PDF done for offer {OfferId}", offerId);
+            _logger.LogInformation("PDFGen - PDF done for offer {OfferId}", offerId);
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "PDFGen — ❌ PDF generation failed for offer {OfferId}", offerId);
+            _logger.LogError(ex, "PDFGen - PDF generation failed for offer {OfferId}", offerId);
 
             await _hubContext.Clients.Group(offerId.ToString())
                 .SendAsync("GenerationError", new

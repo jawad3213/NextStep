@@ -11,6 +11,7 @@ using NextStep.Modules.Identity.Repositories;
 using NextStep.Modules.Identity.Services;
 using NextStep.Modules.Profile.Services;
 using NextStep.Modules.Cv.Services;
+using NextStep.Modules.Sourcing.Services;
 using NextStep.Shared.Storage;
 using Amazon.S3;
 using System.Linq;
@@ -90,8 +91,11 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ICvService, CvService>();
+builder.Services.AddScoped<ICvHtmlTemplateRenderer, CvHtmlTemplateRenderer>();
+builder.Services.AddScoped<ICvPdfRenderer, CvPdfRenderer>();
 builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
 builder.Services.AddSingleton<ITemplateThumbnailService, TemplateThumbnailService>();
+builder.Services.AddScoped<ISourcedOfferService, SourcedOfferService>();
 
 // ─── MinIO / S3 Storage ───
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
@@ -176,6 +180,56 @@ using (var scope = app.Services.CreateScope())
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ALTER COLUMN id_skill_keyword SET DEFAULT gen_random_uuid();");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'Technique';");
         await context.Database.ExecuteSqlRawAsync("CREATE UNIQUE INDEX IF NOT EXISTS ux_skill_keyword_mot_categorie ON public.skill_keyword (lower(mot), categorie);");
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.sourced_offer (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                provider TEXT NOT NULL,
+                provider_job_id TEXT NULL,
+                external_url TEXT NULL,
+                title TEXT NOT NULL,
+                company TEXT NULL,
+                location TEXT NULL,
+                description TEXT NULL,
+                posted_at_text TEXT NULL,
+                posted_window TEXT NULL,
+                raw_contract_type TEXT NULL,
+                normalized_contract_type TEXT NULL,
+                employment_type TEXT NULL,
+                seniority_level TEXT NULL,
+                matched_it_terms_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                source_query_json JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+                dedupe_key TEXT NOT NULL,
+                is_saved BOOLEAN NOT NULL DEFAULT FALSE,
+                is_shortlisted BOOLEAN NOT NULL DEFAULT FALSE,
+                is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+                promoted_offer_id UUID NULL,
+                first_seen_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                last_seen_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                scraped_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                created_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                updated_at_utc TIMESTAMP NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS public.scrape_session (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                keywords TEXT NULL,
+                location TEXT NULL,
+                providers_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                country_code TEXT NULL,
+                posted_window TEXT NULL,
+                contract_types_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                limit_value INTEGER NOT NULL DEFAULT 20,
+                result_count INTEGER NOT NULL DEFAULT 0,
+                warnings_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                errors_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                created_at_utc TIMESTAMP NOT NULL DEFAULT now()
+            );
+        ");
+        await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS ix_sourced_offer_user_provider_job ON public.sourced_offer (user_id, provider, provider_job_id);");
+        await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS ix_sourced_offer_user_dedupe ON public.sourced_offer (user_id, dedupe_key);");
+        await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS ix_scrape_session_user_created ON public.scrape_session (user_id, created_at_utc);");
 
         // Ensure core recommendations always exist (idempotent).
         await context.Database.ExecuteSqlRawAsync(@"

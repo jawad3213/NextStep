@@ -1,102 +1,84 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-
+import { Router, RouterModule } from '@angular/router';
 import {
-  GlassdoorScrapedJob,
-  IndeedScrapedJob,
-  LinkedInScrapedJob,
+  NormalizedContractType,
   OfferApiService,
+  PostedWindow,
   ScrapeProvider,
+  ScrapeSessionDto,
+  SourcedOfferListItemDto,
 } from './services/offer-api.service';
 
 type ProviderSummary = {
   key: ScrapeProvider;
   label: string;
   tone: string;
-  available: boolean;
-  helper: string;
-};
-
-type ScrapedOfferCard = {
-  id: string;
-  provider: ScrapeProvider;
-  providerLabel: string;
-  title: string;
-  company: string;
-  location: string;
-  postedAtText: string;
-  tags: string[];
-  description: string;
-  employmentType: string;
-  seniorityLevel: string;
-  url: string;
-  matchingScore?: number;
 };
 
 @Component({
   selector: 'app-offers-recent',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './offers-recent.component.html',
   styleUrl: './offers.component.scss',
-  animations: [
-    trigger('cardAnimation', [
-      transition('* => *', [
-        query(':enter', [
-          style({ opacity: 0, transform: 'translateY(12px)' }),
-          stagger(60, [
-            animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
-          ])
-        ], { optional: true })
-      ])
-    ])
-  ]
 })
 export class OffersRecentComponent implements OnInit {
   private readonly offerApi = inject(OfferApiService);
+  private readonly router = inject(Router);
 
   readonly providers: ProviderSummary[] = [
-    {
-      key: 'linkedin',
-      label: 'LinkedIn',
-      tone: 'bg-sky-50 text-sky-700 border-sky-200',
-      available: true,
-      helper: 'Live Scrapling agent',
-    },
-    {
-      key: 'indeed',
-      label: 'Indeed',
-      tone: 'bg-violet-50 text-violet-700 border-violet-200',
-      available: true,
-      helper: 'Live Scrapling agent',
-    },
-    {
-      key: 'glassdoor',
-      label: 'Glassdoor',
-      tone: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      available: true,
-      helper: 'Live Scrapling agent',
-    },
+    { key: 'linkedin', label: 'LinkedIn', tone: 'bg-sky-50 text-sky-700 border-sky-200' },
+    { key: 'indeed', label: 'Indeed', tone: 'bg-violet-50 text-violet-700 border-violet-200' },
+    { key: 'glassdoor', label: 'Glassdoor', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   ];
 
-  readonly selectedProvider = signal<ScrapeProvider>('linkedin');
+  readonly contractOptions: { value: NormalizedContractType; label: string }[] = [
+    { value: 'internship', label: 'Internship' },
+    { value: 'cdi', label: 'CDI' },
+    { value: 'cdd', label: 'CDD' },
+    { value: 'freelance', label: 'Freelance' },
+    { value: 'alternance', label: 'Alternance' },
+    { value: 'part_time', label: 'Part-time' },
+    { value: 'full_time', label: 'Full-time' },
+    { value: 'temporary', label: 'Temporary' },
+  ];
+
+  readonly postedWindows: { value: PostedWindow; label: string }[] = [
+    { value: '24h', label: 'Last 24h' },
+    { value: '3d', label: 'Last 3 days' },
+    { value: '7d', label: 'Last 7 days' },
+    { value: '14d', label: 'Last 14 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: 'any', label: 'Any time' },
+  ];
+
+  readonly workflowTabs = [
+    { key: 'all', label: 'All' },
+    { key: 'saved', label: 'Saved' },
+    { key: 'shortlisted', label: 'Shortlisted' },
+    { key: 'archived', label: 'Archived' },
+  ] as const;
+
+  readonly selectedProviders = signal<ScrapeProvider[]>(['linkedin', 'indeed', 'glassdoor']);
+  readonly selectedContractTypes = signal<NormalizedContractType[]>([]);
+  readonly selectedPostedWindow = signal<PostedWindow>('7d');
+  readonly workflowTab = signal<'all' | 'saved' | 'shortlisted' | 'archived'>('all');
+
   readonly keywords = signal('software engineer');
   readonly location = signal('Morocco');
-  readonly postedSinceSeconds = signal(86400);
-  readonly limit = signal(12);
   readonly indeedCountryCode = signal('ma');
+  readonly limit = signal(24);
 
   readonly searchTerm = signal('');
   readonly sortBy = signal<'recent' | 'company' | 'title'>('recent');
-  readonly viewMode = signal<'list' | 'grid'>('grid');
-
   readonly isLoading = signal(false);
-  readonly lastUpdated = signal<Date | null>(null);
+  readonly actionOfferId = signal<string | null>(null);
   readonly errorMessage = signal('');
-  readonly providerNotice = signal('');
-  readonly offers = signal<ScrapedOfferCard[]>([]);
+  readonly warnings = signal<string[]>([]);
+  readonly offers = signal<SourcedOfferListItemDto[]>([]);
+  readonly lastSession = signal<ScrapeSessionDto | null>(null);
 
   readonly filteredOffers = computed(() => {
     const search = this.searchTerm().trim().toLowerCase();
@@ -105,149 +87,161 @@ export class OffersRecentComponent implements OnInit {
       if (!search) return true;
       return (
         offer.title.toLowerCase().includes(search) ||
-        offer.company.toLowerCase().includes(search) ||
-        offer.location.toLowerCase().includes(search) ||
-        offer.tags.some((tag) => tag.toLowerCase().includes(search))
+        (offer.company ?? '').toLowerCase().includes(search) ||
+        (offer.location ?? '').toLowerCase().includes(search) ||
+        (offer.description ?? '').toLowerCase().includes(search) ||
+        offer.matchedItTerms.some((tag) => tag.toLowerCase().includes(search))
       );
     });
 
     result.sort((a, b) => {
       switch (sort) {
         case 'company':
-          return a.company.localeCompare(b.company);
+          return (a.company ?? '').localeCompare(b.company ?? '');
         case 'title':
           return a.title.localeCompare(b.title);
         case 'recent':
         default:
-          return (this.extractHours(a.postedAtText) ?? Number.MAX_SAFE_INTEGER)
-            - (this.extractHours(b.postedAtText) ?? Number.MAX_SAFE_INTEGER);
+          return new Date(b.lastSeenAtUtc).getTime() - new Date(a.lastSeenAtUtc).getTime();
       }
     });
+
     return result;
   });
 
-  readonly providerCount = computed(() => {
-    const counts = new Map<ScrapeProvider, number>([
-      ['linkedin', 0],
-      ['indeed', 0],
-      ['glassdoor', 0],
-    ]);
-    for (const offer of this.offers()) {
-      counts.set(offer.provider, (counts.get(offer.provider) ?? 0) + 1);
-    }
-    return counts;
-  });
-
   ngOnInit(): void {
-    this.scrapeOffers();
+    this.loadCachedOffers();
   }
 
-  selectProvider(provider: ProviderSummary): void {
-    this.selectedProvider.set(provider.key);
-    if (!provider.available) {
-      this.providerNotice.set(`${provider.label} is not connected yet. Add its backend scraping endpoint, then this page is ready to consume it.`);
-      this.offers.set([]);
-      this.errorMessage.set('');
-      return;
-    }
-    this.providerNotice.set('');
-    this.scrapeOffers();
-  }
-
-  scrapeOffers(): void {
-    if (!['linkedin', 'indeed', 'glassdoor'].includes(this.selectedProvider())) {
-      return;
-    }
-
+  loadCachedOffers(): void {
     this.isLoading.set(true);
     this.errorMessage.set('');
-    this.providerNotice.set('');
 
-    if (this.selectedProvider() === 'linkedin') {
-      this.offerApi.searchLinkedInJobs({
-        keywords: this.keywords(),
-        location: this.location(),
-        limit: this.limit(),
-        posted_since_seconds: this.postedSinceSeconds(),
-        fetch_details: true,
-        it_only: true,
-      }).subscribe({
-        next: (response) => {
-          this.offers.set((response.jobs ?? []).map((job) => this.mapLinkedInJob(job)));
-          this.lastUpdated.set(new Date());
-          if (response.errors?.length) {
-            this.providerNotice.set(response.errors.join(' | '));
-          }
-          this.isLoading.set(false);
-        },
-        error: (err) => {
-          this.errorMessage.set(err?.error?.detail || 'Unable to fetch scraped offers right now.');
-          this.offers.set([]);
-          this.isLoading.set(false);
-        }
-      });
-      return;
-    }
-
-    if (this.selectedProvider() === 'indeed') {
-      this.offerApi.searchIndeedJobs({
-        keywords: this.keywords(),
-        location: this.location(),
-        limit: this.limit(),
-        fetch_details: true,
-        it_only: true,
-        country_code: this.indeedCountryCode(),
-      }).subscribe({
-        next: (response) => {
-          this.offers.set((response.jobs ?? []).map((job) => this.mapIndeedJob(job)));
-          this.lastUpdated.set(new Date());
-          if (response.errors?.length) {
-            this.providerNotice.set(response.errors.join(' | '));
-          }
-          this.isLoading.set(false);
-        },
-        error: (err) => {
-          this.errorMessage.set(err?.error?.detail || 'Unable to fetch scraped offers right now.');
-          this.offers.set([]);
-          this.isLoading.set(false);
-        }
-      });
-      return;
-    }
-
-    this.offerApi.searchGlassdoorJobs({
+    this.offerApi.getSourcedOffers({
       keywords: this.keywords(),
       location: this.location(),
+      providers: this.selectedProviders(),
       limit: this.limit(),
-      fetch_details: false,
-      it_only: true,
+      postedWindow: this.selectedPostedWindow(),
+      contractTypes: this.selectedContractTypes(),
+      indeedCountryCode: this.indeedCountryCode(),
+      workflowState: this.workflowTab() === 'all'
+        ? null
+        : (this.workflowTab() as 'saved' | 'shortlisted' | 'archived'),
     }).subscribe({
-      next: (response) => {
-        this.offers.set((response.jobs ?? []).map((job) => this.mapGlassdoorJob(job)));
-        this.lastUpdated.set(new Date());
-        if (response.errors?.length) {
-          this.providerNotice.set(response.errors.join(' | '));
-        }
+      next: (offers) => {
+        this.offers.set(offers);
         this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.detail || 'Unable to fetch scraped offers right now.');
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to load sourced offers.');
         this.offers.set([]);
         this.isLoading.set(false);
-      }
+      },
     });
   }
 
-  onSearchInput(value: string): void {
-    this.searchTerm.set(value);
+  refreshOffers(): void {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    this.warnings.set([]);
+
+    this.offerApi.searchSourcedOffers({
+      keywords: this.keywords(),
+      location: this.location(),
+      providers: this.selectedProviders(),
+      limit: this.limit(),
+      postedWindow: this.selectedPostedWindow(),
+      contractTypes: this.selectedContractTypes(),
+      indeedCountryCode: this.indeedCountryCode(),
+    }).subscribe({
+      next: (response) => {
+        this.offers.set(response.offers ?? []);
+        this.lastSession.set(response.session ?? null);
+        this.warnings.set(response.warnings ?? []);
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to refresh sourced offers.');
+        this.isLoading.set(false);
+      },
+    });
   }
 
-  onSortChange(value: string): void {
-    this.sortBy.set(value as 'recent' | 'company' | 'title');
+  toggleProvider(provider: ScrapeProvider): void {
+    const next = new Set(this.selectedProviders());
+    if (next.has(provider)) next.delete(provider);
+    else next.add(provider);
+    this.selectedProviders.set([...next]);
+    this.loadCachedOffers();
+  }
+
+  toggleContractType(contractType: NormalizedContractType): void {
+    const next = new Set(this.selectedContractTypes());
+    if (next.has(contractType)) next.delete(contractType);
+    else next.add(contractType);
+    this.selectedContractTypes.set([...next]);
+    this.loadCachedOffers();
+  }
+
+  setWorkflowTab(tab: 'all' | 'saved' | 'shortlisted' | 'archived'): void {
+    this.workflowTab.set(tab);
+    this.loadCachedOffers();
+  }
+
+  saveOffer(offer: SourcedOfferListItemDto): void {
+    this.patchOfferState(offer.id, { isSaved: !offer.isSaved });
+  }
+
+  shortlistOffer(offer: SourcedOfferListItemDto): void {
+    this.patchOfferState(offer.id, { isShortlisted: !offer.isShortlisted, isSaved: true });
+  }
+
+  archiveOffer(offer: SourcedOfferListItemDto): void {
+    this.patchOfferState(offer.id, { isArchived: !offer.isArchived });
+  }
+
+  openOfferDetail(offerId: string): void {
+    this.router.navigate(['/offers-recent', offerId]);
+  }
+
+  analyzeOffer(offer: SourcedOfferListItemDto): void {
+    this.actionOfferId.set(offer.id);
+    this.errorMessage.set('');
+
+    this.offerApi.promoteSourcedOffer(offer.id).subscribe({
+      next: (promotion) => {
+        this.offerApi.analyzeSync(promotion.offerId).subscribe({
+          next: () => {
+            this.actionOfferId.set(null);
+            this.router.navigate(['/offers', promotion.offerId]);
+          },
+          error: (err) => {
+            this.actionOfferId.set(null);
+            this.errorMessage.set(err?.error?.error || err?.message || 'Promotion succeeded but analysis failed.');
+            this.router.navigate(['/offers', promotion.offerId]);
+          },
+        });
+      },
+      error: (err) => {
+        this.actionOfferId.set(null);
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to promote sourced offer.');
+      },
+    });
+  }
+
+  formatLastUpdated(): string {
+    const value = this.lastSession()?.createdAtUtc;
+    if (!value) return 'Cached results';
+    return new Date(value).toLocaleString();
   }
 
   getProviderChip(provider: ScrapeProvider): ProviderSummary {
     return this.providers.find((item) => item.key === provider) ?? this.providers[0];
+  }
+
+  getProviderCount(provider: ScrapeProvider): number {
+    return this.offers().filter((offer) => offer.provider === provider).length;
   }
 
   getBubbleGradient(company: string): string {
@@ -271,72 +265,17 @@ export class OffersRecentComponent implements OnInit {
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 
-  formatLastUpdated(): string {
-    const value = this.lastUpdated();
-    if (!value) return 'No sync yet';
-    return value.toLocaleString();
-  }
-
-  private mapLinkedInJob(job: LinkedInScrapedJob): ScrapedOfferCard {
-    return {
-      id: job.job_id || job.url || `${job.title}-${job.company}`,
-      provider: 'linkedin',
-      providerLabel: 'LinkedIn',
-      title: job.title,
-      company: job.company || 'Company',
-      location: job.location || 'Location not specified',
-      postedAtText: job.posted_at_text || 'Unknown',
-      tags: (job.matched_it_terms || []).slice(0, 5),
-      description: job.description || 'No description returned by the scraper.',
-      employmentType: job.employment_type || 'Not specified',
-      seniorityLevel: job.seniority_level || 'Not specified',
-      url: job.url || '#',
-      matchingScore: job.is_it_offer ? 100 : undefined,
-    };
-  }
-
-  private mapIndeedJob(job: IndeedScrapedJob): ScrapedOfferCard {
-    return {
-      id: job.job_id || job.url || `${job.title}-${job.company}`,
-      provider: 'indeed',
-      providerLabel: 'Indeed',
-      title: job.title,
-      company: job.company || 'Company',
-      location: job.location || 'Location not specified',
-      postedAtText: job.posted_at_text || 'Unknown',
-      tags: (job.matched_it_terms || []).slice(0, 5),
-      description: job.description || 'No description returned by the scraper.',
-      employmentType: job.employment_type || 'Not specified',
-      seniorityLevel: job.seniority_level || 'Not specified',
-      url: job.url || '#',
-      matchingScore: job.is_it_offer ? 100 : undefined,
-    };
-  }
-
-  private mapGlassdoorJob(job: GlassdoorScrapedJob): ScrapedOfferCard {
-    return {
-      id: job.job_id || job.url || `${job.title}-${job.company}`,
-      provider: 'glassdoor',
-      providerLabel: 'Glassdoor',
-      title: job.title,
-      company: job.company || 'Company',
-      location: job.location || 'Location not specified',
-      postedAtText: job.posted_at_text || 'Unknown',
-      tags: (job.matched_it_terms || []).slice(0, 5),
-      description: job.description || 'No description returned by the scraper.',
-      employmentType: job.employment_type || 'Not specified',
-      seniorityLevel: job.seniority_level || 'Not specified',
-      url: job.url || '#',
-      matchingScore: job.is_it_offer ? 100 : undefined,
-    };
-  }
-
-  private extractHours(value: string): number | null {
-    const lower = (value || '').toLowerCase();
-    const hourMatch = lower.match(/(\d+)\s*hour/);
-    if (hourMatch) return Number(hourMatch[1]);
-    const dayMatch = lower.match(/(\d+)\s*day/);
-    if (dayMatch) return Number(dayMatch[1]) * 24;
-    return null;
+  private patchOfferState(id: string, payload: { isSaved?: boolean; isShortlisted?: boolean; isArchived?: boolean }): void {
+    this.actionOfferId.set(id);
+    this.offerApi.updateSourcedOffer(id, payload).subscribe({
+      next: (updated) => {
+        this.offers.update((current) => current.map((offer) => offer.id === id ? { ...offer, ...updated } : offer));
+        this.actionOfferId.set(null);
+      },
+      error: (err) => {
+        this.actionOfferId.set(null);
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to update sourced offer.');
+      },
+    });
   }
 }

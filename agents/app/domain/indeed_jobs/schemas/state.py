@@ -9,10 +9,13 @@ class IndeedJobsState(TypedDict, total=False):
     keywords: str
     location: Optional[str]
     limit: int
+    posted_window: Optional[str]
     search_url: Optional[str]
     fetch_details: bool
     it_only: bool
     country_code: Optional[str]
+    contract_types: list[str]
+    fetch_limit: int
 
     search_urls: list[str]
     raw_jobs: Annotated[list[dict], operator.add]

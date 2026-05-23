@@ -1,0 +1,97 @@
+<div class="cv-document cv-document-modern" style="{{ root_style }}">
+  <div class="cv-sheet cv-sheet-modern">
+    <aside class="cv-sidebar">
+      <div class="cv-identity-stack">
+        {% if candidate.photo_url != blank %}
+        <img class="cv-avatar" src="{{ candidate.photo_url }}" alt="{{ candidate.name }}">
+        {% else %}
+        <div class="cv-avatar cv-avatar-fallback">{{ candidate.initials }}</div>
+        {% endif %}
+        <h1 class="cv-sidebar-name">{{ candidate.name }}</h1>
+        <p class="cv-sidebar-contact">{{ contact_line }}</p>
+      </div>
+
+      {% for section in sidebar_sections %}
+      <section class="cv-section cv-section-sidebar">
+        <h2>{{ section.title }}</h2>
+        <div class="cv-rule"></div>
+
+        {% if section.id == "skills" %}
+          <div class="cv-skill-list">
+          {% for item in section.items %}
+            <div class="cv-skill-row">
+              <div class="cv-skill-meta">
+                <span>{{ item.primary_text }}</span>
+                <strong>{% if item.level_percent %}{{ item.level_percent }}%{% endif %}</strong>
+              </div>
+              <div class="cv-skill-track">
+                <span class="cv-skill-fill{% if item.is_matched %} matched{% endif %}" style="width: {{ item.level_percent }}%"></span>
+              </div>
+            </div>
+          {% endfor %}
+          </div>
+        {% elsif section.id == "education" %}
+          <div class="cv-stack-list">
+          {% for item in section.items %}
+            <article class="cv-stack-item">
+              <strong>{{ item.primary_text }}</strong>
+              <span>{{ item.secondary_text }}</span>
+              {% if item.description != blank %}<small>{{ item.description }}</small>{% endif %}
+              {% if item.date_range != blank %}<small>{{ item.date_range }}</small>{% endif %}
+            </article>
+          {% endfor %}
+          </div>
+        {% else %}
+          <ul class="cv-pill-list">
+          {% for item in section.items %}
+            <li>{{ item.primary_text }}</li>
+          {% endfor %}
+          </ul>
+        {% endif %}
+      </section>
+      {% endfor %}
+    </aside>
+
+    <main class="cv-main">
+      <header class="cv-main-header">
+        <h1>{{ candidate.name }}</h1>
+        <div class="cv-link-row">
+          {% for link in profile_links %}
+          <span>{{ link.label }}: {{ link.href }}</span>
+          {% endfor %}
+        </div>
+      </header>
+
+      {% for section in main_sections %}
+      <section class="cv-section cv-section-main">
+        <h2>{{ section.title }}</h2>
+        <div class="cv-rule"></div>
+
+        {% if section.id == "summary" %}
+          <p class="cv-summary">{{ section.text }}</p>
+        {% else %}
+          {% for item in section.items %}
+          <article class="cv-entry">
+            <div class="cv-entry-head">
+              <div>
+                <strong>{{ item.primary_text }}</strong>
+                {% if item.secondary_text != blank %}<p>{{ item.secondary_text }}</p>{% endif %}
+              </div>
+              {% if item.date_range != blank %}<span>{{ item.date_range }}</span>{% endif %}
+            </div>
+            {% if item.description != blank %}<p class="cv-entry-description">{{ item.description }}</p>{% endif %}
+            {% if item.bullets.size > 0 %}
+            <ul class="cv-bullet-list">
+              {% for bullet in item.bullets %}
+              <li>{{ bullet }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </article>
+          {% endfor %}
+        {% endif %}
+      </section>
+      {% endfor %}
+    </main>
+  </div>
+</div>

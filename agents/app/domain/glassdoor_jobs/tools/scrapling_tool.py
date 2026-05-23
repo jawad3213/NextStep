@@ -5,7 +5,11 @@ import re
 from typing import Optional
 from urllib.parse import parse_qsl, quote_plus, urlencode, urlparse, urlunparse
 
-from app.domain.linkedin_jobs.tools.scrapling_tool import IT_TERMS
+from app.domain.linkedin_jobs.tools.scrapling_tool import (
+    IT_TERMS,
+    matches_posted_window,
+    normalize_contract_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +194,7 @@ def _extract_listing_cards(page, search_url: str) -> list[dict]:
             "url": url,
             "description": description,
             "employment_type": None,
+            "normalized_contract_type": None,
             "seniority_level": None,
             "job_function": None,
             "industries": [],
@@ -228,6 +233,7 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = False) -> l
     enriched_jobs: list[dict] = []
     for job in jobs:
         merged = dict(job)
+        merged["normalized_contract_type"] = normalize_contract_type(merged)
         is_it_offer, matched_terms = _classify_it_offer(merged)
         merged["is_it_offer"] = is_it_offer
         merged["matched_it_terms"] = matched_terms
@@ -235,7 +241,14 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = False) -> l
     return enriched_jobs
 
 
-def filter_jobs(jobs: list[dict], it_only: bool, limit: int, location: Optional[str] = None) -> list[dict]:
+def filter_jobs(
+    jobs: list[dict],
+    it_only: bool,
+    limit: int,
+    location: Optional[str] = None,
+    posted_window: Optional[str] = None,
+    contract_types: Optional[list[str]] = None,
+) -> list[dict]:
     if it_only:
         jobs = [job for job in jobs if job.get("is_it_offer")]
     if location:
@@ -243,4 +256,13 @@ def filter_jobs(jobs: list[dict], it_only: bool, limit: int, location: Optional[
         localized = [job for job in jobs if loc in (job.get("location") or "").lower() or loc in (job.get("description") or "").lower()]
         if localized:
             jobs = localized
+    if posted_window and posted_window != "any":
+        jobs = [job for job in jobs if matches_posted_window(job, posted_window)]
+    normalized_contract_types = {value.strip().lower() for value in (contract_types or []) if value}
+    if normalized_contract_types:
+        jobs = [
+            job
+            for job in jobs
+            if (job.get("normalized_contract_type") or normalize_contract_type(job) or "").lower() in normalized_contract_types
+        ]
     return jobs[:limit]

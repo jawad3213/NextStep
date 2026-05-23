@@ -5,7 +5,11 @@ import re
 from typing import Optional
 from urllib.parse import parse_qsl, quote_plus, urlencode, urlparse, urlunparse
 
-from app.domain.linkedin_jobs.tools.scrapling_tool import IT_TERMS
+from app.domain.linkedin_jobs.tools.scrapling_tool import (
+    IT_TERMS,
+    matches_posted_window,
+    normalize_contract_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +217,7 @@ def _extract_listing_cards(page, search_url: str, base_url: str) -> list[dict]:
                 "employment_type": None,
                 "seniority_level": None,
                 "metadata_bits": metadata_bits,
+                "normalized_contract_type": None,
             }
         )
     return jobs
@@ -251,6 +256,7 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
             is_it_offer, matched_terms = _classify_it_offer(job)
             merged = dict(job)
             merged.pop("metadata_bits", None)
+            merged["normalized_contract_type"] = normalize_contract_type(merged)
             merged["is_it_offer"] = is_it_offer
             merged["matched_it_terms"] = matched_terms
             enriched.append(merged)
@@ -264,6 +270,7 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
             is_it_offer, matched_terms = _classify_it_offer(job)
             merged = dict(job)
             merged.pop("metadata_bits", None)
+            merged["normalized_contract_type"] = normalize_contract_type(merged)
             merged["is_it_offer"] = is_it_offer
             merged["matched_it_terms"] = matched_terms
             return merged
@@ -283,6 +290,7 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
             "job_function": "Information Technology" if metadata_bits else None,
         }
         merged.pop("metadata_bits", None)
+        merged["normalized_contract_type"] = normalize_contract_type(merged)
         is_it_offer, matched_terms = _classify_it_offer(merged)
         merged["is_it_offer"] = is_it_offer
         merged["matched_it_terms"] = matched_terms
@@ -295,6 +303,7 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
             logger.warning("Indeed job detail fetch failed for %s: %s", jobs[index].get("url"), result)
             fallback = dict(jobs[index])
             fallback.pop("metadata_bits", None)
+            fallback["normalized_contract_type"] = normalize_contract_type(fallback)
             is_it_offer, matched_terms = _classify_it_offer(fallback)
             fallback["is_it_offer"] = is_it_offer
             fallback["matched_it_terms"] = matched_terms
@@ -304,7 +313,22 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
     return enriched_jobs
 
 
-def filter_jobs(jobs: list[dict], it_only: bool, limit: int) -> list[dict]:
+def filter_jobs(
+    jobs: list[dict],
+    it_only: bool,
+    limit: int,
+    posted_window: Optional[str] = None,
+    contract_types: Optional[list[str]] = None,
+) -> list[dict]:
     if it_only:
         jobs = [job for job in jobs if job.get("is_it_offer")]
+    if posted_window and posted_window != "any":
+        jobs = [job for job in jobs if matches_posted_window(job, posted_window)]
+    normalized_contract_types = {value.strip().lower() for value in (contract_types or []) if value}
+    if normalized_contract_types:
+        jobs = [
+            job
+            for job in jobs
+            if (job.get("normalized_contract_type") or normalize_contract_type(job) or "").lower() in normalized_contract_types
+        ]
     return jobs[:limit]

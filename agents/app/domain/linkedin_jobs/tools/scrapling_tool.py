@@ -10,6 +10,23 @@ logger = logging.getLogger(__name__)
 LINKEDIN_SEARCH_ENDPOINT = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
 LINKEDIN_JOB_ENDPOINT = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_id}"
 SEARCH_PAGE_SIZE = 25
+POSTED_WINDOW_TO_SECONDS = {
+    "24h": 24 * 60 * 60,
+    "3d": 3 * 24 * 60 * 60,
+    "7d": 7 * 24 * 60 * 60,
+    "14d": 14 * 24 * 60 * 60,
+    "30d": 30 * 24 * 60 * 60,
+}
+CONTRACT_TYPE_TERMS = {
+    "internship": {"internship", "intern", "stage", "stagiaire", "stage pfe", "stage pre-embauche"},
+    "cdi": {"cdi", "permanent", "full-time permanent", "contrat a duree indeterminee"},
+    "cdd": {"cdd", "contrat a duree determinee", "fixed term", "fixed-term", "contractuel"},
+    "freelance": {"freelance", "freelancer", "contract", "contractor", "consultant indépendant"},
+    "alternance": {"alternance", "apprenticeship", "apprenti", "work-study"},
+    "part_time": {"part time", "part-time", "temps partiel"},
+    "full_time": {"full time", "full-time", "temps plein"},
+    "temporary": {"temporary", "temporaire", "interim"},
+}
 
 IT_TERMS = {
     "software",
@@ -85,6 +102,7 @@ def build_search_urls(
     location: Optional[str],
     limit: int,
     posted_since_seconds: Optional[int] = None,
+    posted_window: Optional[str] = None,
     search_url: Optional[str] = None,
 ) -> list[str]:
     if search_url:
@@ -97,8 +115,11 @@ def build_search_urls(
     base_params = {"keywords": keywords}
     if location:
         base_params["location"] = location
-    if posted_since_seconds:
-        base_params["f_TPR"] = f"r{posted_since_seconds}"
+    effective_posted_since_seconds = posted_since_seconds
+    if effective_posted_since_seconds is None and posted_window:
+        effective_posted_since_seconds = normalize_posted_window_to_seconds(posted_window)
+    if effective_posted_since_seconds:
+        base_params["f_TPR"] = f"r{effective_posted_since_seconds}"
 
     urls: list[str] = []
     for page_index in range(pages):
@@ -257,6 +278,62 @@ def _classify_it_offer(job: dict) -> tuple[bool, list[str]]:
     return bool(matched), matched
 
 
+def normalize_posted_window_to_seconds(posted_window: Optional[str]) -> Optional[int]:
+    if not posted_window or posted_window == "any":
+        return None
+    return POSTED_WINDOW_TO_SECONDS.get(posted_window.strip().lower())
+
+
+def extract_relative_hours(posted_text: Optional[str]) -> Optional[int]:
+    clean = (posted_text or "").strip().lower()
+    if not clean:
+        return None
+    if any(token in clean for token in {"today", "just now", "aujourd", "maintenant"}):
+        return 0
+
+    match = re.search(r"(\d+)", clean)
+    if not match:
+        return None
+
+    value = int(match.group(1))
+    if any(token in clean for token in {"hour", "hours", "hr", "hrs", "heure", "heures"}):
+        return value
+    if any(token in clean for token in {"day", "days", "jour", "jours"}):
+        return value * 24
+    if any(token in clean for token in {"week", "weeks", "semaine", "semaines"}):
+        return value * 24 * 7
+    if any(token in clean for token in {"month", "months", "mois"}):
+        return value * 24 * 30
+    return None
+
+
+def normalize_contract_type(job: dict) -> Optional[str]:
+    corpus = " ".join(
+        [
+            job.get("employment_type") or "",
+            job.get("title") or "",
+            job.get("description") or "",
+            job.get("job_function") or "",
+        ]
+    ).lower()
+    for contract_type, terms in CONTRACT_TYPE_TERMS.items():
+        if any(term in corpus for term in terms):
+            return contract_type
+    return "other" if corpus.strip() else None
+
+
+def matches_posted_window(job: dict, posted_window: Optional[str]) -> bool:
+    if not posted_window or posted_window == "any":
+        return True
+    limit_seconds = normalize_posted_window_to_seconds(posted_window)
+    if not limit_seconds:
+        return True
+    relative_hours = extract_relative_hours(job.get("posted_at_text"))
+    if relative_hours is None:
+        return True
+    return relative_hours * 3600 <= limit_seconds
+
+
 def _dedupe_jobs(jobs: list[dict], limit: int) -> list[dict]:
     seen: set[str] = set()
     deduped: list[dict] = []
@@ -311,7 +388,14 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
         enriched = []
         for job in jobs:
             is_it_offer, matched_terms = _classify_it_offer(job)
-            enriched.append({**job, "is_it_offer": is_it_offer, "matched_it_terms": matched_terms})
+            enriched.append(
+                {
+                    **job,
+                    "normalized_contract_type": normalize_contract_type(job),
+                    "is_it_offer": is_it_offer,
+                    "matched_it_terms": matched_terms,
+                }
+            )
         return enriched
 
     Fetcher = _get_fetcher()
@@ -320,7 +404,12 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
         job_id = job.get("job_id")
         if not job_id:
             is_it_offer, matched_terms = _classify_it_offer(job)
-            return {**job, "is_it_offer": is_it_offer, "matched_it_terms": matched_terms}
+            return {
+                **job,
+                "normalized_contract_type": normalize_contract_type(job),
+                "is_it_offer": is_it_offer,
+                "matched_it_terms": matched_terms,
+            }
 
         url = LINKEDIN_JOB_ENDPOINT.format(job_id=job_id)
         logger.info("LinkedIn job detail fetch: %s", url)
@@ -353,6 +442,7 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
             "job_function": criteria_map.get("job function"),
             "industries": [criteria_map["industries"]] if criteria_map.get("industries") else [],
         }
+        merged["normalized_contract_type"] = normalize_contract_type(merged)
         is_it_offer, matched_terms = _classify_it_offer(merged)
         merged["is_it_offer"] = is_it_offer
         merged["matched_it_terms"] = matched_terms
@@ -364,6 +454,7 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
         if isinstance(result, Exception):
             logger.warning("LinkedIn job detail fetch failed for %s: %s", jobs[index].get("url"), result)
             fallback = dict(jobs[index])
+            fallback["normalized_contract_type"] = normalize_contract_type(fallback)
             is_it_offer, matched_terms = _classify_it_offer(fallback)
             fallback["is_it_offer"] = is_it_offer
             fallback["matched_it_terms"] = matched_terms
@@ -373,7 +464,22 @@ async def enrich_jobs_with_details(jobs: list[dict], enabled: bool = True) -> li
     return enriched_jobs
 
 
-def filter_jobs(jobs: list[dict], it_only: bool, limit: int) -> list[dict]:
+def filter_jobs(
+    jobs: list[dict],
+    it_only: bool,
+    limit: int,
+    posted_window: Optional[str] = None,
+    contract_types: Optional[list[str]] = None,
+) -> list[dict]:
     if it_only:
         jobs = [job for job in jobs if job.get("is_it_offer")]
+    if posted_window and posted_window != "any":
+        jobs = [job for job in jobs if matches_posted_window(job, posted_window)]
+    normalized_contract_types = {value.strip().lower() for value in (contract_types or []) if value}
+    if normalized_contract_types:
+        jobs = [
+            job
+            for job in jobs
+            if (job.get("normalized_contract_type") or normalize_contract_type(job) or "").lower() in normalized_contract_types
+        ]
     return jobs[:limit]

@@ -28,9 +28,11 @@ async def scrape_glassdoor_jobs(payload: GlassdoorJobSearchRequest) -> Glassdoor
             keywords=payload.keywords,
             location=payload.location,
             limit=payload.limit,
+            posted_window=payload.posted_window,
             search_url=payload.search_url,
             fetch_details=payload.fetch_details,
             it_only=payload.it_only,
+            contract_types=payload.contract_types,
         )
         return GlassdoorJobSearchResponse(**result)
     except Exception as exc:

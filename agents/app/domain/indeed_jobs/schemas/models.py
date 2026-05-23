@@ -13,6 +13,10 @@ class IndeedJobSearchRequest(BaseModel):
         description="Optional Indeed location filter, for example 'Morocco' or 'Casablanca'.",
     )
     limit: int = Field(default=20, ge=1, le=100, description="Maximum number of jobs to return.")
+    posted_window: Optional[str] = Field(
+        default=None,
+        description="Normalized recency bucket: 24h, 3d, 7d, 14d, 30d, or any.",
+    )
     search_url: Optional[str] = Field(
         default=None,
         description="Optional full Indeed search URL. When present it overrides generated search URLs.",
@@ -24,6 +28,10 @@ class IndeedJobSearchRequest(BaseModel):
     it_only: bool = Field(
         default=True,
         description="When true, keep only job offers that match the built-in IT keyword heuristic.",
+    )
+    contract_types: List[str] = Field(
+        default_factory=list,
+        description="Optional normalized contract type filters, such as internship, cdi, cdd, or freelance.",
     )
     country_code: Optional[str] = Field(
         default="ma",
@@ -46,6 +54,7 @@ class IndeedJobOffer(BaseModel):
     url: Optional[str] = None
     description: Optional[str] = None
     employment_type: Optional[str] = None
+    normalized_contract_type: Optional[str] = None
     seniority_level: Optional[str] = None
     job_function: Optional[str] = None
     industries: List[str] = Field(default_factory=list)

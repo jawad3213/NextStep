@@ -28,10 +28,12 @@ async def scrape_indeed_jobs(payload: IndeedJobSearchRequest) -> IndeedJobSearch
             keywords=payload.keywords,
             location=payload.location,
             limit=payload.limit,
+            posted_window=payload.posted_window,
             search_url=payload.search_url,
             fetch_details=payload.fetch_details,
             it_only=payload.it_only,
             country_code=payload.country_code,
+            contract_types=payload.contract_types,
         )
         return IndeedJobSearchResponse(**result)
     except Exception as exc:

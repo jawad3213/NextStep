@@ -44,8 +44,10 @@ from app.domain.chatbot.prompts import (
     EVALUATOR_PROMPT,
     SALARY_PROMPT,
     FREE_CHAT_PROMPT,
+    SALARY_COACH_FREE_CHAT_PROMPT,
 )
 
+# cette ligne crée un "canal" de logs personnalisé pour ce fichier
 logger = logging.getLogger(__name__)
 
 
@@ -99,18 +101,32 @@ async def questions_node(state: InterviewPrepState) -> dict:
         company = state.offer_context.company
         match   = state.offer_context.match
 
-        # 1. Chercher les vraies questions Glassdoor
-        real_questions = await search_interview_questions(
-            offer.company_name, offer.job_title
-        )
+        # 1. Récupérer d'abord les questions connues de la base de données (seed)
+        db_questions = company.known_questions if company.known_questions else []
+        combined_questions = list(db_questions)
+
+        # Si la base de données ne contient aucune question connue pour cette entreprise,
+        # on fait une recherche en direct sur Tavily en fallback
+        if not combined_questions:
+            logger.info(f"[QUESTIONS] Aucune question en base pour {offer.company_name}. Lancement de Tavily...")
+            web_questions = await search_interview_questions(
+                offer.company_name, offer.job_title
+            )
+            for q in web_questions:
+                if q not in combined_questions:
+                    combined_questions.append(q)
+        else:
+            logger.info(f"[QUESTIONS] {len(combined_questions)} questions trouvées en base pour {offer.company_name}. Bypass de Tavily.")
 
         # 2. Construire le prompt avec tout le contexte
         prompt = QUESTIONS_PROMPT_OFFER.format(
             company=offer.company_name,
             role=offer.job_title,
+            location=offer.location if offer.location else "Remote",
+            contract_type=offer.contract_type if offer.contract_type else "Full-time",
             skills=", ".join(offer.required_skills),
             missing=", ".join(match.missing_skills),
-            glassdoor_questions="\n".join(real_questions) if real_questions else "Aucune trouvée",
+            glassdoor_questions="\n".join(combined_questions) if combined_questions else "None found",
         )
 
     else:
@@ -175,25 +191,81 @@ async def questions_node(state: InterviewPrepState) -> dict:
 
 async def free_chat_node(state: InterviewPrepState) -> dict:
     """
-    Répond aux questions libres de l'utilisateur dans le tab Questions.
+    Répond aux questions libres de l'utilisateur dans le tab Questions ou dans le tab Salary Coach.
     Ex: 'Comment répondre à la Q2 ?' / 'Quelles questions sur Kafka ?'
     """
-    logger.info("[FREE_CHAT] Answering free question")
-    llm = get_llm(temperature=0.7)
+    logger.info(f"[FREE_CHAT] Answering free question. chat_type={state.chat_type}")
+    llm = get_llm(temperature=0.5)
 
-    # Construire le contexte
-    ctx = ""
-    if state.offer_context:
-        o = state.offer_context.offer
-        c = state.offer_context.company
-        ctx = (
-            f"Company: {o.company_name}\n"
-            f"Role: {o.job_title}\n"
-            f"Summary: {c.company_summary}\n"
-            f"Required skills: {', '.join(o.required_skills)}\n"
+    if state.chat_type == "salary":
+        db_min = 0
+        db_max = 0
+        db_target = 0
+        currency = "MAD"
+        contract_type = "Full-time"
+        job_title = "Software Engineer"
+        location = "Morocco"
+
+        if state.offer_context:
+            o = state.offer_context.offer
+            c = state.offer_context.company
+            job_title = o.job_title
+            location = o.location if o.location else "Morocco"
+            db_min = c.salary_min
+            db_max = c.salary_max
+            db_target = int(c.salary_min + (c.salary_max - c.salary_min) * 0.8) if c.salary_max > c.salary_min else c.salary_min
+            currency = c.currency if c.currency else "MAD"
+            
+            # Détection et normalisation robuste du type de contrat stage/PFE/PFA
+            raw_contract = (o.contract_type or "").lower()
+            title_lower = (o.job_title or "").lower()
+            if "stage" in raw_contract or "pfe" in raw_contract or "pfa" in raw_contract or "intern" in raw_contract or \
+               "stage" in title_lower or "pfe" in title_lower or "pfa" in title_lower or "intern" in title_lower or "stagiaire" in title_lower:
+                contract_type = "stage"
+            else:
+                contract_type = o.contract_type if o.contract_type else "Full-time"
+        elif state.arena_config:
+            cfg = state.arena_config
+            domain_name = cfg.domain if cfg else "Software Engineer"
+            level_name  = cfg.level.capitalize() if cfg else ""
+            job_title = f"{level_name} {domain_name} Engineer" if "Engineer" not in domain_name else f"{level_name} {domain_name}"
+            location  = "Morocco"
+            
+            # Détection et normalisation robuste du type de contrat stage/PFE/PFA
+            title_lower = job_title.lower()
+            if "stage" in title_lower or "pfe" in title_lower or "pfa" in title_lower or "intern" in title_lower or "stagiaire" in title_lower:
+                contract_type = "stage"
+            else:
+                contract_type = "Full-time"
+
+            if state.salary:
+                db_min = state.salary.range_min
+                db_max = state.salary.range_max
+                currency = state.salary.currency
+                db_target = state.salary.your_target
+
+        system = SALARY_COACH_FREE_CHAT_PROMPT.format(
+            job_title=job_title,
+            location=location,
+            contract_type=contract_type,
+            db_min=db_min,
+            db_max=db_max,
+            currency=currency,
+            db_target=db_target
         )
-
-    system = FREE_CHAT_PROMPT.format(context=ctx)
+    else:
+        # Construire le contexte classique
+        ctx = ""
+        if state.offer_context:
+            o = state.offer_context.offer
+            c = state.offer_context.company
+            ctx = (
+                f"Company: {o.company_name}\n"
+                f"Role: {o.job_title}\n"
+                f"Summary: {c.company_summary}\n"
+                f"Required skills: {', '.join(o.required_skills)}\n"
+            )
+        system = FREE_CHAT_PROMPT.format(context=ctx)
 
     # Historique des 6 derniers messages
     lc_messages = [SystemMessage(content=system)]
@@ -232,33 +304,54 @@ async def interview_node(state: InterviewPrepState) -> dict:
     - continue_interview → réponse au message de l'user
     """
     logger.info(f"[INTERVIEW] request_type={state.request_type}")
-    llm = get_llm(temperature=0.8)
+    llm = get_llm(temperature=0.6)
 
-    # Construire le prompt recruteur selon le mode
+    # 1. Déterminer la langue une seule fois
+    lang = "English"  # Fallback par défaut
+    if state.arena_config and state.arena_config.language:
+        lang = state.arena_config.language
+
+    # 2. Construire le prompt recruteur selon le mode
     if state.mode == "offer" and state.offer_context:
         o = state.offer_context.offer
         c = state.offer_context.company
-        lang = state.offer_context.offer.job_title  # fallback
-        if state.arena_config:
-            lang = state.arena_config.language
-
+        m = state.offer_context.match
+        msg_count = len(state.messages)
         system = RECRUITER_PROMPT.format(
             company=o.company_name,
             role=o.job_title,
-            culture=c.company_summary[:200] if c.company_summary else "professional",
+            location=o.location if o.location else "Remote",
+            contract_type=o.contract_type if o.contract_type else "Full-time",
+            culture=c.company_summary if c.company_summary else "innovative and professional",
             skills=", ".join(o.required_skills[:6]),
             difficulty=c.interview_difficulty,
-            language="English",
+            language=lang,
+            duration=state.arena_config.duration_minutes if state.arena_config else 20,
+            missing_skills=", ".join(m.missing_skills) if m.missing_skills else "None identified",
+            strengths=", ".join(m.strengths) if m.strengths else "Highly qualified candidate",
+            salary_min=c.salary_min,
+            salary_max=c.salary_max,
+            salary_currency=c.currency if c.currency else "USD",
+            msg_count=msg_count,
         )
     else:
         cfg = state.arena_config
         system = RECRUITER_PROMPT.format(
             company="a leading company",
             role=f"{cfg.level if cfg else 'mid'} {cfg.domain if cfg else 'Software'} engineer",
+            location="Remote",
+            contract_type="Full-time",
             culture="innovative and collaborative",
             skills=", ".join(cfg.focus_areas[:6]) if cfg and cfg.focus_areas else "core skills",
             difficulty="medium",
-            language=cfg.language if cfg else "English",
+            language=lang,
+            duration=cfg.duration_minutes if cfg else 20,
+            missing_skills="None",
+            strengths="Motivated professional",
+            salary_min=50000,
+            salary_max=120000,
+            salary_currency="USD",
+            msg_count=len(state.messages),
         )
 
     # Construire les messages LangChain
@@ -364,30 +457,64 @@ async def salary_node(state: InterviewPrepState) -> dict:
     llm = get_llm_precise()
 
     # Déterminer job_title + location
+    db_min = 0
+    db_max = 0
+    db_target = 0
+    currency = "MAD"
+
     if state.mode == "offer" and state.offer_context:
         o = state.offer_context.offer
         c = state.offer_context.company
         job_title = o.job_title
-        location  = o.raw_text[:50] if o.raw_text else "Casablanca"
+        location  = o.location if o.location else "Mountain View, CA"
+        db_min = c.salary_min
+        db_max = c.salary_max
+        db_target = int(c.salary_min + (c.salary_max - c.salary_min) * 0.8) if c.salary_max > c.salary_min else c.salary_min
+        currency = c.currency if c.currency else "USD"
+        
+        # Détection et normalisation robuste du type de contrat stage/PFE/PFA
+        raw_contract = (o.contract_type or "").lower()
+        title_lower = (o.job_title or "").lower()
+        if "stage" in raw_contract or "pfe" in raw_contract or "pfa" in raw_contract or "intern" in raw_contract or \
+           "stage" in title_lower or "pfe" in title_lower or "pfa" in title_lower or "intern" in title_lower or "stagiaire" in title_lower:
+            contract_type = "stage"
+        else:
+            contract_type = o.contract_type if o.contract_type else "Full-time"
+
         extra = (
             f"Company: {o.company_name}\n"
-            f"Known range from Glassdoor: {c.salary_min}–{c.salary_max} {c.currency}\n"
+            f"Contract Type: {contract_type}\n"
             f"Candidate strengths: {', '.join(state.offer_context.match.strengths)}\n"
         )
     else:
         cfg = state.arena_config
-        job_title = cfg.domain if cfg else "Software Engineer"
-        location  = "Casablanca, Morocco"
+        domain_name = cfg.domain if cfg else "Software Engineer"
+        level_name  = cfg.level.capitalize() if cfg else ""
+        job_title = f"{level_name} {domain_name} Engineer" if "Engineer" not in domain_name else f"{level_name} {domain_name}"
+        location  = "Morocco"
+        db_min = 150000 if cfg and cfg.level == "senior" else (90000 if cfg and cfg.level == "mid" else 50000)
+        db_max = 300000 if cfg and cfg.level == "senior" else (180000 if cfg and cfg.level == "mid" else 90000)
+        db_target = int(db_min + (db_max - db_min) * 0.75)
+        currency = "MAD"
         extra = ""
 
     # Recherche données marché
     market_data = await search_salary_data(job_title, location)
+
+    lang = "en"
+    if state.arena_config and state.arena_config.language:
+        lang = state.arena_config.language
 
     prompt = SALARY_PROMPT.format(
         job_title=job_title,
         location=location,
         extra_context=extra,
         market_raw="\n".join(market_data.get("raw_data", [])),
+        currency=currency,
+        db_min=db_min,
+        db_max=db_max,
+        db_target=db_target,
+        language=lang,
     )
 
     lc_messages = [
@@ -476,3 +603,9 @@ def build_graph():
 
 # Instance singleton — importée par le router FastAPI
 interview_graph = build_graph()
+
+
+
+
+#C'est une exécution du "One-shot" par message
+#Pattern Router Vs Pattern Pipeline

@@ -81,6 +81,7 @@ services:
       - Keycloak__Authority=http://keycloak:8080/realms/Next-Step
       - Redis__Configuration=redis:6379
       - PythonAgents__Url=http://agents-python:8000
+      - AgentsService__BaseUrl=http://agents-python:8000
       - Minio__Endpoint=http://minio:9000
       - Minio__AccessKey=${MINIO_ROOT_USER:-admin}
       - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-admin123}
@@ -115,6 +116,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nextstep_db}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
       - KEYCLOAK_URL=http://keycloak:8080
       - BACKEND_URL=http://backend:5000
     ports:
@@ -149,7 +152,7 @@ services:
     restart: always
     working_dir: /app
     command: >
-      sh -c "npm install &&
+      sh -c "npm install --legacy-peer-deps &&
              npx ng serve --host 0.0.0.0 --port 4200 --poll 2000"
     ports:
       - "4200:4200"
@@ -168,9 +171,9 @@ services:
       sonardb:
         condition: service_healthy
     environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://sonardb:5432/${SONAR_DB_NAME}
-      - SONAR_JDBC_USERNAME=${SONAR_DB_USER}
-      - SONAR_JDBC_PASSWORD=${SONAR_DB_PASSWORD}
+      - SONAR_JDBC_URL=jdbc:postgresql://sonardb:5432/${SONAR_DB_NAME:-sonar}
+      - SONAR_JDBC_USERNAME=${SONAR_DB_USER:-sonar}
+      - SONAR_JDBC_PASSWORD=${SONAR_DB_PASSWORD:-sonar}
     volumes:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_extensions:/opt/sonarqube/extensions

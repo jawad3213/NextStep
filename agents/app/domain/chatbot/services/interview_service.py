@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.domain.chatbot.graph import interview_graph
 from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
 from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement, ChatMessage,
+    SessionCoaching, QuestionEntrainement,
 )
 from app.domain.chatbot.state import (
     InterviewPrepState, ArenaConfig, MessageTurn,
@@ -41,7 +41,7 @@ from app.domain.chatbot.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns
+from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
 
 # SERVICE 3 — START INTERVIEW (Tab 2)
 async def start_interview_service(
@@ -50,6 +50,7 @@ async def start_interview_service(
     arena_config: ArenaConfigSchema | None,
     user_id: str,
     db: AsyncSession,
+    session_id: str | None = None,
 ) -> StartInterviewResponse:
     """Démarre la session. Crée la ligne en DB. Retourne le message d'ouverture."""
 
@@ -61,8 +62,11 @@ async def start_interview_service(
     cfg = arena_config
     try:
         cand_id = await get_candidature_id(offer_id, user_id, db)
+        internal_uid = await get_internal_user_id(user_id, db)
+        session_uuid = uuid.UUID(session_id) if session_id else uuid.uuid4()
         session_db = SessionCoaching(
-            id_utilisateur=uuid.UUID(user_id) if user_id else None,
+            id_session=session_uuid,
+            id_utilisateur=internal_uid,
             id_candidature=cand_id,
             mode=mode,
             language=cfg.language if cfg else "en",
@@ -70,7 +74,7 @@ async def start_interview_service(
             domain=cfg.domain if cfg else None,
             level=cfg.level if cfg else None,
             focus_areas=cfg.focus_areas if cfg else None,
-            status="in_progress",
+            status="started",
         )
         db.add(session_db)
         await db.commit()
@@ -99,22 +103,6 @@ async def start_interview_service(
     result = await interview_graph.ainvoke(state)
     messages_out = result.get("messages", [])
     opening = messages_out[-1].content if messages_out else "Hello! Let's begin the interview."
-
-    # Sauvegarder le message d'ouverture
-    try:
-        db.add(ChatMessage(
-            thread_id=uuid.UUID(session_id),
-            id_utilisateur=uuid.UUID(user_id) if user_id else None,
-            id_session=uuid.UUID(session_id),
-            chat_type="interview",
-            sender="ai",
-            content=opening,
-        ))
-        await db.commit()
-    except Exception as e:
-        logger.error(f"DB save opening message error: {e}")
-        await db.rollback()
-
     return StartInterviewResponse(
         session_id=session_id,
         opening_message=opening,
@@ -152,33 +140,6 @@ async def send_message_service(
     messages_out = result.get("messages", [])
     last_ai = next((m for m in reversed(messages_out) if m.role == "ai"), None)
     ai_content = last_ai.content if last_ai else ""
-
-    # Sauvegarder user + ai dans chat_message
-    try:
-        session_uuid = uuid.UUID(session_id)
-        user_uuid    = uuid.UUID(user_id) if user_id else None
-
-        db.add(ChatMessage(
-            thread_id=session_uuid,
-            id_utilisateur=user_uuid,
-            id_session=session_uuid,
-            chat_type="interview",
-            sender="user",
-            content=user_input,
-        ))
-        db.add(ChatMessage(
-            thread_id=session_uuid,
-            id_utilisateur=user_uuid,
-            id_session=session_uuid,
-            chat_type="interview",
-            sender="ai",
-            content=ai_content,
-        ))
-        await db.commit()
-
-    except Exception as e:
-        logger.error(f"DB save message error: {e}")
-        await db.rollback()
 
     return SendMessageResponse(
         session_id=session_id,

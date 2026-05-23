@@ -6,6 +6,7 @@ using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Identity.Models;
 using NextStep.Modules.Profile.Models;
 using NextStep.Modules.Sourcing.Models;
+using NextStep.Modules.Chatbot.Models;
 
 namespace NextStep.data;
 
@@ -26,6 +27,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DocumentGenere> DocumentsGeneres => Set<DocumentGenere>();
     public DbSet<SourcedOffer> SourcedOffers => Set<SourcedOffer>();
     public DbSet<ScrapeSession> ScrapeSessions => Set<ScrapeSession>();
+    
+    public DbSet<SessionCoaching> SessionCoachings { get; set; }
+    public DbSet<QuestionEntrainement> QuestionEntrainements { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_tavily():
-    return TavilyClient(api_key=get_settings().tavily_api_key)
+    return TavilyClient(api_key=get_settings().TAVILY_API_KEY)
 
 
 async def search_interview_questions(company: str, job_title: str) -> list[str]:
@@ -28,8 +28,8 @@ async def search_interview_questions(company: str, job_title: str) -> list[str]:
 async def search_salary_data(job_title: str, location: str) -> dict:
     try:
         client = get_tavily()
-        query = f'salary "{job_title}" "{location}" 2024 2025 average range'
-        results = client.search(query=query, max_results=4)
+        query = f'salary "{job_title}" "{location}" glassdoor linkedin rekrute 2025 2026 average range'
+        results = client.search(query=query, max_results=5)
         return {
             "job_title": job_title,
             "location": location,

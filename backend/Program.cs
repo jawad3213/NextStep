@@ -19,6 +19,10 @@ using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using NextStep.Modules.Chatbot;
+using NextStep.Modules.Chatbot.Interfaces;
+using NextStep.Modules.Chatbot.Services;
+
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -39,14 +43,23 @@ builder.Services.AddCors(options =>
     );
 });
 
+Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = builder.Configuration["Keycloak:Authority"];
         options.Audience = builder.Configuration["Keycloak:Audience"];
         options.RequireHttpsMetadata = false;
-        options.MetadataAddress = "http://keycloak:8080/realms/Next-Step/.well-known/openid-configuration";
-        options.TokenValidationParameters = new TokenValidationParameters { ValidateAudience = false, ValidateIssuer = false, NameClaimType = "email" };
+        options.MetadataAddress = $"{builder.Configuration["Keycloak:Authority"]}/.well-known/openid-configuration";
+        options.TokenValidationParameters = new TokenValidationParameters 
+        { 
+            ValidateAudience = false, 
+            ValidateIssuer = false, 
+            ValidateLifetime = false,
+            NameClaimType = "email" 
+        };
+        options.MapInboundClaims = false;
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -77,8 +90,11 @@ builder.Services.AddDbContext<AppDbContext>(options => {
     options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
+// ─── Chatbot Module ───
 builder.Services.Configure<AgentPythonOptions>(builder.Configuration.GetSection("PythonAgents"));
-builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
+builder.Services.AddHttpClient("SharedAgentClient").AddTypedClient<NextStep.Shared.Http.IAgentHttpClient, NextStep.Shared.Http.AgentHttpClient>();
+builder.Services.AddChatbotModule(builder.Configuration);
+
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IOfferService, OfferService>();
 builder.Services.AddScoped<IPipelineRunnerService, PipelineRunnerService>();
@@ -97,6 +113,7 @@ builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
 builder.Services.AddSingleton<ITemplateThumbnailService, TemplateThumbnailService>();
 builder.Services.AddScoped<ISourcedOfferService, SourcedOfferService>();
 
+
 // ─── MinIO / S3 Storage ───
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
 builder.Services.AddSingleton<IAmazonS3>(sp =>
@@ -110,6 +127,8 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
     return new AmazonS3Client(opts.AccessKey, opts.SecretKey, config);
 });
 builder.Services.AddSingleton<IStorageService, MinioStorageService>();
+
+
 
 QuestPDF.Settings.License = LicenseType.Community;
 

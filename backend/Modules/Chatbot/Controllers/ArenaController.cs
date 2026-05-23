@@ -77,7 +77,6 @@ public class ArenaController : ControllerBase
     [HttpPost("session/start")]
     public async Task<IActionResult> StartSession([FromBody] StartSessionRequest request)
     {
-        Console.WriteLine($"[DEBUG] StartSession - Received SessionId: {request.SessionId ?? "NULL"}");
         request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
         var result = await _arenaService.StartSessionAsync(request);
         return Ok(result);
@@ -92,14 +91,12 @@ public class ArenaController : ControllerBase
     {
         try
         {
-            Console.WriteLine($"[DEBUG] SendMessage - SessionId: {request.SessionId}");
             request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
             var result = await _arenaService.SendMessageAsync(request);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ArenaController] SendMessage Error: {ex.Message}");
             return StatusCode(500, new { error = ex.Message });
         }
     }
@@ -113,14 +110,12 @@ public class ArenaController : ControllerBase
     {
         try
         {
-            Console.WriteLine($"[DEBUG] EndSession - SessionId: {request.SessionId}");
             request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
             var result = await _arenaService.EndSessionAsync(request);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ArenaController] EndSession Error: {ex.Message}");
             return StatusCode(500, new { error = ex.Message });
         }
     }

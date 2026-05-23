@@ -140,7 +140,7 @@ public class ClassicCvDocument : IDocument
             .FontFamily(BodyFont).FontSize(13).Bold().FontColor(TitleColor);
     }
 
-    private static void ComposeDivider(ColumnDescriptor column)
+    private void ComposeDivider(ColumnDescriptor column)
     {
         column.Item().PaddingVertical(8).LineHorizontal(1).LineColor(DividerColor);
     }

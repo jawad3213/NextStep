@@ -30,7 +30,7 @@ CREATE TABLE utilisateur (
 CREATE INDEX idx_utilisateur_keycloak_id ON utilisateur(keycloak_id);
 CREATE INDEX idx_utilisateur_email ON utilisateur(email);
 
-CREATE TABLE IF NOT EXISTS experience (
+C2REATE TABLE IF NOT EXISTS experience (
     id_experience UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_utilisateur UUID REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
     entreprise VARCHAR(150),

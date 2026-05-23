@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
 
 namespace NextStep.Modules.Profile.Models
 {
@@ -33,6 +34,9 @@ namespace NextStep.Modules.Profile.Models
 
         [Column("type_contrat")]
         public string? TypeContrat { get; set; }
+
+        [Column("taches", TypeName = "jsonb")]
+        public List<string> Taches { get; set; } = new();
 
         [Column("is_valid")]
         public bool IsValid { get; set; } = false;

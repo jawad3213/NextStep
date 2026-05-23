@@ -82,7 +82,8 @@ namespace NextStep.Modules.Profile.Services
                         DateFin = e.DateFin, 
                         Missions = e.Missions,
                         Ville = e.Ville,
-                        Type = e.TypeContrat
+                        Type = e.TypeContrat,
+                        Taches = e.Taches ?? new List<string>()
                     })
                     .ToListAsync(),
                 Formations = await _context.Formations.Where(f => f.UserId == userId)
@@ -98,7 +99,8 @@ namespace NextStep.Modules.Profile.Services
                         DateRealisation = p.DateRealisation,
                         DemoUrl = p.DemoUrl,
                         ImageUrl = p.ImageUrl,
-                        IsUniversity = p.IsUniversity
+                        IsUniversity = p.IsUniversity,
+                        Taches = p.Taches ?? new List<string>()
                     })
                     .ToListAsync(),
                 Competences = await _context.Competences.Where(c => c.UserId == userId)
@@ -143,7 +145,8 @@ namespace NextStep.Modules.Profile.Services
                 DateFin = dto.DateFin, 
                 Missions = dto.Missions,
                 Ville = dto.Ville,
-                TypeContrat = dto.Type
+                TypeContrat = dto.Type,
+                Taches = dto.Taches ?? new List<string>()
             };
             _context.Experiences.Add(exp);
             await _context.SaveChangesAsync();
@@ -155,7 +158,7 @@ namespace NextStep.Modules.Profile.Services
             var exp = await _context.Experiences.FirstOrDefaultAsync(e => e.Id == dto.Id && e.UserId == userId);
             if (exp == null) throw new KeyNotFoundException("Expérience non trouvée.");
             exp.Entreprise = dto.Entreprise; exp.Poste = dto.Poste; exp.DateDebut = dto.DateDebut; exp.DateFin = dto.DateFin; exp.Missions = dto.Missions;
-            exp.Ville = dto.Ville; exp.TypeContrat = dto.Type;
+            exp.Ville = dto.Ville; exp.TypeContrat = dto.Type; exp.Taches = dto.Taches ?? new List<string>();
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
         }
@@ -178,7 +181,8 @@ namespace NextStep.Modules.Profile.Services
                 DateRealisation = dto.DateRealisation,
                 DemoUrl = dto.DemoUrl,
                 ImageUrl = dto.ImageUrl,
-                IsUniversity = dto.IsUniversity
+                IsUniversity = dto.IsUniversity,
+                Taches = dto.Taches ?? new List<string>()
             };
             _context.Projets.Add(p);
             await _context.SaveChangesAsync();
@@ -190,7 +194,7 @@ namespace NextStep.Modules.Profile.Services
             var p = await _context.Projets.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
             if (p == null) throw new KeyNotFoundException("Projet non trouvé.");
             p.TitreProjet = dto.TitreProjet; p.Description = dto.Description; p.TechnologiesUtilisees = dto.TechnologiesUtilisees; p.LienProjet = dto.LienProjet; p.DateRealisation = dto.DateRealisation;
-            p.DemoUrl = dto.DemoUrl; p.ImageUrl = dto.ImageUrl; p.IsUniversity = dto.IsUniversity;
+            p.DemoUrl = dto.DemoUrl; p.ImageUrl = dto.ImageUrl; p.IsUniversity = dto.IsUniversity; p.Taches = dto.Taches ?? new List<string>();
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
         }

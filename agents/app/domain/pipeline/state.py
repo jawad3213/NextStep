@@ -8,8 +8,9 @@ class PipelineState(TypedDict, total=False):
     
     # -- Entrées --
     raw_offer_text: str
-    user_id: int
+    user_id: str
     template_id: int
+    offer_id: str
 
     # -- Données intermédiaires --
     analyzed_offer: Optional[Dict[str, Any]]
@@ -37,3 +38,12 @@ class PipelineState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     errors: Annotated[list[str], operator.add]
     warnings: Annotated[list[str], operator.add]
+    company_intelligence: Optional[Dict[str, Any]]
+    
+    # -- Sorties Finales (CV) --
+    cv_optimized_content: Optional[Dict[str, Any]]
+    cv_engine_result: Optional[Dict[str, Any]]
+
+    # -- Contrôle du flux --
+    only_analysis: bool  # True pour s'arrêter après le skill gap et intel
+

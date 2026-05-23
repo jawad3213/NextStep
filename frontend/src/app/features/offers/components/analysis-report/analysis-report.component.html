@@ -1,0 +1,195 @@
+@if (offersService.selectedOffer(); as activeOffer) {
+  <div class="analysis-report-container">
+    
+    <!-- HEADER NAV BAR -->
+    <header class="report-header">
+      <button class="btn-back" (click)="onBack()">
+        <svg viewBox="0 0 24 24" class="icon-md"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.5" fill="none"/></svg>
+        <span>Back to Opportunities</span>
+      </button>
+      <div class="report-title-section">
+        <h1 class="heading-1">Semantic Match Analysis</h1>
+        <p class="body-default text-secondary">{{ activeOffer.title }} at <strong>{{ activeOffer.company }}</strong></p>
+      </div>
+    </header>
+
+    <!-- MAIN LAYOUT GRID -->
+    <div class="analysis-grid-layout">
+      
+      <!-- LEFT METRIC COLUMNS -->
+      <div class="metrics-column">
+        
+        <!-- SCORE DE PERTINENCE CARD -->
+        <div class="analysis-card text-center match-score-card">
+          <span class="overline tracking-widest text-secondary text-uppercase">SCORE DE PERTINENCE</span>
+          <div class="radial-progress-wrapper">
+            <svg viewBox="0 0 36 36" class="circular-chart green">
+              <path class="circle-bg"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path class="circle"
+                stroke-dasharray="92, 100"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <text x="18" y="20.35" class="percentage-text">{{ activeOffer.matchingScore || 92 }}%</text>
+            </svg>
+          </div>
+          <p class="score-relative-metric">+6% VS. MOYENNE</p>
+          <span class="pill-match-badge Excellent">● Match Excellent</span>
+        </div>
+
+        <!-- ANALYSE DE L'EXPÉRIENCE -->
+        <div class="analysis-card experience-card">
+          <span class="overline text-secondary font-bold text-uppercase">Analyse de l'expérience</span>
+          <div class="exp-item">
+            <div class="exp-header body-small">
+              <span>Expérience requise</span>
+              <span class="font-bold">5 ans</span>
+            </div>
+            <div class="progress-bar-container"><div class="progress-fill required" style="width: 100%;"></div></div>
+          </div>
+          <div class="exp-item">
+            <div class="exp-header body-small">
+              <span>Profil candidat</span>
+              <span class="font-bold">4.8 ans</span>
+            </div>
+            <div class="progress-bar-container"><div class="progress-fill candidate" style="width: 96%;"></div></div>
+          </div>
+        </div>
+
+        <!-- SOFT SKILLS & COMPORTEMENT -->
+        <div class="analysis-card soft-skills-card">
+          <span class="overline text-secondary font-bold text-uppercase">SOFT SKILLS & COMPORTEMENT</span>
+          <ul class="soft-skills-list">
+            <li>
+              <span class="skill-label"><span class="success-dot-md">✔</span> Travail d'équipe</span>
+              <span class="status-pill status-pill--valid">VALIDÉ</span>
+            </li>
+            <li>
+              <span class="skill-label"><span class="success-dot-md">✔</span> Communication agile</span>
+              <span class="status-pill status-pill--valid">VALIDÉ</span>
+            </li>
+            <li>
+              <span class="skill-label"><span class="warning-dot-md">▲</span> Autonomie technique</span>
+              <span class="status-pill status-pill--pending">A CONFIRMER</span>
+            </li>
+            <li>
+              <span class="skill-label"><span class="success-dot-md">✔</span> Anglais professionnel</span>
+              <span class="status-pill status-pill--valid">RÉUSSI</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- CVS DÉJÀ GÉNÉRÉS -->
+        <div class="analysis-card generated-cvs-card">
+          <span class="overline text-secondary font-bold text-uppercase">CVS DÉJÀ GÉNÉRÉS</span>
+          <ul class="cv-generation-list">
+            <li>
+              <div class="cv-info">
+                <svg viewBox="0 0 24 24" class="file-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <div>
+                  <p class="file-name body-small font-bold">CV_Nichan_Said_v1</p>
+                  <span class="file-date">Généré le 12/10/2023</span>
+                </div>
+              </div>
+              <button class="btn-share-icon" aria-label="Open PDF"><svg viewBox="0 0 24 24" class="icon-sm"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- RIGHT DETAIL COLUMNS -->
+      <div class="details-column">
+        
+        <!-- SKILLS ANALYSIS COMPÉTENCES -->
+        <div class="analysis-card">
+          <h3 class="heading-4 report-card-title">Analyse des Compétences</h3>
+          <p class="overline-label">COMPÉTENCES VALIDES (15)</p>
+          <div class="validated-pills-container">
+            <span class="pill-tag-v">React.js</span>
+            <span class="pill-tag-v">TypeScript</span>
+            <span class="pill-tag-v">Node.js</span>
+            <span class="pill-tag-v">Tailwind CSS</span>
+            <span class="pill-tag-v">Git & CI/CD</span>
+            <span class="pill-tag-v">GraphQL</span>
+            <span class="pill-tag-v">Docker</span>
+            <span class="pill-tag-v">FastAPI</span>
+            <span class="pill-tag-v">PostgreSQL</span>
+            <span class="pill-tag-v">REST APIs</span>
+            <span class="pill-tag-v">Linux Shell</span>
+          </div>
+        </div>
+
+        <!-- KEYWORDS CLOUD NUAGE DE MOTS CLÉS -->
+        <div class="analysis-card keyword-cloud-card">
+          <div class="cloud-header">
+            <h3 class="heading-4 report-card-title">Nuage de mots-clés</h3>
+            <span class="overline">IMPORTANCE RELATIVE</span>
+          </div>
+          <div class="cloud-container">
+            <span class="word size-lg font-bold text-dark">Full Stack</span>
+            <span class="word size-md text-secondary">Django REST</span>
+            <span class="word size-lg font-bold text-orange">React.js</span>
+            <span class="word size-sm text-tertiary">API REST</span>
+            <span class="word size-md text-dark">Microservices</span>
+            <span class="word size-lg font-bold text-green">FastAPI</span>
+            <span class="word size-xs text-muted">CI/CD</span>
+            <span class="word size-md text-secondary">TypeScript</span>
+            <span class="word size-md text-dark">Docker</span>
+            <span class="word size-lg font-bold text-black">Python</span>
+            <span class="word size-sm text-tertiary">Angular</span>
+          </div>
+        </div>
+
+        <!-- RECOMMENDED ACTIONS TRAINING -->
+        <div class="analysis-card training-card">
+          <h3 class="heading-4 report-card-title">Actions Recommandées</h3>
+          <div class="training-grid">
+            <div class="training-item-card">
+              <div class="training-badge-row">
+                <span class="type-pill blue">COURS</span>
+                <span class="priority-label High">⚡ Priorité Haute</span>
+              </div>
+              <h4 class="training-title">Maîtriser Docker pour le Dev</h4>
+              <p class="body-small text-secondary">
+                Combler le manque technique sur la conteneurisation requis pour le pipeline de déploiement.
+              </p>
+            </div>
+            <div class="training-item-card">
+              <div class="training-badge-row">
+                <span class="type-pill purple">CERTIFICATION</span>
+                <span class="priority-label Med">⚙ Moyenne</span>
+              </div>
+              <h4 class="training-title">AWS Cloud Practitioner</h4>
+              <p class="body-small text-secondary">
+                Certification pour valider les connaissances Cloud et architecture Serverless demandées.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRO TIP ADVICE BANNER (PEACH BOX) -->
+        <div class="analysis-card advice-card-banner">
+          <div class="advice-banner-header">
+            <svg viewBox="0 0 24 24" class="lightbulb-icon"><path d="M9 21h6v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+            <h4 class="heading-5 orange-dark-text">Conseils d'optimisation du CV</h4>
+          </div>
+          <ul class="advice-bullet-points">
+            <li>Ajouter des métriques chiffrées sur vos projets React (ex: "Amélioration de 20% des performances").</li>
+            <li>Mentionnez explicitement votre usage de TypeScript dans l'expérience chez 'Smart Automation Technologie'.</li>
+            <li>Incluez un lien vers un repository GitHub démontrant vos compétences en Testing.</li>
+            <li>Détaillez l'environnement technique complet (stacks, outils de monitoring, méthodes) pour chaque expérience.</li>
+            <li>Mettez en avant vos contributions en Open Source ou vos participations à des conférences techniques.</li>
+            <li>Soulignez votre capacité à collaborer en mode Agile avec des exemples concrets de rituels d'équipe.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER ACTIONS -->
+    <footer class="stage-footer">
+      <button class="btn-secondary" (click)="onBack()">Annuler</button>
+      <button class="btn-primary orange-btn-accent" (click)="onGenerateCv()">Générer le CV</button>
+    </footer>
+  </div>
+}

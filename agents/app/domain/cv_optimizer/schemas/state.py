@@ -9,6 +9,7 @@ class CVOptimizerState(TypedDict, total=False):
     """
     candidate_cv: dict
     job_offer: dict
+    match_result: Optional[dict]
     
     optimized_cv: Optional[dict]
     

@@ -60,4 +60,50 @@ export class ProjectsComponent {
   onUpdateNewExtra(field: string, value: any) {
     this.updateNewExtra.emit({ field, value });
   }
+
+  isEditingProject(proj: Project): boolean {
+    return !!this.newProject?.id && this.isAddingProject && this.newProject.id === proj.id;
+  }
+
+  isCreatingProject(): boolean {
+    return this.isAddingProject && !this.newProject?.id;
+  }
+
+  addTask() {
+    this.updateNew.emit({
+      field: 'taches',
+      value: [...(this.newProject.taches || []), '']
+    });
+  }
+
+  updateTask(index: number, value: string) {
+    const nextTasks = [...(this.newProject.taches || [])];
+    nextTasks[index] = value;
+    this.updateNew.emit({ field: 'taches', value: nextTasks });
+  }
+
+  removeTask(index: number) {
+    const nextTasks = [...(this.newProject.taches || [])];
+    nextTasks.splice(index, 1);
+    this.updateNew.emit({ field: 'taches', value: nextTasks });
+  }
+
+  addTaskExtra() {
+    this.updateNewExtra.emit({
+      field: 'taches',
+      value: [...(this.newExtracurricular.taches || []), '']
+    });
+  }
+
+  updateTaskExtra(index: number, value: string) {
+    const nextTasks = [...(this.newExtracurricular.taches || [])];
+    nextTasks[index] = value;
+    this.updateNewExtra.emit({ field: 'taches', value: nextTasks });
+  }
+
+  removeTaskExtra(index: number) {
+    const nextTasks = [...(this.newExtracurricular.taches || [])];
+    nextTasks.splice(index, 1);
+    this.updateNewExtra.emit({ field: 'taches', value: nextTasks });
+  }
 }

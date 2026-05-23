@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: nextstep-db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - nextstep_db_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - nextstep-data-network
+
+  redis:
+    image: redis:alpine
+    container_name: nextstep-cache
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - nextstep-data-network
+
+  minio:
+    image: minio/minio
+    container_name: nextstep-storage
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_PASS}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - nextstep_minio_data:/data
+    networks:
+      - nextstep-data-network
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: nextstep-sonarqube
+    restart: unless-stopped
+    ports:
+      - "9005:9000"
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://database:5432/sonardb
+      - SONAR_JDBC_USERNAME=${SONAR_DB_USER}
+      - SONAR_JDBC_PASSWORD=${SONAR_DB_PASS}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 3G
+    volumes:
+      - nextstep_sonar_data:/opt/sonarqube/data
+    networks:
+      - nextstep-data-network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: nextstep-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - nextstep-data-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: nextstep-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - nextstep-data-network
+
+networks:
+  nextstep-data-network:
+    driver: bridge
+
+volumes:
+  nextstep_db_data:
+  nextstep_minio_data:
+  nextstep_sonar_data:

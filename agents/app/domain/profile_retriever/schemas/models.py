@@ -38,8 +38,9 @@ class Project(BaseModel):
 class UserProfile(BaseModel):
     """Représentation complète du profil utilisateur dans la base de données."""
     user_id: str = Field(..., description="Identifiant unique de l'utilisateur")
-    nom: str = Field(..., description="Nom de famille")
-    prenom: str = Field(..., description="Prénom")
+    nom: Optional[str] = Field(None, description="Nom de famille")
+    prenom: Optional[str] = Field(None, description="Prénom")
+    email: Optional[str] = Field(None, description="Adresse email")
     titre: Optional[str] = Field(None, description="Titre professionnel actuel (ex: Développeur Fullstack)")
     resume: Optional[str] = Field(None, description="Résumé ou biographie professionnelle")
     telephone: Optional[str] = Field(None, description="Numéro de téléphone")

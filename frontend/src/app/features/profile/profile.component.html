@@ -14,8 +14,8 @@
           </div>
         </div>
         <div class="loader-header-text">
-          <h2 class="loader-headline">AI Extraction Engine</h2>
-          <p class="loader-subtext">Our agents are scanning your document for key experiences and skills.</p>
+          <h2 class="loader-headline">{{ parsingStageCopy().headline }}</h2>
+          <p class="loader-subtext">{{ parsingStageCopy().description }}</p>
         </div>
       </div>
       
@@ -54,62 +54,74 @@
   </div>
   }
 
+  <input #fileInput type="file" (change)="onFileImported($event)" accept=".pdf,.doc,.docx" hidden>
+  
   <!-- CENTER: FOCUS INPUT AREA -->
   <main class="focus-area">
-    <!-- Header with progress -->
-    <header
-      class="focus-header shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 md:px-8 py-4 flex items-center z-10">
-      <div class="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        <div class="flex flex-col">
-          <nav class="breadcrumb hidden md:flex">
-            <span class="text-slate-400 text-xs font-medium">Profile</span>
-            <mat-icon class="text-slate-400 !text-[14px] !w-[14px] !h-[14px] mx-1">chevron_right</mat-icon>
-            <span class="text-indigo-600 text-xs font-medium">{{
-              currentStep() === 'coordonnees' ? 'Contact Info' :
-              currentStep() === 'formation' ? 'Education' :
-              currentStep() === 'experience' ? 'Experience' :
-              currentStep() === 'competences' ? 'Skills' :
-              currentStep() === 'resume' ? 'Summary' :
-              currentStep() === 'projets' ? 'Projects' : 'Certifications'
-              }}</span>
-          </nav>
-          <h2 class="section-title text-xl md:text-2xl font-bold text-slate-900 leading-tight mt-1">
-            {{
-            currentStep() === 'coordonnees' ? 'Personal Details' :
-            currentStep() === 'formation' ? 'Your Education' :
-            currentStep() === 'experience' ? 'Work Experience' :
-            currentStep() === 'competences' ? 'Skills & Languages' :
-            currentStep() === 'resume' ? 'Profile Summary' :
-            currentStep() === 'projets' ? 'Completed Projects' : 'Certifications'
-            }}
-          </h2>
-        </div>
-
-        <!-- Import Card (Zety-style two-column) -->
-        <div class="import-card-split">
-          <button class="import-split-btn" (click)="fileInput.click()">
-            <mat-icon class="import-split-icon">upload_file</mat-icon>
-            <span class="import-split-label">Upload existing resume</span>
-          </button>
-          <div class="import-split-divider"></div>
-          <button class="import-split-btn disabled" disabled>
-            <svg class="import-linkedin-icon" viewBox="0 0 24 24" fill="#0077b5">
-              <path
-                d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-            </svg>
-            <span class="import-split-label">Import LinkedIn profile</span>
-          </button>
-        </div>
-
-
+    @if (isForcedOnboarding()) {
+      <!-- HORIZONTAL STEPPER -->
+      <div class="stepper-wrapper shrink-0">
+        <app-profile-stepper
+          (uploadResume)="fileInput.click()"
+          (importLinkedIn)="openLinkedInModal()">
+        </app-profile-stepper>
       </div>
-      <input #fileInput type="file" (change)="onFileImported($event)" accept=".pdf,.doc,.docx" hidden>
-    </header>
+    } @else {
+      <div class="px-4 md:px-12 pt-4 pb-2 shrink-0">
+        <div class="profile-ta-tab-shell flex w-full overflow-x-auto no-scrollbar">
+          @for (step of steps; track step.id) {
+            <button
+              type="button"
+              class="profile-ta-tab flex-1 text-center"
+              [class.profile-ta-tab-active]="currentStep() === step.id"
+              (click)="goToStep(step.id)">
+              {{ step.label }}
+            </button>
+          }
+        </div>
+      </div>
+    }
 
-    <!-- HORIZONTAL STEPPER -->
-    <div class="stepper-wrapper shrink-0">
-      <app-profile-stepper></app-profile-stepper>
-    </div>
+    @if (isForcedOnboarding()) {
+      <!-- Import actions placed after stepper, aligned right -->
+      <div class="flex justify-end px-4 md:px-12 pt-4 pb-2 shrink-0">
+        <div class="flex items-center h-[42px] border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm md:flex">
+          <button class="px-5 h-full flex items-center gap-2 text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="isParsing() || isApplyingData()"
+            (click)="fileInput.click()">
+            <mat-icon class="text-[18px] w-[18px] h-[18px] flex items-center justify-center">upload_file</mat-icon>
+            Upload existing resume
+          </button>
+          <div class="w-px h-6 bg-slate-200 shrink-0"></div>
+          <button class="px-5 h-full flex items-center gap-2 text-[13px] font-semibold text-[#1B4C74] hover:bg-slate-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="isParsing() || isApplyingData()"
+            (click)="openLinkedInModal()">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+            </svg>
+            Import LinkedIn profile
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (isForcedOnboarding() && missingSections().length > 0) {
+      <div class="px-4 md:px-12 py-0 shrink-0">
+        <div class="mx-auto max-w-5xl">
+          <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+            <mat-icon class="!text-[18px] !w-[18px] !h-[18px] text-amber-500">info</mat-icon>
+            <span class="font-medium">Missing:</span>
+            @for (section of missingSections(); track section.id; let last = $last) {
+              <button (click)="goToStep(section.id)"
+                class="underline font-semibold hover:text-amber-900 transition-colors whitespace-nowrap">
+                {{ section.label }}
+              </button>
+              @if (!last) { <span class="text-amber-400">•</span> }
+            }
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- Scrollable Form Container -->
     <div class="form-scroll-container overflow-y-auto px-4 md:px-12 py-6 md:py-10 custom-scrollbar relative">
@@ -117,6 +129,22 @@
       @if (isApplyingData()) {
         <div class="applying-data-layer"></div>
         <div class="form-content max-w-5xl mx-auto w-full space-y-8">
+          <div class="import-sync-card">
+            <div class="import-sync-copy">
+              <p class="import-sync-eyebrow">Resume imported</p>
+              <h3>We found profile information and we are distributing it across each step.</h3>
+              <p>Review the fields in Contact, Experience, Education, Skills, Projects, Summary, and Certifications once the sync finishes.</p>
+            </div>
+            <div class="import-sync-grid">
+              @for (item of importSummaryCards(); track item.key) {
+                <div class="import-sync-pill" [class.has-data]="item.count > 0">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.count }}</strong>
+                </div>
+              }
+            </div>
+          </div>
+
           <!-- SKELETON FOR PERSONAL INFO -->
           <div class="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm space-y-6">
             <div class="flex items-center gap-6">
@@ -159,7 +187,7 @@
 
         @if (currentStep() === 'coordonnees') {
         <app-personal-info [data]="profile().personal" (dataChange)="updateField($event.field, $event.value)"
-          (photoUpload)="onPhotoSelected($event)">
+          (fieldBlur)="onFieldBlur($event.field, $event.value)" (photoUpload)="onPhotoSelected($event)">
         </app-personal-info>
         }
 
@@ -186,14 +214,29 @@
         </app-experience>
         }
 
+
+        @if (currentStep() === 'competences') {
+        <app-skills [skills]="profile().skills" [languages]="profile().languages" [newLanguage]="newLanguage()"
+          [predefinedSkills]="predefinedSkills"
+          [langTitle]="getSectionTitle('languages', 'Languages')"
+          [filteredSuggestions]="filteredSuggestions()"
+          (onSkillInput)="onSkillInput($event)"
+          (addCustomSkill)="addCustomSkill($event.name, $event.category, $event.inputElement)"
+          (addSkill)="addSkill($event.name, $event.category)" (removeSkill)="deleteItem($event, 'skills')"
+          (selectSuggestion)="selectSuggestion($event.suggestion, $event.inputElement)"
+          (reorder)="drop($event, 'skills')" (addLanguage)="saveLanguage()" (removeLanguage)="removeLanguage($event)"
+          (updateNewLanguage)="updateNewLanguage($event.field, $event.value)">
+        </app-skills>
+        }
+
         @if (currentStep() === 'projets') {
         <app-projects [projects]="profile().projets" [extracurriculars]="extracurriculars()"
           [isAddingProject]="isAddingProject()" [isAddingExtracurricular]="isAddingExtracurricular()"
           [newProject]="newProject()" [newExtracurricular]="newExtracurricular()"
           [sectionTitle]="getSectionTitle('projets', 'ACADEMIC & PERSONAL PROJECTS')"
-          [isEditingTitle]="editingSection() === 'projets'" [activeTab]="activeProjectTab()"
+          [isEditingTitle]="editingSection() === 'projets'"
           [extraTitle]="getSectionTitle('extraCurricular', 'EXTRACURRICULAR ACTIVITIES & VOLUNTEERING')"
-          [isEditingExtraTitle]="editingSection() === 'extraCurricular'"
+          [isEditingExtraTitle]="editingSection() === 'extraCurricular'" [activeTab]="activeProjectTab()"
           (tabChange)="onProjectTabChange($event)" (addToggle)="toggleAddProject()" (save)="saveProject()"
           (updateNew)="updateNewItem('project', $event.field, $event.value)" (edit)="editItem($event, 'project')"
           (duplicate)="duplicateItem($event, 'project')" (delete)="deleteItem($event, 'projets')"
@@ -201,27 +244,9 @@
           (saveExtra)="saveExtracurricular()" (updateNewExtra)="updateNewExtracurricular($event.field, $event.value)"
           (editExtra)="editExtracurricular($event)" (deleteExtra)="deleteExtracurricular($event)"
           (titleEditStart)="startEditingSection('projets')" (titleEditSave)="updateSectionTitle('projets', $event)"
-          (extraTitleEditStart)="startEditingSection('extraCurricular')" (extraTitleEditSave)="updateSectionTitle('extraCurricular', $event)">
+          (extraTitleEditStart)="startEditingSection('extraCurricular')"
+          (extraTitleEditSave)="updateSectionTitle('extraCurricular', $event)">
         </app-projects>
-        }
-        @if (currentStep() === 'competences') {
-        <app-skills [skills]="profile().skills" [languages]="profile().languages" [newLanguage]="newLanguage()"
-          [activeTab]="activeSkillsTab()" [sectionTitle]="getSectionTitle('competences', 'Skills & Languages')"
-          [isEditingTitle]="editingSection() === 'competences'" [predefinedSkills]="predefinedSkills"
-          [langTitle]="getSectionTitle('languages', 'Languages')"
-          [isEditingLangTitle]="editingSection() === 'languages'"
-          [filteredSuggestions]="filteredSuggestions()" (tabChange)="activeSkillsTab.set($event)"
-          (onSkillInput)="onSkillInput($event)"
-          (addCustomSkill)="addCustomSkill($event.name, $event.category, $event.inputElement)"
-          (addSkill)="addSkill($event.name, $event.category)" (removeSkill)="deleteItem($event, 'skills')"
-          (selectSuggestion)="selectSuggestion($event.suggestion, $event.inputElement)"
-          (reorder)="drop($event, 'skills')" (addLanguage)="saveLanguage()" (removeLanguage)="removeLanguage($event)"
-          (updateNewLanguage)="updateNewLanguage($event.field, $event.value)"
-          (titleEditStart)="startEditingSection('competences')"
-          (titleEditSave)="updateSectionTitle('competences', $event)"
-          (langTitleEditStart)="startEditingSection('languages')"
-          (langTitleEditSave)="updateSectionTitle('languages', $event)">
-        </app-skills>
         }
 
         @if (currentStep() === 'certifications') {
@@ -236,7 +261,7 @@
 
         @if (currentStep() === 'resume') {
         <app-resume [resume]="profile().resume" [isGeneratingAI]="isGeneratingAI()"
-          (updateResume)="updateResume($event)" (generateAI)="generateAIResume()">
+          (updateResume)="updateResume($event)" (blur)="onResumeBlur()" (generateAI)="generateAIResume()">
         </app-resume>
         }
 
@@ -245,67 +270,115 @@
     }
   </div> <!-- End of form-scroll-container -->
 
-    <!-- NAVIGATION FOOTER -->
-    <div
-      class="bg-white border-t border-slate-200 shrink-0 px-12 py-4 flex items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]"
-      [class.px-4]="true" [class.md:px-12]="true">
-      <button (click)="prev()" [disabled]="currentIndex() === 0"
-        class="flex items-center gap-2 text-slate-500 font-semibold hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm md:text-base">
-        <mat-icon>arrow_back</mat-icon>
-        <span class="hidden sm:inline">Previous</span>
-      </button>
+    @if (!isForcedOnboarding()) {
+      <div class="fixed bottom-6 right-6 z-30">
+        <button (click)="save()" [disabled]="isSaving()"
+          class="btn-primary-next !px-8 !py-3.5 !text-sm font-bold flex items-center gap-2.5 shadow-xl hover:shadow-2xl transition-shadow">
+          @if (isSaving()) {
+            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+          } @else {
+            <mat-icon class="!text-[20px]">save</mat-icon>
+          }
+          {{ isSaving() ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
+    }
 
-      <button (click)="next()" class="btn-primary-next !px-6 md:!px-8 !py-2.5 md:!py-3 !text-sm md:!text-base">
-        <span class="max-w-[120px] md:max-w-none truncate">
-          {{ currentIndex() === steps.length - 1 ? 'Finish' : (isMobile() ? 'Next' : 'Next: ' + nextStepName()) }}
-        </span>
-        <mat-icon>arrow_forward</mat-icon>
-      </button>
-    </div>
+    @if (isForcedOnboarding()) {
+      <!-- NAVIGATION FOOTER -->
+      <div
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 md:px-12 py-4 flex items-center justify-between z-30 shadow-[0_-8px_20px_-4px_rgba(0,0,0,0.06)]">
+        <button (click)="prev()" [disabled]="currentIndex() === 0"
+          class="flex items-center gap-2 text-slate-500 font-semibold hover:text-lslate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm md:text-base">
+          <mat-icon>arrow_back</mat-icon>
+          <span class="hidden sm:inline">Previous</span>
+        </button>
+
+        <div class="flex-1 max-w-xs mx-4">
+          <div class="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+            <span>Profile completion</span>
+            <span>{{ completionPercentage() }}%</span>
+          </div>
+          <div class="h-2 rounded-full bg-gray-200">
+            <div class="h-2 rounded-full bg-brand-500 transition-all duration-300"
+              [style.width.%]="completionPercentage()"></div>
+          </div>
+        </div>
+
+        <button (click)="next()" class="btn-primary-next !px-6 md:!px-8 !py-2.5 md:!py-3 !text-sm md:!text-base">
+          <span class="max-w-[120px] md:max-w-none truncate">
+            {{ currentIndex() === steps.length - 1 ? 'Finish' : (isMobile() ? 'Next' : 'Next: ' + nextStepName()) }}
+          </span>
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+    }
 
     <!-- TOAST NOTIFICATION -->
     @if (showToast()) {
-    <div class="toast-notification animate-fade-slide-up">
-      <mat-icon class="text-emerald-500">check_circle</mat-icon>
-      <span>Changes saved</span>
+    <div class="toast-notification animate-fade-slide-up"
+      [class.!bg-amber-50]="toastMessage() !== 'Changes saved'">
+      <mat-icon [class.text-amber-500]="toastMessage() !== 'Changes saved'"
+        [class.text-emerald-500]="toastMessage() === 'Changes saved'">
+        {{ toastMessage() === 'Changes saved' ? 'check_circle' : 'info' }}
+      </mat-icon>
+      <span>{{ toastMessage() }}</span>
     </div>
     }
 
   </main>
 
-  <!-- PROFILE COMPLETION MODAL -->
-  @if (showCompletionModal()) {
-  <div class="completion-overlay" (click)="dismissCompletionModal()">
-    <div class="completion-modal" (click)="$event.stopPropagation()">
+  <!-- LINKEDIN IMPORT MODAL -->
+  @if (showLinkedInModal()) {
+  <div class="completion-overlay" (click)="closeLinkedInModal()">
+    <div class="completion-modal linkedin-import-modal" (click)="$event.stopPropagation()">
 
       <!-- Close button -->
-      <button (click)="dismissCompletionModal()" class="modal-close-btn">
+      <button (click)="closeLinkedInModal()" class="modal-close-btn">
         <mat-icon>close</mat-icon>
       </button>
 
-      <div class="modal-content-wrapper">
-        <!-- Premium Success Icon -->
-        <div class="success-visual">
-          <div class="success-ring">
-            <mat-icon class="success-check">check</mat-icon>
+      <div class="modal-content-wrapper !items-start !text-left !p-8">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-lg bg-[#EFF6FF] flex items-center justify-center">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="#1A91F0">
+              <path
+                d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+            </svg>
+          </div>
+          <h2 class="modal-headline !m-0 !text-xl">Import from LinkedIn</h2>
+        </div>
+        
+        <p class="text-slate-500 text-sm mb-6 leading-relaxed">
+          Our AI agent will extract your public profile details and instantly synchronize your resume sections.
+        </p>
+
+        <div class="w-full space-y-5">
+          <!-- Input Field: LinkedIn URL -->
+          <div class="form-group flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">LinkedIn Profile URL</label>
+            <input 
+              type="text" 
+              placeholder="https://www.linkedin.com/in/your-username"
+              [ngModel]="linkedinUrl()"
+              (ngModelChange)="linkedinUrl.set($event)"
+              class="linkedin-modal-field w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm focus:border-[#1A91F0] focus:outline-none transition-all"
+              style="height: 44px;"
+            >
           </div>
         </div>
 
-        <!-- Text Block -->
-        <h2 class="modal-headline">Your profile is ready!</h2>
-        <p class="modal-subtext">
-          Everything is saved. You can now use this profile to generate
-          professionally tailored CVs and job applications.
-        </p>
-
-        <!-- Main Actions -->
-        <div class="modal-actions-v2">
-          <button (click)="goToOffers()" class="btn-zety-primary">
-            Build my CV
-            <mat-icon>arrow_forward</mat-icon>
+        <!-- Actions -->
+        <div class="modal-actions-v2 mt-8">
+          <button (click)="executeLinkedInImport()" class="btn-zety-primary linkedin-modal-submit !h-11 !rounded-xl bg-[#1A91F0]">
+            <mat-icon>auto_awesome</mat-icon>
+            Analyze Profile with AI
           </button>
-          <button (click)="goToDashboard()" class="btn-zety-link">
-            Go to Dashboard
+          <button (click)="closeLinkedInModal()" class="btn-zety-link !h-10 text-slate-500 hover:text-slate-800">
+            Cancel
           </button>
         </div>
       </div>

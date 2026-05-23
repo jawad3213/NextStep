@@ -60,3 +60,49 @@ docker-compose.override.yml
 STATUS.md
 .vscode/
 CLAUDE.md
+
+free-angular-tailwind-dashboard-main/
+git-commit.ps1
+
+
+.specify/
+
+# Infrastructure & Secrets
+.env
+.env.prod
+.env.local
+.terraform/
+.vagrant/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.tfvars.json
+.terraform.lock.hcl
+
+# Vagrant
+vagrant-*.log
+
+# Scripts de migration
+extract-microservice.ps1
+setup-microservice-db.ps1
+Guide_Migration_Scripts_NextStep.md
+
+# --- Visual Studio ---
+.vs/
+*.userosscache
+*.sln.docstates
+
+# --- Fichiers temporaires & Logs ---
+*.log
+logs/
+*.bak
+*.tmp
+
+# --- Fichiers de test locaux (Brouillons) ---
+offer.txt
+offer copy.txt
+*copy*.txt
+
+# --- Configurations Locales ---
+appsettings.local.json
+secrets.json

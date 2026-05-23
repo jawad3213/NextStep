@@ -1,0 +1,60 @@
+<div class="step-content">
+  <div class="success-banner">
+    <div class="icon-circle">✓</div>
+    <div>
+      <h3 class="sb-title">Candidature prête !</h3>
+      <p class="sb-desc">Vos documents ont été optimisés pour les systèmes ATS de {{ result?.companyName }}.</p>
+    </div>
+  </div>
+
+  <div class="results-layout">
+    <!-- Colonne CV -->
+    <div class="doc-card">
+      <div class="doc-header">
+        <span class="doc-type">Curriculum Vitae</span>
+        <span class="doc-score">Score ATS: {{ result?.atsScore }}%</span>
+      </div>
+      <div class="doc-preview cv-preview">
+        @if (cvPreviewUrl) {
+          <iframe class="final-cv-frame" [src]="cvPreviewUrl"></iframe>
+        } @else {
+          <div class="final-cv-empty" [class.error]="previewError">
+            <strong>{{ isLoadingPreview ? 'Chargement du PDF final...' : (previewError || 'PDF final en preparation') }}</strong>
+            <span>Le fichier affiche ici est le meme fichier recupere par Telecharger PDF.</span>
+          </div>
+        }
+      </div>
+      <button class="btn-download" (click)="downloadCv()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Télécharger PDF
+      </button>
+    </div>
+
+    <!-- Colonne Email -->
+    <div class="doc-card">
+      <div class="doc-header">
+        <span class="doc-type">Email d'accompagnement</span>
+      </div>
+      <div class="doc-preview email-preview">
+        <div class="email-field">
+          <strong>Sujet :</strong> {{ result?.emailSubject }}
+        </div>
+        <div class="email-field">
+          <strong>À :</strong> {{ result?.recruiterName || 'Recrutement' }}
+        </div>
+        <div class="email-body">
+          {{ result?.emailBody }}
+        </div>
+      </div>
+      <button class="btn-copy" onclick="navigator.clipboard.writeText(document.querySelector('.email-body').innerText); alert('Copié !')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copier le texte
+      </button>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="step-actions">
+    <button class="btn-primary" (click)="finish()">Terminer & Retour au Dashboard</button>
+  </div>
+</div>

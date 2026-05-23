@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace NextStep.Modules.Profile.DTOs
 {
     public class ExperienceDto
@@ -10,6 +12,7 @@ namespace NextStep.Modules.Profile.DTOs
         public string? Missions { get; set; }
         public string? Ville { get; set; }
         public string? Type { get; set; }
+        public List<string> Taches { get; set; } = new();
     }
 
     public class FormationDto
@@ -35,6 +38,7 @@ namespace NextStep.Modules.Profile.DTOs
         public string? DemoUrl { get; set; }
         public string? ImageUrl { get; set; }
         public bool IsUniversity { get; set; }
+        public List<string> Taches { get; set; } = new();
     }
 
     public class CompetenceDto
@@ -91,5 +95,11 @@ namespace NextStep.Modules.Profile.DTOs
         public List<ProjetDto> Projets { get; set; } = new();
         public List<CompetenceDto> Competences { get; set; } = new();
         public List<CertificationDto> Certifications { get; set; } = new();
+    }
+
+    public class LinkedInImportDto
+    {
+        public string? Url { get; set; }
+        public string? RawText { get; set; }
     }
 }

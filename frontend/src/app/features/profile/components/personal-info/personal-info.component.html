@@ -1,26 +1,26 @@
 <div class="form-step-wrapper animate-fade-slide-up space-y-8">
   <!-- Contact summary Header -->
   <div class="flex justify-between items-center mb-0">
-    <h2 class="text-[24px] font-bold text-slate-900">Contact & Identity</h2>
-    <button class="flex items-center gap-1 text-[14px] font-semibold text-[#1A91F0] hover:text-[#0F6EBB] transition-colors">
+    <h2 class="text-xl font-semibold text-slate-900">Contact & Identity</h2>
+    <button class="profile-ta-text-btn">
       <mat-icon class="!w-[18px] !h-[18px] !text-[18px]">lightbulb_outline</mat-icon> Tips
     </button>
   </div>
   <!-- THEME: Identité -->
-  <div class="bg-white border border-slate-200 rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden">
-    <div class="absolute top-0 left-0 w-2 h-full bg-[#1A91F0]"></div>
+  <div class="profile-ta-surface relative overflow-hidden md:p-6">
+    <div class="absolute top-0 left-0 w-2 h-full bg-brand-500"></div>
     
-    <div class="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start">
+    <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
       <!-- PHOTO UPLOAD PRO -->
       <div class="flex flex-col items-center gap-4 group">
         <input #fileInput type="file" class="hidden" accept="image/*" (change)="onPhotoSelected($event)">
         <div (click)="triggerPhotoUpload(fileInput)" 
-             class="relative w-36 h-36 rounded-full border-4 border-slate-50 shadow-xl overflow-hidden cursor-pointer bg-slate-100 transition-transform hover:scale-105 active:scale-95">
+             class="relative w-28 h-28 rounded-full border-4 border-slate-50 shadow-lg overflow-hidden cursor-pointer bg-slate-100 transition-transform hover:scale-105 active:scale-95">
           @if (data?.photoUrl) {
             <img [src]="data.photoUrl" alt="Profile" class="w-full h-full object-cover">
           } @else {
             <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
-              <mat-icon class="!w-16 !h-16 !text-[64px] text-slate-300">account_circle</mat-icon>
+              <mat-icon class="!w-12 !h-12 !text-[48px] text-slate-300">account_circle</mat-icon>
             </div>
           }
           <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1">
@@ -35,7 +35,7 @@
       </div>
 
       <!-- IDENTITY FIELDS -->
-      <div class="flex-1 w-full space-y-8">
+      <div class="flex-1 w-full space-y-6">
         <div class="flex flex-col md:flex-row items-start md:items-center gap-2 mb-2">
           <h3 class="text-[18px] font-black text-[#212121]">Identity Information</h3>
           <div class="hidden md:block h-px flex-1 bg-slate-100"></div>
@@ -46,8 +46,8 @@
             <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">First Name</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">person_outline</mat-icon>
-              <input type="text" [value]="data?.firstName || ''" (input)="updateField('firstName', $any($event.target).value)" 
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all"
+              <input type="text" [value]="data?.firstName || ''" (input)="updateField('firstName', $any($event.target).value)" (blur)="onFieldBlur('firstName', $any($event.target).value)" 
+                     class="profile-ta-input profile-ta-input-with-icon"
                      placeholder="First Name">
             </div>
           </div>
@@ -55,8 +55,8 @@
             <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
             <div class="relative">
               <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300">badge</mat-icon>
-              <input type="text" [value]="data?.lastName || ''" (input)="updateField('lastName', $any($event.target).value)" 
-                     class="w-full h-[52px] pl-11 pr-4 bg-[#F8FAFC] border border-slate-200 rounded-2xl text-[15px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white focus:shadow-lg focus:shadow-blue-500/5 transition-all"
+              <input type="text" [value]="data?.lastName || ''" (input)="updateField('lastName', $any($event.target).value)" (blur)="onFieldBlur('lastName', $any($event.target).value)" 
+                     class="profile-ta-input profile-ta-input-with-icon"
                      placeholder="Last Name">
             </div>
           </div>
@@ -65,11 +65,11 @@
         <div class="field-group">
           <label class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Target Position / Current Title</label>
           <div class="relative">
-            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[20px] text-[#1A91F0]">stars</mat-icon>
-            <input type="text" [value]="data?.jobTitle || ''" (input)="updateField('jobTitle', $any($event.target).value)" 
-                   class="w-full h-[56px] pl-12 pr-12 bg-white border-2 border-slate-100 rounded-2xl text-[16px] font-black text-[#212121] outline-none focus:border-[#1A91F0] focus:shadow-xl transition-all"
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[20px] text-brand-500">stars</mat-icon>
+            <input type="text" [value]="data?.jobTitle || ''" (input)="updateField('jobTitle', $any($event.target).value)" (blur)="onFieldBlur('jobTitle', $any($event.target).value)" 
+                   class="profile-ta-input pl-12 pr-12 font-semibold"
                    placeholder="ex: Senior Fullstack Developer">
-            <button class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-[#E8F4FD] hover:text-[#1A91F0] rounded-xl transition-colors" matTooltip="Improve with AI">
+            <button class="absolute right-3 top-1/2 profile-ta-icon-btn !h-9 !w-9 -translate-y-1/2" matTooltip="Improve with AI">
               <mat-icon class="!text-[20px]">auto_awesome</mat-icon>
             </button>
           </div>
@@ -78,11 +78,11 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
     <!-- CONTACT CARD -->
-    <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
-      <div class="flex items-center gap-3 mb-8">
-        <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-[#1A91F0]">
+    <div class="profile-ta-surface">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-500">
           <mat-icon class="!text-[20px]">contact_mail</mat-icon>
         </div>
         <h3 class="text-[16px] font-black text-[#212121] uppercase tracking-wide">Contact Details</h3>
@@ -92,28 +92,29 @@
         <div class="field-group">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Professional Email</label>
           <div class="relative group">
-            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-[#1A91F0] transition-colors">alternate_email</mat-icon>
-            <input type="email" [value]="data?.email || ''" (input)="updateField('email', $any($event.target).value)" 
-                   class="w-full h-[48px] pl-11 pr-4 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white transition-all"
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-brand-500 transition-colors">alternate_email</mat-icon>
+            <input type="email" [value]="data?.email || ''" (input)="updateField('email', $any($event.target).value)" (blur)="onFieldBlur('email', $any($event.target).value)" 
+                   class="profile-ta-input profile-ta-input-with-icon"
                    placeholder="email@example.com">
           </div>
         </div>
         <div class="field-group">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Phone Number</label>
           <div class="relative group">
-            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-[#1A91F0] transition-colors">phone_iphone</mat-icon>
-            <input type="tel" [value]="data?.phone || ''" (input)="updateField('phone', $any($event.target).value)" 
-                   class="w-full h-[48px] pl-11 pr-4 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white transition-all"
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-brand-500 transition-colors">phone_iphone</mat-icon>
+            <input type="tel" [value]="data?.phone || ''" (input)="updateField('phone', $any($event.target).value)" (blur)="onFieldBlur('phone', $any($event.target).value)" 
+                   class="profile-ta-input profile-ta-input-with-icon"
                    placeholder="+212 600 000 000">
           </div>
         </div>
         <div class="field-group">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Location</label>
           <div class="relative group">
-            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-[#1A91F0] transition-colors">push_pin</mat-icon>
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-brand-500 transition-colors">push_pin</mat-icon>
             <input type="text" #locInput [value]="(data?.city || '') + (data?.country ? ', ' + data.country : '')" 
                    (input)="updateField('city', locInput.value.split(',')[0].trim()); updateField('country', locInput.value.split(',')[1] ? locInput.value.split(',')[1].trim() : '')"
-                   class="w-full h-[48px] pl-11 pr-4 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-[#212121] outline-none focus:border-[#1A91F0] focus:bg-white transition-all"
+                   (blur)="onFieldBlur('city', locInput.value.split(',')[0].trim()); onFieldBlur('country', locInput.value.split(',')[1] ? locInput.value.split(',')[1].trim() : '')"
+                   class="profile-ta-input profile-ta-input-with-icon"
                    placeholder="City, Country">
           </div>
         </div>
@@ -121,9 +122,9 @@
     </div>
 
     <!-- SOCIAL & LINKS -->
-    <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
-      <div class="flex items-center gap-3 mb-8">
-        <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#1A91F0]">
+    <div class="profile-ta-surface">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-500">
           <mat-icon class="!text-[20px]">public</mat-icon>
         </div>
         <h3 class="text-[16px] font-black text-[#212121] uppercase tracking-wide">Social Networks</h3>
@@ -136,20 +137,29 @@
             <div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center">
               <svg class="w-5 h-5 text-slate-300 group-focus-within:text-[#0077b5] transition-colors" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
             </div>
-            <input type="text" [value]="data?.linkedinUrl || ''" (input)="updateField('linkedinUrl', $any($event.target).value)" 
-                   class="w-full h-[48px] pl-11 pr-4 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-[#212121] outline-none focus:border-[#0077b5] focus:bg-white transition-all"
+            <input type="text" [value]="data?.linkedinUrl || ''" (input)="updateField('linkedinUrl', $any($event.target).value)" (blur)="onFieldBlur('linkedinUrl', $any($event.target).value)" 
+                   class="profile-ta-input profile-ta-input-with-icon"
                    placeholder="linkedin.com/in/nom">
           </div>
         </div>
         <div class="field-group">
-          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">GitHub / Portfolio</label>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">GitHub</label>
           <div class="relative group">
             <div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center">
               <svg class="w-5 h-5 text-slate-300 group-focus-within:text-[#333] transition-colors" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
             </div>
-            <input type="text" [value]="data?.githubUrl || ''" (input)="updateField('githubUrl', $any($event.target).value)" 
-                   class="w-full h-[48px] pl-11 pr-4 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-[#212121] outline-none focus:border-[#333] focus:bg-white transition-all"
+            <input type="text" [value]="data?.githubUrl || ''" (input)="updateField('githubUrl', $any($event.target).value)" (blur)="onFieldBlur('githubUrl', $any($event.target).value)" 
+                   class="profile-ta-input profile-ta-input-with-icon"
                    placeholder="github.com/nom">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Portfolio</label>
+          <div class="relative group">
+            <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-brand-500 transition-colors">language</mat-icon>
+            <input type="text" [value]="data?.portfolioUrl || ''" (input)="updateField('portfolioUrl', $any($event.target).value)" (blur)="onFieldBlur('portfolioUrl', $any($event.target).value)" 
+                   class="profile-ta-input profile-ta-input-with-icon"
+                   placeholder="yourportfolio.com">
           </div>
         </div>
       </div>

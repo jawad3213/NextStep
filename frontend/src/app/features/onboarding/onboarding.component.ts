@@ -89,8 +89,11 @@ export class OnboardingComponent implements OnInit {
     this.isSubmitting.set(true);
     this.onboardingService.submitSoftOnboarding(this.onboardingData).subscribe({
       next: () => {
-        localStorage.removeItem(this.STORAGE_KEY); // Clean up after success
-        this.router.navigate(['/dashboard']);
+        localStorage.removeItem(this.STORAGE_KEY);
+        localStorage.setItem('nextstep_soft_onboarding_done', 'true');
+        this.router.navigate(['/profile'], {
+          queryParams: { step: 'coordonnees' }
+        });
       },
       error: (err) => {
         console.error('Onboarding failed', err);

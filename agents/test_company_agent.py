@@ -1,143 +1,166 @@
-# ============================================================
-# test_company_agent.py
-# Script de test pour le Company Intelligence Agent.
-# ============================================================
-import asyncio
-import os
-import logging
+import argparse
+import json
 import sys
-import io
-from app.domain.company.service import company_service
+from typing import Any
 
-# Forcer sys.stdout en UTF-8 pour Windows
-if sys.platform.startswith("win"):
+import requests
+
+
+def _pretty(data: Any) -> str:
+    return json.dumps(data, indent=2, ensure_ascii=False)
+
+
+def _quality_checks(result: dict) -> list[str]:
+    checks: list[str] = []
+    intel = result.get("intelligence") or {}
+    score = result.get("score")
+    recs = result.get("recommendations") or []
+    summary = result.get("summary")
+    skill_gap = result.get("skill_gap")
+
+    if intel:
+        checks.append("OK: intelligence payload present")
+    else:
+        checks.append("KO: intelligence payload is empty")
+
+    if isinstance(score, int) and 0 <= score <= 100:
+        checks.append(f"OK: score in range [0..100] -> {score}")
+    else:
+        checks.append(f"KO: invalid score -> {score}")
+
+    if isinstance(summary, str) and summary.strip():
+        checks.append("OK: summary generated")
+    else:
+        checks.append("KO: summary missing")
+
+    if isinstance(recs, list):
+        checks.append(f"OK: recommendations list size = {len(recs)}")
+    else:
+        checks.append("KO: recommendations is not a list")
+
+    if skill_gap is not None:
+        checks.append("OK: skill_gap present")
+    else:
+        checks.append("WARN: skill_gap missing/null")
+
+    culture = (intel or {}).get("culture")
+    if isinstance(culture, dict) and culture:
+        checks.append("OK: culture data present")
+    else:
+        checks.append("WARN: culture data missing/empty")
+
+    salaries = (intel or {}).get("salaries")
+    if isinstance(salaries, list):
+        checks.append(f"OK: salaries entries = {len(salaries)}")
+    else:
+        checks.append("WARN: salaries missing/not a list")
+
+    return checks
+
+
+def build_payload(user_id: str, company_name: str, job_title: str) -> dict:
+    return {
+        "company_name": company_name,
+        "user_id": user_id,
+        "profile_data": {
+            "competences": [
+                {"nom": "Python", "type_competence": "hard_skill", "niveau": 4},
+                {"nom": "Docker", "type_competence": "hard_skill", "niveau": 3},
+                {"nom": "AWS", "type_competence": "hard_skill", "niveau": 3},
+            ],
+            "experiences": [
+                {
+                    "titre": "Software Engineer",
+                    "entreprise": "TechCorp",
+                    "description": "Backend APIs, cloud deployment, data pipelines",
+                }
+            ],
+            "projets": [
+                {
+                    "titre": "RAG Platform",
+                    "description": "Vector DB + embeddings + APIs",
+                    "technologies": ["Python", "FastAPI", "Docker", "AWS"],
+                }
+            ],
+            "resume": "Ingénieur logiciel orienté IA, backend et cloud.",
+        },
+        "offer_data": {
+            "titre": job_title,
+            "entreprise": company_name,
+            "typeContrat": "CDI",
+            "localisation": "Lyon",
+            "competencesRequises": [
+                "Infrastructure as Code (Terraform)",
+                "Vector Databases",
+                "Node.js",
+                "Golang",
+                "AWS",
+            ],
+            "competencesSouhaitees": ["LangChain", "LlamaIndex"],
+            "keywordsAts": [
+                "Terraform",
+                "Vector Databases",
+                "AWS",
+                "Node.js",
+                "Golang",
+                "LangChain",
+                "LlamaIndex",
+                "MongoDB",
+                "DynamoDB",
+            ],
+            "descriptionPoste": "Construire des systèmes RAG robustes à grande échelle.",
+        },
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Test standalone de l'agent company via HTTP API")
+    parser.add_argument("--base-url", default="http://localhost:8000", help="Base URL API agents")
+    parser.add_argument("--user-id", required=True, help="UUID utilisateur")
+    parser.add_argument("--company", default="Lumina AI", help="Nom de l'entreprise")
+    parser.add_argument("--job-title", default="Ingénieur Software - AI Systems & Data", help="Intitulé du poste")
+    parser.add_argument("--timeout", type=int, default=180, help="Timeout HTTP en secondes")
+    parser.add_argument("--raw", action="store_true", help="Afficher seulement le JSON brut")
+    args = parser.parse_args()
+
+    url = f"{args.base_url.rstrip('/')}/company/analyze-company"
+    payload = build_payload(args.user_id, args.company, args.job_title)
+
+    print(f"[INFO] POST {url}")
+    print(f"[INFO] company={args.company} job_title={args.job_title} user_id={args.user_id}")
+
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
-    except AttributeError:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
-# Configuration du logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-async def test_run():
-    """
-    Lance une exécution de test pour une entreprise réelle.
-    """
-    company_name = "SQLI Maroc"
-    job_title = "Développeur Full Stack"
-    
-    logger.info(f"🚀 Démarrage du test pour {company_name}...")
-    
-    try:
-        result = await company_service.get_company_intelligence(
-            company_name=company_name,
-            job_title=job_title,
-            user_id="test_user_123"
-        )
-        
-        intel = result.get('intelligence', {})
-        
-        print("\n" + "═" * 70)
-        print(f" 📑 FICHE DÉTAILLÉE D'INTELLIGENCE : {intel.get('nom', company_name).upper()}")
-        print("═" * 70)
-        
-        print(f"🏢 Secteur             : {intel.get('sector', 'N/A')}")
-        print(f"📍 Siège Social         : {intel.get('hq_location', 'N/A')}")
-        print(f"🔗 LinkedIn URL        : {intel.get('linkedin_url', 'N/A')}")
-        print(f"🎯 Score de Fit Global : {result.get('score', 'N/A')}%")
-        
-        print("\n📝 PRÉSENTATION GÉNÉRALE :")
-        print("─" * 50)
-        print(intel.get('summary', 'Aucun résumé disponible.'))
-        
-        culture = intel.get('culture', {})
-        print("\n🌱 CULTURE D'ENTREPRISE :")
-        print("─" * 50)
-        print(f"  • Score de Culture : {culture.get('culture_score', 'N/A')}/100")
-        print(f"  • Équilibre Vie Pro/Perso : {culture.get('work_life_balance', 'N/A')}/5")
-        print(f"  • Note Glassdoor : {culture.get('glassdoor_rating', 'N/A')}/5")
-        print(f"  • Taux de Turnover : {culture.get('turnover_rate', 'N/A')}")
-        print(f"  • Valeurs Clés : {', '.join(culture.get('key_values', []))}")
-        print("  • Avis marquants :")
-        for review in culture.get('top_reviews', []):
-            print(f"    - \"{review}\"")
-            
-        salaries = intel.get('salaries', [])
-        print("\n💰 INTÉGRATION DES SALAIRES :")
-        print("─" * 50)
-        if salaries:
-            for sal in salaries:
-                seniority = f" [{sal.get('seniority')}]" if sal.get('seniority') else ""
-                period_str = "mois" if sal.get('period') == "month" else "an"
-                print(f"  • Poste : {sal.get('job_title')}{seniority}")
-                print(f"    - Localisation : {sal.get('location', 'N/A')}")
-                print(f"    - Salaire Moyen : {sal.get('avg_salary', 'N/A')} {sal.get('currency', 'EUR')} / {period_str}")
-                print(f"    - Fourchette : {sal.get('min_salary', 'N/A')} - {sal.get('max_salary', 'N/A')} {sal.get('currency', 'EUR')} / {period_str}")
-                print(f"    - Source : {sal.get('source', 'N/A')}")
-        else:
-            print("  Aucune donnée de salaire disponible.")
-            
-        print("\n📰 ACTUALITÉS ET FAITS MARQUANTS :")
-        print("─" * 50)
-        actualites = intel.get('actualites', [])
-        if actualites:
-            for act in actualites:
-                print(f"  • {act}")
-        else:
-            print("  Aucun fait d'actualité disponible.")
-
-        print("\n🤝 SÉCURISATION DE L'ENTRETIEN (GLASS DOOR & RETOURS) :")
-        print("─" * 50)
-        print(f"  • Difficulté estimée : {intel.get('interview_difficulty', 'N/A').upper()}")
-        print("  • Questions d'entretien connues :")
-        questions = intel.get('interview_questions', [])
-        if questions:
-            for q in questions:
-                print(f"    - \"{q}\"")
-        else:
-            print("    Aucune question répertoriée.")
-
-        print("\n⚖️ FORCES ET FAIBLESSES :")
-        print("─" * 50)
-        print("  🟢 Points forts (Pros) :")
-        for pro in intel.get('pros', []):
-            print(f"    + {pro}")
-        print("  🔴 Points faibles (Cons) :")
-        for con in intel.get('cons', []):
-            print(f"    - {con}")
-            
-        print(f"\n📈 Perspectives d'Évolution de Carrière :")
-        print("─" * 50)
-        print(f"  {intel.get('career_opportunities', 'N/A')}")
-            
-        print("\n💡 RECOMMANDATIONS STRATÉGIQUES POUR L'ENTRETIEN :")
-        print("─" * 50)
-        for rec in result.get('recommendations', []):
-            print(f"  👉 {rec}")
-        print("═" * 70 + "\n")
-
-        # Test de la sauvegarde optionnelle en base de données Postgres
-        # print("💾 Tentative de sauvegarde en base de données Postgres...")
-        # from app.core.database import AsyncSessionFactory
-        # try:
-        #     async with AsyncSessionFactory() as session:
-        #         db_result = await company_service.save_company_intelligence(
-        #             db=session,
-        #             intelligence_data=result
-        #         )
-        #         if db_result:
-        #             print(f"✅ SAUVEGARDE EN BASE DE DONNÉES REUSSIE !")
-        #             print(f"  • ID de l'enregistrement : {db_result.get('id')}")
-        #             print(f"  • Date de collecte : {db_result.get('date_collecte')}")
-        #             print("═" * 70 + "\n")
-        # except Exception as db_err:
-        #     logger.warning(f"⚠️ Échec de la sauvegarde en base de données : {db_err}")
-        #     print("═" * 70 + "\n")
-        
+        resp = requests.post(url, json=payload, timeout=args.timeout)
     except Exception as e:
-        logger.error(f"❌ Erreur pendant le test : {e}")
+        print(f"[ERROR] Request failed: {e}")
+        return 2
+
+    print(f"[INFO] status={resp.status_code}")
+    try:
+        data = resp.json()
+    except Exception:
+        print("[ERROR] Non-JSON response:")
+        print(resp.text)
+        return 3
+
+    if args.raw:
+        print(_pretty(data))
+        return 0 if resp.ok else 1
+
+    print("\n=== RESPONSE JSON ===")
+    print(_pretty(data))
+
+    print("\n=== QUALITY CHECKS ===")
+    for line in _quality_checks(data):
+        print(f"- {line}")
+
+    if not resp.ok:
+        print("\n[RESULT] FAIL (HTTP not OK)")
+        return 1
+
+    print("\n[RESULT] DONE")
+    return 0
+
 
 if __name__ == "__main__":
-    # Assurez-vous d'avoir exporté votre clé API (OPENAI_API_KEY ou GROQ_API_KEY)
-    asyncio.run(test_run())
+    sys.exit(main())

@@ -12,11 +12,10 @@ import { EmailWorkspaceComponent } from './features/candidatures/email-workspace
 import { GmailSettingsComponent } from './features/settings/gmail-settings/gmail-settings.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '', redirectTo: 'offers', pathMatch: 'full' },
   {
-    path: 'onboarding',
-    component: OnboardingComponent,
-    canActivate: [authGuard, alreadyOnboardedGuard],
+    path: 'signup',
+    loadComponent: () => import('./features/signup/signup.component').then(m => m.SignupComponent),
   },
   {
     path: '',
@@ -24,52 +23,62 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       {
+        path: 'onboarding',
+        component: OnboardingComponent,
+        canActivate: [alreadyOnboardedGuard],
+      },
+      {
         path: 'profile',
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/profile/profile.component').then(m => m.UserProfileComponent)
       },
-      { 
-        path: 'dashboard', 
-        component: DashboardComponent, 
-        canActivate: [onboardingGuard] 
-      },
+      { path: 'dashboard', component: DashboardComponent, canActivate: [onboardingGuard] },
       { 
         path: 'offers', 
-        component: OffersComponent 
+        loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
+      },
+      { 
+        path: 'offers-recent', 
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offers-recent.component').then(m => m.OffersRecentComponent) 
       },
       { 
         path: 'cv', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/cv-builder/cv-builder.component').then(m => m.CvBuilderComponent) 
       },
       { 
         path: 'letters', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/letters/letters.component').then(m => m.LettersComponent) 
       },
-      {
-        path: 'candidatures',
-        component: ApplicationsComponent
-      },
-      {
-        path: 'candidatures/:candidatureId/email',
-        component: EmailWorkspaceComponent
+      { 
+        path: 'applications', 
+        loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
       },
       { 
         path: 'company-intel', 
-        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent) 
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offers-company.component').then(m => m.OffersCompanyComponent) 
       },
       { 
         path: 'skill-gap', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/skill-gap/skill-gap.component').then(m => m.SkillGapComponent) 
       },
       { 
         path: 'chatbot', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/chatbot/chatbot.component').then(m => m.ChatbotComponent) 
       },
       { 
         path: 'notifications', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/notifications/notifications.component').then(m => m.NotificationsComponent) 
       },
       { 
         path: 'settings', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
       },
       {

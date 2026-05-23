@@ -1,45 +1,35 @@
 <div class="onboarding-page">
-  <!-- Navbar inspired by Zety -->
-  <nav class="onboarding-nav">
-    <div class="nav-content">
-      <img src="/N-removebg-preview.png" alt="NextStep Logo" class="nav-logo" />
-    </div>
-  </nav>
-
   <main class="onboarding-main">
     <div class="onboarding-content">
-      
-      <!-- Section 1: Objectif -->
-      <section class="onboarding-section reveal">
-        <div class="section-header">
-          <h1 class="zety-title">What is your current goal?</h1>
-          <p class="zety-subtitle">We will tailor the experience based on your choice.</p>
+      <section class="profile-ta-surface reveal">
+        <div class="flex flex-col items-center text-center">
+          <h1 class="text-xl font-bold text-gray-900 md:text-2xl">What is your current goal?</h1>
+          <p class="mt-2 text-sm text-gray-500">We will tailor the experience based on your choice.</p>
         </div>
 
-        <div class="zety-grid">
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
           @for (opt of objectifOptions; track opt[0]) {
-            <button class="zety-button" 
-                    (click)="selectObjectif(opt[0])" 
-                    [class.selected]="onboardingData.objectif === opt[0]">
+            <button class="profile-ta-segment-btn min-w-[180px]"
+                    (click)="selectObjectif(opt[0])"
+                    [class.profile-ta-segment-btn-active]="onboardingData.objectif === opt[0]">
               {{ opt[1] }}
             </button>
           }
         </div>
       </section>
 
-      <!-- Section 2: Niveau (Apparaît après choix 1) -->
       @if (showSection2()) {
-        <section class="onboarding-section reveal">
-          <div class="section-header">
-            <h2 class="zety-title">Your experience level?</h2>
-            <p class="zety-subtitle">This helps us personalize your recommendations.</p>
+        <section class="profile-ta-surface reveal">
+          <div class="flex flex-col items-center text-center">
+            <h2 class="text-xl font-bold text-gray-900 md:text-2xl">Your experience level?</h2>
+            <p class="mt-2 text-sm text-gray-500">This helps us personalize your recommendations.</p>
           </div>
 
-          <div class="zety-grid">
+          <div class="mt-8 flex flex-wrap justify-center gap-3">
             @for (niv of niveauOptions; track niv[0]) {
-              <button class="zety-button" 
-                      (click)="selectNiveau(niv[0])" 
-                      [class.selected]="onboardingData.niveau === niv[0]">
+              <button class="profile-ta-segment-btn min-w-[180px]"
+                      (click)="selectNiveau(niv[0])"
+                      [class.profile-ta-segment-btn-active]="onboardingData.niveau === niv[0]">
                 {{ niv[1] }}
               </button>
             }
@@ -47,38 +37,35 @@
         </section>
       }
 
-      <!-- Section 3: Secteur (Apparaît après choix 2) -->
       @if (showSection3()) {
-        <section class="onboarding-section reveal">
-          <div class="section-header">
-            <h2 class="zety-title">Which industry interests you?</h2>
-            <p class="zety-subtitle">Last step to set up your dashboard.</p>
+        <section class="profile-ta-surface reveal">
+          <div class="flex flex-col items-center text-center">
+            <h2 class="text-xl font-bold text-gray-900 md:text-2xl">Which industry interests you?</h2>
+            <p class="mt-2 text-sm text-gray-500">Last step to set up your dashboard.</p>
           </div>
 
-          <div class="zety-grid zety-grid--sectors">
+          <div class="mt-8 flex flex-wrap justify-center gap-3">
             @for (sec of secteurOptions; track sec[0]) {
-              <button class="zety-button zety-button--small" 
-                      (click)="selectSecteur(sec[0])" 
-                      [class.selected]="onboardingData.secteur === sec[0]">
+              <button class="profile-ta-segment-btn min-w-[140px]"
+                      (click)="selectSecteur(sec[0])"
+                      [class.profile-ta-segment-btn-active]="onboardingData.secteur === sec[0]">
                 {{ sec[1] }}
               </button>
             }
           </div>
 
-          <div class="action-container">
-            <button class="zety-btn-finish" 
-                    [disabled]="!onboardingData.secteur || isSubmitting()" 
+          <div class="mt-10 flex justify-center">
+            <button class="profile-ta-primary-btn min-w-[200px] px-8 py-3 text-base"
+                    [disabled]="!onboardingData.secteur || isSubmitting()"
                     (click)="finish()">
               {{ isSubmitting() ? 'Initializing...' : 'Finish' }}
             </button>
           </div>
         </section>
       }
-
     </div>
   </main>
 
-  <!-- Footer inspired by Zety -->
   <footer class="onboarding-footer">
     <div class="footer-content">
       <div class="footer-links">

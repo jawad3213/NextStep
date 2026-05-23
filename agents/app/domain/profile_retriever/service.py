@@ -26,7 +26,20 @@ def async_ttl_cache(ttl_seconds: int = 300):
             # Sinon, exécuter la fonction et mettre en cache
             logger.info(f"[Cache] Miss pour user_id={user_id}. Récupération DB...")
             result = await func(self, user_id, *args, **kwargs)
-            cache[user_id] = (now, result)
+
+            # Do not cache empty/invalid profiles: this avoids freezing bad data for 5 minutes.
+            profile = (result or {}).get("profile_data") if isinstance(result, dict) else None
+            has_min_profile = isinstance(profile, dict) and (
+                bool(profile.get("competences"))
+                or bool(profile.get("experiences"))
+                or bool(profile.get("projets"))
+                or bool(profile.get("resume"))
+                or bool(profile.get("titre"))
+            )
+            if has_min_profile:
+                cache[user_id] = (now, result)
+            else:
+                logger.warning(f"[Cache] Skip cache for user_id={user_id} (profil vide/incomplet)")
             return result
         return wrapper
     return decorator

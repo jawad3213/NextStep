@@ -17,11 +17,12 @@ type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 // Sub-components
 import { ProfileStepperComponent } from './stepper/profile-stepper.component';
 import { PersonalInfoComponent } from './components/personal-info/personal-info.component';
-import { ProjectsComponent } from './components/projects/projects.component';
+
 import { CertificationsComponent } from './components/certifications/certifications.component';
 import { ExperienceComponent } from './components/experience/experience.component';
 import { FormationComponent } from './components/formation/formation.component';
 import { SkillsComponent } from './components/skills/skills.component';
+import { ProjectsComponent } from './components/projects/projects.component';
 import { ResumeComponent } from './components/resume/resume.component';
 
 
@@ -35,11 +36,12 @@ import { ResumeComponent } from './components/resume/resume.component';
     DragDropModule,
     ProfileStepperComponent,
     PersonalInfoComponent,
-    ProjectsComponent,
+
     CertificationsComponent,
     ExperienceComponent,
     FormationComponent,
     SkillsComponent,
+    ProjectsComponent,
     ResumeComponent,
     FormsModule,
     ReactiveFormsModule
@@ -49,6 +51,7 @@ import { ResumeComponent } from './components/resume/resume.component';
   encapsulation: ViewEncapsulation.None
 })
 export class UserProfileComponent implements OnInit, OnDestroy {
+  private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   profileService = inject(ProfileService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -58,6 +61,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   
   ngOnInit() {
     this.profileService.refreshProfile();
+    this.refreshOnboardingStatus();
 
     // Recover step from URL query params
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
@@ -67,9 +71,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Professional Debounced Auto-save logic
+    // Save on blur with a short debounce to coalesce rapid blur events
     this.autoSave$.pipe(
-      debounceTime(1500),
+      debounceTime(300),
       takeUntil(this.destroy$)
     ).subscribe(() => {
       this.save();
@@ -86,23 +90,11 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isSaving = signal(false);
   lastSaved = signal<Date | null>(new Date());
   showToast = signal(false);
-  showCompletionModal = signal(false);
+  isForcedOnboarding = signal(false);
+  toastMessage = signal('Changes saved');
+  showInsufficientToast = signal(false);
   private lastSavedSnapshot: string = '';
 
-  // Profile completion stats for the finish modal
-  profileCompletion = computed(() => {
-    const p = this.profile();
-    let filled = 0;
-    const total = 7;
-    if (p.personal?.firstName || p.personal?.lastName) filled++;
-    if (p.education?.length > 0) filled++;
-    if (p.experience?.length > 0) filled++;
-    if (p.skills?.length > 0) filled++;
-    if (p.resume) filled++;
-    if (p.projets?.length > 0) filled++;
-    if (p.certifications?.length > 0) filled++;
-    return { filled, total, percent: Math.round((filled / total) * 100) };
-  });
   
   // Section States
   isAddingFormation = signal(false);
@@ -129,12 +121,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newExperience = signal<Experience>({
     id: '', title: '', company: '', city: '', 
     startDate: '', endDate: '', current: false, 
-    type: 'Internship', description: ''
+    type: 'Internship', description: '', taches: []
   });
 
   newProject = signal<Project>({
     id: '', title: '', description: '', stack: [], 
-    githubUrl: '', demoUrl: '', isUniversity: false
+    githubUrl: '', demoUrl: '', isUniversity: false, taches: []
   });
 
   newCertification = signal<Certification>({
@@ -147,11 +139,10 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   newExtracurricular = signal<Experience>({
     id: '', title: '', company: '', city: '',
     startDate: '', endDate: '', current: false,
-    type: 'Extracurricular', description: ''
+    type: 'Extracurricular', description: '', taches: []
   });
 
   activeProjectTab = signal<'projects' | 'extracurriculars'>('projects');
-  activeSkillsTab = signal<'skills' | 'languages'>('skills');
   
   private breakpointObserver = inject(BreakpointObserver);
 
@@ -163,6 +154,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
   profile = this.profileService.profile;
   currentStep = this.profileService.currentStep;
+  completionPercentage = this.profileService.completionPercentage;
+  missingSections = this.profileService.missingSections;
 
   // Split experiences
   workExperiences = computed(() => this.profile().experience.filter((e: any) => e.type !== 'Extracurricular'));
@@ -173,8 +166,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     { id: 'experience', label: 'Experience' },
     { id: 'formation', label: 'Education' },
     { id: 'competences', label: 'Skills' },
-    { id: 'resume', label: 'Summary' },
     { id: 'projets', label: 'Projects' },
+    { id: 'resume', label: 'Summary' },
     { id: 'certifications', label: 'Certifications' }
   ];
 
@@ -205,28 +198,36 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     if (nextIdx < this.steps.length) {
       this.goToStep(this.steps[nextIdx].id);
     } else {
-      // Last step → Finish
+      if (this.completionPercentage() < 85) {
+        this.toastMessage.set('Complete at least 85% of your profile to continue');
+        this.showToast.set(true);
+        setTimeout(() => {
+          this.showToast.set(false);
+          this.toastMessage.set('Changes saved');
+        }, 4000);
+        return;
+      }
       await this.finishProfile();
     }
   }
 
   async finishProfile() {
-    await this.save();
-    this.showCompletionModal.set(true);
-  }
-
-  goToDashboard() {
-    this.showCompletionModal.set(false);
-    this.router.navigate(['/dashboard']);
-  }
-
-  goToOffers() {
-    this.showCompletionModal.set(false);
-    this.router.navigate(['/cv']);
-  }
-
-  dismissCompletionModal() {
-    this.showCompletionModal.set(false);
+    if (this.isForcedOnboarding()) {
+      await this.profileService.flushOnboardingData();
+      this.showToast.set(true);
+      setTimeout(() => this.showToast.set(false), 3000);
+    } else {
+      await this.save();
+    }
+    this.isForcedOnboarding.set(false);
+    this.profileService.isOnboarding.set(false);
+    localStorage.setItem(this.profileUnlockedKey, 'true');
+    localStorage.removeItem('nextstep_soft_onboarding_done');
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { step: 'coordonnees' },
+      queryParamsHandling: 'merge'
+    });
   }
 
   async prev() {
@@ -240,7 +241,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     const currentPersonal = { ...this.profile().personal };
     (currentPersonal as any)[field] = value;
     this.profileService.updateProfile({ personal: currentPersonal });
-    this.autoSave$.next();
+  }
+
+  onFieldBlur(field: string, value: any) {
+    const currentPersonal = { ...this.profile().personal };
+    (currentPersonal as any)[field] = value;
+    this.profileService.updateProfile({ personal: currentPersonal });
   }
 
   togglePreview() {
@@ -248,9 +254,15 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   async save() {
-    const currentData = JSON.stringify(this.profile().personal);
+    if (this.isForcedOnboarding()) return;
+
+    const snapshot = {
+      personal: this.profile().personal,
+      resume: this.profile().resume,
+      sectionTitles: this.profile().sectionTitles
+    };
+    const currentData = JSON.stringify(snapshot);
     
-    // DIRTY CHECK: Only save if data has actually changed
     if (currentData === this.lastSavedSnapshot) {
       console.log('No changes detected, skipping save.');
       return;
@@ -259,7 +271,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     this.isSaving.set(true);
     try {
       await this.profileService.savePersonalInfo(this.profile().personal);
-      this.lastSavedSnapshot = currentData; // Update snapshot after successful save
+      this.lastSavedSnapshot = currentData;
       this.lastSaved.set(new Date());
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -276,11 +288,17 @@ export class UserProfileComponent implements OnInit, OnDestroy {
         this.newFormation.update(v => ({ ...v, [field]: value }));
         break;
       case 'experience':
+        if (field === 'taches' && typeof value === 'string') {
+          value = value.split(/\r?\n/).map(s => s.trim()).filter(s => s !== '');
+        }
         this.newExperience.update(v => ({ ...v, [field]: value }));
         break;
       case 'project':
         if (field === 'stack' && typeof value === 'string') {
           value = value.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+        if (field === 'taches' && typeof value === 'string') {
+          value = value.split(/\r?\n/).map(s => s.trim()).filter(s => s !== '');
         }
         this.newProject.update(v => ({ ...v, [field]: value }));
         break;
@@ -294,11 +312,49 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   // LinkedIn Import State
   showImportBlock = signal(true);
   isImporting = signal(false);
+  showLinkedInModal = signal(false);
+  linkedinUrl = signal('');
+  linkedinRawText = signal('');
 
   parsingEvents = this.profileService.parsingEvents;
+  importSummary = this.profileService.lastImportSummary;
+  parsingStageCopy = computed(() => {
+    switch (this.parsingStatus()) {
+      case 'analyzing':
+        return {
+          headline: 'AI Extraction Engine',
+          description: 'We are analyzing the structure of your resume and grouping it by profile step.'
+        };
+      case 'structuring':
+        return {
+          headline: 'Preparing Your Profile',
+          description: 'The extracted information is being organized so each profile section can be filled automatically.'
+        };
+      default:
+        return {
+          headline: 'AI Extraction Engine',
+          description: 'Our agents are scanning your document for key experiences and skills.'
+        };
+    }
+  });
+  importSummaryCards = computed(() => {
+    const summary = this.importSummary();
+    if (!summary) return [];
+
+    return [
+      { key: 'contact', label: 'Contact fields', count: summary.personalFields },
+      { key: 'experience', label: 'Experience', count: summary.experienceCount },
+      { key: 'education', label: 'Education', count: summary.educationCount },
+      { key: 'skills', label: 'Skills', count: summary.skillCount + summary.languageCount },
+      { key: 'projects', label: 'Projects', count: summary.projectCount },
+      { key: 'certifications', label: 'Certifications', count: summary.certificationCount },
+      { key: 'summary', label: 'Summary', count: summary.hasSummary ? 1 : 0 }
+    ];
+  });
 
   async onFileImported(event: any) {
-    const file = event.target?.files?.[0] || (event.target as HTMLInputElement)?.files?.[0];
+    const input = event.target as HTMLInputElement;
+    const file = event.target?.files?.[0] || input?.files?.[0];
     if (!file) return;
 
     this.isParsing.set(true);
@@ -326,10 +382,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isApplyingData.set(true);
       
       // Keep skeletons for a moment to signify data integration
-      setTimeout(() => {
+      setTimeout(async () => {
         this.isApplyingData.set(false);
-        this.showToast.set(true);
-        setTimeout(() => this.showToast.set(false), 3000);
+        await this.afterImportCheck();
       }, 2000);
 
     } catch (error) {
@@ -338,16 +393,81 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isApplyingData.set(false);
     } finally {
       this.parsingProgress.set(0);
+      if (input) {
+        input.value = '';
+      }
     }
   }
 
-  importLinkedIn() {
-    this.isImporting.set(true);
-    // : Connecter à un vrai endpoint d'import LinkedIn backend
-    console.warn("LinkedIn import is not yet implemented on the backend.");
-    setTimeout(() => {
-      this.isImporting.set(false);
-    }, 1000);
+  openLinkedInModal() {
+    this.linkedinUrl.set('');
+    this.linkedinRawText.set('');
+    this.showLinkedInModal.set(true);
+  }
+
+  closeLinkedInModal() {
+    this.showLinkedInModal.set(false);
+  }
+
+  async executeLinkedInImport() {
+    const url = this.linkedinUrl().trim();
+
+    if (!url) {
+      alert("Veuillez entrer votre URL LinkedIn.");
+      return;
+    }
+
+    this.showLinkedInModal.set(false);
+    this.isParsing.set(true);
+    this.isApplyingData.set(false);
+    this.parsingStatus.set('reading');
+    this.parsingProgress.set(10);
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      this.parsingStatus.set('analyzing');
+      this.parsingProgress.set(40);
+
+      // Call our robust backend import via service
+      await this.profileService.importLinkedIn(url, '');
+
+      this.parsingStatus.set('structuring');
+      this.parsingProgress.set(90);
+      
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      this.parsingProgress.set(100);
+      this.isParsing.set(false);
+      this.isApplyingData.set(true);
+      
+      setTimeout(async () => {
+        this.isApplyingData.set(false);
+        await this.afterImportCheck();
+      }, 2000);
+
+    } catch (error) {
+      console.error('LinkedIn import failed', error);
+      this.isParsing.set(false);
+      this.isApplyingData.set(false);
+      alert("Une erreur s'est produite lors de l'import. Veuillez reessayer avec une URL LinkedIn valide.");
+    } finally {
+      this.parsingProgress.set(0);
+    }
+  }
+
+  private async afterImportCheck() {
+    if (!this.isForcedOnboarding()) return;
+    const pct = this.completionPercentage();
+    if (pct >= 85) {
+      await this.finishProfile();
+    } else {
+      this.toastMessage.set(`Profile ${pct}% filled. Complete the remaining steps to finish.`);
+      this.showToast.set(true);
+      setTimeout(() => {
+        this.showToast.set(false);
+        this.toastMessage.set('Changes saved');
+      }, 4000);
+    }
   }
 
   // Formation Methods
@@ -395,7 +515,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.newExperience.set({
         id: '', title: '', company: '', city: '', 
         startDate: '', endDate: '', current: false, 
-        type: 'Internship', description: ''
+        type: 'Internship', description: '', taches: []
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -422,7 +542,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isAddingProject.set(false);
       this.newProject.set({
         id: '', title: '', description: '', stack: [], 
-        githubUrl: '', demoUrl: '', isUniversity: false
+        githubUrl: '', demoUrl: '', isUniversity: false, taches: []
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -454,7 +574,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.newExtracurricular.set({
         id: '', title: '', company: '', city: '', 
         startDate: '', endDate: '', current: false, 
-        type: 'Extracurricular', description: ''
+        type: 'Extracurricular', description: '', taches: []
       });
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
@@ -604,7 +724,9 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   // Resume Methods
   updateResume(text: string) {
     this.profileService.updateProfile({ resume: text });
-    this.autoSave$.next();
+  }
+
+  onResumeBlur() {
   }
 
   async generateAIResume() {
@@ -751,5 +873,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.profileService.updateProfile({ [type]: currentArray });
       this.autoSave$.next();
     }
+  }
+
+  private refreshOnboardingStatus() {
+    const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
+    const forced = !profileUnlocked;
+    this.isForcedOnboarding.set(forced);
+    this.profileService.isOnboarding.set(forced);
   }
 }

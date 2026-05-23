@@ -10,6 +10,7 @@
   font-size: 16px;
 }
 
+// ── Primary (deep navy) ──
 .btn-primary {
   background-color: $color-primary;
   color: $color-text-inverse;
@@ -30,6 +31,24 @@
   }
 }
 
+// ── Brand (interactive blue #465FFF) ──
+.btn-brand {
+  background-color: $color-brand;
+  color: $color-text-inverse;
+
+  &:hover {
+    background-color: $color-brand-hover;
+    box-shadow: 0 4px 12px rgba($color-brand, 0.3);
+  }
+
+  &:disabled {
+    background-color: $color-text-disabled;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+// ── Gold accent ──
 .btn-gold {
   background-color: $color-gold;
   color: $color-text-inverse;
@@ -46,6 +65,7 @@
   }
 }
 
+// ── Secondary / Ghost ──
 .btn-secondary {
   background-color: transparent;
   color: $color-text-secondary;
@@ -57,6 +77,18 @@
   }
 }
 
+.btn-ghost {
+  background: transparent;
+  color: $color-text-secondary;
+  border: 1px solid $color-border-default;
+
+  &:hover {
+    background-color: $color-bg-surface;
+    color: $color-text-primary;
+  }
+}
+
+// ── Outline ──
 .btn-outline {
   background-color: transparent;
   color: $color-primary;
@@ -67,6 +99,7 @@
   }
 }
 
+// ── Sizes ──
 .btn-sm {
   padding: 8px $space-4;
   font-size: 14px;

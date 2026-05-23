@@ -1,0 +1,34 @@
+# ============================================================
+# NextStep AWS Private Cloud — terraform.tfvars example
+# ============================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# ============================================================
+
+project_name    = "nextstep"
+environment     = "production"
+aws_region      = "us-east-1"
+
+# VPC configuration
+# vpc_cidr          = "10.0.0.0/16"
+# availability_zones = ["us-east-1a", "us-east-1b"]
+
+# RDS configuration
+# db_instance_class = "db.t3.medium"
+# db_engine         = "postgres"
+# db_engine_version = "15"
+# db_storage_gb     = 100
+
+# Fargate configuration
+# fargate_cpu          = 512
+# fargate_memory       = 1024
+# fargate_desired_count = 2
+# container_port       = 8080
+
+# Monitoring
+# alarm_email = "ops@yourdomain.com"
+
+# Common tags
+# tags = {
+#   Team    = "platform"
+#   Project = "nextstep"
+# }

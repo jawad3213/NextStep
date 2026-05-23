@@ -12,13 +12,14 @@ class CVOptimizerService:
         # Compilation du workflow une seule fois (Singleton)
         self._workflow = build_cv_optimizer_workflow()
 
-    async def optimize_cv(self, candidate_cv: dict, job_offer: dict) -> OptimizedCVOutput:
+    async def optimize_cv(self, candidate_cv: dict, job_offer: dict, match_result: dict = None) -> OptimizedCVOutput:
         """
         Lance le processus d'optimisation du CV.
         """
         initial_state: CVOptimizerState = {
             "candidate_cv": candidate_cv,
             "job_offer": job_offer,
+            "match_result": match_result,
             "messages": [],
             "errors": [],
             "iteration_count": 0

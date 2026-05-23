@@ -15,9 +15,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 0;
+  padding: 12px 0;
   max-width: 900px;
-  margin: 0;
+  margin: 0 auto;
 
   @media (max-width: 992px) {
     padding: 12px 16px;
@@ -41,13 +41,13 @@
   height: 2px;
   z-index: 0;
   top: 30px;
-  left: 30px;
-  right: 30px;
+  left: 36px;
+  right: 36px;
 
   @media (max-width: 768px) {
     top: 28px;
-    left: 20px;
-    right: 20px;
+    left: 28px;
+    right: 28px;
   }
 
   .stepper-track {
@@ -64,7 +64,7 @@
     top: 0;
     left: 0;
     bottom: 0;
-    background: #1A91F0;
+    background: #465fff;
     transition: width 0.4s ease-in-out;
   }
 }
@@ -75,7 +75,7 @@
   width: 100%;
   position: relative;
   z-index: 1;
-  gap: 12px;
+  gap: 10px;
 }
 
 .stepper-node {
@@ -84,15 +84,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   cursor: pointer;
   outline: none;
   flex-shrink: 0;
-  min-width: 80px;
+  min-width: 68px;
 
   .node-circle {
-    width: 28px;
-    height: 28px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: #ffffff;
     border: 2px solid #E2E8F0;
@@ -102,41 +102,50 @@
     transition: all 0.3s ease;
 
     @media (max-width: 768px) {
-      width: 24px;
-      height: 24px;
+      width: 32px;
+      height: 32px;
     }
     
     .node-number {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       color: #94A3B8;
     }
     
     .node-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
+      display: inline-flex;
       color: #ffffff;
+      width: 20px;
+      height: 20px;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      line-height: 20px;
+    }
+
+    .step-icon {
+      color: #94A3B8;
     }
   }
 
   .node-label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: #94A3B8;
     transition: all 0.3s ease;
     white-space: nowrap;
 
     @media (max-width: 768px) {
-      font-size: 9px;
+      font-size: 11px;
       margin-top: 4px;
     }
   }
 
   &.completed {
     .node-circle {
-      background: #1A91F0;
-      border-color: #1A91F0;
+      background: #465fff;
+      border-color: #465fff;
+      box-shadow: 0 8px 18px rgba(70, 95, 255, 0.18);
     }
     .node-label {
       color: #1E293B;
@@ -145,15 +154,19 @@
 
   &.active {
     .node-circle {
-      border-color: #1A91F0;
-      box-shadow: 0 0 0 4px rgba(26, 145, 240, 0.15);
+      border-color: #465fff;
+      box-shadow: 0 0 0 5px rgba(70, 95, 255, 0.14);
       
       .node-number {
-        color: #1A91F0;
+        color: #465fff;
+      }
+
+      .step-icon {
+        color: #465fff;
       }
     }
     .node-label {
-      color: #1A91F0;
+      color: #465fff;
       font-weight: 700;
       
       @media (max-width: 768px) {
@@ -172,131 +185,35 @@
   }
 }
 
-// PRO STRENGTH WIDGET (SEGMENTED LINEAR DESIGN)
-.pro-strength-widget {
-  padding: 8px 16px;
-  background: transparent;
-  border-radius: 12px;
-  border: none;
-  min-width: 200px;
-  transition: all 0.3s ease;
+// Import Card — Zety-style two-column split
+.import-card-split {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 
-  &:hover {
-    border-color: #E2E8F0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  @media (max-width: 992px) {
+    display: none; // Hide on small screens to save space
   }
+}
 
-  .widget-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-  }
+.import-split-btn {
+  min-width: 168px;
+}
 
-  .strength-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.import-split-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+}
 
-    .title {
-      font-size: 11px;
-      font-weight: 700;
-      color: #94A3B8;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
+.import-linkedin-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
 
-    .percentage {
-      font-size: 13px;
-      font-weight: 800;
-      color: #1E293B;
-      font-family: 'Lato', sans-serif;
-    }
-  }
-
-  .meter-track {
-    position: relative;
-    height: 6px;
-    background: #F1F5F9;
-    border-radius: 10px;
-    overflow: visible;
-
-    .meter-fill {
-      position: absolute;
-      height: 100%;
-      background: #1A91F0;
-      border-radius: 10px;
-      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-      
-      // Gradient effect for high progress
-      background: linear-gradient(90deg, #3B82F6 0%, #10B981 100%);
-    }
-
-    .meter-milestones {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      right: 0;
-      transform: translateY(-50%);
-      display: flex;
-      justify-content: space-between;
-      padding: 0 2px;
-      pointer-events: none;
-
-      .m-dot {
-        width: 4px;
-        height: 4px;
-        background: #ffffff;
-        border-radius: 50%;
-        box-shadow: 0 0 0 1px #E2E8F0;
-        transition: all 0.3s ease;
-
-        &.active {
-          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
-          transform: scale(1.2);
-        }
-      }
-    }
-  }
-
-  .status-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    
-    .indicator-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-      transition: color 0.3s ease;
-    }
-
-    .status-text {
-      font-size: 12px;
-      font-weight: 700;
-      color: #64748B;
-    }
-  }
-
-  // DYNAMIC PRO STATUS COLORS
-  &.status-low {
-    .meter-fill { background: #F59E0B; }
-    .indicator-icon { color: #F59E0B; }
-    .status-text { color: #B45309; }
-  }
-
-  &.status-mid {
-    .meter-fill { background: #3B82F6; }
-    .indicator-icon { color: #3B82F6; }
-    .status-text { color: #1D4ED8; }
-  }
-
-  &.status-high {
-    .meter-fill { background: linear-gradient(90deg, #3B82F6 0%, #10B981 100%); }
-    .indicator-icon { 
-      color: #10B981; 
-      filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.4));
-    }
-    .status-text { color: #047857; }
-  }
+.import-split-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
 }

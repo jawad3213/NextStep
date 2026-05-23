@@ -1,0 +1,674 @@
+<div class="analysis-shell" [class.--loading]="pipeline.isLoading() && !error">
+  @if (error) {
+  <div class="flex items-center gap-4 p-5 mb-6 bg-red-50 rounded-2xl border border-red-200">
+    <span class="material-symbols-outlined text-red-500 text-lg">error</span>
+    <div class="flex-1">
+      <div class="font-bold text-sm text-red-800">Erreur pendant l'analyse</div>
+      <div class="text-xs text-red-600 mt-1">{{ error }}</div>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 text-xs font-bold text-slate-600 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors" (click)="goBack()">Retour</button>
+      <button class="px-4 py-2 text-xs font-bold text-white bg-brand-500 rounded-xl hover:bg-brand-600 transition-colors" (click)="retry()">Réessayer</button>
+    </div>
+  </div>
+  }
+
+  @if (pipeline.isLoading() && !error) {
+  <div class="flex flex-col items-center justify-center w-full h-full flex-1 gap-8 animate-fade-in py-10">
+    <div class="flex flex-col items-center text-center p-10 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm w-full max-w-[480px]">
+      <span class="w-16 h-16 border-4 border-slate-100 border-t-brand-500 rounded-full animate-spin mb-6"></span>
+      <div class="text-[11px] font-bold text-brand-500 uppercase tracking-wider mb-2">Analyse IA en cours</div>
+      <h3 class="text-xl font-extrabold text-slate-900 mb-2">Traitement de l'offre</h3>
+      <p class="text-sm text-slate-500 mb-4">{{ progress?.label ?? 'Analyse en cours...' }}</p>
+      <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+        <div class="h-full bg-brand-500 rounded-full transition-all duration-500" [style.width.%]="progress?.progressPercent ?? 5"></div>
+      </div>
+      <div class="text-xs font-bold text-slate-400">{{ progress?.progressPercent ?? 5 }}%</div>
+    </div>
+    <div class="w-full max-w-[480px] flex flex-col gap-3">
+      @for (agent of agentStages; track agent.key) {
+      <div class="flex items-center gap-4 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 transition-all"
+        [class.border-brand-500]="getAgentStatus(agent.key) === 'running'"
+        [class.border-green-500]="getAgentStatus(agent.key) === 'done'"
+        [ngClass]="{'bg-green-50/80': getAgentStatus(agent.key) === 'done'}"
+      >
+        <div class="w-8 h-8 flex items-center justify-center"
+          [class.text-green-600]="getAgentStatus(agent.key) === 'done'"
+          [class.text-brand-500]="getAgentStatus(agent.key) === 'running'"
+          [class.text-slate-300]="getAgentStatus(agent.key) === 'todo'">
+          @if (getAgentStatus(agent.key) === 'done') {
+            <span class="material-symbols-outlined text-lg">check_circle</span>
+          } @else if (getAgentStatus(agent.key) === 'running') {
+            <span class="w-4 h-4 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin block"></span>
+          } @else {
+            <span class="material-symbols-outlined text-lg">radio_button_unchecked</span>
+          }
+        </div>
+        <div>
+          <div class="text-sm font-bold text-slate-900">{{ agent.title }}</div>
+          <div class="text-xs text-slate-500">{{ agent.detail }}</div>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  @if (!pipeline.isLoading() && !error && result) {
+  <div class="grid grid-cols-12 gap-6 animate-fade-in">
+    <!-- ROW 1: HERO HEADER (col-8) + SCORE CARD (col-4) -->
+    <div class="col-span-12 lg:col-span-8 flex flex-col gap-6">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-full flex flex-col">
+        <div>
+          <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+              <div class="flex gap-5">
+              <div class="w-16 h-16 rounded-xl bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0">
+                @if (result.companyName) {
+                <span class="text-xl font-black text-slate-400">{{ headlineCompany.slice(0, 2).toUpperCase() }}</span>
+                } @else {
+                <span class="material-symbols-outlined text-2xl text-slate-300">business</span>
+                }
+              </div>
+              <div>
+                <h2 class="font-outfit text-2xl font-bold text-slate-900 leading-tight">{{ headlineTitle }}</h2>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-500 text-xs mt-2">
+                  <span class="flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm text-brand-500">apartment</span>
+                    {{ headlineCompany }}
+                  </span>
+                  <span class="text-slate-300">•</span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm text-brand-500">location_on</span>
+                    {{ headlineLocation }}
+                  </span>
+                  <span class="text-slate-300">•</span>
+                  <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">
+                    <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    <span class="font-medium">Analysée</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-slate-100">
+          <!-- Column 1: Contract & Experience -->
+          <div class="flex flex-col gap-3">
+            <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Type de contrat</p>
+              <p class="font-bold text-sm text-slate-800">{{ contractType }}</p>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Expérience</p>
+              <p class="font-bold text-sm text-slate-800">{{ experienceLabel }}</p>
+            </div>
+          </div>
+
+          <!-- Column 2: Education (Full Height) -->
+          <div class="bg-slate-50 p-5 rounded-xl text-center flex flex-col justify-center min-h-[140px]">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-3">Études</p>
+            <p class="font-bold text-sm text-slate-800 leading-relaxed">{{ educationLabel || 'Non spécifié' }}</p>
+          </div>
+
+          <!-- Column 3: Work Mode & Salary -->
+          <div class="flex flex-col gap-3">
+            <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Mode de travail</p>
+              <p class="font-bold text-sm text-slate-800">{{ workModeLabel }}</p>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Salaire</p>
+              <p class="font-bold text-sm text-slate-800">{{ salaryLabel || 'Non spécifié' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-span-12 lg:col-span-4">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 text-center relative overflow-hidden h-full flex flex-col justify-center">
+        <h4 class="font-outfit font-bold text-lg mb-4 text-slate-900">Matching Score</h4>
+        <div class="relative w-32 h-32 mx-auto mb-4">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 128 128">
+            <circle cx="64" cy="64" r="56" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+            <circle cx="64" cy="64" r="56" fill="none" stroke-width="10" stroke-linecap="round"
+              stroke-dasharray="351.85"
+              [style.stroke-dashoffset]="351.85 - (score / 100) * 351.85"
+              [class.stroke-brand-500]="scoreAccent === 'green'"
+              [class.stroke-amber-500]="scoreAccent === 'amber'"
+              [class.stroke-red-500]="scoreAccent === 'red'"
+              class="transition-all duration-1000 ease-out"
+            />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-2xl font-black font-outfit text-slate-900">{{ score }}%</span>
+            <span class="text-[8px] uppercase font-bold tracking-tighter text-slate-400">{{ scoreLabel }}</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-5">
+          <div class="flex flex-col">
+            <strong class="text-lg font-extrabold text-slate-900">{{ matchingSkillsCount }}</strong>
+            <span class="text-[9px] font-bold text-slate-400 uppercase">Match</span>
+          </div>
+          <div class="flex flex-col">
+            <strong class="text-lg font-extrabold text-slate-900">{{ missingSkillsCount }}</strong>
+            <span class="text-[9px] font-bold text-slate-400 uppercase">Gaps</span>
+          </div>
+          <div class="flex flex-col">
+            <strong class="text-lg font-extrabold text-slate-900">{{ partialSkillsCount }}</strong>
+            <span class="text-[9px] font-bold text-slate-400 uppercase">Partiel</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3 text-left mb-5">
+          <div>
+            <div class="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+              <span>Couverture</span>
+              <span>{{ matchingSkillsCount }}/{{ totalSkillCount }}</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full transition-all" [style.width.%]="skillsCoveragePercent"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+              <span>ATS pour les données du profil actuel</span>
+              <span>{{ atsScore }}%</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-brand-500 rounded-full transition-all" [style.width.%]="atsScore"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- AI SUMMARY (Full width) -->
+    <div class="col-span-12">
+      <div class="bg-gradient-to-br from-brand-500/10 to-transparent p-6 rounded-2xl border border-brand-500/20">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-brand-500">auto_awesome</span>
+          <h3 class="font-outfit text-lg font-bold text-slate-900">Analyse Intelligence Artificielle</h3>
+        </div>
+        <h4 class="font-bold text-[10px] text-brand-500 uppercase tracking-wider mb-2">Résumé de l'IA</h4>
+        <p class="text-slate-700 leading-relaxed italic text-sm">
+          {{ analysisSummary }}
+        </p>
+      </div>
+    </div>
+
+    <!-- PROFIL STRENGTHS (if present) -->
+    @if (profileStrengthsList.length > 0) {
+    <div class="col-span-12">
+      <div class="bg-amber-50/50 p-6 rounded-2xl border border-amber-200/50">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="material-symbols-outlined text-amber-600 text-lg">star</span>
+          <h4 class="font-bold text-sm text-amber-800">Forces de votre profil</h4>
+        </div>
+        <ul class="m-0 p-0 list-none flex flex-col gap-2">
+          @for (strength of profileStrengthsList; track strength) {
+          <li class="flex items-center gap-2 text-sm text-amber-900">
+            <span class="material-symbols-outlined text-amber-500 text-sm">check_circle</span>
+            {{ strength }}
+          </li>
+          }
+        </ul>
+      </div>
+    </div>
+    }
+
+    <!-- SKILLS KANBAN (Collapsible) -->
+    <!-- TECHNICAL SKILLS (Collapsible) -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="skillsOpen = !skillsOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">terminal</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Compétences Techniques</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ technicalSkills.length }}</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="skillsOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden" 
+             [ngClass]="skillsOpen ? 'max-h-[9999px]! opacity-100' : 'max-h-0 opacity-0'">
+          <div class="px-6 pb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Match -->
+              <div class="bg-emerald-50/50 rounded-xl border border-emerald-200 p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                    <span class="text-sm font-extrabold text-emerald-800">Match</span>
+                  </div>
+                  <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{{ matchedTechnicalSkills.length }}</span>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  @for (skill of matchedTechnicalSkills; track skill.name) {
+                  <div class="px-3 py-2 bg-white rounded-lg border border-emerald-200 text-sm font-semibold text-emerald-900 shadow-sm">
+                    {{ skill.name }}
+                  </div>
+                  }
+                  @if (matchedTechnicalSkills.length === 0) {
+                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence technique correspondante</p>
+                  }
+                </div>
+              </div>
+              <!-- Partial -->
+              <div class="bg-amber-50/50 rounded-xl border border-amber-200 p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-600 text-base">change_history</span>
+                    <span class="text-sm font-extrabold text-amber-800">Partiel</span>
+                  </div>
+                  <span class="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ partialTechnicalSkills.length }}</span>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  @for (skill of partialTechnicalSkills; track skill.name) {
+                  <div class="px-3 py-2 bg-white rounded-lg border border-amber-200 text-sm font-semibold text-amber-900 shadow-sm">
+                    {{ skill.name }}
+                  </div>
+                  }
+                  @if (partialTechnicalSkills.length === 0) {
+                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence technique partielle</p>
+                  }
+                </div>
+              </div>
+              <!-- Missing -->
+              <div class="bg-red-50/50 rounded-xl border border-red-200 p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-red-600 text-base">cancel</span>
+                    <span class="text-sm font-extrabold text-red-800">Manquant</span>
+                  </div>
+                  <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ missingTechnicalSkills.length }}</span>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  @for (skill of missingTechnicalSkills; track skill.name) {
+                  <div class="px-3 py-2 bg-white rounded-lg border border-red-200 text-sm font-semibold text-red-900 shadow-sm">
+                    {{ skill.name }}
+                  </div>
+                  }
+                  @if (missingTechnicalSkills.length === 0) {
+                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence technique manquante</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOFT SKILLS (Collapsible) -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="softSkillsOpen = !softSkillsOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">psychology_alt</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Soft Skills</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ softSkills.length }}</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="softSkillsOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden" 
+             [ngClass]="softSkillsOpen ? 'max-h-[9999px]! opacity-100' : 'max-h-0 opacity-0'">
+          <div class="px-6 pb-6">
+            @if (softSkills.length > 0) {
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Match -->
+                <div class="bg-emerald-50/50 rounded-xl border border-emerald-200 p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                      <span class="text-sm font-extrabold text-emerald-800">Match</span>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{{ matchedSoftSkills.length }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    @for (skill of matchedSoftSkills; track skill.name) {
+                    <div class="px-3 py-2 bg-white rounded-lg border border-emerald-200 text-sm font-semibold text-emerald-900 shadow-sm">
+                      {{ skill.name }}
+                    </div>
+                    }
+                    @if (matchedSoftSkills.length === 0) {
+                    <p class="text-xs text-slate-400 italic text-center py-4">Aucun soft skill correspondant</p>
+                    }
+                  </div>
+                </div>
+                <!-- Partial -->
+                <div class="bg-amber-50/50 rounded-xl border border-amber-200 p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-amber-600 text-base">change_history</span>
+                      <span class="text-sm font-extrabold text-amber-800">Partiel</span>
+                    </div>
+                    <span class="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ partialSoftSkills.length }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    @for (skill of partialSoftSkills; track skill.name) {
+                    <div class="px-3 py-2 bg-white rounded-lg border border-amber-200 text-sm font-semibold text-amber-900 shadow-sm">
+                      {{ skill.name }}
+                    </div>
+                    }
+                    @if (partialSoftSkills.length === 0) {
+                    <p class="text-xs text-slate-400 italic text-center py-4">Aucun soft skill partiel</p>
+                    }
+                  </div>
+                </div>
+                <!-- Missing -->
+                <div class="bg-red-50/50 rounded-xl border border-red-200 p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-red-600 text-base">cancel</span>
+                      <span class="text-sm font-extrabold text-red-800">Manquant</span>
+                    </div>
+                    <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ missingSoftSkills.length }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    @for (skill of missingSoftSkills; track skill.name) {
+                    <div class="px-3 py-2 bg-white rounded-lg border border-red-200 text-sm font-semibold text-red-900 shadow-sm">
+                      {{ skill.name }}
+                    </div>
+                    }
+                    @if (missingSoftSkills.length === 0) {
+                    <p class="text-xs text-slate-400 italic text-center py-4">Aucun soft skill manquant</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <div class="flex flex-col items-center justify-center py-8 text-center bg-emerald-50/30 rounded-2xl border border-emerald-100 border-dashed animate-fade-in">
+                <span class="material-symbols-outlined text-emerald-500 text-4xl mb-3">check_circle</span>
+                <h5 class="text-sm font-bold text-emerald-900 mb-1">Compatibilité Soft Skills confirmée</h5>
+                <p class="text-xs text-emerald-700/70 max-w-[400px]">Votre profil est parfaitement aligné avec les attentes de ce poste ou aucune lacune majeure n'a été détectée dans vos soft skills.</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+        <!-- KEYWORDS (Collapsible) -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="keywordsOpen = !keywordsOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">label</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Mots-cles semantiques</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ keywordCloud.length }}</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="keywordsOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden"
+             [ngClass]="keywordsOpen ? 'max-h-[9999px]! opacity-100' : 'max-h-0 opacity-0'">
+          <div class="px-6 pb-6">
+            <div class="bg-slate-50 rounded-2xl border border-slate-200 p-4 md:p-5">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div class="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+                  <div class="flex items-center justify-between text-xs font-bold text-emerald-700 mb-1">
+                    <span>Presents</span>
+                    <span>{{ matchedKeywordCloud.length }}</span>
+                  </div>
+                  <div class="h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-emerald-500 rounded-full transition-all" [style.width.%]="matchedKeywordPercent"></div>
+                  </div>
+                </div>
+                <div class="rounded-xl border border-red-200 bg-white px-3 py-2">
+                  <div class="flex items-center justify-between text-xs font-bold text-red-700 mb-1">
+                    <span>Manquants</span>
+                    <span>{{ missingKeywordCloud.length }}</span>
+                  </div>
+                  <div class="h-1.5 bg-red-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-red-500 rounded-full transition-all" [style.width.%]="missingKeywordPercent"></div>
+                  </div>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <div class="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
+                    <span>Neutres</span>
+                    <span>{{ neutralKeywordCloud.length }}</span>
+                  </div>
+                  <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-slate-500 rounded-full transition-all" [style.width.%]="neutralKeywordPercent"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+                <div class="xl:col-span-7 bg-emerald-50/50 rounded-xl border border-emerald-200 p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                      <span class="text-sm font-extrabold text-emerald-800">Presents</span>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{{ matchedKeywordCloud.length }}</span>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    @for (keyword of matchedKeywordCloud; track keyword.label) {
+                    <span class="rounded-full bg-white border border-emerald-200 text-emerald-900 font-semibold whitespace-nowrap" [ngClass]="keywordChipSizeClass(keyword.size)">
+                      {{ keyword.label }}
+                    </span>
+                    }
+                    @if (matchedKeywordCloud.length === 0) {
+                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">Aucun mot-cle present</p>
+                    }
+                  </div>
+                </div>
+
+                <div class="xl:col-span-5 bg-red-50/50 rounded-xl border border-red-200 p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-red-600 text-base">cancel</span>
+                      <span class="text-sm font-extrabold text-red-800">Manquants</span>
+                    </div>
+                    <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ missingKeywordCloud.length }}</span>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    @for (keyword of missingKeywordCloud; track keyword.label) {
+                    <span class="rounded-full bg-white border border-red-200 text-red-900 font-semibold whitespace-nowrap" [ngClass]="keywordChipSizeClass(keyword.size)">
+                      {{ keyword.label }}
+                    </span>
+                    }
+                    @if (missingKeywordCloud.length === 0) {
+                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">Aucun mot-cle manquant</p>
+                    }
+                  </div>
+                </div>
+
+                <div class="xl:col-span-12 bg-white rounded-xl border border-slate-200 p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-slate-500 text-base">sell</span>
+                      <span class="text-sm font-extrabold text-slate-700">Neutres</span>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">{{ neutralKeywordCloud.length }}</span>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    @for (keyword of neutralKeywordCloud; track keyword.label) {
+                    <span class="rounded-full bg-slate-50 border border-slate-200 text-slate-700 font-semibold whitespace-nowrap" [ngClass]="keywordChipSizeClass(keyword.size)">
+                      {{ keyword.label }}
+                    </span>
+                    }
+                    @if (neutralKeywordCloud.length === 0) {
+                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">Aucun mot-cle neutre</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+<!-- RECOMMENDATIONS (Collapsible) -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="recommendationsOpen = !recommendationsOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">lightbulb</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Axes d'optimisation</h4>
+            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ recommendationInsights.length }}</span>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="recommendationsOpen">expand_more</span>
+        </button>
+        <div class="transition-all duration-300 overflow-hidden"
+             [ngClass]="recommendationsOpen ? 'max-h-[9999px]! opacity-100' : 'max-h-0 opacity-0'">
+          <div class="px-6 pb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              @for (rec of recommendationInsights; track rec.text) {
+              <div class="p-4 rounded-2xl border-l-4 bg-white border border-slate-200"
+                [class.border-l-amber-500]="rec.accent === 'amber'"
+                [class.border-l-red-500]="rec.accent === 'red'"
+                [class.border-l-brand-500]="rec.accent === 'blue'">
+                <div class="flex items-center gap-2 font-bold text-[10px] uppercase mb-2"
+                  [class.text-amber-600]="rec.accent === 'amber'"
+                  [class.text-red-600]="rec.accent === 'red'"
+                  [class.text-brand-500]="rec.accent === 'blue'">
+                  <span class="material-symbols-outlined text-sm">
+                    {{ rec.accent === 'amber' ? 'priority_high' : rec.accent === 'red' ? 'add' : 'translate' }}
+                  </span>
+                  {{ rec.title }}
+                </div>
+                <p class="text-xs text-slate-700 leading-relaxed m-0">{{ rec.text }}</p>
+              </div>
+              }
+            </div>
+
+            <div class="flex justify-end mt-6">
+              <button (click)="continueToTemplate()" class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group">
+                <span class="material-symbols-outlined text-base group-hover:rotate-12 transition-transform">psychology</span>
+                Faire un plan détaillé
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section : Intelligence Entreprise & Culture -->
+    <div class="col-span-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button (click)="companyInfoOpen = !companyInfoOpen"
+          class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-brand-500 text-lg">search_insights</span>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Intelligence Entreprise</h4>
+          </div>
+          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="companyInfoOpen">expand_more</span>
+        </button>
+
+        <div class="transition-all duration-300 overflow-hidden"
+             [ngClass]="companyInfoOpen ? 'max-h-[9999px]! opacity-100' : 'max-h-0 opacity-0'">
+          <div class="px-6 pb-6 border-t border-slate-50 pt-6">
+            @if (headlineCompany !== 'Non spécifié') {
+              <p class="text-slate-600 leading-relaxed text-sm mb-6">
+                Obtenez une vision approfondie de <strong>{{ headlineCompany }}</strong> pour préparer vos entretiens et personnaliser votre discours.
+              </p>
+            } @else {
+              <div class="mb-6">
+                <p class="text-slate-600 leading-relaxed text-sm mb-4">
+                  L'entreprise n'est pas spécifiée dans l'offre. Entrez le nom ci-dessous pour lancer l'analyse.
+                </p>
+                <div class="relative max-w-md">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">domain</span>
+                  <input 
+                    type="text" 
+                    [(ngModel)]="customCompanyName"
+                    placeholder="Nom de l'entreprise..."
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all bg-slate-50/50"
+                  />
+                </div>
+              </div>
+            }
+
+            <div class="bg-slate-50/50 rounded-xl p-4 mb-8 border border-slate-100">
+              @if (hasCompanyIntelSnapshot) {
+                <h5 class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-3">Analyse entreprise disponible</h5>
+                <p class="text-xs text-slate-700 leading-relaxed mb-3">{{ companyIntelSummary }}</p>
+
+              } @else {
+                <h5 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Résultats de l'analyse :</h5>
+                <ul class="space-y-2 m-0 p-0 list-none">
+                  <li class="flex items-center gap-2 text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
+                    <span><strong>Culture :</strong> Valeurs, ambiance et environnement de travail.</span>
+                  </li>
+                  <li class="flex items-center gap-2 text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
+                    <span><strong>Salaires :</strong> Estimations et fourchettes pour ce type de poste.</span>
+                  </li>
+                  <li class="flex items-center gap-2 text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
+                    <span><strong>Actualités :</strong> Derniers projets, levées de fonds ou recrutements.</span>
+                  </li>
+                </ul>
+              }
+            </div>
+            
+            <div class="flex flex-wrap gap-3 mb-8">
+              <span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-medium text-slate-500 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px] text-brand-500">payments</span>
+                Grille de salaires
+              </span>
+              <span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-medium text-slate-500 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px] text-brand-500">groups</span>
+                Culture d'équipe
+              </span>
+              <span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-medium text-slate-500 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px] text-brand-500">newspaper</span>
+                Actualités récentes
+              </span>
+            </div>
+
+            @if (companyIntelError) {
+              <div class="mb-4 text-xs text-red-600 font-semibold">{{ companyIntelError }}</div>
+            }
+            <div class="flex justify-end gap-2">
+              @if (hasCompanyIntelSnapshot) {
+                <button
+                  (click)="showCompanyIntelDetails()"
+                  class="flex items-center gap-2 rounded-xl bg-white px-6 py-2.5 text-[11px] font-bold text-slate-700 border border-slate-200 cursor-pointer hover:bg-slate-50">
+                  <span class="material-symbols-outlined text-base">visibility</span>
+                  Show details
+                </button>
+              } @else {
+                <button
+                  (click)="searchCompanyDetailed()"
+                  [disabled]="companyIntelLoading"
+                  class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group disabled:opacity-60 disabled:cursor-not-allowed">
+                  <span class="material-symbols-outlined text-base group-hover:rotate-12 transition-transform">travel_explore</span>
+                  {{ companyIntelLoading ? 'Recherche en cours...' : 'Lancer la recherche détaillée' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Final Action Bar -->
+    <div class="col-span-12">
+      <div class="flex justify-end items-center py-4 px-2">
+        <p class="text-[10px] text-slate-400 uppercase tracking-widest m-0">Analyse terminée • Prêt pour la suite</p>
+      </div>
+      <div class="flex justify-between items-center py-4 px-2">
+        <button (click)="goBack()" class="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer bg-white">
+          Retour à l'offre
+        </button>
+        <div class="flex items-center gap-3">
+        
+          <button (click)="continueToTemplate()" class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-xs font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group">
+            Choisir un template
+            <span class="material-symbols-outlined text-base group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+</div>

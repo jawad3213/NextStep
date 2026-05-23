@@ -15,7 +15,7 @@ FROM build AS publish
 RUN dotnet publish "NextStep.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 2: Final runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS production
 WORKDIR /app
 COPY --from=publish /app/publish .
 

@@ -29,10 +29,10 @@ public class CvTemplate
     // ─── Filter attributes ────────────────────────────────────────
 
     /// <summary>Which industries this template is best suited for.</summary>
-    public List<CvIndustry> Industries { get; set; } = new();
+    public List<string> Industries { get; set; } = new();
 
     /// <summary>Which experience levels this template targets.</summary>
-    public List<CvExperienceLevel> ExperienceLevels { get; set; } = new();
+    public List<string> ExperienceLevels { get; set; } = new();
 
     /// <summary>Visual style category.</summary>
     public CvTemplateStyle Style { get; set; }

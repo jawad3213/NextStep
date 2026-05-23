@@ -33,4 +33,27 @@ INSERT INTO skill_keyword (mot, categorie) VALUES
 ('Power BI', 'Outil'), ('Tableau', 'Outil'), ('Excel', 'Outil'),
 ('UML', 'Méthodologie'), ('Merise', 'Méthodologie'),
 ('Hadoop', 'Big Data'), ('Spark', 'Big Data'), ('Kafka', 'Big Data'),
-('ElasticSearch', 'Big Data'), ('Dart', 'Technique'), ('Flutter', 'Framework');
+('ElasticSearch', 'Big Data'), ('Dart', 'Technique'), ('Flutter', 'Framework'),
+
+-- Programming Languages (additional)
+('Scala', 'Technique'), ('R', 'Technique'), ('MATLAB', 'Technique'),
+('Shell/Bash', 'Technique'), ('PowerShell', 'Technique'), ('Lua', 'Technique'),
+('Elixir', 'Technique'), ('Julia', 'Technique'), ('Solidity', 'Technique'),
+
+-- UI / Interface
+('Material UI', 'Framework'), ('Chakra UI', 'Framework'), ('Radix UI', 'Framework'),
+('Shadcn/ui', 'Framework'), ('Storybook', 'Outil'),
+('Framer Motion', 'Technique'), ('Three.js', 'Technique'), ('D3.js', 'Technique'),
+('Chart.js', 'Technique'), ('Web Components', 'Technique'),
+('Responsive Design', 'Technique'), ('Accessibility (a11y)', 'Technique'),
+
+-- Infrastructure as Code
+('Pulumi', 'DevOps'), ('AWS CloudFormation', 'DevOps'), ('AWS CDK', 'DevOps'),
+('OpenTofu', 'DevOps'), ('Vagrant', 'DevOps'), ('Packer', 'DevOps'),
+
+-- DevOps Tools (additional)
+('Helm', 'DevOps'), ('ArgoCD', 'DevOps'), ('Prometheus', 'DevOps'),
+('Grafana', 'DevOps'), ('SonarQube', 'DevOps'), ('ELK Stack', 'DevOps'),
+('Datadog', 'DevOps'), ('New Relic', 'DevOps'), ('Snyk', 'DevOps'),
+('Trivy', 'DevOps'), ('Vault', 'DevOps'), ('Consul', 'DevOps'),
+('Istio', 'DevOps'), ('Linkerd', 'DevOps');

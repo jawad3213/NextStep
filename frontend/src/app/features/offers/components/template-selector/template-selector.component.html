@@ -1,0 +1,84 @@
+<div class="template-selector-container">
+  
+  <header class="selector-header">
+    <button class="btn-back" (click)="onBack()">
+      <svg viewBox="0 0 24 24" class="icon-md"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.5" fill="none"/></svg>
+      <span>Retour à l'Analyse</span>
+    </button>
+    <div class="title-section">
+      <h1 class="heading-1">Choisir un modèle de CV</h1>
+      <p class="body-default text-secondary">Sélectionnez un design optimisé pour l'ATS pour commencer la personnalisation.</p>
+    </div>
+  </header>
+
+  <!-- TEMPLATES DISPLAY GRID -->
+  <div class="templates-grid">
+    @for (t of templates; track t.id) {
+      <div class="template-card" [class.selected]="selectedId === t.id" (click)="onSelect(t.id)">
+        <div class="card-outline-border"></div>
+        
+        <!-- MINI PREVIEW GRAPHIC (STUNNING WIREFRAME RESUME ICON) -->
+        <div class="mini-preview-wireframe" [class]="t.id">
+          @if (t.id === 'modern') {
+            <!-- Sidebar-style -->
+            <div class="wf-sidebar"></div>
+            <div class="wf-body">
+              <div class="wf-line title"></div>
+              <div class="wf-line text"></div>
+              <div class="wf-line text"></div>
+              <div class="wf-line block"></div>
+              <div class="wf-line text"></div>
+            </div>
+          } @else if (t.id === 'professional') {
+            <!-- Centered-style -->
+            <div class="wf-centered-header">
+              <div class="wf-circle"></div>
+              <div class="wf-line name"></div>
+            </div>
+            <div class="wf-body">
+              <div class="wf-line block"></div>
+              <div class="wf-line text"></div>
+              <div class="wf-line text"></div>
+              <div class="wf-line block"></div>
+              <div class="wf-line text"></div>
+            </div>
+          } @else {
+            <!-- Asymmetric accent header style -->
+            <div class="wf-header-band"></div>
+            <div class="wf-asymmetric-columns">
+              <div class="wf-col-main">
+                <div class="wf-line title"></div>
+                <div class="wf-line text"></div>
+                <div class="wf-line text"></div>
+              </div>
+              <div class="wf-col-side">
+                <div class="wf-pill"></div>
+                <div class="wf-pill"></div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="template-details">
+          <div class="title-row">
+            <h3 class="heading-4">{{ t.name }}</h3>
+            @if (selectedId === t.id) {
+              <span class="active-dot">● Sélectionné</span>
+            }
+          </div>
+          <p class="body-small text-secondary">{{ t.desc }}</p>
+          <div class="tag-row">
+            @for (tag of t.tags; track tag) {
+              <span class="theme-tag-pill">{{ tag }}</span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <footer class="selector-footer">
+    <button class="btn-secondary" (click)="onBack()">Précédent</button>
+    <button class="btn-primary" (click)="onConfirm()">Utiliser ce modèle</button>
+  </footer>
+</div>

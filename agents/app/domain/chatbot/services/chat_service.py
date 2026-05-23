@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.domain.chatbot.graph import interview_graph
 from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
 from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement, ChatMessage,
+    SessionCoaching, QuestionEntrainement,
 )
 from app.domain.chatbot.state import (
     InterviewPrepState, ArenaConfig, MessageTurn,
@@ -92,32 +92,6 @@ async def free_chat_service(
     messages_out = result.get("messages", [])
     last_ai = next((m for m in reversed(messages_out) if m.role == "ai"), None)
     ai_content = last_ai.content if last_ai else ""
-
-    # Sauvegarder les 2 messages (user + ai) dans chat_message si ce n'est pas un quiz temporaire
-    if not (thread_id and thread_id.endswith('-q')):
-        try:
-            thread_uuid = uuid.UUID(thread_id) if thread_id else uuid.uuid4()
-            internal_uid = await get_internal_user_id(user_id, db)
-
-            db.add(ChatMessage(
-                thread_id=thread_uuid,
-                id_utilisateur=internal_uid,
-                chat_type=db_chat_type,
-                sender="user",
-                content=user_input,
-            ))
-            db.add(ChatMessage(
-                thread_id=thread_uuid,
-                id_utilisateur=internal_uid,
-                chat_type=db_chat_type,
-                sender="ai",
-                content=ai_content,
-            ))
-            await db.commit()
-
-        except Exception as e:
-            logger.error(f"DB save error in free_chat: {e}")
-            await db.rollback()
 
     return FreeChatResponse(
         thread_id=thread_id,

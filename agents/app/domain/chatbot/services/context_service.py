@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.domain.chatbot.graph import interview_graph
 from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
 from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement, ChatMessage,
+    SessionCoaching, QuestionEntrainement,
 )
 from app.domain.chatbot.state import (
     InterviewPrepState, ArenaConfig, MessageTurn,

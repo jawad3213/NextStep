@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.domain.chatbot.graph import interview_graph
 from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
 from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement, ChatMessage,
+    SessionCoaching, QuestionEntrainement,
 )
 from app.domain.chatbot.state import (
     InterviewPrepState, ArenaConfig, MessageTurn,
@@ -72,27 +72,7 @@ async def get_salary_service(
     from app.domain.chatbot.state import SalaryResult
     salary: SalaryResult | None = result.get("salary")
 
-    # Sauvegarder dans chat_message (type = salary)
-    try:
-        summary = (
-            f"Salary analysis: {salary.range_min}–{salary.range_max} {salary.currency}"
-            if salary else "Salary analysis requested"
-        )
-        cand_id = await get_candidature_id(offer_id, user_id, db)
-        internal_uid = await get_internal_user_id(user_id, db)
-        db.add(ChatMessage(
-            thread_id=thread_id,
-            id_utilisateur=internal_uid,
-            id_candidature=cand_id,
-            chat_type="salary",
-            sender="ai",
-            content=summary,
-        ))
-        await db.commit()
 
-    except Exception as e:
-        logger.error(f"DB save salary error: {e}")
-        await db.rollback()
 
     if not salary:
         return SalaryResponse(

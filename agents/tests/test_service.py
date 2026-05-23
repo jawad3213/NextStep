@@ -291,51 +291,6 @@ class TestFreeChatService:
         assert result.thread_id == thread_id
         assert result.response  == fake_ai_response
 
-        # 2 messages sauvegardés en DB (user + ai)
-        assert mock_db.add.call_count == 2
-        mock_db.commit.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_sauvegarde_dans_chat_message(self, mock_db, user_id):
-        """Vérifie que les messages sont bien persistés en DB."""
-        thread_id = str(uuid.uuid4())
-
-        fake_result = {
-            "messages": [
-                MessageTurn(role="user", content="Question?"),
-                MessageTurn(role="ai",   content="Réponse de l'IA."),
-            ]
-        }
-
-        with patch(
-            "app.domain.chatbot.graph.interview_graph.ainvoke",
-            new=AsyncMock(return_value=fake_result)
-        ):
-            await service.free_chat_service(
-                user_input="Question?",
-                thread_id=thread_id,
-                history=[],
-                offer_id=None,
-                user_id=user_id,
-                db=mock_db,
-            )
-
-        # Vérifier que db.add a été appelé 2 fois
-        assert mock_db.add.call_count == 2
-
-        # Récupérer les objets passés à db.add
-        calls = mock_db.add.call_args_list
-        first_obj  = calls[0][0][0]   # premier add → message user
-        second_obj = calls[1][0][0]   # deuxième add → message ai
-
-        from app.domain.chatbot.models import ChatMessage
-        assert isinstance(first_obj,  ChatMessage)
-        assert isinstance(second_obj, ChatMessage)
-        assert first_obj.sender  == "user"
-        assert second_obj.sender == "ai"
-        assert first_obj.chat_type  == "questions"
-        assert second_obj.chat_type == "questions"
-
 
 # ═══════════════════════════════════════════════════════════════
 # TESTS — start_interview_service
@@ -451,36 +406,7 @@ class TestSendMessageService:
         assert result.session_id  == session_id
         assert result.ai_response == recruiter_response
 
-    @pytest.mark.asyncio
-    async def test_sauvegarde_deux_messages(
-        self, mock_db, session_id, user_id, arena_config_schema
-    ):
-        """User message + AI response → 2 lignes dans chat_message."""
-        fake_result = {
-            "messages": [
-                MessageTurn(role="user", content="Mon input"),
-                MessageTurn(role="ai",   content="Réponse AI"),
-            ]
-        }
 
-        with patch(
-            "app.domain.chatbot.graph.interview_graph.ainvoke",
-            new=AsyncMock(return_value=fake_result)
-        ):
-            await service.send_message_service(
-                session_id=session_id,
-                user_input="Mon input",
-                history=[],
-                mode="arena",
-                offer_id=None,
-                arena_config=arena_config_schema,
-                user_id=user_id,
-                db=mock_db,
-            )
-
-        # user + ai = 2 add()
-        assert mock_db.add.call_count == 2
-        mock_db.commit.assert_called_once()
 
 
 # ═══════════════════════════════════════════════════════════════

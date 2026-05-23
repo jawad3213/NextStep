@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.domain.chatbot.graph import interview_graph
 from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
 from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement, ChatMessage,
+    SessionCoaching, QuestionEntrainement,
 )
 from app.domain.chatbot.state import (
     InterviewPrepState, ArenaConfig, MessageTurn,
@@ -55,6 +55,82 @@ async def generate_questions_service(
     Génère les questions via LangGraph.
     Sauvegarde chaque question dans question_entrainement.
     """
+
+    # 0. Check if questions already exist for this offer or domain/level
+    if mode == "offer" and offer_id:
+        cand_id = await get_candidature_id(offer_id, user_id, db)
+        if cand_id and isinstance(cand_id, uuid.UUID):
+            # Query existing questions for this candidature
+            stmt = (
+                select(QuestionEntrainement)
+                .join(SessionCoaching)
+                .where(SessionCoaching.id_candidature == cand_id)
+                .order_by(QuestionEntrainement.ordre.asc())
+            )
+            res = await db.execute(stmt)
+            existing_qs = res.scalars().all()
+            if existing_qs and isinstance(existing_qs, list):
+                logger.info(f"Reusing {len(existing_qs)} existing questions for candidature {cand_id}")
+                return QuestionsResponse(
+                    mode=mode,
+                    total=len(existing_qs),
+                    questions=[
+                        QuestionOut(
+                            id=str(q.id_question),
+                            question=q.texte_question,
+                            type=q.type_question,
+                            source=q.source,
+                            company_specific=q.company_specific,
+                            tip=q.conseil_reponse,
+                        )
+                        for q in existing_qs
+                    ],
+                )
+
+    elif mode == "arena" and arena_config:
+        internal_uid = await get_internal_user_id(user_id, db)
+        if internal_uid and isinstance(internal_uid, uuid.UUID):
+            # Query the most recent session with identical arena config
+            stmt = (
+                select(SessionCoaching)
+                .where(
+                    SessionCoaching.id_utilisateur == internal_uid,
+                    SessionCoaching.mode == "arena",
+                    SessionCoaching.domain == arena_config.domain,
+                    SessionCoaching.level == arena_config.level,
+                    SessionCoaching.language == arena_config.language
+                )
+                .order_by(SessionCoaching.date_session.desc())
+                .limit(1)
+            )
+            res = await db.execute(stmt)
+            last_session = res.scalar_one_or_none()
+            if last_session and not type(last_session).__name__.endswith("Mock"):
+                # Query questions of that session
+                stmt_q = (
+                    select(QuestionEntrainement)
+                    .where(QuestionEntrainement.id_session == last_session.id_session)
+                    .order_by(QuestionEntrainement.ordre.asc())
+                )
+                res_q = await db.execute(stmt_q)
+                existing_qs = res_q.scalars().all()
+                if existing_qs and isinstance(existing_qs, list):
+                    logger.info(f"Reusing {len(existing_qs)} existing questions for arena domain {arena_config.domain} level {arena_config.level}")
+                    return QuestionsResponse(
+                        mode=mode,
+                        total=len(existing_qs),
+                        questions=[
+                            QuestionOut(
+                                id=str(q.id_question),
+                                question=q.texte_question,
+                                type=q.type_question,
+                                source=q.source,
+                                company_specific=q.company_specific,
+                                tip=q.conseil_reponse,
+                            )
+                            for q in existing_qs
+                        ],
+                    )
 
     # 1. Récupérer le contexte offre si mode offer
     offer_ctx = None

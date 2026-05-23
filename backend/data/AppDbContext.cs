@@ -26,7 +26,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DocumentGenere> DocumentsGeneres => Set<DocumentGenere>();
     
     public DbSet<SessionCoaching> SessionCoachings { get; set; }
-    public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<QuestionEntrainement> QuestionEntrainements { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

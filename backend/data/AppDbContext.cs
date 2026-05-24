@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using NextStep.Modules.Candidature.Models;
 using NextStep.Modules.Cv.Models;
 using NextStep.Modules.Email.Models;
@@ -37,7 +37,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.HasDefaultSchema("public");
 
-        // ─── OffreEmploi ───
+        // â”€â”€â”€ OffreEmploi â”€â”€â”€
         modelBuilder.Entity<OffreEmploi>(entity =>
         {
             entity.ToTable("offres_emploi");
@@ -63,7 +63,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasDefaultValueSql("now()");
         });
 
-        // ─── Candidature ───
+        // â”€â”€â”€ Candidature â”€â”€â”€
         modelBuilder.Entity<Candidature>(entity =>
         {
             entity.ToTable("candidature");
@@ -103,7 +103,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ─── EmailDraft ───
+        // â”€â”€â”€ EmailDraft â”€â”€â”€
         modelBuilder.Entity<EmailDraft>(entity =>
         {
             entity.ToTable("email_draft");
@@ -169,7 +169,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ─── CvTemplate ───
+        // â”€â”€â”€ CvTemplate â”€â”€â”€
         modelBuilder.Entity<CvTemplate>(entity =>
         {
             entity.ToTable("cv_template");
@@ -242,7 +242,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasColumnName("updated_at");
         });
 
-        // ─── CvHistory ───
+        // â”€â”€â”€ CvHistory â”€â”€â”€
         modelBuilder.Entity<CvHistory>(entity =>
         {
             entity.ToTable("cv_history");
@@ -313,7 +313,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasDatabaseName("ix_cv_history_user_created");
         });
 
-        // ─── DocumentGenere ───
+        // â”€â”€â”€ DocumentGenere â”€â”€â”€
         modelBuilder.Entity<DocumentGenere>(entity =>
         {
             entity.ToTable("document_genere");
@@ -428,4 +428,5 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         });
     }
 }
+
 

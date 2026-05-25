@@ -13,6 +13,7 @@ class QuestPDFCandidate(CamelCaseBaseModel):
     email: str = ""
     phone: Optional[str] = None
     location: Optional[str] = None
+    photo_url: Optional[str] = None
     linked_in: Optional[str] = None
     git_hub: Optional[str] = None
     portfolio: Optional[str] = None
@@ -43,6 +44,8 @@ class QuestPDFActivity(CamelCaseBaseModel):
     title: str = ""
     role: Optional[str] = None
     description: Optional[str] = None
+    start: Optional[str] = None
+    end: Optional[str] = None
 
 class QuestPDFCvData(CamelCaseBaseModel):
     """

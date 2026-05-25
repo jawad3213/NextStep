@@ -8,6 +8,7 @@ using NextStep.data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text;
+using NextStep.Shared.Storage;
 
 namespace NextStep.Modules.Profile.Controllers
 {
@@ -20,13 +21,15 @@ namespace NextStep.Modules.Profile.Controllers
         private readonly IUserService _userService;
         private readonly AppDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IStorageService _storageService;
 
-        public ProfileController(IProfileService profileService, IUserService userService, AppDbContext context, IHttpClientFactory httpClientFactory)
+        public ProfileController(IProfileService profileService, IUserService userService, AppDbContext context, IHttpClientFactory httpClientFactory, IStorageService storageService)
         {
             _profileService = profileService;
             _userService = userService;
             _context = context;
             _httpClientFactory = httpClientFactory;
+            _storageService = storageService;
         }
 
         private async Task<Guid> GetUserIdAsync()
@@ -51,6 +54,96 @@ namespace NextStep.Modules.Profile.Controllers
             var userId = await GetUserIdAsync();
             await _profileService.UpdatePersonalInfoAsync(userId, dto);
             return Ok(new { message = "Infos personnelles mises à jour." });
+        }
+
+        [HttpPost("photo")]
+        [RequestSizeLimit(2 * 1024 * 1024)]
+        public async Task<IActionResult> UploadProfilePhoto(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Aucune image fournie." });
+
+            if (file.Length > 2 * 1024 * 1024)
+                return BadRequest(new { message = "L'image ne doit pas depasser 2MB." });
+
+            var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "image/png",
+                "image/jpeg",
+                "image/jpg",
+                "image/webp"
+            };
+
+            if (!allowedTypes.Contains(file.ContentType))
+                return BadRequest(new { message = "Format d'image non supporte. Utilisez PNG, JPG ou WEBP." });
+
+            var userId = await GetUserIdAsync();
+            var user = await _context.Utilisateurs.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Utilisateur non trouve." });
+
+            var extension = Path.GetExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(extension))
+            {
+                extension = file.ContentType.Equals("image/png", StringComparison.OrdinalIgnoreCase) ? ".png"
+                    : file.ContentType.Equals("image/webp", StringComparison.OrdinalIgnoreCase) ? ".webp"
+                    : ".jpg";
+            }
+
+            var objectKey = $"profiles/{userId}/avatar-{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
+
+            await using var stream = file.OpenReadStream();
+            await using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+
+            var photoUrl = await _storageService.UploadFileAsync(objectKey, memory.ToArray(), file.ContentType);
+            user.PhotoUrl = photoUrl;
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                photoUrl,
+                objectKey,
+                message = "Photo de profil televersee avec succes."
+            });
+        }
+
+        [HttpGet("photo/signed")]
+        public async Task<IActionResult> GetSignedProfilePhotoUrl()
+        {
+            var userId = await GetUserIdAsync();
+            var user = await _context.Utilisateurs.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Utilisateur non trouve." });
+
+            var rawUrl = (user.PhotoUrl ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(rawUrl))
+                return Ok(new { photoUrl = (string?)null });
+
+            // If this is not a MinIO/S3 URL we just return it as-is.
+            if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var parsed))
+                return Ok(new { photoUrl = rawUrl });
+
+            var path = parsed.AbsolutePath.Trim('/');
+            var slashIdx = path.IndexOf('/');
+            if (slashIdx <= 0 || slashIdx >= path.Length - 1)
+                return Ok(new { photoUrl = rawUrl });
+
+            // URL shape: /{bucket}/{objectKey}
+            var objectKey = path[(slashIdx + 1)..];
+            if (string.IsNullOrWhiteSpace(objectKey))
+                return Ok(new { photoUrl = rawUrl });
+
+            try
+            {
+                var signedUrl = await _storageService.GetPresignedUrlAsync(objectKey, TimeSpan.FromHours(6));
+                return Ok(new { photoUrl = signedUrl, objectKey });
+            }
+            catch
+            {
+                // Fallback to stored URL if signing fails
+                return Ok(new { photoUrl = rawUrl });
+            }
         }
 
         // Experiences

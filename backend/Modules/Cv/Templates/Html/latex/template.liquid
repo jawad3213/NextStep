@@ -1,6 +1,6 @@
 <div class="cv-document cv-document-latex" style="{{ root_style }}">
   <div class="cv-sheet cv-sheet-latex">
-    <header class="cv-latex-header">
+    <header class="cv-latex-header" data-editor-section-id="header" data-editor-section-title="Header">
       <h1>{{ candidate.name }}</h1>
       <p>{{ contact_line }}</p>
       <div class="cv-link-row">
@@ -11,7 +11,7 @@
     </header>
 
     {% for section in main_sections %}
-    <section class="cv-section cv-section-main">
+    <section class="cv-section cv-section-main" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
       <div class="cv-section-title-row">
         <h2>{{ section.title }}</h2>
         <div class="cv-rule"></div>
@@ -46,7 +46,7 @@
     {% if sidebar_sections.size > 0 %}
     <section class="cv-section cv-section-meta">
       {% for section in sidebar_sections %}
-      <div class="cv-meta-block">
+      <div class="cv-meta-block" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
         <h3>{{ section.title }}</h3>
         {% if section.id == "skills" %}
           <div class="cv-tag-grid">

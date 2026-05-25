@@ -101,7 +101,16 @@ public class PipelineRunnerService : IPipelineRunnerService
             var resumeData = new {
                 analyzed_offer = root.TryGetProperty("analyzed_offer", out var ao) ? JsonSerializer.Deserialize<object>(ao.GetRawText()) : null,
                 profile_data = root.TryGetProperty("profile_data", out var pd) ? JsonSerializer.Deserialize<object>(pd.GetRawText()) : null,
-                match_result = root.TryGetProperty("match_result", out var mr) ? JsonSerializer.Deserialize<object>(mr.GetRawText()) : null,
+                skill_gap_analysis = root.TryGetProperty("skill_gap_analysis", out var sga)
+                    ? JsonSerializer.Deserialize<object>(sga.GetRawText())
+                    : root.TryGetProperty("match_result", out var mrForSkillGap)
+                        ? JsonSerializer.Deserialize<object>(mrForSkillGap.GetRawText())
+                        : null,
+                match_result = root.TryGetProperty("match_result", out var mr)
+                    ? JsonSerializer.Deserialize<object>(mr.GetRawText())
+                    : root.TryGetProperty("skill_gap_analysis", out var sgaForMatch)
+                        ? JsonSerializer.Deserialize<object>(sgaForMatch.GetRawText())
+                        : null,
                 company_intelligence = root.TryGetProperty("company_intelligence", out var ci) ? JsonSerializer.Deserialize<object>(ci.GetRawText()) : null
             };
 
@@ -238,8 +247,23 @@ public class PipelineRunnerService : IPipelineRunnerService
             dto.KeywordsAts = ao.GetStringList("keywords_ats");
         }
 
+        if (root.TryGetProperty("skill_gap_analysis", out var sga) && sga.ValueKind == JsonValueKind.Object)
+        {
+            dto.MatchResult = JsonSerializer.Deserialize<object>(sga.GetRawText());
+            dto.SkillGapAnalysis = JsonSerializer.Deserialize<object>(sga.GetRawText());
+            dto.ScoreMatching = sga.GetIntOrDefault("score_matching") ?? 0;
+            dto.ScoreAts = sga.GetIntOrDefault("score_ats") ?? 0;
+            dto.KeywordsPresents = sga.GetStringList("keywords_presents");
+            dto.KeywordsManquants = sga.GetStringList("keywords_manquants");
+            dto.Recommandations = sga.GetStringList("recommandations");
+            dto.CompetencesMatching = sga.GetStringList("competences_matching");
+            dto.CompetencesManquantes = sga.GetStringList("competences_manquantes");
+        }
+
         if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)
         {
+            dto.MatchResult ??= JsonSerializer.Deserialize<object>(mr.GetRawText());
+            dto.SkillGapAnalysis ??= JsonSerializer.Deserialize<object>(mr.GetRawText());
             dto.ScoreMatching = mr.GetIntOrDefault("score_matching") ?? 0;
             dto.ScoreAts = mr.GetIntOrDefault("score_ats") ?? 0;
             dto.KeywordsPresents = mr.GetStringList("keywords_presents");

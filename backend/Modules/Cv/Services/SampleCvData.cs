@@ -21,20 +21,6 @@ public static class SampleCvData
         [
             new CvExperience
             {
-                Role = "Senior Full-Stack Engineer",
-                Company = "TechCorp Inc.",
-                Start = "2021-03",
-                End = null,
-                Bullets =
-                [
-                    "Architected and delivered a micro-frontend SaaS platform serving 50K+ users using Angular, Nx, and Module Federation",
-                    "Designed CI/CD pipelines with GitHub Actions, Docker, and AWS ECS, reducing deployment time by 70%",
-                    "Led a team of 4 engineers, conducting code reviews, sprint planning, and mentoring junior developers",
-                    "Migrated legacy monolith to event-driven microservices on AWS Lambda + SQS, cutting infrastructure costs by 40%",
-                ],
-            },
-            new CvExperience
-            {
                 Role = "Full-Stack Developer",
                 Company = "StartupXYZ",
                 Start = "2018-06",
@@ -44,20 +30,6 @@ public static class SampleCvData
                     "Built real-time dashboard with React, Redux, and WebSockets for live data visualization",
                     "Developed RESTful APIs with Node.js, Express, and PostgreSQL handling 1M+ requests/day",
                     "Implemented end-to-end testing with Cypress and integration tests with Supertest, achieving 90% code coverage",
-                    "Containerized all services with Docker and orchestrated with docker-compose for local development",
-                ],
-            },
-            new CvExperience
-            {
-                Role = "Junior Developer",
-                Company = "WebAgency Co.",
-                Start = "2016-09",
-                End = "2018-05",
-                Bullets =
-                [
-                    "Developed responsive landing pages and SPAs using AngularJS and Bootstrap",
-                    "Created REST API documentation with Swagger/OpenAPI for client-facing integrations",
-                    "Automated database migrations and backups with Python scripts and cron jobs",
                 ],
             },
         ],
@@ -67,77 +39,84 @@ public static class SampleCvData
             {
                 Degree = "M.Sc. in Computer Science",
                 Institution = "Stanford University",
-                Year = "2016",
+                Year = string.Empty,
             },
             new CvEducation
             {
                 Degree = "B.Sc. in Software Engineering",
                 Institution = "UC Berkeley",
-                Year = "2014",
+                Year = string.Empty,
             },
         ],
         Skills =
         [
             new CvSkill { Name = "Angular", Level = 5, IsMatched = true },
-            new CvSkill { Name = "React", Level = 4, IsMatched = true },
+            new CvSkill { Name = "React", Level = 5, IsMatched = true },
             new CvSkill { Name = "Node.js", Level = 5, IsMatched = true },
             new CvSkill { Name = "TypeScript", Level = 5, IsMatched = true },
-            new CvSkill { Name = "PostgreSQL", Level = 4, IsMatched = true },
-            new CvSkill { Name = "Docker", Level = 4, IsMatched = false },
-            new CvSkill { Name = "AWS", Level = 4, IsMatched = false },
-            new CvSkill { Name = "Python", Level = 3, IsMatched = false },
-            new CvSkill { Name = "GraphQL", Level = 3, IsMatched = false },
-            new CvSkill { Name = "Redis", Level = 3, IsMatched = false },
+            new CvSkill { Name = "Python", Level = 4, IsMatched = true },
+            new CvSkill { Name = "PostgreSQL", Level = 5, IsMatched = true },
+            new CvSkill { Name = "Docker", Level = 5, IsMatched = true },
         ],
         Projects =
         [
             new CvProject
             {
-                Title = "Open Source — ngx-dashboard",
+                Title = "Open Source - ngx-dashboard",
                 Description = "Open-source Angular component library for building analytics dashboards",
                 Bullets =
                 [
                     "Published on npm with 2K+ weekly downloads and 400+ GitHub stars",
-                    "Built 20+ reusable components with全面的 Storybook documentation and coverage",
-                ],
-            },
-            new CvProject
-            {
-                Title = "E-Commerce Platform",
-                Description = "Full-stack e-commerce solution with real-time inventory management",
-                Bullets =
-                [
-                    "Architected microservices with Node.js, RabbitMQ, and MongoDB for product catalog, orders, and payments",
-                    "Integrated Stripe Connect for marketplace payments and Plaid for identity verification",
+                    "Built 20+ reusable components with Storybook documentation and coverage",
                 ],
             },
         ],
         Certifications =
         [
-            "AWS Solutions Architect — Professional",
+            "AWS Solutions Architect - Professional",
             "Google Cloud Professional Data Engineer",
-            "Certified Kubernetes Administrator (CKA)",
         ],
         Languages =
         [
-            "English — Native",
-            "French — Professional (C1)",
-            "Spanish — Conversational (B1)",
+            "English - Native",
+            "French - Professional (C1)",
+         
         ],
         Activities =
         [
-            new CvActivity
+            new CvActivity { Title = "IT Dayz" },
+            new CvActivity { Title = "Public Speaker" },
+        ],
+        Sections =
+        [
+            new CvSection
             {
-                Title = "Tech Meetup Organizer",
-                Role = "Co-Organizer",
-                Description = "Co-organizing a local Angular meetup with 300+ members, monthly talks, and workshops",
+                Id = "activities",
+                Type = CvSectionTypes.Activities,
+                Title = "Activities",
+                Placement = CvSectionPlacements.Sidebar,
+                IsVisible = true,
+                Order = 70,
+                Items =
+                [
+                    new CvSectionItem { PrimaryText = "IDS" },
+                    new CvSectionItem { PrimaryText = "ITWAVE" },
+                ]
             },
-            new CvActivity
+            new CvSection
             {
-                Title = "Open Source Contributor",
-                Role = "Contributor",
-                Description = "Active contributor to Angular Material and Nx workspaces projects",
-            },
+                Id = "accomplishments",
+                Type = CvSectionTypes.Accomplishments,
+                Title = "Accomplishments",
+                Placement = CvSectionPlacements.Sidebar,
+                IsVisible = true,
+                Order = 80,
+                Items =
+                [
+                    new CvSectionItem { PrimaryText = "Built full-stack and AI-powered projects with measurable delivery outcomes" },
+                    new CvSectionItem { PrimaryText = "Recognized in hackathon and team-based technical competitions" },
+                ]
+            }
         ],
         ThemeColor = "#1B2A4A",
         AtsScore = 94,

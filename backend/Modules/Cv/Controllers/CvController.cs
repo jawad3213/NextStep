@@ -52,9 +52,15 @@ public class CvController : ControllerBase
 
     [HttpGet("templates/{slug}/thumbnail")]
     [AllowAnonymous]
-    public IActionResult GetThumbnailPng(string slug)
+    public async Task<IActionResult> GetThumbnailPng(string slug)
     {
-        var imageBytes = _thumbnailService.GetThumbnailPng(slug.ToLowerInvariant());
+        var normalizedSlug = slug.ToLowerInvariant();
+        var imageBytes = _thumbnailService.GetThumbnailPng(normalizedSlug);
+        if (imageBytes is null)
+        {
+            await _thumbnailService.GenerateAllThumbnailsAsync();
+            imageBytes = _thumbnailService.GetThumbnailPng(normalizedSlug);
+        }
         if (imageBytes is null)
             return NotFound(new { error = $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first." });
 

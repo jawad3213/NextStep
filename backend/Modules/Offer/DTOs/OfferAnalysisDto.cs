@@ -51,6 +51,8 @@ public class OfferAnalysisDto
     // live backend PDF preview, final save and download.
     public object? CvGeneratedContent { get; set; }
     public object? ProfileData { get; set; }
+    public object? SkillGapAnalysis { get; set; }
+    public object? MatchResult { get; set; }
 }
 
 public class CompanyNewsItem

@@ -12,6 +12,7 @@ import {
 } from '../../services/offer-api.service';
 import { environment } from '../../../../../environments/environment';
 import { SignalRService } from '../../../../services/signalr.service';
+import { ProfileService } from '../../../profile/profile.service';
 
 interface RealCvTemplate {
   slug: string;
@@ -37,12 +38,14 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   private readonly offerApi = inject(OfferApiService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly signalR = inject(SignalRService);
+  private readonly profileService = inject(ProfileService);
   private previewDebounceId: number | null = null;
   private autosaveDebounceId: number | null = null;
   private previewRequestSub: Subscription | null = null;
   private autosaveSub: Subscription | null = null;
   private loadDraftSub: Subscription | null = null;
   private lastDraftHash = '';
+  private signedProfilePhotoUrl: string | null = null;
   private readonly thumbnailUrlCache = new Map<string, string>();
   private readonly thumbnailNonce = Date.now();
   private readonly draftKey = 'nextstep_cv_draft';
@@ -63,7 +66,9 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   savedHistoryId: string | null = null;
   savedFileUrl: string | null = null;
   isSavingFinal = false;
-  isDownloadingFinal = false;
+  isPreparingDownload = false;
+  isGeneratingHighQualityPdf = false;
+  isReoptimizingCv = false;
   private savedDraftHash = '';
   private readonly activitySignals = [
     'hackathon', 'club', 'association', 'organisateur', 'organizer',
@@ -132,14 +137,19 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   private hasRenderableCvData(data: any | null | undefined): boolean {
     if (!data || typeof data !== 'object') return false;
-    const candidate = data?.candidate;
+    const normalized = this.unwrapCvPayload(data);
+    const candidate = this.getCandidateSource(normalized);
     const hasIdentity = !!this.cleanText(candidate?.name)
+      || !!this.cleanText(candidate?.nomComplet)
+      || !!this.cleanText(candidate?.fullName)
       || !!this.cleanText(candidate?.email)
-      || !!this.cleanText(data?.summary);
-    const hasSections = this.asArray(data?.experience).length > 0
-      || this.asArray(data?.education).length > 0
-      || this.asArray(data?.skills).length > 0
-      || this.asArray(data?.projects).length > 0;
+      || !!this.cleanText(normalized?.summary)
+      || !!this.cleanText(normalized?.resume)
+      || !!this.cleanText(normalized?.resumeProfessionnel);
+    const hasSections = this.firstArray(normalized, ['experience', 'experiences', 'experiences_optimisees']).length > 0
+      || this.firstArray(normalized, ['education', 'formations', 'formations_optimisees']).length > 0
+      || this.firstArray(normalized, ['skills', 'competences', 'competences_reordonnees', 'competences_mises_en_avant']).length > 0
+      || this.firstArray(normalized, ['projects', 'projets', 'projets_optimises']).length > 0;
     return hasIdentity || hasSections;
   }
 
@@ -150,7 +160,20 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
         console.warn('[CV-PIPELINE] SignalR join failed from generation step', err);
       });
     }
+    void this.prefetchSignedProfilePhoto();
     this.hydrateInitialDraft();
+  }
+
+  private async prefetchSignedProfilePhoto(): Promise<void> {
+    try {
+      this.signedProfilePhotoUrl = await this.profileService.getSignedProfilePhotoUrl();
+      if (this.signedProfilePhotoUrl && this.currentCvData()) {
+        this.queueLivePreview(this.currentCvData(), 0);
+      }
+    } catch (error) {
+      console.warn('[CV-PIPELINE] Failed to prefetch signed profile photo URL', error);
+      this.signedProfilePhotoUrl = null;
+    }
   }
 
   ngOnDestroy(): void {
@@ -173,6 +196,94 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   goBack(): void {
     this.pipeline.goToStep(3);
+  }
+
+  async reoptimizeCv(): Promise<void> {
+    const offerId = this.currentOfferId;
+    if (!offerId || this.isReoptimizingCv) return;
+
+    const templateId = this.agentTemplateId(this.selectedTemplate);
+    this.pipeline.pipelineError.set(null);
+    this.isReoptimizingCv = true;
+    this.pipeline.setLoading(true, 'Re-analyse du CV optimise en cours...');
+    this.pipeline.currentAgentProgress.set({
+      step: 'generating_cv',
+      agentName: 'cv_optimizer',
+      label: 'Nouvelle optimisation du CV...',
+      status: 'running',
+      progressPercent: 8
+    });
+
+    try {
+      await this.signalR.joinOfferGroup(offerId);
+    } catch (err) {
+      console.warn('[CV-PIPELINE] SignalR join failed for re-optimization, polling only', err);
+    }
+
+    const currentResult = this.pipeline.pipelineResult();
+    const localProfile = currentResult?.profileData ?? null;
+
+    this.offerApi.resumePipeline(offerId, templateId).subscribe({
+      next: (res: any) => {
+        const current = this.pipeline.pipelineResult();
+        if (!current) {
+          this.finishReoptimization();
+          return;
+        }
+
+        const profileForFallback = res?.profileData
+          ?? res?.profile_data
+          ?? current.profileData
+          ?? localProfile;
+
+        const generatedCv = res?.cvGeneratedContent
+          ?? res?.cv_data
+          ?? res?.cvData
+          ?? res?.cv_optimized_content
+          ?? res?.cvOptimizedContent;
+
+        if (generatedCv) {
+          this.pipeline.setResult({
+            ...current,
+            profileData: profileForFallback ?? current.profileData,
+            cvGeneratedContent: generatedCv,
+            emailSubject: res?.email_subject ?? current.emailSubject ?? '',
+            emailBody: res?.email_body ?? current.emailBody ?? '',
+            recruiterName: res?.recruiter_name ?? current.recruiterName ?? '',
+          });
+
+          this.hasUserEditedDraft = false;
+          this.savedHistoryId = null;
+          this.savedFileUrl = null;
+          this.savedDraftHash = '';
+          this.lastDraftHash = '';
+          this.draftStatus = 'idle';
+          this.draftError = null;
+
+          const nextDraft: CvEditorDraft = {
+            cvData: generatedCv,
+            designConfig: this.currentDesignConfig,
+            htmlSnapshot: null
+          };
+          this.applyInitialDraft(nextDraft, 'idle');
+        }
+
+        this.pipeline.currentAgentProgress.set({
+          step: 'generating_cv',
+          agentName: 'db_persist',
+          label: 'CV re-optimise et recharge dans l editeur.',
+          status: 'done',
+          progressPercent: 100
+        });
+        this.finishReoptimization();
+      },
+      error: (err) => {
+        console.error('[CV-PIPELINE] Re-optimization failed', err);
+        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Echec de la re-optimisation du CV.');
+        this.pipeline.currentAgentProgress.set(null);
+        this.finishReoptimization();
+      }
+    });
   }
 
   selectTemplate(slug: string): void {
@@ -280,10 +391,20 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   async downloadFinalPdf(): Promise<void> {
     try {
+      await this.downloadFastPdf();
+    } catch (err: any) {
+      console.warn('[CV-PIPELINE] Frontend download failed, falling back to backend PDF export', err);
+      this.pipeline.pipelineError.set('Fast download is unavailable right now. Switching to high-quality PDF export.');
+      await this.downloadHighQualityPdf();
+    }
+  }
+
+  async downloadHighQualityPdf(): Promise<void> {
+    try {
       const data = this.currentCvData();
       if (!data) throw new Error('CV introuvable pour le telechargement.');
 
-      this.isDownloadingFinal = true;
+      this.isGeneratingHighQualityPdf = true;
       const blob = await firstValueFrom(this.offerApi.exportCvPdf({
         templateSlug: this.selectedTemplate,
         data,
@@ -299,7 +420,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       console.error('[CV-PIPELINE] Final CV download failed', err);
       this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Telechargement PDF indisponible.');
     } finally {
-      this.isDownloadingFinal = false;
+      this.isGeneratingHighQualityPdf = false;
     }
   }
 
@@ -374,6 +495,95 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
+  }
+
+  private async downloadFastPdf(): Promise<void> {
+    const htmlSnapshot = this.renderedHtmlSnapshot?.trim();
+    if (!htmlSnapshot) {
+      throw new Error('Rendered HTML preview is not ready yet.');
+    }
+
+    const offerId = this.currentOfferId || 'candidat';
+    const title = `CV_${offerId}_${this.selectedTemplate}`;
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1200,height=900');
+    if (!printWindow) {
+      throw new Error('Popup blocked by browser.');
+    }
+
+    this.isPreparingDownload = true;
+    this.pipeline.pipelineError.set(null);
+
+    const printMarkup = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${this.escapeHtml(title)}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    html, body { margin: 0; padding: 0; background: #e5e7eb; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @media print {
+      html, body { background: #ffffff; }
+    }
+  </style>
+</head>
+<body>
+${htmlSnapshot}
+</body>
+</html>`;
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        callback();
+      };
+
+      const timeoutId = window.setTimeout(() => {
+        finish(() => reject(new Error('Print window timed out before rendering.')));
+      }, 8000);
+
+      const triggerPrint = () => {
+        window.clearTimeout(timeoutId);
+        printWindow.focus();
+        window.setTimeout(() => {
+          try {
+            printWindow.print();
+            window.setTimeout(() => {
+              try {
+                printWindow.close();
+              } catch {}
+              finish(resolve);
+            }, 250);
+          } catch (error) {
+            finish(() => reject(error instanceof Error ? error : new Error('Unable to print fast PDF.')));
+          }
+        }, 150);
+      };
+
+      printWindow.document.open();
+      printWindow.document.write(printMarkup);
+      printWindow.document.close();
+
+      if (printWindow.document.readyState === 'complete') {
+        triggerPrint();
+        return;
+      }
+
+      printWindow.onload = () => triggerPrint();
+    }).finally(() => {
+      this.isPreparingDownload = false;
+    });
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private formatDraftTime(value: string | null | undefined): string | null {
@@ -576,74 +786,103 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private normalizeCvForBackend(data: any): any {
+    data = this.unwrapCvPayload(data);
     const { fontFamily, sections, ...rawWithoutFontFamily } = data ?? {};
     void fontFamily;
     void sections;
-    const candidate = data?.candidate ?? {};
-    const activities = this.normalizeActivities(data?.activities);
-    const experience = this.asArray(data?.experience)
+    const pipelineResult: any = this.pipeline.pipelineResult();
+    const profileSource = pipelineResult?.profileData?.data
+      ?? pipelineResult?.profileData?.profile
+      ?? pipelineResult?.profileData
+      ?? {};
+    const profilePersonal = profileSource?.personalInfo
+      ?? profileSource?.personal_info
+      ?? profileSource?.personal
+      ?? {};
+    const liveProfilePersonal = this.profileService.profile()?.personal ?? {};
+    const candidate = this.getCandidateSource(data);
+    const activities = this.normalizeActivities(this.firstArray(data, ['activities', 'extracurricular', 'activites', 'activitÃ©s']));
+    const highlightedSkills = new Set(
+      this.firstArray(data, ['competences_mises_en_avant'])
+        .map((skill: any) => this.normalizeKey(typeof skill === 'string' ? skill : skill?.name ?? skill?.nom ?? skill?.label))
+        .filter(Boolean)
+    );
+    const experience = this.firstArray(data, ['experience', 'experiences', 'experiences_optimisees'])
       .map((exp: any) => ({
-        role: this.cleanText(exp?.role ?? exp?.title),
-        company: this.cleanText(exp?.company),
-        start: this.toMonthValue(exp?.start),
-        end: this.toMonthValue(exp?.end),
-        bullets: this.dedupeStrings(this.asStringArray(exp?.bullets)).slice(0, 4),
+        role: this.cleanText(exp?.role ?? exp?.title ?? exp?.poste ?? exp?.titre),
+        company: this.cleanText(exp?.company ?? exp?.entreprise),
+        start: this.toMonthValue(exp?.start ?? exp?.dateDebut ?? exp?.date_debut),
+        end: this.toMonthValue(exp?.end ?? exp?.dateFin ?? exp?.date_fin),
+        bullets: this.dedupeStrings(this.asStringArray(exp?.bullets ?? exp?.taches_optimisees ?? exp?.missions ?? exp?.taches ?? exp?.description_optimisee ?? exp?.description)),
+        relevance: this.cleanText(exp?.niveau_pertinence ?? exp?.relevance),
+        keywords: this.dedupeStrings(this.asStringArray(exp?.mots_cles_cibles ?? exp?.keywords)),
       }))
       .filter((exp: any) => {
         if (!exp.role && !exp.company) return false;
         if (!this.looksLikeActivity(exp)) return true;
         activities.push({
-          title: exp.company || exp.role,
-          role: exp.company ? exp.role : null,
+          title: exp.role || exp.company,
+          role: exp.company || null,
           description: exp.bullets[0] ?? '',
+          startDate: exp.start ?? null,
+          endDate: exp.end ?? null,
         });
         return false;
       });
-    const projects = this.normalizeProjects(data?.projects);
+    const projects = this.normalizeProjects(this.firstArray(data, ['projects', 'projets', 'projets_optimises']));
     const normalizedSections = this.normalizeSections(data?.sections);
 
     return {
       ...rawWithoutFontFamily,
       candidate: {
-        name: this.cleanText(candidate?.name),
-        email: this.cleanText(candidate?.email),
-        phone: this.cleanText(candidate?.phone),
-        location: this.cleanText(candidate?.location),
-        photoUrl: candidate?.photoUrl ?? null,
-        linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? null,
-        gitHub: candidate?.gitHub ?? candidate?.github ?? null,
-        portfolio: candidate?.portfolio ?? null,
+        name: this.resolvePreferredCandidateName(candidate, profilePersonal, liveProfilePersonal),
+        email: this.cleanText(candidate?.email ?? candidate?.mail ?? profilePersonal?.email ?? profilePersonal?.mail ?? liveProfilePersonal?.email),
+        phone: this.cleanText(candidate?.phone ?? candidate?.telephone ?? profilePersonal?.phone ?? profilePersonal?.telephone ?? liveProfilePersonal?.phone),
+        location: this.resolvePreferredLocation(candidate, profilePersonal, liveProfilePersonal),
+        title: this.cleanText(candidate?.title ?? candidate?.titrePoste ?? candidate?.poste ?? profilePersonal?.title ?? profilePersonal?.titrePoste ?? profilePersonal?.poste ?? liveProfilePersonal?.jobTitle),
+        photoUrl: this.extractCandidatePhotoUrl(candidate, profilePersonal, liveProfilePersonal),
+        linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? candidate?.lienLinkedin ?? profilePersonal?.linkedIn ?? profilePersonal?.linkedin ?? profilePersonal?.lienLinkedin ?? liveProfilePersonal?.linkedinUrl ?? null,
+        gitHub: candidate?.gitHub ?? candidate?.github ?? candidate?.lienGithub ?? profilePersonal?.gitHub ?? profilePersonal?.github ?? profilePersonal?.lienGithub ?? liveProfilePersonal?.githubUrl ?? null,
+        portfolio: candidate?.portfolio ?? candidate?.lienPortfolio ?? profilePersonal?.portfolio ?? profilePersonal?.lienPortfolio ?? liveProfilePersonal?.portfolioUrl ?? null,
       },
-      summary: this.cleanText(data?.summary),
+      summary: this.cleanText(data?.summary ?? data?.resume ?? data?.resumeProfessionnel ?? candidate?.resumeProfessionnel),
       experience,
-      education: this.asArray(data?.education).map((edu: any) => ({
-        degree: this.cleanText(edu?.degree),
-        institution: this.cleanText(edu?.institution),
-        year: this.cleanText(edu?.year),
-        startYear: this.cleanText(edu?.startYear),
-        endYear: this.cleanText(edu?.endYear),
+      education: this.firstArray(data, ['education', 'formations', 'formations_optimisees']).map((edu: any) => ({
+        degree: this.cleanText(edu?.degree ?? edu?.diplome ?? edu?.titre),
+        institution: this.cleanText(edu?.institution ?? edu?.etablissement ?? edu?.ecole),
+        year: this.cleanText(edu?.year ?? edu?.annee ?? edu?.anneeFin ?? edu?.dateFin),
+        startYear: this.cleanText(edu?.startYear ?? edu?.anneeDebut ?? edu?.dateDebut),
+        endYear: this.cleanText(edu?.endYear ?? edu?.anneeFin ?? edu?.dateFin),
       })),
-      skills: this.asArray(data?.skills).map((skill: any) => ({
-        name: this.cleanText(skill?.name),
-        level: Math.min(5, Math.max(1, Number(skill?.level ?? 3))),
-        isMatched: !!skill?.isMatched,
-      })).filter((skill: any) => !!skill.name).slice(0, 18),
+      skills: this.firstArray(data, ['skills', 'competences', 'competences_reordonnees']).map((skill: any) => {
+        const name = typeof skill === 'string' ? skill : this.cleanText(skill?.name ?? skill?.nom ?? skill?.label);
+        return {
+          name: this.cleanText(name),
+          level: this.toSkillLevel(skill?.level ?? skill?.niveau ?? skill?.score ?? 3),
+          isMatched: !!(skill?.isMatched ?? skill?.matched ?? skill?.statut === 'correspond'),
+          isHighlighted: highlightedSkills.has(this.normalizeKey(name)),
+          category: this.cleanText(skill?.category ?? skill?.categorie ?? skill?.typeCompetence),
+          typeCompetence: this.cleanText(skill?.typeCompetence ?? skill?.type_competence),
+        };
+      }).filter((skill: any) => !!skill.name),
       projects,
-      certifications: this.dedupeStrings(this.asStringArray(data?.certifications)).slice(0, 6),
-      languages: this.dedupeStrings(this.asStringArray(data?.languages)).slice(0, 6),
-      activities: this.dedupeActivities(activities).slice(0, 5),
+      certifications: this.dedupeStrings(this.asStringArray(this.firstArray(data, ['certifications', 'certificats', 'certifications_optimisees']))),
+      languages: this.dedupeStrings(this.asStringArray(this.firstArray(data, ['languages', 'langues']))),
+      activities: this.dedupeActivities(activities),
       sections: normalizedSections,
-      atsScore: Number(data?.atsScore ?? 0),
-      matchingScore: Number(data?.matchingScore ?? 0),
-      atsCoveragePct: Number(data?.atsCoveragePct ?? data?.atsScore ?? 0),
+      atsScore: Number(data?.atsScore ?? data?.ats_score ?? 0),
+      matchingScore: Number(data?.matchingScore ?? data?.matching_score ?? 0),
+      atsCoveragePct: Number(data?.atsCoveragePct ?? data?.ats_coverage_pct ?? data?.atsScore ?? data?.ats_score ?? 0),
     };
   }
 
   private normalizeSections(value: any): any[] {
     return this.asArray(value)
-      .map((section: any, index: number) => ({
-        id: this.cleanText(section?.id) || `section-${index + 1}`,
-        type: this.cleanText(section?.type) || 'custom',
+      .map((section: any, index: number) => {
+        const normalizedId = this.normalizeSectionId(section?.id ?? section?.type);
+        return {
+        id: normalizedId || `section-${index + 1}`,
+        type: normalizedId || this.cleanText(section?.type) || 'custom',
         title: this.cleanText(section?.title),
         placement: section?.placement === 'sidebar' ? 'sidebar' : 'main',
         isVisible: section?.isVisible !== false,
@@ -667,7 +906,8 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
             !!item.description ||
             item.bullets.length > 0
           ),
-      }))
+      };
+      })
       .filter((section: any) => !!section.title || !!section.text || section.items.length > 0);
   }
 
@@ -691,12 +931,20 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     return this.asArray(value)
       .map((activity: any) => {
         if (typeof activity === 'string') {
-          return { title: this.cleanText(activity), role: null, description: '' };
+          return {
+            title: this.cleanText(activity),
+            role: null,
+            description: '',
+            startDate: null,
+            endDate: null,
+          };
         }
         return {
           title: this.cleanText(activity?.title ?? activity?.name),
           role: this.cleanText(activity?.role) || null,
           description: this.cleanText(activity?.description),
+          startDate: this.toMonthValue(activity?.startDate ?? activity?.start ?? activity?.dateDebut ?? activity?.date_debut),
+          endDate: this.toMonthValue(activity?.endDate ?? activity?.end ?? activity?.dateFin ?? activity?.date_fin),
         };
       })
       .filter((activity: any) => !!activity.title || !!activity.description);
@@ -706,15 +954,16 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     const seen = new Set<string>();
     return this.asArray(value)
       .map((project: any) => {
-        const description = this.cleanText(project?.description);
-        const bullets = this.dedupeStrings(this.asStringArray(project?.bullets))
-          .filter((bullet) => !this.isSameMeaning(bullet, description))
-          .slice(0, 4);
+        const description = this.cleanText(project?.description ?? project?.description_optimisee);
+        const bullets = this.dedupeStrings(this.asStringArray(project?.bullets ?? project?.taches_optimisees ?? project?.taches ?? project?.missions))
+          .filter((bullet) => !this.isSameMeaning(bullet, description));
         return {
-          title: this.cleanText(project?.title ?? project?.name),
+          title: this.cleanText(project?.title ?? project?.name ?? project?.titreProjet ?? project?.titre),
           description,
           technologies: this.dedupeStrings(this.asStringArray(project?.technologies)),
-          dateRealisation: this.toMonthValue(project?.dateRealisation),
+          dateRealisation: this.toMonthValue(project?.dateRealisation ?? project?.date_realisation),
+          relevance: this.cleanText(project?.niveau_pertinence ?? project?.relevance),
+          keywords: this.dedupeStrings(this.asStringArray(project?.mots_cles_cibles ?? project?.keywords)),
           bullets,
         };
       })
@@ -724,8 +973,118 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      })
-      .slice(0, 4);
+      });
+  }
+
+  private unwrapCvPayload(value: any): any {
+    if (!value || typeof value !== 'object') return value;
+    return value.cvData
+      ?? value.cv_data
+      ?? value.cvGeneratedContent
+      ?? value.cv_optimized_content
+      ?? value.cvOptimizedContent
+      ?? value.data
+      ?? value;
+  }
+
+  private getCandidateSource(data: any): any {
+    return data?.candidate
+      ?? data?.personal
+      ?? data?.personalInfo
+      ?? data?.personal_info
+      ?? data?.informations_personnelles
+      ?? {};
+  }
+
+  private resolvePreferredCandidateName(candidate: any, profilePersonal: any, liveProfilePersonal: any): string {
+    const candidateName = this.extractCandidateName(candidate);
+    const profileName = this.extractCandidateName(profilePersonal);
+    const liveName = this.extractCandidateName(liveProfilePersonal);
+    if (candidateName && !this.isGenericCandidateName(candidateName)) {
+      return candidateName;
+    }
+    return profileName || liveName || candidateName;
+  }
+
+  private resolvePreferredLocation(candidate: any, profilePersonal: any, liveProfilePersonal: any): string {
+    const candidateLocation = this.cleanText(
+      candidate?.location ?? [candidate?.ville ?? candidate?.city, candidate?.pays ?? candidate?.country].filter(Boolean).join(', ')
+    );
+    const profileLocation = this.cleanText(
+      profilePersonal?.location ?? [profilePersonal?.ville ?? profilePersonal?.city, profilePersonal?.pays ?? profilePersonal?.country].filter(Boolean).join(', ')
+    );
+    const liveLocation = this.cleanText(
+      [liveProfilePersonal?.city, liveProfilePersonal?.country].filter(Boolean).join(', ')
+    );
+    return candidateLocation || profileLocation || liveLocation;
+  }
+
+  private extractCandidateName(source: any): string {
+    return this.cleanText(
+      source?.name
+      ?? source?.nomComplet
+      ?? source?.fullName
+      ?? [source?.firstName, source?.lastName].filter(Boolean).join(' ')
+      ?? [source?.prenom ?? source?.firstName, source?.nom ?? source?.lastName].filter(Boolean).join(' ')
+    );
+  }
+
+  private extractCandidatePhotoUrl(candidate: any, profilePersonal: any, liveProfilePersonal: any): string | null {
+    const photo = candidate?.photoUrl
+      ?? candidate?.photo_url
+      ?? candidate?.profilePhoto
+      ?? candidate?.profile_photo
+      ?? candidate?.avatar
+      ?? profilePersonal?.photoUrl
+      ?? profilePersonal?.photo_url
+      ?? profilePersonal?.profilePhoto
+      ?? profilePersonal?.profile_photo
+      ?? profilePersonal?.avatar
+      ?? liveProfilePersonal?.photoUrl
+      ?? this.signedProfilePhotoUrl;
+    const clean = this.cleanText(photo);
+    return clean || null;
+  }
+
+  private normalizeSectionId(sectionId: any): string {
+    const normalized = this.cleanText(sectionId).toLowerCase();
+    const aliases: Record<string, string> = {
+      summary: 'summary',
+      resume: 'summary',
+      experience: 'experience',
+      experiences: 'experience',
+      project: 'projects',
+      projects: 'projects',
+      education: 'education',
+      skill: 'skills',
+      skills: 'skills',
+      softskills: 'skills',
+      'soft-skills': 'skills',
+      soft_skills: 'skills',
+      certification: 'certifications',
+      certifications: 'certifications',
+      language: 'languages',
+      languages: 'languages',
+      activity: 'activities',
+      activities: 'activities',
+      achievement: 'accomplishments',
+      achievements: 'accomplishments',
+      accomplishments: 'accomplishments',
+    };
+    return aliases[normalized] ?? normalized;
+  }
+
+  private isGenericCandidateName(value: string): boolean {
+    const normalized = this.cleanText(value).toLowerCase();
+    return normalized === 'candidat' || normalized === 'candidate';
+  }
+
+  private firstArray(source: any, keys: string[]): any[] {
+    for (const key of keys) {
+      const value = source?.[key];
+      if (Array.isArray(value)) return value;
+    }
+    return [];
   }
 
   private dedupeActivities(activities: any[]): any[] {
@@ -781,13 +1140,23 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private asStringArray(value: any): string[] {
-    return this.asArray(value).map((item: any) => {
+    const values = Array.isArray(value) ? value : [value];
+    return values.map((item: any) => {
       if (typeof item === 'string') return item.trim();
       if (typeof item === 'number' || typeof item === 'boolean') return String(item);
       if (item && typeof item === 'object')
-        return this.cleanText(item.name ?? item.nom ?? item.label ?? item.title ?? '');
+        return this.cleanText(item.name ?? item.nom ?? item.label ?? item.title ?? item.titre ?? item.description ?? '');
       return String(item ?? '').trim();
     }).filter(Boolean);
+  }
+
+  private toSkillLevel(value: any): number {
+    if (typeof value === 'number') return Math.min(5, Math.max(1, Math.round(value)));
+    const normalized = this.normalizeKey(value);
+    if (['expert', 'avance', 'advanced', 'proficient', 'native', 'maternelle'].includes(normalized)) return 5;
+    if (['intermediaire', 'intermediate', 'courant', 'upper intermediate'].includes(normalized)) return 4;
+    if (['elementaire', 'elementary', 'debutant', 'beginner'].includes(normalized)) return 2;
+    return 3;
   }
 
   private toMonthValue(value: any): string {
@@ -795,4 +1164,15 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     const match = text.match(/^(\d{4})-(\d{2})/);
     return match ? `${match[1]}-${match[2]}` : '';
   }
+
+  private finishReoptimization(): void {
+    this.isReoptimizingCv = false;
+    this.pipeline.setLoading(false);
+  }
+
+  private agentTemplateId(slug: string | null): number {
+    return slug === 'modern' ? 4 : 1;
+  }
 }
+
+

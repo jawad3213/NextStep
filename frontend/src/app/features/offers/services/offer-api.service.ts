@@ -279,6 +279,20 @@ export interface CvDesignConfig {
   sidebarWidth: string;
 }
 
+export interface CvTemplateDto {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  industries: string[];
+  experienceLevels: string[];
+  style: string;
+  layoutFlags: string[];
+  backgroundColor: string;
+  tags: string[];
+}
+
 export interface CvRenderRequest {
   templateSlug: string;
   data: any;
@@ -538,6 +552,10 @@ export class OfferApiService {
 
   getCvHistory(): Observable<CvHistoryItem[]> {
     return this.http.get<CvHistoryItem[]>(`${this.base}/cv/history`);
+  }
+
+  getCvTemplates(): Observable<CvTemplateDto[]> {
+    return this.http.get<CvTemplateDto[]>(`${this.base}/cv/templates`);
   }
 
   getCvDownloadUrl(historyId: string): Observable<{ downloadUrl: string }> {

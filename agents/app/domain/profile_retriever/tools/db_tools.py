@@ -15,6 +15,16 @@ from app.core.database import AsyncSessionFactory
 
 logger = logging.getLogger(__name__)
 
+ACTIVITY_TYPES = {
+    "extracurricular",
+    "extra curricular",
+    "extra-scolaire",
+    "extra scolaire",
+    "extrascolaire",
+    "parascolaire",
+    "para scolaire",
+}
+
 # ─── Client HTTP singleton vers le backend .NET ────────────────
 _http_client: httpx.AsyncClient | None = None
 
@@ -29,6 +39,10 @@ def _get_http_client() -> httpx.AsyncClient:
             headers={"Content-Type": "application/json"},
         )
     return _http_client
+
+
+def _norm(value: object) -> str:
+    return str(value or "").strip().lower()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -67,7 +81,11 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                            id_utilisateur AS profil_id,
                            titre_poste    AS titre,
                            resume_professionnel AS resume,
-                           telephone, ville
+                           telephone, ville,
+                           photo_url,
+                           lien_linkedin AS linkedin,
+                           lien_github AS github,
+                           lien_portfolio AS portfolio
                     FROM utilisateur
                     WHERE keycloak_id = :uid OR id_utilisateur::text = :uid
                     LIMIT 1
@@ -77,7 +95,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
 
             if not row:
                 logger.warning("[Tool:db] Profil introuvable pour user_id=%s", user_id)
-                return {"user_id": user_id, "competences": [], "experiences": []}
+                return {"user_id": user_id, "competences": [], "experiences": [], "activities": []}
 
 
 
@@ -100,15 +118,39 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                         SELECT poste AS titre, entreprise,
                                date_debut::text, date_fin::text,
                                missions AS description,
-                               type_contrat AS type
+                               type_contrat AS type,
+                               taches
                         FROM experience WHERE id_utilisateur = :pid
                         ORDER BY date_debut DESC
                     """),
                     {"pid": pid},
                 )).mappings().all()
+                exps = [
+                    {
+                        **dict(exp),
+                        "taches": (
+                            [str(t).strip() for t in exp.get("taches", []) if str(t).strip()]
+                            if isinstance(exp.get("taches"), list)
+                            else [t.strip() for t in str(exp.get("taches") or "").split("\n") if t.strip()]
+                        ),
+                    }
+                    for exp in exps
+                ]
             except Exception as e:
                 logger.error("[Tool:db] Erreur expériences : %s", str(e))
                 exps = []
+
+            activities = [
+                {
+                    "title": str(exp.get("titre") or exp.get("entreprise") or "").strip(),
+                    "role": str(exp.get("entreprise") or "").strip() or None,
+                    "description": str(exp.get("description") or "").strip() or None,
+                    "date_debut": exp.get("date_debut"),
+                    "date_fin": exp.get("date_fin"),
+                }
+                for exp in exps
+                if _norm(exp.get("type")) in ACTIVITY_TYPES
+            ]
 
             # ── Formations ──────────────────────────────────
             try:
@@ -136,7 +178,8 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                     text("""
                         SELECT titre_projet AS titre,
                                 description,
-                                technologies_utilisees AS technologies
+                                technologies_utilisees AS technologies,
+                                taches
                         FROM projet WHERE id_utilisateur = :pid
                     """),
                     {"pid": pid},
@@ -151,6 +194,13 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                         p_dict["technologies"] = [t.strip() for t in techs.split(",") if t.strip()]
                     elif techs is None:
                         p_dict["technologies"] = []
+                    tasks = p_dict.get("taches")
+                    if isinstance(tasks, list):
+                        p_dict["taches"] = [str(t).strip() for t in tasks if str(t).strip()]
+                    elif isinstance(tasks, str):
+                        p_dict["taches"] = [t.strip() for t in tasks.split("\n") if t.strip()]
+                    else:
+                        p_dict["taches"] = []
                     projs.append(p_dict)
             except Exception as e:
                 logger.error("[Tool:db] Erreur projets : %s", str(e))
@@ -165,8 +215,13 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             "resume":    row["resume"],
             "telephone": row["telephone"],
             "ville":     row["ville"],
+            "photo_url": row["photo_url"],
+            "linkedin":  row["linkedin"],
+            "github":    row["github"],
+            "portfolio": row["portfolio"],
             "competences":    [dict(c) for c in comps],
             "experiences":    [dict(e) for e in exps],
+            "activities":     activities,
             "formations":     [dict(f) for f in forms],
             "certifications": [dict(c) for c in certs],
             "projets":        projs,
@@ -174,7 +229,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
 
     except Exception as e:
         logger.error("[Tool:db] get_user_profile_from_db — Erreur : %s", str(e))
-        return {"user_id": user_id, "error": str(e), "competences": [], "experiences": []}
+        return {"user_id": user_id, "error": str(e), "competences": [], "experiences": [], "activities": []}
 
 
 # ─────────────────────────────────────────────────────────────

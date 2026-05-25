@@ -61,14 +61,17 @@ public class OfferService(
     {
         var root = pipelineResult.RootElement;
         var fullJson = root.GetRawText();
-        var offerExists = await db.OffresEmploi.AnyAsync(o => o.Id == offerId, ct);
+        var offer = await db.OffresEmploi.FirstOrDefaultAsync(o => o.Id == offerId, ct);
 
-        if (!offerExists)
+        if (offer is null)
         {
             throw new InvalidOperationException($"Offer {offerId} not found before pipeline persistence.");
         }
 
-        await repository.UpdateAnalyseJsonAsync(offerId, fullJson, ct);
+        // Save the latest pipeline payload first so the frontend can reload the
+        // fresh analysis/CV output even if draft persistence fails later on.
+        offer.AnalyseJson = fullJson;
+        await db.SaveChangesAsync(ct);
 
         var cvDataJson = root.TryGetProperty("cv_data", out var cd)
             ? NormalizeDraftJson(cd)
@@ -78,47 +81,58 @@ public class OfferService(
         // We create candidature/documents once the generation phase returns cv_data.
         if (cvDataJson != null)
         {
-            var candidature = await db.Candidatures
-                .FirstOrDefaultAsync(c =>
-                    c.IdOffre == offerId &&
-                    c.IdUtilisateur == userId,
-                    ct);
-
-            if (candidature == null)
+            try
             {
-                candidature = new NextStep.Modules.Candidature.Models.Candidature
+                var candidature = await db.Candidatures
+                    .FirstOrDefaultAsync(c =>
+                        c.IdOffre == offerId &&
+                        c.IdUtilisateur == userId,
+                        ct);
+
+                if (candidature == null)
                 {
-                    IdUtilisateur = userId,
-                    IdOffre = offerId,
-                    Statut = "EN_ATTENTE",
-                    DateCreation = DateTime.UtcNow
-                };
-                db.Candidatures.Add(candidature);
+                    candidature = new NextStep.Modules.Candidature.Models.Candidature
+                    {
+                        IdUtilisateur = userId,
+                        IdOffre = offerId,
+                        Offre = offer,
+                        Statut = "EN_ATTENTE",
+                        DateCreation = DateTime.UtcNow
+                    };
+                    db.Candidatures.Add(candidature);
+                    await db.SaveChangesAsync(ct);
+                }
+
+                var existingDocument = await db.DocumentsGeneres
+                    .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature, ct);
+
+                if (existingDocument != null)
+                {
+                    existingDocument.CvContenuIaJson = cvDataJson;
+                    existingDocument.Version += 1;
+                    existingDocument.DateGeneration = DateTime.UtcNow;
+                }
+                else
+                {
+                    var documentGenere = new DocumentGenere
+                    {
+                        IdCandidature = candidature.IdCandidature,
+                        CvContenuIaJson = cvDataJson,
+                        Version = 1,
+                        DateGeneration = DateTime.UtcNow
+                    };
+                    db.DocumentsGeneres.Add(documentGenere);
+                }
+
                 await db.SaveChangesAsync(ct);
             }
-
-            var existingDocument = await db.DocumentsGeneres
-                .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature, ct);
-
-            if (existingDocument != null)
+            catch (Exception ex)
             {
-                existingDocument.CvContenuIaJson = cvDataJson;
-                existingDocument.Version += 1;
-                existingDocument.DateGeneration = DateTime.UtcNow;
+                logger.LogWarning(
+                    ex,
+                    "OfferService — CV draft persistence failed for offer {OfferId}. analyse_json was saved and will still be returned to the frontend.",
+                    offerId);
             }
-            else
-            {
-            var documentGenere = new DocumentGenere
-            {
-                IdCandidature = candidature.IdCandidature,
-                CvContenuIaJson = cvDataJson,
-                Version = 1,
-                DateGeneration = DateTime.UtcNow
-            };
-                db.DocumentsGeneres.Add(documentGenere);
-            }
-
-            await db.SaveChangesAsync(ct);
         }
 
         logger.LogInformation("OfferService — Résultats pipeline sauvegardés pour offre {OfferId}", offerId);
@@ -161,6 +175,12 @@ public class OfferService(
         await EnsureOfferOwnedAsync(userId, offerId, ct);
 
         var sanitized = NormalizeDraftJson(draft);
+        var offer = await db.OffresEmploi.FirstOrDefaultAsync(o => o.Id == offerId, ct);
+        if (offer is null)
+        {
+            throw new KeyNotFoundException($"Offer {offerId} not found.");
+        }
+
         var candidature = await db.Candidatures
             .FirstOrDefaultAsync(c => c.IdOffre == offerId && c.IdUtilisateur == userId, ct);
 
@@ -170,6 +190,7 @@ public class OfferService(
             {
                 IdUtilisateur = userId,
                 IdOffre = offerId,
+                Offre = offer,
                 Statut = "EN_ATTENTE",
                 DateCreation = DateTime.UtcNow
             };
@@ -346,25 +367,18 @@ public class OfferService(
             dto.ProfileData = JsonSerializer.Deserialize<object>(profileDataCamel.GetRawText());
         }
 
+        if (root.TryGetProperty("skill_gap_analysis", out var sga) && sga.ValueKind == JsonValueKind.Object)
+        {
+            dto.SkillGapAnalysis = JsonSerializer.Deserialize<object>(sga.GetRawText());
+            dto.MatchResult = dto.MatchResult ?? JsonSerializer.Deserialize<object>(sga.GetRawText());
+            ApplySkillGapToDto(dto, sga);
+        }
+
         if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)
         {
-            dto.ScoreMatching = mr.GetIntOrDefault("score_matching") ?? mr.GetIntOrDefault("match_score") ?? dto.ScoreMatching;
-            dto.ScoreAts = mr.GetIntOrDefault("score_ats") ?? mr.GetIntOrDefault("ats_score") ?? dto.ScoreAts;
-            
-            var mrKeywordsPresents = mr.GetStringList("keywords_presents");
-            if (mrKeywordsPresents.Count > 0) dto.KeywordsPresents = mrKeywordsPresents;
-            
-            var mrKeywordsManquants = mr.GetStringList("keywords_manquants");
-            if (mrKeywordsManquants.Count > 0) dto.KeywordsManquants = mrKeywordsManquants;
-            
-            var mrRecommandations = mr.GetStringList("recommandations");
-            if (mrRecommandations.Count > 0) dto.Recommandations = mrRecommandations;
-            
-            var mrCompetencesMatching = mr.GetStringList("competences_matching");
-            if (mrCompetencesMatching.Count > 0) dto.CompetencesMatching = mrCompetencesMatching;
-            
-            var mrCompetencesManquantes = mr.GetStringList("competences_manquantes");
-            if (mrCompetencesManquantes.Count > 0) dto.CompetencesManquantes = mrCompetencesManquantes;
+            dto.MatchResult = JsonSerializer.Deserialize<object>(mr.GetRawText());
+            dto.SkillGapAnalysis ??= JsonSerializer.Deserialize<object>(mr.GetRawText());
+            ApplySkillGapToDto(dto, mr);
         }
 
         if (root.TryGetProperty("skill_gap", out var sg) && sg.ValueKind == JsonValueKind.Object)
@@ -528,6 +542,49 @@ public class OfferService(
         }
 
         return dto;
+    }
+
+    private static void ApplySkillGapToDto(OfferAnalysisDto dto, JsonElement skillGap)
+    {
+        dto.ScoreMatching = skillGap.GetIntOrDefault("score_matching") ?? skillGap.GetIntOrDefault("match_score") ?? dto.ScoreMatching;
+        dto.ScoreAts = skillGap.GetIntOrDefault("score_ats") ?? skillGap.GetIntOrDefault("ats_score") ?? dto.ScoreAts;
+
+        var keywordsPresents = skillGap.GetStringList("keywords_presents");
+        if (keywordsPresents.Count > 0) dto.KeywordsPresents = keywordsPresents;
+
+        var keywordsManquants = skillGap.GetStringList("keywords_manquants");
+        if (keywordsManquants.Count > 0) dto.KeywordsManquants = keywordsManquants;
+
+        var recommandations = skillGap.GetStringList("recommandations");
+        if (recommandations.Count > 0) dto.Recommandations = recommandations;
+
+        var competencesMatching = skillGap.GetStringList("competences_matching");
+        if (competencesMatching.Count > 0)
+        {
+            dto.CompetencesMatching = competencesMatching;
+            if (dto.KeywordsPresents.Count == 0) dto.KeywordsPresents = competencesMatching;
+        }
+
+        var competencesManquantes = skillGap.GetStringList("competences_manquantes");
+        if (competencesManquantes.Count > 0)
+        {
+            dto.CompetencesManquantes = competencesManquantes;
+            if (dto.KeywordsManquants.Count == 0) dto.KeywordsManquants = competencesManquantes;
+        }
+
+        var matchedSkills = skillGap.GetStringList("matched_skills");
+        if (matchedSkills.Count > 0 && dto.CompetencesMatching.Count == 0)
+        {
+            dto.CompetencesMatching = matchedSkills;
+            if (dto.KeywordsPresents.Count == 0) dto.KeywordsPresents = matchedSkills;
+        }
+
+        var missingSkills = skillGap.GetStringList("missing_skills");
+        if (missingSkills.Count > 0 && dto.CompetencesManquantes.Count == 0)
+        {
+            dto.CompetencesManquantes = missingSkills;
+            if (dto.KeywordsManquants.Count == 0) dto.KeywordsManquants = missingSkills;
+        }
     }
 
 

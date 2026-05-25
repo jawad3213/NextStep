@@ -13,7 +13,7 @@
     <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
       <!-- PHOTO UPLOAD PRO -->
       <div class="flex flex-col items-center gap-4 group">
-        <input #fileInput type="file" class="hidden" accept="image/*" (change)="onPhotoSelected($event)">
+        <input #fileInput type="file" class="hidden" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" (change)="onPhotoSelected($event)">
         <div (click)="triggerPhotoUpload(fileInput)" 
              class="relative w-28 h-28 rounded-full border-4 border-slate-50 shadow-lg overflow-hidden cursor-pointer bg-slate-100 transition-transform hover:scale-105 active:scale-95">
           @if (data?.photoUrl) {
@@ -30,7 +30,7 @@
         </div>
         <div class="text-center">
           <p class="text-[13px] font-bold text-[#212121]">Profile Picture</p>
-          <p class="text-[11px] text-slate-400 font-medium mt-1">PNG, JPG • Max 2MB</p>
+          <p class="text-[11px] text-slate-400 font-medium mt-1">PNG, JPG, JPEG, WEBP • Max 2MB</p>
         </div>
       </div>
 

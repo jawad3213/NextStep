@@ -383,15 +383,11 @@ public class CvService : ICvService
         data.Experience = NormalizeExperience(data.Experience, data.Activities);
         data.Activities = DeduplicateActivities(data.Activities);
         data.Projects = NormalizeProjects(data.Projects);
-        data.Skills = DeduplicateSkills(data.Skills).Take(18).ToList();
-        data.Certifications = DeduplicateStrings(data.Certifications).Take(6).ToList();
-        data.Languages = DeduplicateStrings(data.Languages).Take(6).ToList();
+        data.Skills = DeduplicateSkills(data.Skills).ToList();
+        data.Certifications = DeduplicateStrings(data.Certifications).ToList();
+        data.Languages = DeduplicateStrings(data.Languages).ToList();
 
-        data.Sections = data.Sections.Count > 0
-            ? CvSectionMapper.NormalizeSections(data.Sections)
-            : CvSectionMapper.BuildSectionsFromLegacy(data);
-
-        data.Sections = CvSectionMapper.NormalizeSections(data.Sections);
+        data.Sections = CvSectionMapper.MergeWithLegacySections(data, data.Sections);
         return data;
     }
 
@@ -407,7 +403,7 @@ public class CvService : ICvService
             exp.Company = CleanText(exp.Company);
             exp.Start = NullIfEmpty(exp.Start);
             exp.End = NullIfEmpty(exp.End);
-            exp.Bullets = DeduplicateStrings(exp.Bullets).Take(4).ToList();
+            exp.Bullets = DeduplicateStrings(exp.Bullets).ToList();
 
             if (string.IsNullOrWhiteSpace(exp.Role) && string.IsNullOrWhiteSpace(exp.Company))
                 continue;
@@ -452,13 +448,12 @@ public class CvService : ICvService
 
             project.Bullets = project.Bullets
                 .Where(b => !IsSameMeaning(b, project.Description))
-                .Take(4)
                 .ToList();
 
             clean.Add(project);
         }
 
-        return clean.Take(4).ToList();
+        return clean;
     }
 
     private static List<CvActivity> DeduplicateActivities(List<CvActivity>? activities)
@@ -482,7 +477,7 @@ public class CvService : ICvService
             clean.Add(activity);
         }
 
-        return clean.Take(5).ToList();
+        return clean;
     }
 
     private static IEnumerable<string> DeduplicateStrings(IEnumerable<string>? values)

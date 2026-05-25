@@ -303,8 +303,12 @@ async def profile_retriever_node(state: PipelineState) -> dict:
 
 
 async def skill_gap_node(state: PipelineState) -> dict:
-    if state.get("match_result"):
-        return {}
+    if state.get("skill_gap_analysis") or state.get("match_result"):
+        skill_gap_analysis = state.get("skill_gap_analysis") or state.get("match_result")
+        return {
+            "skill_gap_analysis": skill_gap_analysis,
+            "match_result": state.get("match_result") or skill_gap_analysis,
+        }
 
     if not state.get("profile_data") or not state.get("analyzed_offer"):
         return {"errors": ["Donnees manquantes pour l'analyse d'ecart"]}
@@ -315,6 +319,7 @@ async def skill_gap_node(state: PipelineState) -> dict:
     )
 
     return {
+        "skill_gap_analysis": match_result,
         "match_result": match_result,
         "errors": [],
         "messages": [AIMessage(content="[Pipeline] Skill Gap deterministe applique", name="orchestrator")],
@@ -322,7 +327,7 @@ async def skill_gap_node(state: PipelineState) -> dict:
 
 
 async def critical_skill_gap_node(state: PipelineState) -> dict:
-    match_result = state.get("match_result") or {}
+    match_result = state.get("skill_gap_analysis") or state.get("match_result") or {}
     profile_data = state.get("profile_data") or {}
     analyzed_offer = state.get("analyzed_offer") or {}
 
@@ -332,6 +337,7 @@ async def critical_skill_gap_node(state: PipelineState) -> dict:
     match_result = _build_deterministic_match_result(profile_data, analyzed_offer)
 
     return {
+        "skill_gap_analysis": match_result,
         "match_result": match_result,
         "messages": [AIMessage(content="[Pipeline] Critical skill-gap validation applied", name="orchestrator")],
     }
@@ -361,6 +367,7 @@ async def cv_optimizer_node(state: PipelineState) -> dict:
         candidate_cv=state["profile_data"],
         job_offer=state["analyzed_offer"],
         match_result=state.get("match_result"),
+        skill_gap_analysis=state.get("skill_gap_analysis"),
     )
     return {
         "cv_optimized_content": result.model_dump() if result else None,
@@ -372,7 +379,7 @@ async def cv_engine_node(state: PipelineState) -> dict:
     if not state.get("profile_data") or not state.get("cv_optimized_content"):
         return {"errors": ["Donnees manquantes pour le formatage du CV"]}
 
-    match_result = state.get("match_result", {})
+    match_result = state.get("skill_gap_analysis") or state.get("match_result", {})
     matched_skills = match_result.get("matched_skills", []) if match_result else []
 
     result = await cv_engine_service.format_for_questpdf(
@@ -395,7 +402,7 @@ async def db_persist_node(state: PipelineState) -> dict:
     offer_id = state.get("offer_id")
     user_id = state.get("user_id")
     analyzed_offer = state.get("analyzed_offer")
-    match_result = state.get("match_result")
+    match_result = state.get("skill_gap_analysis") or state.get("match_result")
 
     if not offer_id or not analyzed_offer:
         return {"messages": [AIMessage(content="[Pipeline] DB save skipped (missing offer_id)", name="orchestrator")]}
@@ -439,6 +446,9 @@ async def db_persist_node(state: PipelineState) -> dict:
             await db.commit()
             return {"messages": [AIMessage(content="[Pipeline] Resultats sauvegardes en DB", name="orchestrator")]}
     except Exception as e:
+        if "UndefinedTableError" in str(e) or "relation \"offre_analysee\" does not exist" in str(e):
+            logger.warning("DbPersistNode skipped: optional agent persistence tables are missing.")
+            return {"messages": [AIMessage(content="[Pipeline] Agent DB persistence skipped (tables missing)", name="orchestrator")]}
         logger.error("DbPersistNode error: %s", e)
         return {"errors": [f"Erreur sauvegarde DB: {str(e)}"]}
 

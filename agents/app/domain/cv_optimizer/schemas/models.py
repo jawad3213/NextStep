@@ -1,62 +1,121 @@
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import List, Literal
+from pydantic import BaseModel, Field, field_validator
 
-class OptimizedSectionBase(BaseModel):
-    """Base pour toutes les sections optimisées nécessitant une justification."""
-    justification_reorder: str = Field(
-        ..., 
-        description="Justification détaillée du nouvel ordre de cet élément (pourquoi l'avoir placé ici par rapport à l'offre)"
+
+def _normalize_text(value):
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+class OptimizedExperience(BaseModel):
+    """Une experience optimisee."""
+
+    titre: str = Field(..., description="Intitule du poste (ne pas modifier le sens original)")
+    entreprise: str = Field(default="", description="Nom de l'entreprise si disponible dans la source")
+    description_optimisee: str = Field(
+        ...,
+        description="Description reecrite de maniere claire et naturelle pour presenter l'experience",
     )
-    justification_rewrite: str = Field(
-        ..., 
-        description="Explication des changements de formulation, des mots-clés ajoutés ou du style orienté résultat"
+    taches_optimisees: List[str] = Field(
+        default_factory=list,
+        description="Liste structuree de bullets optimises pour l'offre, rediges avec resultats, impact mesurable et chiffres quand c'est possible",
+    )
+    mots_cles_cibles: List[str] = Field(
+        default_factory=list,
+        description="Mots-cles de l'offre reellement utilises dans cette experience",
+    )
+    niveau_pertinence: Literal["high", "medium", "low"] = Field(
+        default="medium",
+        description="Niveau de pertinence de cette experience pour l'offre",
     )
 
-class OptimizedExperience(OptimizedSectionBase):
-    """Une expérience optimisée."""
-    titre: str = Field(..., description="Intitulé du poste (Ne pas modifier le sens original)")
-    entreprise: str = Field(..., description="Nom de l'entreprise")
-    description_optimisee: str = Field(..., description="Description réécrite en langage orienté résultat (STAR)")
+    @field_validator("titre", "entreprise", "description_optimisee", mode="before")
+    @classmethod
+    def _normalize_text_fields(cls, value):
+        return _normalize_text(value)
 
-class OptimizedProject(OptimizedSectionBase):
-    """Un projet optimisé."""
+
+class OptimizedProject(BaseModel):
+    """Un projet optimise."""
+
     titre: str = Field(..., description="Titre du projet")
-    description_optimisee: str = Field(..., description="Description réécrite en langage orienté résultat (STAR)")
-    technologies: List[str] = Field(default_factory=list, description="Liste des technos (mises en avant si pertinentes)")
+    description_optimisee: str = Field(
+        ...,
+        description="Description reecrite de maniere claire et naturelle pour presenter le projet",
+    )
+    technologies: List[str] = Field(
+        default_factory=list,
+        description="Liste des technos mises en avant si pertinentes",
+    )
+    taches_optimisees: List[str] = Field(
+        default_factory=list,
+        description="Liste structuree de bullets optimises pour l'offre, rediges avec resultats, impact mesurable et chiffres quand c'est possible",
+    )
+    mots_cles_cibles: List[str] = Field(
+        default_factory=list,
+        description="Mots-cles de l'offre reellement utilises dans ce projet",
+    )
+    niveau_pertinence: Literal["high", "medium", "low"] = Field(
+        default="medium",
+        description="Niveau de pertinence de ce projet pour l'offre",
+    )
 
-class OptimizedFormation(OptimizedSectionBase):
-    """Une formation optimisée (surtout réordonnée)."""
-    diplome: str = Field(..., description="Nom du diplôme")
-    etablissement: str = Field(..., description="Nom de l'école ou université")
+    @field_validator("titre", "description_optimisee", mode="before")
+    @classmethod
+    def _normalize_project_text_fields(cls, value):
+        return _normalize_text(value)
 
-class OptimizedCertification(OptimizedSectionBase):
-    """Une certification optimisée (surtout réordonnée)."""
+
+class OptimizedFormation(BaseModel):
+    """Une formation optimisee (surtout reordonnee)."""
+
+    diplome: str = Field(..., description="Nom du diplome")
+    etablissement: str = Field(..., description="Nom de l'ecole ou universite")
+
+    @field_validator("diplome", "etablissement", mode="before")
+    @classmethod
+    def _normalize_formation_fields(cls, value):
+        return _normalize_text(value)
+
+
+class OptimizedCertification(BaseModel):
+    """Une certification optimisee (surtout reordonnee)."""
+
     nom: str = Field(..., description="Nom de la certification")
-    organisme: str = Field(..., description="Organisme délivreur")
+    organisme: str = Field(..., description="Organisme delivreur")
+
+    @field_validator("nom", "organisme", mode="before")
+    @classmethod
+    def _normalize_certification_fields(cls, value):
+        return _normalize_text(value)
+
 
 class OptimizedSummary(BaseModel):
-    """Résumé du profil."""
-    contenu: str = Field(..., description="Résumé réécrit pour accrocher le recruteur")
-    justification_rewrite: str = Field(..., description="Pourquoi ce résumé met en valeur le candidat pour cette offre précise")
+    """Resume du profil."""
+
+    contenu: str = Field(..., description="Resume reecrit pour accrocher le recruteur")
+
+    @field_validator("contenu", mode="before")
+    @classmethod
+    def _normalize_summary_field(cls, value):
+        return _normalize_text(value)
+
 
 class OptimizedCVOutput(BaseModel):
     """Sortie finale de l'agent d'optimisation."""
+
     resume_optimise: OptimizedSummary
     experiences_optimisees: List[OptimizedExperience] = Field(default_factory=list)
     projets_optimises: List[OptimizedProject] = Field(default_factory=list)
     formations_optimisees: List[OptimizedFormation] = Field(default_factory=list)
     certifications_optimisees: List[OptimizedCertification] = Field(default_factory=list)
-    
+
     competences_reordonnees: List[str] = Field(
-        default_factory=list, 
-        description="Liste des compétences triées par pertinence pour l'offre"
+        default_factory=list,
+        description="Liste des competences triees par pertinence pour l'offre"
     )
-    justification_competences: str = Field(
-        ..., 
-        description="Pourquoi ces compétences spécifiques ont été mises en premier"
-    )
-    
-    global_justification: str = Field(
-        ...,
-        description="Un paragraphe expliquant la stratégie globale d'optimisation adoptée pour ce CV."
+    competences_mises_en_avant: List[str] = Field(
+        default_factory=list,
+        description="Sous-ensemble des competences les plus pertinentes pour l'offre",
     )

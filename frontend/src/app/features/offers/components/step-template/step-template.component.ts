@@ -1,65 +1,12 @@
-import { Component, inject, signal, WritableSignal } from '@angular/core';
+﻿import { Component, OnInit, inject, signal, WritableSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
-import { OfferApiService, ResumePipelineResponse } from '../../services/offer-api.service';
+import { CvTemplateDto, OfferApiService, ResumePipelineResponse } from '../../services/offer-api.service';
 import { ProfileService } from '../../../../services/profile.service';
 import { firstValueFrom } from 'rxjs';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { environment } from '../../../../../environments/environment';
 import { SignalRService } from '../../../../services/signalr.service';
-
-interface CvTemplate {
-  id: string;
-  name: string;
-  description: string;
-  badge?: { label: string; variant: 'primary' | 'secondary' };
-  industry: string;
-  experience: string;
-  style: string;
-  layout: string;
-  tag: string;
-  accent: string;
-  previewType: 'sidebar' | 'centered' | 'header-band' | 'top-bar' | 'split' | 'creative';
-  previewVariant: 'modern' | 'professional' | 'elegant' | 'latex';
-}
-
-interface TemplatePreviewData {
-  candidate: {
-    name: string;
-    title: string;
-    email: string;
-    phone: string;
-    location: string;
-    linkedIn: string;
-    portfolio: string;
-  };
-  summary: string;
-  experience: Array<{
-    role: string;
-    company: string;
-    period: string;
-    bullets: string[];
-  }>;
-  education: Array<{
-    degree: string;
-    institution: string;
-    year: string;
-  }>;
-  projects: Array<{
-    name: string;
-    context: string;
-    impact: string;
-  }>;
-  skills: string[];
-  tools: string[];
-  certifications: string[];
-  languages: Array<{
-    name: string;
-    level: string;
-  }>;
-  achievements: string[];
-}
 
 const INDUSTRIES = [
   'Administrative & Office',
@@ -102,90 +49,6 @@ const LAYOUTS = [
 
 const TAGS = ['free', 'popular', 'recommended'] as const;
 
-const SAMPLE_PREVIEW: TemplatePreviewData = {
-  candidate: {
-    name: 'Maya Bennett',
-    title: 'Senior Product Designer',
-    email: 'maya.bennett@example.com',
-    phone: '+1 (415) 555-0146',
-    location: 'Austin, TX',
-    linkedIn: 'linkedin.com/in/mayabennett',
-    portfolio: 'mayabennett.design',
-  },
-  summary: 'Strategic product designer with 7+ years creating onboarding, workflow, and analytics experiences for SaaS teams. Combines design systems, research, accessibility, and stakeholder alignment to ship measurable product improvements.',
-  experience: [
-    {
-      role: 'Lead Product Designer',
-      company: 'Northstar Cloud',
-      period: '2023 - Present',
-      bullets: [
-        'Redesigned the activation journey and improved trial conversion by 28%.',
-        'Built a reusable design system adopted across three product squads.',
-        'Partnered with product and engineering to reduce release rework by 22%.'
-      ]
-    },
-    {
-      role: 'Senior UX Designer',
-      company: 'Brightlane Studio',
-      period: '2020 - 2022',
-      bullets: [
-        'Delivered responsive web and mobile flows for fintech and healthcare clients.',
-        'Led stakeholder workshops and translated discovery findings into high-conviction prototypes.'
-      ]
-    },
-    {
-      role: 'Product Designer',
-      company: 'Pixel Harbor',
-      period: '2018 - 2020',
-      bullets: [
-        'Designed customer self-service experiences that reduced support tickets by 18%.'
-      ]
-    }
-  ],
-  education: [
-    {
-      degree: 'B.A. Graphic Design',
-      institution: 'University of Washington',
-      year: '2018'
-    }
-  ],
-  projects: [
-    {
-      name: 'Enterprise Analytics Redesign',
-      context: 'SaaS dashboard modernization',
-      impact: 'Improved task completion for core reporting flows by 31%.'
-    },
-    {
-      name: 'Mobile Onboarding Optimization',
-      context: 'Growth and activation initiative',
-      impact: 'Reduced first-session drop-off and increased activation quality.'
-    }
-  ],
-  skills: [
-    'Product Strategy',
-    'Design Systems',
-    'User Research',
-    'Interaction Design',
-    'Accessibility',
-    'Cross-Functional Leadership'
-  ],
-  tools: ['Figma', 'FigJam', 'Adobe CC', 'Maze', 'Notion', 'Jira'],
-  certifications: [
-    'Google UX Design Certificate',
-    'IAAP Accessibility Fundamentals',
-    'Nielsen Norman Group UX Certification'
-  ],
-  languages: [
-    { name: 'English', level: 'Native' },
-    { name: 'Spanish', level: 'Professional' },
-    { name: 'French', level: 'Conversational' }
-  ],
-  achievements: [
-    'Speaker at Design Systems Summit 2025',
-    'Mentored 4 junior designers into senior-track roles'
-  ],
-};
-
 @Component({
   selector: 'app-step-template',
   standalone: true,
@@ -193,16 +56,17 @@ const SAMPLE_PREVIEW: TemplatePreviewData = {
   templateUrl: './step-template.component.html',
   styleUrl: './step-template.component.scss'
 })
-export class StepTemplateComponent {
+export class StepTemplateComponent implements OnInit {
   pipeline = inject(PipelineStateService);
   private readonly offerApi = inject(OfferApiService);
   private readonly profileService = inject(ProfileService);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly signalR = inject(SignalRService);
-  readonly previewData = SAMPLE_PREVIEW;
-  private readonly thumbnailUrlCache = new Map<string, SafeResourceUrl>();
-  private readonly backendThumbnailSlugs = new Set<string>(['modern', 'latex']);
+  private readonly thumbnailUrlCache = new Map<string, string>();
   private readonly thumbnailNonce = Date.now();
+
+  readonly templates = signal<CvTemplateDto[]>([]);
+  readonly isLoadingTemplates = signal<boolean>(false);
+  readonly templateLoadError = signal<string | null>(null);
 
   readonly filterIndustry = signal<string[]>([]);
   readonly filterExperience = signal<string[]>([]);
@@ -210,9 +74,7 @@ export class StepTemplateComponent {
   readonly filterLayout = signal<string[]>([]);
   readonly filterTag = signal<string[]>([]);
   readonly filterColor = signal<string[]>([]);
-
   readonly activeDropdown = signal<string | null>(null);
-
   readonly sortBy = signal<'recommended' | 'popular' | 'newest'>('recommended');
 
   readonly industries = INDUSTRIES;
@@ -222,54 +84,47 @@ export class StepTemplateComponent {
   readonly tags = TAGS;
   readonly colors = ['Blue', 'Green', 'Amber', 'Rose', 'Navy', 'Purple', 'Slate', 'Burgundy', 'Teal'] as const;
 
-  readonly templates: CvTemplate[] = [
-    {
-      id: 'latex',
-      name: 'LaTeX Tech',
-      description: 'Traditional • ATS-friendly • Classic engineering structure',
-      badge: { label: 'recommended', variant: 'secondary' },
-      industry: 'IT & Engineering',
-      experience: 'Mid Level',
-      style: 'Traditional',
-      layout: 'One Column',
-      tag: 'recommended',
-      accent: 'Slate',
-      previewType: 'centered',
-      previewVariant: 'latex',
-    },
-    {
-      id: 'modern',
-      name: 'Modern',
-      description: 'Professional • Split Layout • Navy Accent',
-      badge: { label: 'popular', variant: 'primary' },
-      industry: 'IT & Engineering',
-      experience: 'Mid Level',
-      style: 'Modern',
-      layout: 'Two Column',
-      tag: 'popular',
-      accent: 'Navy',
-      previewType: 'sidebar',
-      previewVariant: 'modern',
-    },
-  ];
-
-  hasBackendThumbnail(slug: string): boolean {
-    return this.backendThumbnailSlugs.has(slug);
+  ngOnInit(): void {
+    this.loadTemplates();
   }
 
-  templateThumbnailUrl(slug: string): SafeResourceUrl {
+  loadTemplates(): void {
+    this.isLoadingTemplates.set(true);
+    this.templateLoadError.set(null);
+
+    this.offerApi.getCvTemplates().subscribe({
+      next: (templates) => {
+        const htmlTemplateSlugs = new Set(['modern', 'latex']);
+        const availableTemplates = (templates ?? [])
+          .filter(template => htmlTemplateSlugs.has(template.slug))
+          .sort((a, b) => this.sortRank(a) - this.sortRank(b));
+
+        this.templates.set(availableTemplates);
+        if (!this.pipeline.selectedTemplateId() && availableTemplates.length > 0) {
+          this.selectTemplate(availableTemplates[0].slug);
+        }
+        this.isLoadingTemplates.set(false);
+      },
+      error: (err) => {
+        console.warn('[CV-PIPELINE] template catalog unavailable', err);
+        this.templateLoadError.set('Impossible de charger les templates HTML/CSS depuis le backend.');
+        this.templates.set([]);
+        this.isLoadingTemplates.set(false);
+      }
+    });
+  }
+
+  templateThumbnailUrl(slug: string): string {
     const cached = this.thumbnailUrlCache.get(slug);
     if (cached) return cached;
 
     const origin = new URL(environment.apiBaseUrl).origin;
-    const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-      `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.thumbnailNonce}#toolbar=0&navpanes=0&scrollbar=0`
-    );
-    this.thumbnailUrlCache.set(slug, safeUrl);
-    return safeUrl;
+    const url = `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.thumbnailNonce}`;
+    this.thumbnailUrlCache.set(slug, url);
+    return url;
   }
 
-  get filteredTemplates(): CvTemplate[] {
+  get filteredTemplates(): CvTemplateDto[] {
     const industries = this.filterIndustry();
     const experiences = this.filterExperience();
     const styles = this.filterStyle();
@@ -277,15 +132,15 @@ export class StepTemplateComponent {
     const tags = this.filterTag();
     const colors = this.filterColor();
 
-    return this.templates.filter(t => {
-      if (industries.length > 0 && !industries.includes(t.industry)) return false;
-      if (experiences.length > 0 && !experiences.includes(t.experience)) return false;
+    return this.templates().filter(t => {
+      if (industries.length > 0 && !t.industries.some(industry => industries.includes(industry))) return false;
+      if (experiences.length > 0 && !t.experienceLevels.some(experience => experiences.includes(experience))) return false;
       if (styles.length > 0 && !styles.includes(t.style)) return false;
-      if (layouts.length > 0 && !layouts.includes(t.layout)) return false;
-      if (tags.length > 0 && !tags.includes(t.tag)) return false;
-      if (colors.length > 0 && !colors.includes(t.accent)) return false;
+      if (layouts.length > 0 && !t.layoutFlags.some(layout => layouts.includes(layout))) return false;
+      if (tags.length > 0 && !t.tags.some(tag => tags.includes(tag.toLowerCase()))) return false;
+      if (colors.length > 0 && !colors.includes(this.colorLabel(t.backgroundColor))) return false;
       return true;
-    });
+    }).sort((a, b) => this.sortRank(a) - this.sortRank(b));
   }
 
   toggleDropdown(name: string): void {
@@ -316,32 +171,49 @@ export class StepTemplateComponent {
       || this.filterColor().length > 0;
   }
 
-  selectTemplate(id: string): void {
-    this.pipeline.selectedTemplateId.set(id);
+  selectTemplate(slug: string): void {
+    this.pipeline.selectedTemplateId.set(slug);
+  }
+
+  isRecommended(template: CvTemplateDto): boolean {
+    return template.tags.some(tag => tag.toLowerCase() === 'recommended');
+  }
+
+  isPopular(template: CvTemplateDto): boolean {
+    return template.tags.some(tag => tag.toLowerCase() === 'popular');
+  }
+
+  colorLabel(hex: string | null | undefined): string {
+    const normalized = String(hex ?? '').toLowerCase();
+    const pairs: Record<string, string> = {
+      '#2d3a8c': 'Navy',
+      '#111827': 'Slate',
+      '#1b2a4a': 'Navy',
+      '#11610c': 'Green',
+      '#18a7a0': 'Teal',
+      '#6f42c1': 'Purple',
+      '#2f9be5': 'Blue',
+      '#c65b1b': 'Amber',
+      '#be3b7b': 'Rose',
+      '#b93317': 'Burgundy',
+    };
+    return pairs[normalized] ?? 'Slate';
   }
 
   async next(): Promise<void> {
     const offerId = this.pipeline.currentOfferId();
     if (!offerId) {
-      this.pipeline.pipelineError.set('Offre introuvable pour la génération CV.');
+      this.pipeline.pipelineError.set('Offre introuvable pour la generation CV.');
       return;
     }
 
     const selected = this.pipeline.selectedTemplateId();
-    const templateIdMap: Record<string, number> = {
-      chrono: 1,
-      latex: 1,
-      elegant: 2,
-      circular: 3,
-      modern: 4,
-      luxe: 5,
-    };
-    const templateId = templateIdMap[selected] ?? 1;
+    const templateId = this.agentTemplateId(selected);
 
     this.pipeline.pipelineError.set(null);
     this.pipeline.markStepDone(2);
     this.pipeline.goToStep(4);
-    this.pipeline.setLoading(true, 'Génération CV (cv_optimizer + cv_engine) en cours...');
+    this.pipeline.setLoading(true, 'Generation CV (cv_optimizer + cv_engine) en cours...');
 
     this.pipeline.currentAgentProgress.set({
       step: 'generating_cv',
@@ -376,10 +248,7 @@ export class StepTemplateComponent {
             ?? res?.cvData
             ?? res?.cv_optimized_content
             ?? res?.cvOptimizedContent
-            ?? this.buildFallbackCv(
-              profileForFallback,
-              current
-            );
+            ?? this.buildFallbackCv(profileForFallback, current);
 
           this.pipeline.setResult({
             ...current,
@@ -401,13 +270,24 @@ export class StepTemplateComponent {
       },
       error: (err) => {
         this.pipeline.setLoading(false);
-        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Échec génération CV.');
+        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Echec generation CV.');
       }
     });
   }
 
   back(): void {
     this.pipeline.goToStep(2);
+  }
+
+  private sortRank(template: CvTemplateDto): number {
+    if (this.sortBy() === 'popular') return this.isPopular(template) ? 0 : 1;
+    if (this.sortBy() === 'newest') return template.slug === 'modern' ? 0 : 1;
+    return this.isRecommended(template) ? 0 : 1;
+  }
+
+  private agentTemplateId(slug: string | null): number {
+    // The agent endpoint still accepts numeric IDs; the UI/editor use HTML template slugs.
+    return slug === 'modern' ? 4 : 1;
   }
 
   private buildFallbackCv(profile: any, current: any): any {
@@ -420,11 +300,14 @@ export class StepTemplateComponent {
     const certifications = this.asArray(source?.certifications ?? source?.certificats);
     const matchedSkills = new Set(this.asArray(current?.matchingSkills).map((s: any) => this.normalizeText(s)));
 
-    const firstName = personal?.prenom ?? personal?.firstName ?? personal?.first_name ?? '';
-    const lastName = personal?.nom ?? personal?.lastName ?? personal?.last_name ?? '';
+    const firstName = personal?.prenom ?? personal?.firstName ?? personal?.first_name ?? source?.firstName ?? source?.first_name ?? '';
+    const lastName = personal?.nom ?? personal?.lastName ?? personal?.last_name ?? source?.lastName ?? source?.last_name ?? '';
     const fullName = [firstName, lastName].filter(Boolean).join(' ').trim()
       || personal?.nomComplet
       || personal?.fullName
+      || source?.nomComplet
+      || source?.fullName
+      || source?.name
       || 'Candidat';
     const location = [personal?.ville ?? personal?.city, personal?.pays ?? personal?.country]
       .filter(Boolean)
@@ -478,7 +361,17 @@ export class StepTemplateComponent {
         linkedIn: personal?.lienLinkedin ?? personal?.linkedin ?? personal?.linkedIn ?? null,
         gitHub: personal?.lienGithub ?? personal?.github ?? personal?.gitHub ?? null,
         portfolio: personal?.lienPortfolio ?? personal?.portfolio ?? null,
-        photoUrl: personal?.photoUrl ?? personal?.photo_url ?? null,
+        photoUrl: personal?.photoUrl
+          ?? personal?.photo_url
+          ?? personal?.profilePhoto
+          ?? personal?.profile_photo
+          ?? personal?.avatar
+          ?? source?.photoUrl
+          ?? source?.photo_url
+          ?? source?.profilePhoto
+          ?? source?.profile_photo
+          ?? source?.avatar
+          ?? null,
       },
       summary: personal?.resumeProfessionnel
         ?? personal?.summary
@@ -502,7 +395,15 @@ export class StepTemplateComponent {
       skills: technicalSkills,
       projects: projects.map((project: any) => {
         const technologies = this.asArray(project?.technologies).join(', ');
-        const bullets = this.toBullets(project?.taches ?? project?.description);
+        const bullets = this.toBullets(
+          project?.bullets
+          ?? project?.taches
+          ?? project?.missions
+          ?? project?.tasks
+          ?? project?.responsibilities
+          ?? project?.realisations
+          ?? project?.description
+        );
         if (technologies) bullets.push(`Technologies: ${technologies}`);
         return {
           title: project?.titreProjet ?? project?.titre ?? project?.title ?? 'Projet',

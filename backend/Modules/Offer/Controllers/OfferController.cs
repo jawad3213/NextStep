@@ -178,6 +178,7 @@ public class OfferController(
             var combinedDict = new Dictionary<string, object>
             {
                 { "analyzed_offer", JsonSerializer.Deserialize<object>(analyzedOffer.GetRawText())! },
+                { "skill_gap_analysis", JsonSerializer.Deserialize<object>(matchDoc.RootElement.GetRawText())! },
                 { "match_result", JsonSerializer.Deserialize<object>(matchDoc.RootElement.GetRawText())! }
             };
             if (matchDoc.RootElement.TryGetProperty("profile_data", out var profileDataEl))

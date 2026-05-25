@@ -34,6 +34,16 @@
     </div>
 
     <div class="nav-right">
+      <button
+        class="toolbar-sync-btn"
+        type="button"
+        [class.is-running]="isReoptimizingCv"
+        [disabled]="isReoptimizingCv"
+        [title]="isReoptimizingCv ? 'CV optimization in progress' : 'Re-run CV optimization'"
+        (click)="reoptimize.emit()">
+        <span class="sync-ring" aria-hidden="true"></span>
+        <span class="material-symbols-outlined">autorenew</span>
+      </button>
       <button class="toolbar-icon toolbar-icon-focus" type="button" (click)="toggleFocusMode()" [title]="isFocusMode() ? 'Restore normal view' : 'Expand view'">
         <span class="material-symbols-outlined">{{ isFocusMode() ? 'fullscreen_exit' : 'fullscreen' }}</span>
       </button>
@@ -46,9 +56,13 @@
         <span class="material-symbols-outlined">add</span>
       </button>
       <span class="toolbar-divider"></span>
-      <button class="btn-download" type="button" (click)="exportPdf()">
+      <button class="btn-download" type="button" (click)="exportPdf()" [disabled]="isPreparingDownload || isGeneratingHighQualityPdf">
         <span class="material-symbols-outlined">file_download</span>
-        <span>Download</span>
+        <span>{{ isPreparingDownload ? 'Preparing download...' : 'Download now' }}</span>
+      </button>
+      <button class="btn-download btn-download-secondary" type="button" (click)="exportHighQualityPdf()" [disabled]="isPreparingDownload || isGeneratingHighQualityPdf">
+        <span class="material-symbols-outlined">picture_as_pdf</span>
+        <span>{{ isGeneratingHighQualityPdf ? 'Generating high-quality PDF...' : 'High quality' }}</span>
       </button>
       <button class="btn-finish" type="button" (click)="continue.emit()">
         <span>Finish</span>
@@ -76,13 +90,11 @@
           <h3 class="gallery-title">All templates</h3>
 
           <div class="template-grid simple-template-grid">
-            <button class="template-choice-card" [class.active]="activeTemplate() === 'modern'" type="button" (click)="setTemplate('modern')">
-              <strong>Modern</strong>
-              <span>Two-column tech minimal layout</span>
+            <button class="template-choice-card template-choice-card-thumbnail" [class.active]="activeTemplate() === 'modern'" type="button" (click)="setTemplate('modern')" title="Modern">
+              <img [src]="templateThumbnailUrl('modern')" alt="" />
             </button>
-            <button class="template-choice-card" [class.active]="activeTemplate() === 'latex'" type="button" (click)="setTemplate('latex')">
-              <strong>LaTeX Tech</strong>
-              <span>Clean engineering single-column layout</span>
+            <button class="template-choice-card template-choice-card-thumbnail" [class.active]="activeTemplate() === 'latex'" type="button" (click)="setTemplate('latex')" title="LaTeX Tech">
+              <img [src]="templateThumbnailUrl('latex')" alt="" />
             </button>
           </div>
         } @else if (activePanelTab() === 'design') {
@@ -170,9 +182,18 @@
                 <button class="panel-primary-btn" type="button" (click)="addCustomSection()">Create custom section</button>
               </div>
 
-              <div class="section-visibility-list">
-                @for (section of sectionDefinitions; track section.id) {
+                <div class="section-visibility-list">
                   <div class="section-visibility-card">
+                    <div>
+                      <strong>Header</strong>
+                      <span>Identity section</span>
+                    </div>
+                    <button class="visibility-btn visible" type="button" (click)="openSectionInspector('header')">
+                      Edit
+                    </button>
+                  </div>
+                  @for (section of sectionDefinitions; track section.id) {
+                    <div class="section-visibility-card">
                     <div>
                       <strong>{{ section.label }}</strong>
                       <span>{{ section.placement === 'sidebar' ? 'Sidebar section' : 'Main section' }}</span>
@@ -207,17 +228,37 @@
                     <p>Selected section</p>
                     <h3>{{ selected.title }}</h3>
                   </div>
-                  <button class="visibility-btn" type="button" [class.visible]="selected.isVisible" (click)="hidePreviewSection(selected.id)">
-                    {{ selected.isVisible ? 'Hide' : 'Show' }}
-                  </button>
+                  @if (selected.id !== 'header') {
+                    <button class="visibility-btn" type="button" [class.visible]="selected.isVisible" (click)="hidePreviewSection(selected.id)">
+                      {{ selected.isVisible ? 'Hide' : 'Show' }}
+                    </button>
+                  }
                 </div>
 
-                <label class="inspector-field">
-                  <span>Section title</span>
-                  <input [ngModel]="selected.title" (ngModelChange)="updateSectionTitle(selected.id, $event)" placeholder="Section title" />
-                </label>
+                @if (selected.id !== 'header') {
+                  <label class="inspector-field">
+                    <span>Section title</span>
+                    <input [ngModel]="selected.title" (ngModelChange)="updateSectionTitle(selected.id, $event)" placeholder="Section title" />
+                  </label>
+                }
 
                 @switch (selected.id) {
+                  @case ('header') {
+                    <div class="inspector-list">
+                      <div class="inspector-card">
+                        <label class="inspector-field"><span>Full name</span><input [ngModel]="cvData().candidate.name" (ngModelChange)="updateCandidateField('name', $event)" /></label>
+                        <label class="inspector-field"><span>Title</span><input [ngModel]="cvData().candidate.title" (ngModelChange)="updateCandidateField('title', $event)" /></label>
+                      </div>
+                      <div class="inspector-card">
+                        <label class="inspector-field"><span>Email</span><input [ngModel]="cvData().candidate.email" (ngModelChange)="updateCandidateField('email', $event)" /></label>
+                        <label class="inspector-field"><span>Phone</span><input [ngModel]="cvData().candidate.phone" (ngModelChange)="updateCandidateField('phone', $event)" /></label>
+                      </div>
+                      <div class="inspector-card">
+                        <label class="inspector-field"><span>Location</span><input [ngModel]="cvData().candidate.location" (ngModelChange)="updateCandidateField('location', $event)" /></label>
+                        <label class="inspector-field"><span>LinkedIn</span><input [ngModel]="cvData().candidate.linkedIn" (ngModelChange)="updateCandidateField('linkedIn', $event)" /></label>
+                      </div>
+                    </div>
+                  }
                   @case ('summary') {
                     <label class="inspector-field">
                       <span>Summary</span>
@@ -254,6 +295,21 @@
                       }
                     </div>
                   }
+                  @case ('activities') {
+                    <div class="inspector-list">
+                      @for (activity of cvData().activities; track activity.title + activity.role + $index; let i = $index) {
+                        <div class="inspector-card">
+                          <label class="inspector-field"><span>Title</span><input [ngModel]="activity.title" (ngModelChange)="updateActivity(i, 'title', $event)" /></label>
+                          <label class="inspector-field"><span>Role</span><input [ngModel]="activity.role" (ngModelChange)="updateActivity(i, 'role', $event)" /></label>
+                          <div class="inspector-split">
+                            <label class="inspector-field"><span>Start</span><input [ngModel]="activity.startDate" (ngModelChange)="updateActivity(i, 'startDate', $event)" placeholder="YYYY-MM" /></label>
+                            <label class="inspector-field"><span>End</span><input [ngModel]="activity.endDate" (ngModelChange)="updateActivity(i, 'endDate', $event)" placeholder="YYYY-MM" /></label>
+                          </div>
+                          <label class="inspector-field"><span>Description</span><textarea rows="2" [ngModel]="activity.description" (ngModelChange)="updateActivity(i, 'description', $event)"></textarea></label>
+                        </div>
+                      }
+                    </div>
+                  }
                   @case ('skills') {
                     <div class="inspector-list">
                       @for (skill of cvData().skills; track skill.name + $index; let i = $index) {
@@ -273,6 +329,251 @@
     }
 
     <main class="preview-canvas-container">
+      @if (isSectionFormOpen() && selectedSection(); as selected) {
+        <section class="section-form-page">
+          <button class="section-form-back" type="button" (click)="closeSectionForm()">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>Go Back</span>
+          </button>
+          <header class="section-form-header">
+            <h2>Let&apos;s confirm your {{ selected.id === 'header' ? 'contact information' : selected.title.toLowerCase() }}</h2>
+            <p>Check and update the fields used in this section.</p>
+          </header>
+
+          @if (selected.id === 'header') {
+            <div class="section-form-grid section-form-grid-header">
+              <div class="profile-photo-card">
+                @if (cvData().candidate.photoUrl) {
+                  <img class="profile-photo-preview" [src]="cvData().candidate.photoUrl!" alt="Profile photo" />
+                } @else {
+                  <div class="profile-photo-placeholder"></div>
+                }
+                <label class="upload-photo-btn" for="profile-photo-input">Upload Photo</label>
+                <input id="profile-photo-input" class="photo-input-hidden" type="file" accept="image/*" (change)="onPhotoUpload($event)" />
+                <button class="remove-photo-btn" type="button" (click)="removePhoto()" [disabled]="!cvData().candidate.photoUrl">Remove Photo</button>
+                <label class="inspector-field">
+                  <span>Photo URL</span>
+                  <input [ngModel]="cvData().candidate.photoUrl" (ngModelChange)="updateCandidateField('photoUrl', $event)" />
+                </label>
+              </div>
+              <div class="profile-contact-fields">
+                <div class="inspector-split">
+                  <label class="inspector-field"><span>Name</span><input [ngModel]="headerFirstName()" (ngModelChange)="updateHeaderFirstName($event)" /></label>
+                  <label class="inspector-field"><span>Surname</span><input [ngModel]="headerLastName()" (ngModelChange)="updateHeaderLastName($event)" /></label>
+                </div>
+                <label class="inspector-field"><span>Profession</span><input [ngModel]="cvData().candidate.title" (ngModelChange)="updateCandidateField('title', $event)" /></label>
+                <div class="inspector-split inspector-split-compact">
+                  <label class="inspector-field"><span>City</span><input [ngModel]="headerCity()" (ngModelChange)="updateHeaderLocationPart('city', $event)" /></label>
+                  <label class="inspector-field"><span>Province</span><input [ngModel]="headerProvince()" (ngModelChange)="updateHeaderLocationPart('province', $event)" /></label>
+                  <label class="inspector-field"><span>Zip Code</span><input [ngModel]="headerZipCode()" (ngModelChange)="updateHeaderLocationPart('zipCode', $event)" /></label>
+                </div>
+                <div class="inspector-split">
+                  <label class="inspector-field"><span>Phone</span><input [ngModel]="cvData().candidate.phone" (ngModelChange)="updateCandidateField('phone', $event)" /></label>
+                  <label class="inspector-field"><span>Email address</span><input [ngModel]="cvData().candidate.email" (ngModelChange)="updateCandidateField('email', $event)" /></label>
+                </div>
+                <div class="inspector-split">
+                  <label class="inspector-field"><span>LinkedIn</span><input [ngModel]="cvData().candidate.linkedIn" (ngModelChange)="updateCandidateField('linkedIn', $event)" /></label>
+                  <label class="inspector-field"><span>GitHub</span><input [ngModel]="cvData().candidate.gitHub" (ngModelChange)="updateCandidateField('gitHub', $event)" /></label>
+                </div>
+                <label class="inspector-field"><span>Portfolio</span><input [ngModel]="cvData().candidate.portfolio" (ngModelChange)="updateCandidateField('portfolio', $event)" /></label>
+              </div>
+            </div>
+          } @else {
+            <div class="section-form-grid">
+              <label class="inspector-field section-form-title">
+                <span>Section title</span>
+                <input [ngModel]="selected.title" (ngModelChange)="updateSectionTitle(selected.id, $event)" placeholder="Section title" />
+              </label>
+              @switch (selected.id) {
+                @case ('summary') {
+                  <label class="inspector-field">
+                    <span>Summary</span>
+                    <textarea rows="8" [ngModel]="cvData().summary" (ngModelChange)="updateSummary($event)"></textarea>
+                  </label>
+                }
+                @case ('experience') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addExperience()">Add experience</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (experience of cvData().experience; track experience.role + experience.company + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <div class="section-form-item-head">
+                          <strong>Experience {{ i + 1 }}</strong>
+                          <button class="delete-section-btn" type="button" (click)="removeExperience(i)">Remove</button>
+                        </div>
+                        <label class="inspector-field"><span>Role</span><input [ngModel]="experience.role" (ngModelChange)="updateExperience(i, 'role', $event)" /></label>
+                        <label class="inspector-field"><span>Company</span><input [ngModel]="experience.company" (ngModelChange)="updateExperience(i, 'company', $event)" /></label>
+                        <div class="inspector-split">
+                          <label class="inspector-field"><span>Start</span><input [ngModel]="experience.start" (ngModelChange)="updateExperience(i, 'start', $event)" placeholder="YYYY-MM" /></label>
+                          <label class="inspector-field"><span>End</span><input [ngModel]="experience.end" (ngModelChange)="updateExperience(i, 'end', $event)" placeholder="YYYY-MM or Present" /></label>
+                        </div>
+                        <div class="section-form-actions">
+                          <button class="panel-primary-btn" type="button" (click)="addExperienceBullet(i)">Add bullet</button>
+                        </div>
+                        @for (bullet of experience.bullets; track bullet + $index; let b = $index) {
+                          <div class="inspector-split">
+                            <label class="inspector-field"><span>Bullet {{ b + 1 }}</span><input [ngModel]="bullet" (ngModelChange)="updateExperienceBullet(i, b, $event)" /></label>
+                            <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeExperienceBullet(i, b)">Remove</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('projects') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addProject()">Add project</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (project of cvData().projects; track project.title + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <div class="section-form-item-head">
+                          <strong>Project {{ i + 1 }}</strong>
+                          <button class="delete-section-btn" type="button" (click)="removeProject(i)">Remove</button>
+                        </div>
+                        <label class="inspector-field"><span>Title</span><input [ngModel]="project.title" (ngModelChange)="updateProject(i, 'title', $event)" /></label>
+                        <label class="inspector-field"><span>Description</span><textarea rows="3" [ngModel]="project.description" (ngModelChange)="updateProject(i, 'description', $event)"></textarea></label>
+                        <label class="inspector-field"><span>Date</span><input [ngModel]="project.dateRealisation" (ngModelChange)="updateProject(i, 'dateRealisation', $event)" placeholder="YYYY-MM" /></label>
+                        <label class="inspector-field"><span>Technologies (comma separated)</span><input [ngModel]="(project.technologies ?? []).join(', ')" (ngModelChange)="updateProject(i, 'technologies', parseCommaSeparatedList($event))" /></label>
+                        <div class="section-form-actions">
+                          <button class="panel-primary-btn" type="button" (click)="addProjectBullet(i)">Add bullet</button>
+                        </div>
+                        @for (bullet of project.bullets; track bullet + $index; let b = $index) {
+                          <div class="inspector-split">
+                            <label class="inspector-field"><span>Bullet {{ b + 1 }}</span><input [ngModel]="bullet" (ngModelChange)="updateProjectBullet(i, b, $event)" /></label>
+                            <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeProjectBullet(i, b)">Remove</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('education') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addEducation()">Add education</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (education of cvData().education; track education.degree + education.institution + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <div class="section-form-item-head">
+                          <strong>Education {{ i + 1 }}</strong>
+                          <button class="delete-section-btn" type="button" (click)="removeEducation(i)">Remove</button>
+                        </div>
+                        <label class="inspector-field"><span>Degree</span><input [ngModel]="education.degree" (ngModelChange)="updateEducation(i, 'degree', $event)" /></label>
+                        <label class="inspector-field"><span>Institution</span><input [ngModel]="education.institution" (ngModelChange)="updateEducation(i, 'institution', $event)" /></label>
+                        <div class="inspector-split">
+                          <label class="inspector-field"><span>Start Year</span><input [ngModel]="education.startYear" (ngModelChange)="updateEducation(i, 'startYear', $event)" /></label>
+                          <label class="inspector-field"><span>End Year</span><input [ngModel]="education.endYear" (ngModelChange)="updateEducation(i, 'endYear', $event)" /></label>
+                        </div>
+                        <label class="inspector-field"><span>Year label</span><input [ngModel]="education.year" (ngModelChange)="updateEducation(i, 'year', $event)" /></label>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('activities') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addActivity()">Add activity</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (activity of cvData().activities; track activity.title + activity.role + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <div class="section-form-item-head">
+                          <strong>Activity {{ i + 1 }}</strong>
+                          <button class="delete-section-btn" type="button" (click)="removeActivity(i)">Remove</button>
+                        </div>
+                        <label class="inspector-field"><span>Title</span><input [ngModel]="activity.title" (ngModelChange)="updateActivity(i, 'title', $event)" /></label>
+                        <label class="inspector-field"><span>Role</span><input [ngModel]="activity.role" (ngModelChange)="updateActivity(i, 'role', $event)" /></label>
+                        <div class="inspector-split">
+                          <label class="inspector-field"><span>Start</span><input [ngModel]="activity.startDate" (ngModelChange)="updateActivity(i, 'startDate', $event)" placeholder="YYYY-MM" /></label>
+                          <label class="inspector-field"><span>End</span><input [ngModel]="activity.endDate" (ngModelChange)="updateActivity(i, 'endDate', $event)" placeholder="YYYY-MM" /></label>
+                        </div>
+                        <label class="inspector-field"><span>Description</span><textarea rows="3" [ngModel]="activity.description" (ngModelChange)="updateActivity(i, 'description', $event)"></textarea></label>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('skills') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addSkill()">Add skill</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (skill of cvData().skills; track skill.name + $index; let i = $index) {
+                      <div class="inspector-card inspector-skill-card">
+                        <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeSkill(i)">Remove</button>
+                        <input [ngModel]="skill.name" (ngModelChange)="updateSkill(i, 'name', $event)" />
+                        <input type="range" min="1" max="5" [ngModel]="skill.level" (ngModelChange)="updateSkill(i, 'level', +$event)" />
+                        <label class="inspector-field"><span>Matched</span><input type="checkbox" [ngModel]="skill.isMatched" (ngModelChange)="updateSkill(i, 'isMatched', !!$event)" /></label>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('certifications') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addCertification()">Add certification</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (item of cvData().certifications; track item + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <label class="inspector-field"><span>Certification</span><input [ngModel]="item" (ngModelChange)="updateCertification(i, $event)" /></label>
+                        <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeCertification(i)">Remove</button>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('languages') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addLanguage()">Add language</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (item of cvData().languages; track item + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <label class="inspector-field"><span>Language</span><input [ngModel]="item" (ngModelChange)="updateLanguage(i, $event)" /></label>
+                        <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeLanguage(i)">Remove</button>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('accomplishments') {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addAccomplishment()">Add accomplishment</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (item of cvData().accomplishments; track item + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <label class="inspector-field"><span>Accomplishment</span><textarea rows="3" [ngModel]="item" (ngModelChange)="updateAccomplishment(i, $event)"></textarea></label>
+                        <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeAccomplishment(i)">Remove</button>
+                      </div>
+                    }
+                  </div>
+                }
+                @default {
+                  <div class="section-form-actions">
+                    <button class="panel-primary-btn" type="button" (click)="addCustomSectionItem(selected.id)">Add item</button>
+                  </div>
+                  <div class="inspector-list">
+                    @for (item of selected.items; track item.primaryText + $index; let i = $index) {
+                      <div class="inspector-card">
+                        <div class="section-form-item-head">
+                          <strong>Item {{ i + 1 }}</strong>
+                          <button class="delete-section-btn" type="button" (click)="removeCustomSectionItem(selected.id, i)">Remove</button>
+                        </div>
+                        <label class="inspector-field"><span>Primary</span><input [ngModel]="item.primaryText" (ngModelChange)="updateCustomSectionItem(selected.id, i, 'primaryText', $event)" /></label>
+                        <label class="inspector-field"><span>Secondary</span><input [ngModel]="item.secondaryText" (ngModelChange)="updateCustomSectionItem(selected.id, i, 'secondaryText', $event)" /></label>
+                        <div class="inspector-split">
+                          <label class="inspector-field"><span>Start</span><input [ngModel]="item.startDate" (ngModelChange)="updateCustomSectionItem(selected.id, i, 'startDate', $event)" /></label>
+                          <label class="inspector-field"><span>End</span><input [ngModel]="item.endDate" (ngModelChange)="updateCustomSectionItem(selected.id, i, 'endDate', $event)" /></label>
+                        </div>
+                        <label class="inspector-field"><span>Description</span><textarea rows="3" [ngModel]="item.description" (ngModelChange)="updateCustomSectionItem(selected.id, i, 'description', $event)"></textarea></label>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+        </section>
+      } @else {
       <div class="qpdf-preview-shell" (wheel)="onPreviewWheel($event)" [style.--preview-zoom]="previewZoom() / 100" [style.--accent-color]="accentColorHex()">
         @if (isRenderingPreview) {
           <div class="html-preview-status">
@@ -286,7 +587,30 @@
 
         <div class="qpdf-preview-stage">
           @if (renderedHtml) {
-            <div class="rendered-html-preview" [innerHTML]="renderedHtml"></div>
+            <div class="rendered-html-preview">
+              <div class="rendered-html-frame">
+                <div class="rendered-html-content" #renderedPreviewContent [innerHTML]="renderedHtml"></div>
+                <div class="preview-section-overlay-layer">
+                  @for (overlay of previewSectionOverlays(); track overlay.id + '-' + overlay.order) {
+                    <button
+                      class="preview-section-overlay"
+                      type="button"
+                      [class.active]="activePreviewSection() === overlay.id"
+                      [style.top.px]="overlay.top"
+                      [style.left.px]="overlay.left"
+                      [style.width.px]="overlay.width"
+                      [style.height.px]="overlay.height"
+                      (click)="openOverlaySection(overlay.id)">
+                      <span class="preview-section-edit-pin material-symbols-outlined">edit</span>
+                      <span class="preview-section-meta">
+                        <span class="preview-section-counter">{{ previewCounterLabel(overlay.order) }}</span>
+                        <span class="preview-section-update material-symbols-outlined">autorenew</span>
+                      </span>
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
           } @else {
             <div class="html-preview-empty">
               <strong>Preview pending</strong>
@@ -295,6 +619,7 @@
           }
         </div>
       </div>
+      }
     </main>
   </div>
 </div>

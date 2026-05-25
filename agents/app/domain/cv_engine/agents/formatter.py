@@ -20,6 +20,16 @@ ACTIVITY_KEYWORDS = {
     "it day", "prize", "prix", "participant", "formateur", "trainer",
     "formation", "solihackathon", "itwave", "ids"
 }
+ACTIVITY_TYPES = {
+    "extracurricular",
+    "extra curricular",
+    "extra-scolaire",
+    "extra scolaire",
+    "extrascolaire",
+    "parascolaire",
+    "para scolaire",
+}
+RELEVANCE_SCORES = {"high": 3, "medium": 2, "low": 1}
 
 def _norm(value: Any) -> str:
     return str(value or "").strip().lower()
@@ -33,11 +43,39 @@ def _clean_optional_str(value: Any) -> Optional[str]:
     clean = _clean_str(value)
     return clean or None
 
+def _first_non_empty(*values: Any) -> str:
+    for value in values:
+        clean = _clean_str(value)
+        if clean:
+            return clean
+    return ""
+
+def _first_optional(*values: Any) -> Optional[str]:
+    for value in values:
+        clean = _clean_optional_str(value)
+        if clean:
+            return clean
+    return None
+
+def _profile_personal_info(profile: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(profile, dict):
+        return {}
+    personal = (
+        profile.get("personalInfo")
+        or profile.get("personal_info")
+        or profile.get("personal")
+        or {}
+    )
+    return personal if isinstance(personal, dict) else {}
+
 def _looks_like_activity(role: str, company: str, desc: str) -> bool:
     text = f"{_norm(role)} {_norm(company)} {_norm(desc)}"
     if "stage" in text or "intern" in text:
         return False
     return any(k in text for k in ACTIVITY_KEYWORDS)
+
+def _is_activity_type(value: Any) -> bool:
+    return _norm(value) in ACTIVITY_TYPES
 
 def _dedupe_strings(values: List[str], limit: Optional[int] = None) -> List[str]:
     seen = set()
@@ -60,6 +98,23 @@ def _same_meaning(a: str, b: str) -> bool:
         return False
     return left == right or left in right or right in left
 
+def _split_bullets(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(item).strip().lstrip("-").strip() for item in value if str(item).strip()]
+    text = str(value or "").replace("\r", "\n").strip()
+    if not text:
+        return []
+    bullets: List[str] = []
+    for line in text.split("\n"):
+        clean = line.strip()
+        if not clean:
+            continue
+        bullets.append(clean.lstrip("-").strip())
+    return [bullet for bullet in bullets if bullet]
+
+def _relevance_score(value: Any) -> int:
+    return RELEVANCE_SCORES.get(_norm(value), 0)
+
 def build_questpdf_payload(
     original_profile: Dict[str, Any],
     optimized_cv: Dict[str, Any],
@@ -67,23 +122,84 @@ def build_questpdf_payload(
     offer_skills: Optional[List[str]] = None,
 ) -> QuestPDFCvData:
     logger.info("Debut de la fusion algorithmique CV Engine.")
+    personal_info = _profile_personal_info(original_profile)
 
     # 1. Contact
-    first_name = _clean_str(original_profile.get("prenom"))
-    last_name = _clean_str(original_profile.get("nom"))
+    first_name = _first_non_empty(
+        original_profile.get("prenom"),
+        personal_info.get("prenom"),
+        personal_info.get("firstName"),
+        personal_info.get("first_name"),
+    )
+    last_name = _first_non_empty(
+        original_profile.get("nom"),
+        personal_info.get("nom"),
+        personal_info.get("lastName"),
+        personal_info.get("last_name"),
+    )
     candidate = QuestPDFCandidate(
-        name=f"{first_name} {last_name}".strip(),
-        email=_clean_str(original_profile.get("email")),
-        phone=_clean_optional_str(original_profile.get("telephone")),
-        location=_clean_optional_str(original_profile.get("ville")),
-        linked_in=_clean_optional_str(original_profile.get("linkedin")),
-        git_hub=_clean_optional_str(original_profile.get("github")),
-        portfolio=_clean_optional_str(original_profile.get("portfolio")),
+        name=_first_non_empty(
+            f"{first_name} {last_name}".strip(),
+            original_profile.get("nomComplet"),
+            original_profile.get("fullName"),
+            personal_info.get("nomComplet"),
+            personal_info.get("fullName"),
+            personal_info.get("name"),
+        ),
+        email=_first_non_empty(
+            original_profile.get("email"),
+            personal_info.get("email"),
+            personal_info.get("mail"),
+        ),
+        phone=_first_optional(
+            original_profile.get("telephone"),
+            personal_info.get("telephone"),
+            personal_info.get("phone"),
+        ),
+        location=_first_optional(
+            original_profile.get("ville"),
+            personal_info.get("ville"),
+            personal_info.get("city"),
+            personal_info.get("location"),
+        ),
+        photo_url=_first_optional(
+            original_profile.get("photo_url"),
+            original_profile.get("photoUrl"),
+            personal_info.get("photo_url"),
+            personal_info.get("photoUrl"),
+            personal_info.get("profilePhoto"),
+            personal_info.get("profile_photo"),
+            personal_info.get("avatar"),
+        ),
+        linked_in=_first_optional(
+            original_profile.get("linkedin"),
+            personal_info.get("linkedin"),
+            personal_info.get("linkedIn"),
+            personal_info.get("lienLinkedin"),
+        ),
+        git_hub=_first_optional(
+            original_profile.get("github"),
+            personal_info.get("github"),
+            personal_info.get("gitHub"),
+            personal_info.get("lienGithub"),
+        ),
+        portfolio=_first_optional(
+            original_profile.get("portfolio"),
+            personal_info.get("portfolio"),
+            personal_info.get("lienPortfolio"),
+        ),
     )
 
     # 2. Summary
     resume_opt = optimized_cv.get("resume_optimise", {})
-    summary = resume_opt.get("contenu", original_profile.get("resume", ""))
+    summary = resume_opt.get(
+        "contenu",
+        _first_non_empty(
+            original_profile.get("resume"),
+            personal_info.get("resumeProfessionnel"),
+            personal_info.get("summary"),
+        ),
+    )
 
     # 3. Experiences
     quest_experiences: List[QuestPDFExperience] = []
@@ -93,7 +209,8 @@ def build_questpdf_payload(
     seen_exp_keys: set = set()
     extracted_activities: List[QuestPDFActivity] = []
 
-    for opt_exp in opt_exps:
+    scored_experiences = []
+    for index, opt_exp in enumerate(opt_exps):
         opt_title = opt_exp.get("titre", "")
         opt_company = opt_exp.get("entreprise", "")
         opt_desc = opt_exp.get("description_optimisee", "")
@@ -106,6 +223,7 @@ def build_questpdf_payload(
         start_date = None
         end_date = None
         orig_tasks = []
+        optimized_tasks = _split_bullets(opt_exp.get("taches_optimisees"))
         orig_desc = ""
         orig_type = ""
         for orig_exp in original_exps:
@@ -117,36 +235,37 @@ def build_questpdf_payload(
                 orig_type = str(orig_exp.get("type") or "")
                 break
 
-        bullets = []
-        if orig_tasks:
-            if isinstance(orig_tasks, list):
-                bullets = [str(t).strip() for t in orig_tasks if t]
-            elif isinstance(orig_tasks, str):
-                bullets = [b.strip().lstrip("-").strip() for b in orig_tasks.split("\n") if b.strip()]
-
+        bullets = optimized_tasks
         if not bullets:
-            bullets = [b.strip().lstrip("-").strip() for b in opt_desc.split("\n") if b.strip()]
+            bullets = _split_bullets(orig_tasks)
+        if not bullets:
+            bullets = _split_bullets(opt_desc)
         if not bullets and opt_desc:
             bullets = [opt_desc]
         bullets = _dedupe_strings(bullets, limit=4)
 
         # Keep extracurricular / community entries out of professional experience
-        if _norm(orig_type) == "extracurricular" or _looks_like_activity(opt_title, opt_company, f"{opt_desc} {orig_desc}"):
+        if _is_activity_type(orig_type) or _looks_like_activity(opt_title, opt_company, f"{opt_desc} {orig_desc}"):
             extracted_activities.append(QuestPDFActivity(
-                title=opt_company or opt_title,
-                role=opt_title,
+                title=opt_title or opt_company,
+                role=opt_company or None,
                 description=(opt_desc or orig_desc or "").strip(),
+                start=start_date,
+                end=end_date,
             ))
             continue
 
-        quest_experiences.append(QuestPDFExperience(
+        scored_experiences.append((_relevance_score(opt_exp.get("niveau_pertinence")), -index, QuestPDFExperience(
             role=opt_title,
             company=opt_company,
             start=start_date,
             end=end_date,
             bullets=bullets,
-        ))
+        )))
         seen_exp_keys.add(exp_key)
+
+    scored_experiences.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    quest_experiences = [item[2] for item in scored_experiences]
 
     offer_techs = {s.lower() for s in (offer_skills or [])}
     quest_projects: List[QuestPDFProject] = []
@@ -155,45 +274,42 @@ def build_questpdf_payload(
     
     scored_projects = []
 
-    for opt_proj in opt_projects:
+    for index, opt_proj in enumerate(opt_projects):
         opt_title = opt_proj.get("titre", "")
         project_techs = {t.lower() for t in opt_proj.get("technologies", [])}
-        score = 0
+        score = _relevance_score(opt_proj.get("niveau_pertinence"))
         if offer_techs:
             matched_techs = project_techs & offer_techs
-            score = len(matched_techs)
+            score = (score * 10) + len(matched_techs)
 
         # Match with original project to get taches
         orig_tasks = []
+        optimized_tasks = _split_bullets(opt_proj.get("taches_optimisees"))
         for orig_p in original_projs:
             if orig_p.get("titre", "").strip().lower() == opt_title.strip().lower():
                 orig_tasks = orig_p.get("taches") or orig_p.get("tasks") or []
                 break
 
-        bullets = []
-        if orig_tasks:
-            if isinstance(orig_tasks, list):
-                bullets = [str(t).strip() for t in orig_tasks if t]
-            elif isinstance(orig_tasks, str):
-                bullets = [b.strip().lstrip("-").strip() for b in orig_tasks.split("\n") if b.strip()]
-
+        bullets = optimized_tasks
         if not bullets:
-            bullets = [b.strip().lstrip("-").strip() for b in opt_proj.get("description_optimisee", "").split("\n") if b.strip()]
+            bullets = _split_bullets(orig_tasks)
+        if not bullets:
+            bullets = _split_bullets(opt_proj.get("description_optimisee", ""))
 
         description = " ".join(str(opt_proj.get("description_optimisee", "") or "").split())
         bullets = [b for b in _dedupe_strings(bullets, limit=4) if not _same_meaning(b, description)]
         if bullets:
             description = None
 
-        scored_projects.append((score, QuestPDFProject(
+        scored_projects.append((score, -index, QuestPDFProject(
             title=opt_title,
             description=description,
             bullets=bullets,
         )))
         
     # Sort projects by match score descending
-    scored_projects.sort(key=lambda x: x[0], reverse=True)
-    quest_projects = [p[1] for p in scored_projects[:4]]
+    scored_projects.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    quest_projects = [p[2] for p in scored_projects[:4]]
 
     # 5. Educations
     quest_educations: List[QuestPDFEducation] = []
@@ -233,9 +349,15 @@ def build_questpdf_payload(
 
     # 8. Skills with matching and algorithmic sorting
     matched_set = {s.lower().strip() for s in (matched_skills or [])}
+    highlighted_set = {
+        s.lower().strip()
+        for s in (optimized_cv.get("competences_mises_en_avant", []) or [])
+        if str(s or "").strip()
+    }
     opt_skills = optimized_cv.get("competences_reordonnees", [])
     
     seen: set = set()
+    highlighted_skills_list: List[QuestPDFSkill] = []
     matched_skills_list: List[QuestPDFSkill] = []
     other_skills_list: List[QuestPDFSkill] = []
     
@@ -252,31 +374,53 @@ def build_questpdf_payload(
             level=3,
             is_matched=is_matched,
         )
-        if is_matched:
+        if key in highlighted_set:
+            highlighted_skills_list.append(skill_obj)
+        elif is_matched:
             matched_skills_list.append(skill_obj)
         else:
             other_skills_list.append(skill_obj)
             
-    # Algorithms: Matched skills first, then others
-    quest_skills = matched_skills_list + other_skills_list
+    # Algorithms: highlighted skills first, then matched, then others
+    quest_skills = highlighted_skills_list + matched_skills_list + other_skills_list
 
     # 9. Activities — extract from experiences (Extracurricular) or projets (association)
     activities: List[QuestPDFActivity] = []
     seen_activity_keys: set = set()
-    
+
+    for activity in original_profile.get("activities", []):
+        title = _clean_str(activity.get("title") or activity.get("titre"))
+        role = _clean_optional_str(activity.get("role") or activity.get("entreprise"))
+        description = _clean_optional_str(activity.get("description"))
+        if not title and not description:
+            continue
+        akey = f"{_norm(title)}|{_norm(role)}"
+        if akey in seen_activity_keys:
+            continue
+        activities.append(QuestPDFActivity(
+            title=title or (role or ""),
+            role=role,
+            description=description,
+            start=activity.get("start") or activity.get("startDate") or activity.get("date_debut"),
+            end=activity.get("end") or activity.get("endDate") or activity.get("date_fin"),
+        ))
+        seen_activity_keys.add(akey)
+
     # Extract from experiences
     for exp in original_profile.get("experiences", []):
         role = exp.get("titre", "")
         company = exp.get("entreprise", "")
         desc = exp.get("description", "")
-        if exp.get("type", "").lower() == "extracurricular" or _looks_like_activity(role, company, desc):
+        if _is_activity_type(exp.get("type", "")) or _looks_like_activity(role, company, desc):
             akey = f"{_norm(role)}|{_norm(company)}"
             if akey in seen_activity_keys:
                 continue
             activities.append(QuestPDFActivity(
-                title=company or role,
-                role=role,
-                description=desc,
+                title=role or company,
+                role=company or None,
+                description=_first_optional(desc, " ".join(_split_bullets(exp.get("taches")))),
+                start=exp.get("date_debut"),
+                end=exp.get("date_fin"),
             ))
             seen_activity_keys.add(akey)
             

@@ -104,6 +104,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isGeneratingAI = signal(false);
   isParsing = signal(false);
   isApplyingData = signal(false);
+  isUploadingPhoto = signal(false);
   parsingStatus = signal<'reading' | 'analyzing' | 'structuring'>('reading');
   parsingProgress = signal(0);
   terminalFeed = signal<{timestamp: string, status: string, message: string}[]>([]);
@@ -843,16 +844,25 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     input.click();
   }
 
-  onPhotoSelected(event: Event) {
+  async onPhotoSelected(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const photoUrl = e.target?.result as string;
-        this.updateField('photoUrl', photoUrl);
-        this.autoSave$.next();
-      };
-      reader.readAsDataURL(file);
+    if (!file) {
+      return;
+    }
+
+    this.isUploadingPhoto.set(true);
+    try {
+      const photoUrl = await this.profileService.uploadProfilePhoto(file);
+      this.updateField('photoUrl', photoUrl);
+      this.autoSave$.next();
+    } catch (error) {
+      console.error('Erreur upload photo:', error);
+    } finally {
+      this.isUploadingPhoto.set(false);
+      const input = event.target as HTMLInputElement;
+      if (input) {
+        input.value = '';
+      }
     }
   }
 

@@ -217,6 +217,36 @@ public static class CvSectionMapper
             .ToList();
     }
 
+    public static List<CvSection> MergeWithLegacySections(CvData data, List<CvSection>? sections)
+    {
+        var explicitSections = NormalizeSections(sections);
+        var legacySections = BuildSectionsFromLegacy(data);
+
+        if (explicitSections.Count == 0)
+        {
+            return NormalizeSections(legacySections);
+        }
+
+        var merged = new List<CvSection>(explicitSections);
+        var existingIds = explicitSections
+            .Select(section => section.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var maxOrder = explicitSections.Count == 0 ? -1 : explicitSections.Max(section => section.Order);
+        foreach (var legacySection in legacySections)
+        {
+            if (existingIds.Contains(legacySection.Id))
+            {
+                continue;
+            }
+
+            legacySection.Order = ++maxOrder;
+            merged.Add(legacySection);
+        }
+
+        return NormalizeSections(merged);
+    }
+
     public static void ApplySectionsToLegacy(CvData data)
     {
         var sections = data.Sections
@@ -408,4 +438,5 @@ public static class CvSectionMapper
 
         return builder.ToString().Trim('-');
     }
+
 }

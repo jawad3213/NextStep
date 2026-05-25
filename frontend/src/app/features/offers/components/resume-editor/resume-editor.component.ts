@@ -1,10 +1,11 @@
-import { Component, Input, Output, EventEmitter, signal, effect, OnInit, OnChanges, OnDestroy, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, effect, OnInit, OnChanges, OnDestroy, SimpleChanges, inject, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, moveItemInArray, DragDropModule } from '@angular/cdk/drag-drop';
 import { SafeHtml } from '@angular/platform-browser';
 import { SidebarService } from '../../../../shared/services/sidebar.service';
 import { CvDesignConfig } from '../../services/offer-api.service';
+import { environment } from '../../../../../environments/environment';
 
 export interface Candidate {
   name: string;
@@ -24,6 +25,8 @@ export interface Experience {
   start: string;
   end: string;
   bullets: string[];
+  relevance?: string;
+  keywords?: string[];
 }
 
 export interface Education {
@@ -38,6 +41,7 @@ export interface Skill {
   name: string;
   level: number;
   isMatched: boolean;
+  isHighlighted?: boolean;
 }
 
 export interface Project {
@@ -46,6 +50,16 @@ export interface Project {
   technologies?: string[];
   dateRealisation?: string;
   bullets: string[];
+  relevance?: string;
+  keywords?: string[];
+}
+
+export interface Activity {
+  title: string;
+  role?: string | null;
+  description?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export interface CvGeneratedSchema {
@@ -57,7 +71,7 @@ export interface CvGeneratedSchema {
   projects: Project[];
   certifications: string[];
   languages: string[];
-  activities: string[];
+  activities: Activity[];
   accomplishments: string[];
   atsScore: number;
   matchingScore: number;
@@ -87,6 +101,17 @@ export interface CvSection {
   items: CvSectionItem[];
 }
 
+interface PreviewSectionOverlay {
+  id: string;
+  title: string;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  order: number;
+}
+
+
 type EditorPanelTab = 'templates' | 'design' | 'sections';
 type SupportedEditorTemplate = 'modern' | 'latex';
 
@@ -98,7 +123,7 @@ type SupportedEditorTemplate = 'modern' | 'latex';
   templateUrl: './resume-editor.component.html',
   styleUrls: ['./resume-editor.component.scss']
 })
-export class ResumeEditorComponent implements OnInit, OnChanges {
+export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   @Input() templateId: string = 'modern';
   @Input() offerId: string | null = null;
   @Input() initialData: any = null;
@@ -106,12 +131,18 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   @Input() designConfig: CvDesignConfig | null = null;
   @Input() isRenderingPreview: boolean = false;
   @Input() previewError: string | null = null;
+  @Input() isReoptimizingCv: boolean = false;
+  @Input() isPreparingDownload: boolean = false;
+  @Input() isGeneratingHighQualityPdf: boolean = false;
   @Output() back = new EventEmitter<void>();
   @Output() continue = new EventEmitter<void>();
   @Output() download = new EventEmitter<void>();
+  @Output() downloadHighQuality = new EventEmitter<void>();
+  @Output() reoptimize = new EventEmitter<void>();
   @Output() dataChange = new EventEmitter<CvGeneratedSchema>();
   @Output() designConfigChange = new EventEmitter<CvDesignConfig>();
   @Output() templateChange = new EventEmitter<SupportedEditorTemplate>();
+  @ViewChild('renderedPreviewContent') private renderedPreviewContent?: ElementRef<HTMLDivElement>;
   private readonly sidebarService = inject(SidebarService);
 
   // DYNAMIC CHOSEN MODEL
@@ -129,12 +160,17 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   readonly isEditingDocumentTitle = signal<boolean>(false);
   readonly draftDocumentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
   readonly activePreviewSection = signal<string | null>('summary');
+  readonly isSectionFormOpen = signal<boolean>(false);
   readonly editingSectionTitle = signal<string | null>(null);
   readonly sectionTitleOverrides = signal<Record<string, string>>({});
   readonly previewZoom = signal<number>(100);
+  readonly previewSectionOverlays = signal<PreviewSectionOverlay[]>([]);
   readonly minPreviewZoom = 70;
   readonly maxPreviewZoom = 130;
   private readonly previewZoomStep = 10;
+  private overlayRefreshFrame: number | null = null;
+  private previewResizeObserver: ResizeObserver | null = null;
+  private previewMutationObserver: MutationObserver | null = null;
 
   // SIMULATED OPTIMIZATION LOADING
   readonly isImproving = signal<boolean>(false);
@@ -259,8 +295,20 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       "Français (Courant)"
     ],
     activities: [
-      "Hackathon ENSA Winner",
-      "Competitive Programming Club"
+      {
+        title: "Hackathon ENSA Winner",
+        role: "Participant",
+        description: "Won a university hackathon by presenting a production-ready full-stack prototype.",
+        startDate: "2024-05",
+        endDate: "2024-05",
+      },
+      {
+        title: "Competitive Programming Club",
+        role: "Active member",
+        description: "Practiced weekly algorithmic problem solving and peer code reviews.",
+        startDate: "2023-09",
+        endDate: "2024-06",
+      }
     ],
     accomplishments: [
       "Built full-stack and AI-powered projects with measurable delivery outcomes",
@@ -308,6 +356,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   readonly lineSpacingOptions = ['1.25', '1.38', '1.45', '1.55', '1.7'];
   readonly sectionSpacingOptions = ['0.8rem', '1rem', '1.2rem', '1.4rem', '1.6rem'];
   readonly sidebarWidthOptions = ['26%', '29%', '31%', '34%', '37%'];
+  private readonly templateThumbnailUrlCache = new Map<string, string>();
+  private readonly templateThumbnailNonce = Date.now();
+  private readonly previewOverlaySync = effect(() => {
+    void this.renderedHtml;
+    this.previewZoom();
+    this.schedulePreviewOverlayRefresh();
+  });
 
   toggleSection(section: string) {
     if (this.activeSection() === section) {
@@ -328,6 +383,15 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
     this.activeTemplate.set(id);
     this.templateChange.emit(id as SupportedEditorTemplate);
+  }
+
+  templateThumbnailUrl(slug: SupportedEditorTemplate): string {
+    const cached = this.templateThumbnailUrlCache.get(slug);
+    if (cached) return cached;
+    const origin = new URL(environment.apiBaseUrl).origin;
+    const url = `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.templateThumbnailNonce}`;
+    this.templateThumbnailUrlCache.set(slug, url);
+    return url;
   }
 
   startDocumentTitleEdit(): void {
@@ -423,21 +487,35 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   }
 
   isSectionVisible(sectionId: string): boolean {
-    return !!this.sectionVisibility()[sectionId];
+    return !!this.sectionVisibility()[this.normalizeSectionId(sectionId)];
   }
 
   setActivePreviewSection(sectionId: string): void {
-    this.activePreviewSection.set(sectionId);
+    this.activePreviewSection.set(this.normalizeSectionId(sectionId));
   }
 
   selectedSection(): CvSection | null {
+    if (this.activePreviewSection() === 'header') {
+      return {
+        id: 'header',
+        type: 'header',
+        title: 'Header',
+        placement: 'main',
+        isVisible: true,
+        order: -1,
+        items: [],
+      };
+    }
     return this.orderedSections.find(section => section.id === this.activePreviewSection()) ?? null;
   }
 
   openSectionInspector(sectionId: string): void {
     this.setActivePreviewSection(sectionId);
-    this.activePanelTab.set('sections');
-    this.isPanelOpen.set(true);
+    this.isSectionFormOpen.set(true);
+  }
+
+  closeSectionForm(): void {
+    this.isSectionFormOpen.set(false);
   }
 
   startSectionTitleEdit(sectionId: string): void {
@@ -450,17 +528,27 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   }
 
   updateSectionTitle(sectionId: string, value: string): void {
+    if (sectionId === 'header') {
+      return;
+    }
+    if (this.isCustomSection(sectionId)) {
+      this.updateCustomSectionTitle(sectionId, value.trimStart());
+      return;
+    }
     this.sectionTitleOverrides.update((titles) => ({
       ...titles,
-      [sectionId]: value.trimStart(),
+      [this.normalizeSectionId(sectionId)]: value.trimStart(),
     }));
   }
 
   hidePreviewSection(sectionId: string): void {
-    if (sectionId.startsWith('custom-')) {
+    if (sectionId === 'header') {
+      return;
+    }
+    if (this.isCustomSection(sectionId)) {
       this.toggleCustomSectionVisibility(sectionId);
     } else {
-      this.toggleSectionVisibility(sectionId);
+      this.toggleSectionVisibility(this.normalizeSectionId(sectionId));
     }
   }
 
@@ -519,6 +607,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
   previewSectionIcon(sectionId: string): string {
     const icons: Record<string, string> = {
+      header: 'badge',
       summary: 'description',
       experience: 'work',
       projects: 'deployed_code',
@@ -686,8 +775,11 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
           isVisible: !!visibility[id],
           order,
           items: data.activities.map(activity => ({
-            primaryText: activity,
-            secondaryText: '',
+            primaryText: activity.title,
+            secondaryText: activity.role ?? '',
+            startDate: activity.startDate ?? null,
+            endDate: activity.endDate ?? null,
+            description: activity.description ?? null,
             bullets: [],
           })),
         };
@@ -714,6 +806,10 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     this.customSections.update(sections =>
       sections.map(section => section.id === sectionId ? { ...section, isVisible: !section.isVisible } : section)
     );
+  }
+
+  private isCustomSection(sectionId: string): boolean {
+    return this.customSections().some(section => section.id === sectionId);
   }
 
   addCustomSection(): void {
@@ -875,6 +971,67 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     });
   }
 
+  headerFirstName(): string {
+    const fullName = String(this.cvData().candidate.name ?? '').trim();
+    if (!fullName) return '';
+    const parts = fullName.split(/\s+/);
+    return parts[0] ?? '';
+  }
+
+  headerLastName(): string {
+    const fullName = String(this.cvData().candidate.name ?? '').trim();
+    if (!fullName) return '';
+    const parts = fullName.split(/\s+/);
+    return parts.slice(1).join(' ');
+  }
+
+  updateHeaderFirstName(value: string): void {
+    const lastName = this.headerLastName();
+    const next = [value?.trim(), lastName].filter(Boolean).join(' ').trim();
+    this.updateCandidateField('name', next);
+  }
+
+  updateHeaderLastName(value: string): void {
+    const firstName = this.headerFirstName();
+    const next = [firstName, value?.trim()].filter(Boolean).join(' ').trim();
+    this.updateCandidateField('name', next);
+  }
+
+  private candidateLocationParts(): { city: string; province: string; zipCode: string } {
+    const raw = String(this.cvData().candidate.location ?? '').trim();
+    if (!raw) {
+      return { city: '', province: '', zipCode: '' };
+    }
+    const parts = raw.split(',').map((part) => part.trim());
+    return {
+      city: parts[0] ?? '',
+      province: parts[1] ?? '',
+      zipCode: parts[2] ?? '',
+    };
+  }
+
+  headerCity(): string {
+    return this.candidateLocationParts().city;
+  }
+
+  headerProvince(): string {
+    return this.candidateLocationParts().province;
+  }
+
+  headerZipCode(): string {
+    return this.candidateLocationParts().zipCode;
+  }
+
+  updateHeaderLocationPart(part: 'city' | 'province' | 'zipCode', value: string): void {
+    const current = this.candidateLocationParts();
+    const next = {
+      ...current,
+      [part]: String(value ?? '').trim(),
+    };
+    const merged = [next.city, next.province, next.zipCode].filter(Boolean).join(', ');
+    this.updateCandidateField('location', merged);
+  }
+
   parseCommaSeparatedList(value: any): string[] {
     return String(value ?? '')
       .split(',')
@@ -1012,14 +1169,23 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   addActivity(): void {
     this.cvData.update(data => ({
       ...data,
-      activities: [...data.activities, 'Nouvelle activite']
+      activities: [
+        ...data.activities,
+        {
+          title: 'Nouvelle activite',
+          role: '',
+          description: '',
+          startDate: null,
+          endDate: null,
+        }
+      ]
     }));
   }
 
-  updateActivity(index: number, value: string): void {
+  updateActivity(index: number, field: keyof Activity, value: string | null): void {
     this.cvData.update(data => ({
       ...data,
-      activities: data.activities.map((activity, activityIndex) => activityIndex === index ? value : activity)
+      activities: data.activities.map((activity, activityIndex) => activityIndex === index ? { ...activity, [field]: value } : activity)
     }));
   }
 
@@ -1052,8 +1218,9 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
   }
 
   sectionLabel(sectionId: string): string {
-    const override = this.sectionTitleOverrides()[sectionId]?.trim();
-    return override || (this.sectionDefinitions.find(section => section.id === sectionId)?.label ?? sectionId);
+    const normalizedId = this.normalizeSectionId(sectionId);
+    const override = this.sectionTitleOverrides()[normalizedId]?.trim();
+    return override || (this.sectionDefinitions.find(section => section.id === normalizedId)?.label ?? normalizedId);
   }
 
   // Local persistence is immediate; backend autosave is owned by StepGeneration
@@ -1136,25 +1303,76 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     if (changes['designConfig']) {
       this.hydrateDesignConfig(changes['designConfig'].currentValue);
     }
+
+    if (changes['renderedHtml']) {
+      this.schedulePreviewOverlayRefresh();
+    }
+  }
+
+  ngAfterViewInit(): void {
+    this.attachPreviewObservers();
+    this.schedulePreviewOverlayRefresh();
   }
 
   ngOnDestroy(): void {
     this.sidebarService.setEditorFocusMode(false);
+    if (this.overlayRefreshFrame !== null) {
+      cancelAnimationFrame(this.overlayRefreshFrame);
+    }
+    this.previewResizeObserver?.disconnect();
+    this.previewMutationObserver?.disconnect();
   }
 
   private hydrateFromGenerated(generated: any): void {
-    const normalized = generated?.cvData ?? generated?.cv_data ?? generated;
+    const normalized = generated?.cvData
+      ?? generated?.cv_data
+      ?? generated?.cvGeneratedContent
+      ?? generated?.cv_optimized_content
+      ?? generated?.cvOptimizedContent
+      ?? generated;
+    const profileSource = generated?.profileData?.data
+      ?? generated?.profileData?.profile
+      ?? generated?.profile_data?.data
+      ?? generated?.profile_data?.profile
+      ?? generated?.profileData
+      ?? generated?.profile_data
+      ?? {};
     if (!normalized || typeof normalized !== 'object') {
       console.warn('[CV-PIPELINE] ResumeEditor hydrate skipped: invalid payload', { generated });
       return;
     }
+    const profilePersonal = profileSource?.personalInfo
+      ?? profileSource?.personal_info
+      ?? profileSource?.personal
+      ?? {};
+    const candidate = normalized?.candidate
+      ?? normalized?.personal
+      ?? normalized?.personalInfo
+      ?? normalized?.personal_info
+      ?? profilePersonal
+      ?? {};
+    const experience = this.firstArray(normalized, ['experience', 'experiences', 'experiences_optimisees']);
+    const education = this.firstArray(normalized, ['education', 'formations', 'formations_optimisees']);
+    const skills = this.firstArray(normalized, ['skills', 'competences', 'competences_reordonnees', 'competences_mises_en_avant']);
+    const projects = this.firstArray(normalized, ['projects', 'projets', 'projets_optimises']);
+    const certifications = this.firstArray(normalized, ['certifications', 'certificats', 'certifications_optimisees']);
+    const languages = this.firstArray(normalized, ['languages', 'langues']);
+    const activities = this.firstArray(normalized, ['activities', 'extracurricular', 'activites', 'activités']);
+    const highlightedSkills = new Set(
+      this.firstArray(normalized, ['competences_mises_en_avant'])
+        .map((skill: any) => this.cleanText(typeof skill === 'string' ? skill : skill?.name ?? skill?.nom ?? skill?.label).toLowerCase())
+        .filter(Boolean)
+    );
 
     console.log('[CV-PIPELINE] ResumeEditor hydrating generated CV', {
-      hasCandidate: !!normalized?.candidate,
-      experienceCount: Array.isArray(normalized?.experience) ? normalized.experience.length : 0,
-      skillsCount: Array.isArray(normalized?.skills) ? normalized.skills.length : 0,
-      languagesCount: Array.isArray(normalized?.languages) ? normalized.languages.length : 0,
-      hasSummary: !!normalized?.summary,
+      hasCandidate: !!candidate,
+      candidateName: this.extractCandidateName(candidate),
+      profileName: this.extractCandidateName(profilePersonal),
+      hasPhoto: !!this.extractCandidatePhotoUrl(candidate, profilePersonal),
+      experienceCount: experience.length,
+      skillsCount: skills.length,
+      languagesCount: languages.length,
+      hasSummary: !!(normalized?.summary ?? normalized?.resume ?? normalized?.resumeProfessionnel),
       keys: Object.keys(normalized),
     });
 
@@ -1162,50 +1380,79 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
       ...current,
       candidate: {
         ...current.candidate,
-        name: normalized?.candidate?.name ?? current.candidate.name,
-        email: normalized?.candidate?.email ?? current.candidate.email,
-        phone: normalized?.candidate?.phone ?? current.candidate.phone,
-        location: normalized?.candidate?.location ?? current.candidate.location,
-        title: normalized?.candidate?.title ?? current.candidate.title,
-        photoUrl: normalized?.candidate?.photoUrl ?? current.candidate.photoUrl,
-        linkedIn: normalized?.candidate?.linkedIn ?? current.candidate.linkedIn,
-        gitHub: normalized?.candidate?.gitHub ?? current.candidate.gitHub,
-        portfolio: normalized?.candidate?.portfolio ?? current.candidate.portfolio,
+        name: this.resolvePreferredCandidateName(candidate, profilePersonal, current.candidate.name),
+        email: this.cleanText(candidate?.email ?? candidate?.mail ?? profilePersonal?.email ?? profilePersonal?.mail) || current.candidate.email,
+        phone: this.cleanText(candidate?.phone ?? candidate?.telephone ?? profilePersonal?.phone ?? profilePersonal?.telephone) || current.candidate.phone,
+        location: this.resolvePreferredLocation(candidate, profilePersonal, current.candidate.location),
+        title: this.cleanText(candidate?.title ?? candidate?.titrePoste ?? candidate?.poste ?? profilePersonal?.title ?? profilePersonal?.titrePoste ?? profilePersonal?.poste) || current.candidate.title,
+        photoUrl: this.extractCandidatePhotoUrl(candidate, profilePersonal) ?? current.candidate.photoUrl,
+        linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? candidate?.lienLinkedin ?? profilePersonal?.linkedIn ?? profilePersonal?.linkedin ?? profilePersonal?.lienLinkedin ?? current.candidate.linkedIn,
+        gitHub: candidate?.gitHub ?? candidate?.github ?? candidate?.lienGithub ?? profilePersonal?.gitHub ?? profilePersonal?.github ?? profilePersonal?.lienGithub ?? current.candidate.gitHub,
+        portfolio: candidate?.portfolio ?? candidate?.lienPortfolio ?? profilePersonal?.portfolio ?? profilePersonal?.lienPortfolio ?? current.candidate.portfolio,
       },
-      summary: normalized?.summary ?? current.summary,
-      experience: Array.isArray(normalized?.experience) ? normalized.experience.map((e: any) => ({ ...e, start: this.toMonthValue(e?.start), end: this.toMonthValue(e?.end) })) : current.experience,
-      education: Array.isArray(normalized?.education)
-        ? normalized.education.map((education: any) => ({
-            degree: String(education?.degree ?? ''),
-            institution: String(education?.institution ?? ''),
-            year: String(education?.year ?? ''),
-            startYear: String(education?.startYear ?? ''),
-            endYear: String(education?.endYear ?? ''),
+      summary: normalized?.summary ?? normalized?.resume ?? normalized?.resumeProfessionnel ?? current.summary,
+      experience: experience.length > 0 ? experience.map((e: any) => ({
+        role: this.cleanText(e?.role ?? e?.title ?? e?.poste ?? e?.titre),
+        company: this.cleanText(e?.company ?? e?.entreprise),
+        start: this.toMonthValue(e?.start ?? e?.dateDebut ?? e?.date_debut),
+        end: this.toMonthValue(e?.end ?? e?.dateFin ?? e?.date_fin),
+        bullets: this.asStringArray(e?.bullets ?? e?.taches_optimisees ?? e?.missions ?? e?.taches ?? e?.description_optimisee ?? e?.description),
+        relevance: this.cleanText(e?.niveau_pertinence ?? e?.relevance),
+        keywords: this.asStringArray(e?.mots_cles_cibles ?? e?.keywords),
+      })) : current.experience,
+      education: education.length > 0
+        ? education.map((education: any) => ({
+            degree: String(education?.degree ?? education?.diplome ?? education?.titre ?? ''),
+            institution: String(education?.institution ?? education?.etablissement ?? education?.ecole ?? ''),
+            year: String(education?.year ?? education?.annee ?? education?.anneeFin ?? education?.dateFin ?? ''),
+            startYear: String(education?.startYear ?? education?.anneeDebut ?? education?.dateDebut ?? ''),
+            endYear: String(education?.endYear ?? education?.anneeFin ?? education?.dateFin ?? ''),
           }))
         : current.education,
-      skills: Array.isArray(normalized?.skills) ? normalized.skills : current.skills,
-      projects: Array.isArray(normalized?.projects)
-        ? normalized.projects.map((project: any) => ({
-            title: String(project?.title ?? ''),
-            description: String(project?.description ?? ''),
+      skills: skills.length > 0 ? skills.map((skill: any) => ({
+        name: typeof skill === 'string' ? skill : this.cleanText(skill?.name ?? skill?.nom ?? skill?.label),
+        level: Math.min(5, Math.max(1, Number(skill?.level ?? skill?.niveau ?? 3))),
+        isMatched: !!(skill?.isMatched ?? skill?.matched ?? skill?.statut === 'correspond'),
+        isHighlighted: highlightedSkills.has(this.cleanText(typeof skill === 'string' ? skill : skill?.name ?? skill?.nom ?? skill?.label).toLowerCase()),
+      })).filter((skill: Skill) => !!skill.name) : current.skills,
+      projects: projects.length > 0
+        ? projects.map((project: any) => ({
+            title: String(project?.title ?? project?.titreProjet ?? project?.titre ?? ''),
+            description: String(project?.description ?? project?.description_optimisee ?? ''),
             technologies: Array.isArray(project?.technologies)
               ? project.technologies.map((technology: any) => String(technology ?? '')).filter(Boolean)
               : [],
-            dateRealisation: this.toMonthValue(project?.dateRealisation),
-            bullets: Array.isArray(project?.bullets)
-              ? project.bullets.map((bullet: any) => String(bullet ?? '')).filter(Boolean)
-              : [],
+            dateRealisation: this.toMonthValue(project?.dateRealisation ?? project?.date_realisation),
+            relevance: this.cleanText(project?.niveau_pertinence ?? project?.relevance),
+            keywords: this.asStringArray(project?.mots_cles_cibles ?? project?.keywords),
+            bullets: this.asStringArray(
+              project?.bullets
+              ?? project?.taches_optimisees
+              ?? project?.taches
+              ?? project?.missions
+              ?? project?.tasks
+              ?? project?.responsibilities
+              ?? project?.realisations
+              ?? project?.description_optimisee
+              ?? project?.description
+            ),
           }))
         : current.projects,
-      certifications: Array.isArray(normalized?.certifications) ? normalized.certifications : current.certifications,
-      languages: Array.isArray(normalized?.languages) ? normalized.languages : current.languages,
-      activities: Array.isArray(normalized?.activities)
-        ? normalized.activities.map((activity: any) => String(activity?.title ?? activity ?? '')).filter(Boolean)
+      certifications: certifications.length > 0 ? this.asStringArray(certifications) : current.certifications,
+      languages: languages.length > 0 ? this.asStringArray(languages) : current.languages,
+      activities: activities.length > 0
+        ? activities.map((activity: any) => ({
+            title: this.cleanText(activity?.title ?? activity?.name ?? activity),
+            role: this.cleanText(activity?.role ?? activity?.secondaryText) || null,
+            description: this.cleanText(activity?.description) || null,
+            startDate: this.toMonthValue(activity?.startDate ?? activity?.start ?? activity?.dateDebut ?? activity?.date_debut),
+            endDate: this.toMonthValue(activity?.endDate ?? activity?.end ?? activity?.dateFin ?? activity?.date_fin),
+          })).filter((activity: Activity) => !!activity.title || !!activity.description)
         : current.activities,
       accomplishments: Array.isArray(normalized?.accomplishments) ? normalized.accomplishments : current.accomplishments,
-      atsScore: normalized?.atsScore ?? current.atsScore,
-      matchingScore: normalized?.matchingScore ?? current.matchingScore,
-      atsCoveragePct: normalized?.atsCoveragePct ?? current.atsCoveragePct,
+      atsScore: normalized?.atsScore ?? normalized?.ats_score ?? current.atsScore,
+      matchingScore: normalized?.matchingScore ?? normalized?.matching_score ?? current.matchingScore,
+      atsCoveragePct: normalized?.atsCoveragePct ?? normalized?.ats_coverage_pct ?? current.atsCoveragePct,
     }));
 
     this.hydrateSectionState(normalized?.sections);
@@ -1232,6 +1479,81 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     return '';
   }
 
+  private firstArray(source: any, keys: string[]): any[] {
+    for (const key of keys) {
+      const value = source?.[key];
+      if (Array.isArray(value)) return value;
+    }
+    return [];
+  }
+
+  private asStringArray(value: any): string[] {
+    const values = Array.isArray(value) ? value : [value];
+    return values.map((item: any) => {
+      if (typeof item === 'string') return item.trim();
+      if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+      if (item && typeof item === 'object') {
+        return this.cleanText(item.name ?? item.nom ?? item.label ?? item.title ?? item.titre ?? item.description ?? '');
+      }
+      return String(item ?? '').trim();
+    }).filter(Boolean);
+  }
+
+  private cleanText(value: any): string {
+    return String(value ?? '').trim().replace(/\s+/g, ' ');
+  }
+
+  private resolvePreferredCandidateName(candidate: any, profilePersonal: any, fallback: string): string {
+    const candidateName = this.extractCandidateName(candidate);
+    const profileName = this.extractCandidateName(profilePersonal);
+    if (candidateName && !this.isGenericCandidateName(candidateName)) {
+      return candidateName;
+    }
+    if (profileName) {
+      return profileName;
+    }
+    return candidateName || fallback;
+  }
+
+  private resolvePreferredLocation(candidate: any, profilePersonal: any, fallback: string): string {
+    const candidateLocation = this.cleanText(
+      candidate?.location ?? [candidate?.ville ?? candidate?.city, candidate?.pays ?? candidate?.country].filter(Boolean).join(', ')
+    );
+    const profileLocation = this.cleanText(
+      profilePersonal?.location ?? [profilePersonal?.ville ?? profilePersonal?.city, profilePersonal?.pays ?? profilePersonal?.country].filter(Boolean).join(', ')
+    );
+    return candidateLocation || profileLocation || fallback;
+  }
+
+  private extractCandidateName(source: any): string {
+    return this.cleanText(
+      source?.name
+      ?? source?.nomComplet
+      ?? source?.fullName
+      ?? [source?.prenom ?? source?.firstName, source?.nom ?? source?.lastName].filter(Boolean).join(' ')
+    );
+  }
+
+  private extractCandidatePhotoUrl(candidate: any, profilePersonal: any): string | null {
+    const photo = candidate?.photoUrl
+      ?? candidate?.photo_url
+      ?? candidate?.profilePhoto
+      ?? candidate?.profile_photo
+      ?? candidate?.avatar
+      ?? profilePersonal?.photoUrl
+      ?? profilePersonal?.photo_url
+      ?? profilePersonal?.profilePhoto
+      ?? profilePersonal?.profile_photo
+      ?? profilePersonal?.avatar;
+    const clean = this.cleanText(photo);
+    return clean || null;
+  }
+
+  private isGenericCandidateName(value: string): boolean {
+    const normalized = this.cleanText(value).toLowerCase();
+    return normalized === 'candidat' || normalized === 'candidate';
+  }
+
   private normalizeTemplateId(templateId: string | null | undefined): SupportedEditorTemplate {
     const normalized = String(templateId ?? '').trim().toLowerCase();
     return normalized === 'latex' || normalized === 'tech-latex' || normalized === 'tech_latex'
@@ -1252,14 +1574,22 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     const visibility = { ...this.sectionVisibility() };
     const order: string[] = [];
     const custom: CvSection[] = [];
+    const titleOverrides: Record<string, string> = {};
 
     for (const section of ordered) {
-      const id = String(section?.id ?? section?.type ?? '').trim();
+      const rawId = String(section?.id ?? section?.type ?? '').trim();
+      const id = this.normalizeSectionId(rawId);
       if (!id) continue;
 
       if (standardIds.has(id)) {
         visibility[id] = section?.isVisible !== false;
-        order.push(id);
+        if (!order.includes(id)) {
+          order.push(id);
+        }
+        const title = this.cleanText(section?.title);
+        if (title) {
+          titleOverrides[id] = title;
+        }
         continue;
       }
 
@@ -1294,6 +1624,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     this.sectionVisibility.set(visibility);
     this.sectionOrder.set([...order, ...fallbackOrder]);
     this.customSections.set(custom);
+    this.sectionTitleOverrides.set(titleOverrides);
   }
 
   private hydrateDesignConfig(config: CvDesignConfig | null | undefined): void {
@@ -1385,7 +1716,8 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
 
   // ── Section visibility toggles ──
   toggleSectionVisibility(key: string): void {
-    this.sectionVisibility.update(v => ({ ...v, [key]: !v[key] }));
+    const normalizedKey = this.normalizeSectionId(key);
+    this.sectionVisibility.update(v => ({ ...v, [normalizedKey]: !v[normalizedKey] }));
   }
 
   // ── Bullet management ──
@@ -1494,12 +1826,18 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     this.download.emit();
   }
 
+  exportHighQualityPdf(): void {
+    this.downloadHighQuality.emit();
+  }
+
   zoomIn(): void {
     this.previewZoom.update((value) => Math.min(value + this.previewZoomStep, this.maxPreviewZoom));
+    this.schedulePreviewOverlayRefresh();
   }
 
   zoomOut(): void {
     this.previewZoom.update((value) => Math.max(value - this.previewZoomStep, this.minPreviewZoom));
+    this.schedulePreviewOverlayRefresh();
   }
 
   onPreviewWheel(event: WheelEvent): void {
@@ -1522,4 +1860,218 @@ export class ResumeEditorComponent implements OnInit, OnChanges {
     }
     return date;
   }
+
+  previewCounterLabel(order: number): string {
+    return String(order).padStart(2, '0');
+  }
+
+  openOverlaySection(sectionId: string): void {
+    this.openSectionInspector(sectionId);
+  }
+
+  private attachPreviewObservers(): void {
+    const content = this.renderedPreviewContent?.nativeElement;
+    if (!content) {
+      return;
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.previewResizeObserver?.disconnect();
+      this.previewResizeObserver = new ResizeObserver(() => this.schedulePreviewOverlayRefresh());
+      this.previewResizeObserver.observe(content);
+    }
+
+    if (typeof MutationObserver !== 'undefined') {
+      this.previewMutationObserver?.disconnect();
+      this.previewMutationObserver = new MutationObserver(() => this.schedulePreviewOverlayRefresh());
+      this.previewMutationObserver.observe(content, { childList: true, subtree: true, attributes: true });
+    }
+  }
+
+  private schedulePreviewOverlayRefresh(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (this.overlayRefreshFrame !== null) {
+      cancelAnimationFrame(this.overlayRefreshFrame);
+    }
+
+    this.overlayRefreshFrame = window.requestAnimationFrame(() => {
+      this.overlayRefreshFrame = null;
+      this.refreshPreviewOverlays();
+    });
+  }
+
+  private refreshPreviewOverlays(): void {
+    const content = this.renderedPreviewContent?.nativeElement;
+    if (!content) {
+      this.previewSectionOverlays.set([]);
+      return;
+    }
+
+    const taggedNodes = Array.from(content.querySelectorAll<HTMLElement>('[data-editor-section-id]'));
+    const fallbackNodes = taggedNodes.length > 0
+      ? taggedNodes
+      : Array.from(content.querySelectorAll<HTMLElement>('.cv-identity-stack, .cv-latex-header, .cv-section, .cv-meta-block'));
+    const sectionNodes = fallbackNodes.filter((node) => node.getBoundingClientRect().width > 0 && node.getBoundingClientRect().height > 0);
+
+    if (sectionNodes.length === 0) {
+      this.previewSectionOverlays.set([]);
+      return;
+    }
+
+    const contentRect = content.getBoundingClientRect();
+    const contentWidth = Math.max(1, content.offsetWidth || content.clientWidth || 1);
+    const contentHeight = Math.max(1, content.offsetHeight || content.clientHeight || 1);
+    const scaleX = contentRect.width > 0 ? contentRect.width / contentWidth : 1;
+    const scaleY = contentRect.height > 0 ? contentRect.height / contentHeight : 1;
+
+    const grouped = new Map<string, {
+      id: string;
+      title: string;
+      minTop: number;
+      minLeft: number;
+      maxRight: number;
+      maxBottom: number;
+      sortTop: number;
+      sortLeft: number;
+    }>();
+
+    for (const node of sectionNodes) {
+      const rect = node.getBoundingClientRect();
+      const id = this.normalizeSectionId(node.dataset['editorSectionId']?.trim() || this.inferPreviewSectionId(node));
+      if (!id) {
+        continue;
+      }
+
+      const title = node.dataset['editorSectionTitle']?.trim() || this.inferPreviewSectionTitle(node, id);
+      const relativeTop = (rect.top - contentRect.top) / scaleY;
+      const relativeLeft = (rect.left - contentRect.left) / scaleX;
+      const relativeRight = (rect.right - contentRect.left) / scaleX;
+      const relativeBottom = (rect.bottom - contentRect.top) / scaleY;
+      const current = grouped.get(id);
+
+      if (!current) {
+        grouped.set(id, {
+          id,
+          title,
+          minTop: relativeTop,
+          minLeft: relativeLeft,
+          maxRight: relativeRight,
+          maxBottom: relativeBottom,
+          sortTop: relativeTop,
+          sortLeft: relativeLeft,
+        });
+        continue;
+      }
+
+      current.minTop = Math.min(current.minTop, relativeTop);
+      current.minLeft = Math.min(current.minLeft, relativeLeft);
+      current.maxRight = Math.max(current.maxRight, relativeRight);
+      current.maxBottom = Math.max(current.maxBottom, relativeBottom);
+      current.sortTop = Math.min(current.sortTop, relativeTop);
+      current.sortLeft = Math.min(current.sortLeft, relativeLeft);
+      if (!current.title && title) {
+        current.title = title;
+      }
+    }
+
+    const overlays = Array.from(grouped.values())
+      .map((entry) => {
+        const sectionWidth = Math.max(1, entry.maxRight - entry.minLeft);
+        const sectionHeight = Math.max(1, entry.maxBottom - entry.minTop);
+        const adaptivePadding = Math.max(6, Math.min(14, Math.round(Math.min(sectionWidth, sectionHeight) * 0.08)));
+        const top = Math.max(0, entry.minTop - adaptivePadding);
+        const left = Math.max(0, entry.minLeft - adaptivePadding);
+        const maxWidth = Math.max(1, contentWidth - left);
+        const maxHeight = Math.max(1, contentHeight - top);
+        const width = Math.max(40, Math.min(maxWidth, sectionWidth + adaptivePadding * 2));
+        const height = Math.max(32, Math.min(maxHeight, sectionHeight + adaptivePadding * 2));
+
+        return {
+          id: entry.id,
+          title: entry.title,
+          top,
+          left,
+          width,
+          height,
+          sortTop: entry.sortTop,
+          sortLeft: entry.sortLeft,
+        };
+      })
+      .sort((a, b) => (a.sortTop - b.sortTop) || (a.sortLeft - b.sortLeft))
+      .map((overlay, index) => ({
+        id: overlay.id,
+        title: overlay.title,
+        top: overlay.top,
+        left: overlay.left,
+        width: overlay.width,
+        height: overlay.height,
+        order: index + 1,
+      }));
+
+    this.previewSectionOverlays.set(overlays);
+  }
+
+  private inferPreviewSectionId(node: HTMLElement): string | null {
+    if (node.classList.contains('cv-identity-stack') || node.classList.contains('cv-latex-header')) {
+      return 'header';
+    }
+
+    const heading = node.querySelector('h2, h3');
+    const normalizedTitle = this.cleanText(heading?.textContent ?? '').toLowerCase();
+    const titleMap: Record<string, string> = {
+      header: 'header',
+      resume: 'summary',
+      summary: 'summary',
+      experiences: 'experience',
+      experience: 'experience',
+      projects: 'projects',
+      project: 'projects',
+      education: 'education',
+      skills: 'skills',
+      certifications: 'certifications',
+      languages: 'languages',
+      activities: 'activities',
+      accomplishments: 'accomplishments',
+    };
+
+    return this.normalizeSectionId(titleMap[normalizedTitle] ?? null);
+  }
+
+  private inferPreviewSectionTitle(node: HTMLElement, sectionId: string): string {
+    const heading = this.cleanText(node.querySelector('h2, h3')?.textContent ?? '');
+    return heading || (sectionId === 'header' ? 'Header' : this.sectionLabel(sectionId));
+  }
+
+  private normalizeSectionId(sectionId: string | null | undefined): string {
+    const normalized = this.cleanText(sectionId).toLowerCase();
+    const aliases: Record<string, string> = {
+      header: 'header',
+      summary: 'summary',
+      resume: 'summary',
+      experience: 'experience',
+      experiences: 'experience',
+      project: 'projects',
+      projects: 'projects',
+      education: 'education',
+      skill: 'skills',
+      skills: 'skills',
+      softskills: 'skills',
+      'soft-skills': 'skills',
+      soft_skills: 'skills',
+      certification: 'certifications',
+      certifications: 'certifications',
+      language: 'languages',
+      languages: 'languages',
+      activity: 'activities',
+      activities: 'activities',
+      achievement: 'accomplishments',
+      achievements: 'accomplishments',
+      accomplishments: 'accomplishments',
+    };
+    return aliases[normalized] ?? normalized;
+  }
 }
+

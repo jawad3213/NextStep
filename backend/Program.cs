@@ -94,7 +94,7 @@ builder.Services.AddScoped<ICvService, CvService>();
 builder.Services.AddScoped<ICvHtmlTemplateRenderer, CvHtmlTemplateRenderer>();
 builder.Services.AddScoped<ICvPdfRenderer, CvPdfRenderer>();
 builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
-builder.Services.AddSingleton<ITemplateThumbnailService, TemplateThumbnailService>();
+builder.Services.AddScoped<ITemplateThumbnailService, TemplateThumbnailService>();
 builder.Services.AddScoped<ISourcedOfferService, SourcedOfferService>();
 
 // ─── MinIO / S3 Storage ───

@@ -31,6 +31,17 @@ interface ImportedProfilePayload {
   certifications: Certification[];
 }
 
+interface ProfilePhotoUploadResponse {
+  photoUrl: string;
+  objectKey?: string;
+  message?: string;
+}
+
+interface SignedProfilePhotoResponse {
+  photoUrl?: string | null;
+  objectKey?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -39,6 +50,8 @@ export class ProfileService {
   private readonly authService = inject(AuthService);
   private readonly apiUrl = `${environment.apiBaseUrl}/profile`;
   private readonly SESSION_KEY = 'nextstep_onboarding_profile';
+  private readonly MINIO_INTERNAL_HOSTS = ['http://minio:9000', 'https://minio:9000'];
+  private readonly MINIO_PUBLIC_HOST = 'http://localhost:9000';
 
   isOnboarding = signal(false);
 
@@ -134,7 +147,7 @@ export class ProfileService {
           city: data.personalInfo.ville || '',
           country: data.personalInfo.pays || '',
           jobTitle: data.personalInfo.titrePoste || '',
-          photoUrl: data.personalInfo.photoUrl || null,
+          photoUrl: null,
           linkedinUrl: data.personalInfo.lienLinkedin || '',
           githubUrl: data.personalInfo.lienGithub || '',
           portfolioUrl: data.personalInfo.lienPortfolio || '',
@@ -205,6 +218,15 @@ export class ProfileService {
       };
       
       this.profile.set(mappedProfile);
+
+      const signedPhotoUrl = await this.getSignedProfilePhotoUrl();
+      this.profile.update(profile => ({
+        ...profile,
+        personal: {
+          ...profile.personal,
+          photoUrl: signedPhotoUrl || this.normalizeAssetUrl(data.personalInfo.photoUrl) || null,
+        }
+      }));
     } catch (error) {
       console.error('Erreur chargement profil:', error);
     }
@@ -245,6 +267,53 @@ export class ProfileService {
       titresSections: JSON.stringify(this.profile().sectionTitles)
     };
     return firstValueFrom(this.http.put(`${this.apiUrl}/personal-info`, dto));
+  }
+
+  async uploadProfilePhoto(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await firstValueFrom(
+      this.http.post<ProfilePhotoUploadResponse>(`${this.apiUrl}/photo`, formData)
+    );
+
+    const photoUrl = this.normalizeAssetUrl(response?.photoUrl);
+    if (!photoUrl) {
+      throw new Error('Profile photo upload succeeded but no photo URL was returned.');
+    }
+
+    this.profile.update(profile => ({
+      ...profile,
+      personal: {
+        ...profile.personal,
+        photoUrl,
+      }
+    }));
+
+    return photoUrl;
+  }
+
+  private normalizeAssetUrl(value: any): string {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    let normalized = raw;
+    for (const internalHost of this.MINIO_INTERNAL_HOSTS) {
+      normalized = normalized.replace(internalHost, this.MINIO_PUBLIC_HOST);
+    }
+    return normalized;
+  }
+
+  async getSignedProfilePhotoUrl(): Promise<string | null> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get<SignedProfilePhotoResponse>(`${this.apiUrl}/photo/signed`)
+      );
+      const photoUrl = this.normalizeAssetUrl(response?.photoUrl);
+      return photoUrl || null;
+    } catch (error) {
+      console.warn('Unable to get signed profile photo URL', error);
+      return null;
+    }
   }
 
   private safeIsoDate(dateStr: string | null | undefined): string | null {

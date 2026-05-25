@@ -22,6 +22,7 @@ class OfferInput(BaseModel):
 
     analyzed_offer: Optional[Dict[str, Any]] = None
     profile_data: Optional[Dict[str, Any]] = None
+    skill_gap_analysis: Optional[Dict[str, Any]] = None
     match_result: Optional[Dict[str, Any]] = None
     company_intelligence: Optional[Dict[str, Any]] = None
     cv_optimized_content: Optional[Dict[str, Any]] = None
@@ -36,6 +37,8 @@ class MatchRequest(BaseModel):
 class PipelineResult(BaseModel):
     analyzed_offer: Optional[Dict[str, Any]] = None
     profile_data: Optional[Dict[str, Any]] = None
+    skill_gap_analysis: Optional[Dict[str, Any]] = None
+    match_result: Optional[Dict[str, Any]] = None
     skill_gap: Optional[Dict[str, Any]] = None
     company_intelligence: Optional[Dict[str, Any]] = None
     cv_data: Optional[Dict[str, Any]] = None
@@ -343,17 +346,21 @@ async def run_pipeline(payload: OfferInput) -> PipelineResult:
             "only_analysis": payload.only_analysis,
             "analyzed_offer": payload.analyzed_offer,
             "profile_data": payload.profile_data,
+            "skill_gap_analysis": payload.skill_gap_analysis or payload.match_result,
             "match_result": payload.match_result,
             "company_intelligence": payload.company_intelligence,
             "cv_optimized_content": payload.cv_optimized_content,
         }
 
         final_state = await pipeline.ainvoke(initial_state)
+        skill_gap_analysis = final_state.get("skill_gap_analysis") or final_state.get("match_result")
 
         return PipelineResult(
             analyzed_offer=final_state.get("analyzed_offer"),
             profile_data=final_state.get("profile_data"),
-            skill_gap=final_state.get("match_result"),
+            skill_gap_analysis=skill_gap_analysis,
+            match_result=final_state.get("match_result") or skill_gap_analysis,
+            skill_gap=skill_gap_analysis,
             company_intelligence=final_state.get("company_intelligence"),
             cv_data=final_state.get("cv_engine_result"),
             errors=final_state.get("errors", []),

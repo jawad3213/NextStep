@@ -54,7 +54,7 @@ public class PdfGenerationService : IPdfGenerationService
             var result = new PdfGenerateResultDto
             {
                 OfferId = offerId,
-                DownloadUrl = saveResult.FileUrl,
+                DownloadUrl = $"http://localhost:5000/api/cv/{saveResult.HistoryId}/download-file",
                 Status = "completed"
             };
 

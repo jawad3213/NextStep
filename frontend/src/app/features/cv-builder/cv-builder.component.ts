@@ -536,7 +536,7 @@ export class CvBuilderComponent implements OnInit {
 
   async downloadCv(id: string) {
     try {
-      const blob = await firstValueFrom(this.http.get(`${this.baseUrl}/cv/${id}/download`, { responseType: 'blob' }));
+      const blob = await firstValueFrom(this.http.get(`${this.baseUrl}/cv/${id}/download-file`, { responseType: 'blob' }));
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (e) {

@@ -108,6 +108,22 @@ namespace NextStep.Modules.Profile.Controllers
             });
         }
 
+        [HttpGet("photo")]
+        public async Task<IActionResult> GetProfilePhoto()
+        {
+            var userId = await GetUserIdAsync();
+            var user = await _context.Utilisateurs.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Utilisateur non trouve." });
+
+            var objectKey = ExtractObjectKey(user.PhotoUrl);
+            if (string.IsNullOrWhiteSpace(objectKey))
+                return NotFound(new { message = "Photo de profil introuvable." });
+
+            var bytes = await _storageService.DownloadFileAsync(objectKey);
+            return File(bytes, ResolveImageContentType(objectKey));
+        }
+
         [HttpGet("photo/signed")]
         public async Task<IActionResult> GetSignedProfilePhotoUrl()
         {
@@ -144,6 +160,35 @@ namespace NextStep.Modules.Profile.Controllers
                 // Fallback to stored URL if signing fails
                 return Ok(new { photoUrl = rawUrl });
             }
+        }
+
+        private static string? ExtractObjectKey(string? storedUrl)
+        {
+            var rawUrl = (storedUrl ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(rawUrl))
+                return null;
+
+            if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var parsed))
+                return rawUrl.TrimStart('/');
+
+            var path = parsed.AbsolutePath.Trim('/');
+            var slashIdx = path.IndexOf('/');
+            if (slashIdx <= 0 || slashIdx >= path.Length - 1)
+                return null;
+
+            return path[(slashIdx + 1)..];
+        }
+
+        private static string ResolveImageContentType(string objectKey)
+        {
+            var extension = Path.GetExtension(objectKey).ToLowerInvariant();
+            return extension switch
+            {
+                ".png" => "image/png",
+                ".webp" => "image/webp",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                _ => "application/octet-stream"
+            };
         }
 
         // Experiences

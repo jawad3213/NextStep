@@ -125,7 +125,9 @@ public class CvController : ControllerBase
         try
         {
             var user = await _userService.EnsureUserCreatedAsync(User);
-            return Ok(await _cvService.SaveCvAsync(user.Id, request));
+            var result = await _cvService.SaveCvAsync(user.Id, request);
+            result.FileUrl = BuildCvDownloadFileUrl(result.HistoryId);
+            return Ok(result);
         }
         catch (ArgumentException ex) { return BadRequest(ex.Message); }
     }
@@ -136,7 +138,9 @@ public class CvController : ControllerBase
         try
         {
             var user = await _userService.EnsureUserCreatedAsync(User);
-            return Ok(await _cvService.UpdateCvAsync(user.Id, id, request));
+            var result = await _cvService.UpdateCvAsync(user.Id, id, request);
+            result.FileUrl = BuildCvDownloadFileUrl(result.HistoryId);
+            return Ok(result);
         }
         catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
         catch (ArgumentException ex) { return BadRequest(ex.Message); }
@@ -146,7 +150,12 @@ public class CvController : ControllerBase
     public async Task<IActionResult> GetHistory()
     {
         var user = await _userService.EnsureUserCreatedAsync(User);
-        return Ok(await _cvService.GetHistoryAsync(user.Id));
+        var history = await _cvService.GetHistoryAsync(user.Id);
+        foreach (var item in history)
+        {
+            item.FileUrl = BuildCvDownloadFileUrl(item.Id);
+        }
+        return Ok(history);
     }
 
     [HttpGet("{id}")]
@@ -155,7 +164,9 @@ public class CvController : ControllerBase
         try
         {
             var user = await _userService.EnsureUserCreatedAsync(User);
-            return Ok(await _cvService.LoadCvAsync(user.Id, id));
+            var result = await _cvService.LoadCvAsync(user.Id, id);
+            result.FileUrl = BuildCvDownloadFileUrl(result.HistoryId);
+            return Ok(result);
         }
         catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
     }
@@ -166,8 +177,8 @@ public class CvController : ControllerBase
         try
         {
             var user = await _userService.EnsureUserCreatedAsync(User);
-            var url = await _cvService.GetDownloadUrlAsync(user.Id, id);
-            return Ok(new { downloadUrl = url });
+            await _cvService.GetDownloadUrlAsync(user.Id, id);
+            return Ok(new { downloadUrl = BuildCvDownloadFileUrl(id) });
         }
         catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
     }
@@ -194,5 +205,10 @@ public class CvController : ControllerBase
             return NoContent();
         }
         catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+    }
+
+    private string BuildCvDownloadFileUrl(Guid id)
+    {
+        return $"{Request.Scheme}://{Request.Host}/api/cv/{id}/download-file";
     }
 }

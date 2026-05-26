@@ -50,8 +50,6 @@ export class ProfileService {
   private readonly authService = inject(AuthService);
   private readonly apiUrl = `${environment.apiBaseUrl}/profile`;
   private readonly SESSION_KEY = 'nextstep_onboarding_profile';
-  private readonly MINIO_INTERNAL_HOSTS = ['http://minio:9000', 'https://minio:9000'];
-  private readonly MINIO_PUBLIC_HOST = 'http://localhost:9000';
 
   isOnboarding = signal(false);
 
@@ -219,12 +217,11 @@ export class ProfileService {
       
       this.profile.set(mappedProfile);
 
-      const signedPhotoUrl = await this.getSignedProfilePhotoUrl();
       this.profile.update(profile => ({
         ...profile,
         personal: {
           ...profile.personal,
-          photoUrl: signedPhotoUrl || this.normalizeAssetUrl(data.personalInfo.photoUrl) || null,
+          photoUrl: data.personalInfo.photoUrl ? this.profilePhotoEndpoint() : null,
         }
       }));
     } catch (error) {
@@ -259,7 +256,6 @@ export class ProfileService {
       ville: info.city,
       pays: info.country,
       titrePoste: info.jobTitle,
-      photoUrl: info.photoUrl,
       lienLinkedin: info.linkedinUrl,
       lienGithub: info.githubUrl,
       lienPortfolio: info.portfolioUrl,
@@ -277,10 +273,11 @@ export class ProfileService {
       this.http.post<ProfilePhotoUploadResponse>(`${this.apiUrl}/photo`, formData)
     );
 
-    const photoUrl = this.normalizeAssetUrl(response?.photoUrl);
-    if (!photoUrl) {
+    if (!response?.photoUrl) {
       throw new Error('Profile photo upload succeeded but no photo URL was returned.');
     }
+
+    const photoUrl = this.profilePhotoEndpoint();
 
     this.profile.update(profile => ({
       ...profile,
@@ -293,14 +290,8 @@ export class ProfileService {
     return photoUrl;
   }
 
-  private normalizeAssetUrl(value: any): string {
-    const raw = String(value ?? '').trim();
-    if (!raw) return '';
-    let normalized = raw;
-    for (const internalHost of this.MINIO_INTERNAL_HOSTS) {
-      normalized = normalized.replace(internalHost, this.MINIO_PUBLIC_HOST);
-    }
-    return normalized;
+  private profilePhotoEndpoint(): string {
+    return `${this.apiUrl}/photo?v=${Date.now()}`;
   }
 
   async getSignedProfilePhotoUrl(): Promise<string | null> {
@@ -308,8 +299,7 @@ export class ProfileService {
       const response = await firstValueFrom(
         this.http.get<SignedProfilePhotoResponse>(`${this.apiUrl}/photo/signed`)
       );
-      const photoUrl = this.normalizeAssetUrl(response?.photoUrl);
-      return photoUrl || null;
+      return response?.photoUrl ? this.profilePhotoEndpoint() : null;
     } catch (error) {
       console.warn('Unable to get signed profile photo URL', error);
       return null;

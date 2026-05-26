@@ -123,14 +123,32 @@ public class CvPdfRenderer(ILogger<CvPdfRenderer> logger) : ICvPdfRenderer
             Path = Path.Combine(AppContext.BaseDirectory, ".local-chromium")
         });
 
-        var installed = await browserFetcher.DownloadAsync();
-        var executablePath = installed.GetExecutablePath();
-        if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
+        await PuppeteerBrowserDownloadGuard.Lock.WaitAsync();
+        try
         {
-            throw new InvalidOperationException(
-                "PuppeteerSharp could not resolve a usable Chromium executable after download.");
-        }
+            var existing = browserFetcher
+                .GetInstalledBrowsers()
+                .Select(b => b.GetExecutablePath())
+                .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path));
 
-        return executablePath;
+            if (!string.IsNullOrWhiteSpace(existing))
+            {
+                return existing;
+            }
+
+            var installed = await browserFetcher.DownloadAsync();
+            var executablePath = installed.GetExecutablePath();
+            if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
+            {
+                throw new InvalidOperationException(
+                    "PuppeteerSharp could not resolve a usable Chromium executable after download.");
+            }
+
+            return executablePath;
+        }
+        finally
+        {
+            PuppeteerBrowserDownloadGuard.Lock.Release();
+        }
     }
 }

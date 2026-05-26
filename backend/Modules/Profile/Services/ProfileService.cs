@@ -123,7 +123,6 @@ namespace NextStep.Modules.Profile.Services
             user.Ville = dto.Ville;
             user.Pays = dto.Pays;
             user.TitrePoste = dto.TitrePoste;
-            user.PhotoUrl = dto.PhotoUrl;
             user.LienLinkedin = dto.LienLinkedin;
             user.LienGithub = dto.LienGithub;
             user.LienPortfolio = dto.LienPortfolio;

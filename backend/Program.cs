@@ -424,7 +424,14 @@ using (var scope = app.Services.CreateScope())
         ");
 
         // Add columns if table already exists (safe idempotent migration)
-        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{{}}'", "updated_at TIMESTAMP" };
+        string[] histCols =
+        {
+            "title VARCHAR(200)",
+            "cv_data_json JSONB DEFAULT '{{}}'",
+            "design_config_json JSONB DEFAULT '{{}}'",
+            "html_snapshot TEXT",
+            "updated_at TIMESTAMP"
+        };
         foreach (var c in histCols)
             await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS {c};");
 
@@ -485,21 +492,34 @@ using (var scope = app.Services.CreateScope())
         await storageService.EnsureBucketExistsAsync();
         Console.WriteLine("DEBUG: MINIO BUCKETS OK.");
 
-        // 12. Generate Template Thumbnails if missing
-        Console.WriteLine("DEBUG: CHECKING TEMPLATE THUMBNAILS...");
-        var thumbnailService = scope.ServiceProvider.GetRequiredService<ITemplateThumbnailService>();
-        var missing = thumbnailService.GetTemplateSlugs()
-            .Where(s => thumbnailService.GetThumbnailPng(s) is null)
-            .ToList();
-        if (missing.Count > 0)
+        // 12. Generate template thumbnails only when explicitly enabled.
+        var generateThumbnailsOnStartup =
+            string.Equals(
+                Environment.GetEnvironmentVariable("NEXTSTEP_GENERATE_THUMBNAILS_ON_STARTUP"),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+
+        if (generateThumbnailsOnStartup)
         {
-            Console.WriteLine($"DEBUG: Generating thumbnails for: {string.Join(", ", missing)}");
-            await thumbnailService.GenerateAllThumbnailsAsync();
-            Console.WriteLine("DEBUG: THUMBNAILS GENERATED.");
+            Console.WriteLine("DEBUG: CHECKING TEMPLATE THUMBNAILS...");
+            var thumbnailService = scope.ServiceProvider.GetRequiredService<ITemplateThumbnailService>();
+            var missing = thumbnailService.GetTemplateSlugs()
+                .Where(s => thumbnailService.GetThumbnailPng(s) is null)
+                .ToList();
+            if (missing.Count > 0)
+            {
+                Console.WriteLine($"DEBUG: Generating thumbnails for: {string.Join(", ", missing)}");
+                await thumbnailService.GenerateAllThumbnailsAsync();
+                Console.WriteLine("DEBUG: THUMBNAILS GENERATED.");
+            }
+            else
+            {
+                Console.WriteLine("DEBUG: All thumbnails exist. Skipping generation.");
+            }
         }
         else
         {
-            Console.WriteLine("DEBUG: All thumbnails exist. Skipping generation.");
+            Console.WriteLine("DEBUG: THUMBNAIL GENERATION DISABLED ON STARTUP.");
         }
     }
     catch (Exception ex) { Console.WriteLine($"DEBUG: REPAIR FAILED: {ex.Message}"); }

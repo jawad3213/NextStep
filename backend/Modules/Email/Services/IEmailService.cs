@@ -8,6 +8,11 @@ public interface IEmailService
         GenerateEmailDraftDto dto,
         CancellationToken cancellationToken = default);
 
+    Task<EmailDraftDto> SendApplicationEmailAsync(
+        Guid userId,
+        SendApplicationEmailDto dto,
+        CancellationToken cancellationToken = default);
+
     Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
         Guid candidatureId,
         CancellationToken cancellationToken = default);

@@ -120,6 +120,7 @@ public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTe
             }.Where(link => link is not null).ToList(),
             ["main_sections"] = orderedSections.Where(section => section.Placement == CvSectionPlacements.Main).Select(MapSection).ToList(),
             ["sidebar_sections"] = orderedSections.Where(section => section.Placement == CvSectionPlacements.Sidebar).Select(MapSection).ToList(),
+            ["skill_summary_rows"] = BuildSkillSummaryRows(data),
             ["has_sidebar"] = orderedSections.Any(section => section.Placement == CvSectionPlacements.Sidebar)
         };
     }
@@ -222,6 +223,120 @@ public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTe
             .ToList();
 
         return parts.Count == 0 ? "CV" : string.Concat(parts);
+    }
+
+    private static List<Dictionary<string, object?>> BuildSkillSummaryRows(CvData data)
+    {
+        var sourceSkills = (data.TechnicalSkills.Count > 0
+                ? data.TechnicalSkills
+                : data.Skills.Where(s => !IsSoftSkill(s)))
+            .Where(skill => !string.IsNullOrWhiteSpace(skill.Name))
+            .GroupBy(skill => skill.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (sourceSkills.Count == 0)
+        {
+            sourceSkills = data.Sections
+                .Where(section => IsTechnicalSkillSection(section))
+                .SelectMany(section => section.Items)
+                .Where(item => !string.IsNullOrWhiteSpace(item.PrimaryText))
+                .GroupBy(item => item.PrimaryText.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => new CvSkill
+                {
+                    Name = group.First().PrimaryText.Trim(),
+                    Level = group.First().Level ?? 3,
+                    IsMatched = group.First().IsMatched,
+                    Category = group
+                        .Select(item => item.SecondaryText?.Trim())
+                        .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                })
+                .ToList();
+        }
+
+        var buckets = new[]
+        {
+            ("Languages", new List<string>()),
+            ("Backend", new List<string>()),
+            ("Frontend", new List<string>()),
+            ("Databases", new List<string>()),
+            ("DevOps & Cloud", new List<string>()),
+            ("QA & Testing", new List<string>()),
+            ("AI & Tools", new List<string>()),
+            ("Methodologies", new List<string>()),
+            ("Other", new List<string>()),
+        };
+
+        foreach (var skill in sourceSkills)
+        {
+            var label = ResolveSkillBucket(skill);
+            var bucket = buckets.First(tuple => tuple.Item1 == label).Item2;
+            bucket.Add(skill.Name.Trim());
+        }
+
+        return buckets
+            .Where(tuple => tuple.Item2.Count > 0)
+            .Select(tuple => new Dictionary<string, object?>
+            {
+                ["label"] = tuple.Item1,
+                ["value"] = string.Join(", ", tuple.Item2.Distinct(StringComparer.OrdinalIgnoreCase))
+            })
+            .ToList();
+    }
+
+    private static string ResolveSkillBucket(CvSkill skill)
+    {
+        var name = (skill.Name ?? string.Empty).Trim();
+        var normalized = name.ToLowerInvariant();
+        var category = (skill.Category ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (category.Contains("frontend")) return "Frontend";
+        if (category.Contains("backend")) return "Backend";
+        if (category.Contains("database")) return "Databases";
+        if (category.Contains("devops") || category.Contains("cloud")) return "DevOps & Cloud";
+        if (category.Contains("test") || category.Contains("qa")) return "QA & Testing";
+        if (category.Contains("ai") || category.Contains("tool")) return "AI & Tools";
+        if (category.Contains("method")) return "Methodologies";
+        if (category.Contains("language")) return "Languages";
+
+        if (new[] { "java", "javascript", "typescript", "python", "c#", "c", "c++", "php", "go", "ruby" }.Contains(normalized))
+            return "Languages";
+        if (new[] { "node.js", "nodejs", "express.js", "expressjs", "laravel", "fastapi", "spring boot", "nestjs", "django", "flask" }.Contains(normalized))
+            return "Backend";
+        if (new[] { "angular", "react", "react.js", "reactjs", "vue.js", "vuejs", "tailwind css", "html5", "css", "gsap" }.Contains(normalized))
+            return "Frontend";
+        if (new[] { "postgresql", "mysql", "mongodb", "oracle db", "sql", "sqlite", "redis" }.Contains(normalized))
+            return "Databases";
+        if (new[] { "git", "github actions", "docker", "linux", "terraform", "aws", "aws ec2", "aws s3", "azure", "kubernetes", "jenkins" }.Contains(normalized))
+            return "DevOps & Cloud";
+        if (new[] { "playwright", "cypress", "selenium", "api testing", "e2e automation frameworks", "qa automation", "postman", "restassured", "supertest" }.Contains(normalized))
+            return "QA & Testing";
+        if (new[] { "rag", "openai api", "n8n", "gemini api", "jira", "figma", "ai agents", "swagger" }.Contains(normalized))
+            return "AI & Tools";
+        if (new[] { "agile", "scrum", "scrum methodologies", "agile/scrum" }.Contains(normalized))
+            return "Methodologies";
+
+        return "Other";
+    }
+
+    private static bool IsTechnicalSkillSection(CvSection section)
+    {
+        var id = (section.Id ?? string.Empty).Trim();
+        var type = (section.Type ?? string.Empty).Trim();
+
+        return string.Equals(type, CvSectionTypes.Skills, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(type, "skill", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(id, CvSectionTypes.Skills, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(id, "skill", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSoftSkill(CvSkill? skill)
+    {
+        var category = (skill?.Category ?? string.Empty).Trim().ToLowerInvariant();
+        var typeCompetence = (skill?.TypeCompetence ?? string.Empty).Trim().ToLowerInvariant();
+
+        return category is "soft" or "soft skill" or "soft skills"
+            || typeCompetence is "soft" or "soft skill" or "soft skills" or "comportemental" or "behavioral" or "behavioural";
     }
 
     private static string BuildDateRange(string? start, string? end)

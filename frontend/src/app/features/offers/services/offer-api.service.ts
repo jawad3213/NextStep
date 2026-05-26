@@ -270,6 +270,15 @@ export interface CvSaveResponse {
   fileSizeBytes: number;
 }
 
+export interface SaveFinalCvRequest {
+  templateSlug: string;
+  title: string;
+  offerId?: string | null;
+  data: any;
+  designConfig: CvDesignConfig;
+  htmlSnapshot?: string | null;
+}
+
 export interface CvDesignConfig {
   themeColor: string;
   fontFamily: string;
@@ -324,6 +333,32 @@ export interface CvDraftResponse {
   data: any;
   version: number;
   updatedAtUtc: string;
+}
+
+export interface SendApplicationEmailRequest {
+  offerId: string;
+  cvHistoryId?: string | null;
+  recipientEmail: string;
+  subject: string;
+  body: string;
+  emailType?: string;
+  language?: string;
+}
+
+export interface EmailDraftResponse {
+  id: string;
+  candidatureId: string;
+  emailType: string;
+  recipientEmail?: string | null;
+  subject: string;
+  body: string;
+  language: string;
+  isApproved: boolean;
+  isSent: boolean;
+  createdAtUtc: string;
+  updatedAtUtc?: string | null;
+  sentAtUtc?: string | null;
+  errorMessage?: string | null;
 }
 
 export interface SkillDetail {
@@ -585,13 +620,11 @@ export class OfferApiService {
     });
   }
 
-  saveFinalCv(templateSlug: string, title: string, data: any, designConfig: CvDesignConfig, htmlSnapshot?: string | null): Observable<CvSaveResponse> {
-    return this.http.post<CvSaveResponse>(`${this.base}/cv/save`, {
-      templateSlug,
-      title,
-      data,
-      designConfig,
-      htmlSnapshot
-    });
+  saveFinalCv(payload: SaveFinalCvRequest): Observable<CvSaveResponse> {
+    return this.http.post<CvSaveResponse>(`${this.base}/cv/save`, payload);
+  }
+
+  sendApplicationEmail(payload: SendApplicationEmailRequest): Observable<EmailDraftResponse> {
+    return this.http.post<EmailDraftResponse>(`${this.base}/emails/send`, payload);
   }
 }

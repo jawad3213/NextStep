@@ -43,6 +43,7 @@ public class CvSaveRequest
 {
     public string TemplateSlug { get; set; } = string.Empty;
     public string? Title { get; set; }
+    public Guid? OfferId { get; set; }
     public CvData Data { get; set; } = new();
     public CvDesignConfig? DesignConfig { get; set; }
     public string? HtmlSnapshot { get; set; }
@@ -131,7 +132,7 @@ public class CvService : ICvService
         object? offerData = null;
         if (jobId.HasValue)
         {
-            var analysis = await _offerService.GetAnalysisAsync(jobId.Value);
+            var analysis = await _offerService.GetAnalysisAsync(userId, jobId.Value);
             if (analysis != null)
             {
                 offerData = new
@@ -249,6 +250,58 @@ public class CvService : ICvService
 
         _db.CvHistories.Add(history);
         await _db.SaveChangesAsync();
+
+        if (request.OfferId.HasValue && request.OfferId.Value != Guid.Empty)
+        {
+            var offer = await _db.OffresEmploi
+                .FirstOrDefaultAsync(o => o.Id == request.OfferId.Value && o.UtilisateurId == userId);
+
+            if (offer is not null)
+            {
+                var candidature = await _db.Candidatures
+                    .FirstOrDefaultAsync(c => c.IdOffre == request.OfferId.Value && c.IdUtilisateur == userId);
+
+                if (candidature == null)
+                {
+                    candidature = new NextStep.Modules.Candidature.Models.Candidature
+                    {
+                        IdUtilisateur = userId,
+                        IdOffre = request.OfferId.Value,
+                        Offre = offer,
+                        Statut = "EN_ATTENTE",
+                        DateCreation = DateTime.UtcNow
+                    };
+                    _db.Candidatures.Add(candidature);
+                    await _db.SaveChangesAsync();
+                }
+
+                var document = await _db.DocumentsGeneres
+                    .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature);
+
+                var serializedCv = JsonSerializer.Serialize(request.Data, _jsonOptions);
+                if (document == null)
+                {
+                    document = new DocumentGenere
+                    {
+                        IdCandidature = candidature.IdCandidature,
+                        CvContenuIaJson = serializedCv,
+                        CheminPdfCv = fileUrl,
+                        Version = 1,
+                        DateGeneration = DateTime.UtcNow
+                    };
+                    _db.DocumentsGeneres.Add(document);
+                }
+                else
+                {
+                    document.CvContenuIaJson = serializedCv;
+                    document.CheminPdfCv = fileUrl;
+                    document.Version += 1;
+                    document.DateGeneration = DateTime.UtcNow;
+                }
+
+                await _db.SaveChangesAsync();
+            }
+        }
 
         return new CvSaveResult
         {

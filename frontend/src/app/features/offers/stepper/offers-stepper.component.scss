@@ -29,8 +29,9 @@
     justify-content: flex-start;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+
     &::-webkit-scrollbar { display: none; }
-    
+
     .stepper-nodes {
       width: auto;
       min-width: max-content;
@@ -109,13 +110,13 @@
       width: 32px;
       height: 32px;
     }
-    
+
     .node-number {
       font-size: 11px;
       font-weight: 700;
       color: #94A3B8;
     }
-    
+
     .node-icon {
       display: inline-flex;
       color: #ffffff;
@@ -151,6 +152,7 @@
       border-color: #465FFF;
       box-shadow: 0 8px 18px rgba(70, 95, 255, 0.18);
     }
+
     .node-label {
       color: #1E293B;
     }
@@ -160,10 +162,11 @@
     .node-circle {
       border-color: #465FFF;
       box-shadow: 0 0 0 5px rgba(70, 95, 255, 0.14);
-      
+
       .node-number { color: #465FFF; }
       .step-icon { color: #465FFF; }
     }
+
     .node-label {
       color: #465FFF;
       font-weight: 700;
@@ -174,6 +177,7 @@
     .node-circle {
       border-color: #CBD5E1;
     }
+
     .node-label {
       color: #64748B;
     }
@@ -198,4 +202,3 @@
     }
   }
 }
-

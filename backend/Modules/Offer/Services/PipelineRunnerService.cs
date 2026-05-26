@@ -43,6 +43,10 @@ public class PipelineRunnerService : IPipelineRunnerService
 
         try
         {
+            Guid userGuid = Guid.TryParse(userId, out var parsedUserId) ? parsedUserId : Guid.Empty;
+            if (userGuid == Guid.Empty)
+                throw new InvalidOperationException("Authenticated user id is missing or invalid.");
+
             await SendProgress(offerId, "analyzing_offer", "running", 10, "Analyse initiale...", "offer_analyzer");
             var keepAliveTask = SendKeepAliveAsync(offerId, "analysis", pipelineCt);
 
@@ -57,10 +61,9 @@ public class PipelineRunnerService : IPipelineRunnerService
 
             // Save to DB
             var offerService = scope.ServiceProvider.GetRequiredService<IOfferService>();
-            Guid userGuid = Guid.TryParse(userId, out var pg) ? pg : Guid.Empty;
             await offerService.SavePipelineResultAsync(offerId, result, userGuid, CancellationToken.None);
 
-            var dto = await offerService.GetAnalysisAsync(offerId, CancellationToken.None);
+            var dto = await offerService.GetAnalysisAsync(userGuid, offerId, CancellationToken.None);
             
             await SendProgress(offerId, "analyzing_offer", "completed", 100, "Analyse terminée. Choisissez un template.", "db_persist");
 
@@ -83,6 +86,10 @@ public class PipelineRunnerService : IPipelineRunnerService
 
         try
         {
+            Guid userGuid = Guid.TryParse(userId, out var parsedUserId) ? parsedUserId : Guid.Empty;
+            if (userGuid == Guid.Empty)
+                throw new InvalidOperationException("Authenticated user id is missing or invalid.");
+
             await SendProgress(offerId, "generating_cv", "running", 10, "Génération du CV optimisé...", "cv_optimizer");
             var keepAliveTask = SendKeepAliveAsync(offerId, "generation", pipelineCt);
 
@@ -91,7 +98,7 @@ public class PipelineRunnerService : IPipelineRunnerService
             var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
 
             // 1. Retrieve current analysis from DB
-            var offer = await offerService.GetOfferWithAnalysisAsync(offerId, CancellationToken.None);
+            var offer = await offerService.GetOfferWithAnalysisAsync(userGuid, offerId, CancellationToken.None);
             if (offer == null || string.IsNullOrEmpty(offer.AnalyseJson)) throw new Exception("Analysis data missing in DB");
 
             using var doc = JsonDocument.Parse(offer.AnalyseJson);
@@ -121,10 +128,9 @@ public class PipelineRunnerService : IPipelineRunnerService
             try { await keepAliveTask; } catch (OperationCanceledException) { }
 
             // 4. Save Final Result
-            Guid userGuid = Guid.TryParse(userId, out var pg) ? pg : Guid.Empty;
             await offerService.SavePipelineResultAsync(offerId, result, userGuid, CancellationToken.None);
 
-            var dto = await offerService.GetAnalysisAsync(offerId, CancellationToken.None);
+            var dto = await offerService.GetAnalysisAsync(userGuid, offerId, CancellationToken.None);
             
             await SendProgress(offerId, "generating_cv", "completed", 100, "CV généré avec succès !", "db_persist");
 

@@ -152,5 +152,42 @@
 
 @page {
   size: A4;
-  margin: 0;
+  margin: 12mm 12mm 14mm;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cv-document {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .cv-sheet {
+    width: 100%;
+    min-height: 0;
+    box-shadow: none;
+  }
+
+  .cv-sheet-latex {
+    padding: 0;
+  }
+
+  .cv-latex-header,
+  .cv-section,
+  .cv-entry,
+  .cv-meta-block,
+  .cv-section-title-row,
+  .cv-entry-head {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
 }

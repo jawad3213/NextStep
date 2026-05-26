@@ -99,12 +99,13 @@ public class CvPdfRenderer(ILogger<CvPdfRenderer> logger) : ICvPdfRenderer
         await using var browser = await Puppeteer.LaunchAsync(launchOptions);
         await using var page = await browser.NewPageAsync();
         await page.SetContentAsync(EnsureHtmlDocument(html));
-        await page.EmulateMediaTypeAsync(PuppeteerSharp.Media.MediaType.Screen);
+        await page.EmulateMediaTypeAsync(PuppeteerSharp.Media.MediaType.Print);
 
         return await page.PdfDataAsync(new PdfOptions
         {
             Format = PuppeteerSharp.Media.PaperFormat.A4,
             PrintBackground = true,
+            PreferCSSPageSize = true,
             MarginOptions = new PuppeteerSharp.Media.MarginOptions
             {
                 Top = "0",

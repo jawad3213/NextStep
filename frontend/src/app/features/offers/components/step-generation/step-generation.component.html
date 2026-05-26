@@ -31,17 +31,16 @@
       [designConfig]="currentDesignConfig"
       [isRenderingPreview]="isRenderingPreview"
       [isReoptimizingCv]="isReoptimizingCv"
-      [isPreparingDownload]="isPreparingDownload"
       [isGeneratingHighQualityPdf]="isGeneratingHighQualityPdf"
+      [isSavingFinal]="isSavingFinal"
       [previewError]="previewError"
       (dataChange)="onEditorDataChange($event)"
       (designConfigChange)="onDesignConfigChange($event)"
       (download)="downloadFinalPdf()"
-      (downloadHighQuality)="downloadHighQualityPdf()"
       (reoptimize)="reoptimizeCv()"
       (templateChange)="selectTemplate($event)"
       (back)="goBack()"
-      (continue)="continueToResults()"
+      (finishRequested)="continueToResults()"
     />
   }
 </div>

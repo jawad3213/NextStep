@@ -14,11 +14,11 @@ public static class CvSectionMapper
 
         var technicalSkills = data.TechnicalSkills.Count > 0
             ? data.TechnicalSkills
-            : data.Skills.Where(s => s.Category != "Soft Skills" && s.TypeCompetence != "Comportemental").ToList();
+            : data.Skills.Where(s => !IsSoftSkill(s)).ToList();
 
         var softSkills = data.SoftSkills.Count > 0
             ? data.SoftSkills
-            : data.Skills.Where(s => s.Category == "Soft Skills" || s.TypeCompetence == "Comportemental").ToList();
+            : data.Skills.Where(IsSoftSkill).ToList();
 
         sections.Add(new CvSection
         {
@@ -103,7 +103,7 @@ public static class CvSectionMapper
         {
             Id = CvSectionTypes.Skills,
             Type = CvSectionTypes.Skills,
-            Title = "Skills",
+            Title = "Technical Skills",
             Placement = CvSectionPlacements.Sidebar,
             IsVisible = technicalSkills.Count > 0,
             Order = order++,
@@ -414,6 +414,15 @@ public static class CvSectionMapper
     {
         var clean = CleanText(value);
         return string.IsNullOrWhiteSpace(clean) ? null : clean;
+    }
+
+    private static bool IsSoftSkill(CvSkill? skill)
+    {
+        var category = CleanText(skill?.Category).ToLowerInvariant();
+        var typeCompetence = CleanText(skill?.TypeCompetence).ToLowerInvariant();
+
+        return category is "soft" or "soft skill" or "soft skills"
+            || typeCompetence is "soft" or "soft skill" or "soft skills" or "comportemental" or "behavioral" or "behavioural";
     }
 
     private static string Slugify(string value)

@@ -215,6 +215,33 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.cv-skill-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cv-skill-summary-row {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: #1e293b;
+  font-size: 0.78rem;
+  line-height: 1.28;
+}
+
+.cv-skill-summary-row strong {
+  color: #0f172a;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.cv-skill-summary-row span {
+  color: #334155;
+}
+
 .cv-section-sidebar-compact .cv-pill-list li {
   font-size: 0.8rem;
   line-height: 1.35;
@@ -331,4 +358,118 @@
 @page {
   size: A4;
   margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cv-document {
+    width: 210mm;
+    min-height: 0;
+    margin: 0;
+    padding: 10mm 8mm 12mm;
+  }
+
+  .cv-sheet {
+    width: auto;
+    min-height: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .cv-sheet-modern {
+    display: block;
+    background: #ffffff;
+    padding-left: 58mm;
+  }
+
+  .cv-sidebar {
+    position: fixed;
+    top: 10mm;
+    bottom: 12mm;
+    left: 8mm;
+    width: 50mm;
+    padding: 8mm 6mm;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--cv-theme-color) 86%, #0f172a 14%) 0%, #0f172a 100%);
+    color: #e2e8f0;
+    overflow: hidden;
+  }
+
+  .cv-main {
+    min-height: 0;
+    padding: 0 0 0 8mm;
+    background: #ffffff;
+  }
+
+  .cv-avatar,
+  .cv-avatar-fallback {
+    width: 24mm;
+    height: 24mm;
+    border-radius: 4mm;
+    margin-bottom: 5mm;
+  }
+
+  .cv-sidebar-name {
+    font-size: 1.38rem;
+    line-height: 1.05;
+  }
+
+  .cv-sidebar-links li {
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  .cv-sidebar-links li + li {
+    margin-top: 6px;
+  }
+
+  .cv-section-sidebar {
+    margin-top: 4.5mm;
+  }
+
+  .cv-section-sidebar h2 {
+    font-size: 0.72rem;
+  }
+
+  .cv-section-sidebar .cv-pill-list li {
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .cv-main .cv-section:first-child {
+    margin-top: 0;
+  }
+
+  .cv-section,
+  .cv-entry,
+  .cv-stack-item,
+  .cv-meta-block,
+  .cv-entry-head,
+  .cv-skill-grid,
+  .cv-skill-summary {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  .cv-skill-summary-row {
+    grid-template-columns: 122px minmax(0, 1fr);
+    gap: 8px;
+    font-size: 0.7rem;
+  }
+
+  .cv-skill-summary-row strong {
+    font-size: 0.72rem;
+  }
+
+  .cv-section {
+    break-before: auto;
+    page-break-before: auto;
+  }
 }

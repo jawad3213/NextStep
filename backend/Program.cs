@@ -78,6 +78,7 @@ builder.Services.AddDbContext<AppDbContext>(options => {
 });
 
 builder.Services.Configure<AgentPythonOptions>(builder.Configuration.GetSection("PythonAgents"));
+builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection("Email:Smtp"));
 builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IOfferService, OfferService>();

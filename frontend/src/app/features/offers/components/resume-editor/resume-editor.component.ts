@@ -42,6 +42,8 @@ export interface Skill {
   level: number;
   isMatched: boolean;
   isHighlighted?: boolean;
+  category?: string;
+  typeCompetence?: string;
 }
 
 export interface Project {
@@ -132,17 +134,30 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   @Input() isRenderingPreview: boolean = false;
   @Input() previewError: string | null = null;
   @Input() isReoptimizingCv: boolean = false;
-  @Input() isPreparingDownload: boolean = false;
   @Input() isGeneratingHighQualityPdf: boolean = false;
+  @Input() isSavingFinal: boolean = false;
   @Output() back = new EventEmitter<void>();
   @Output() continue = new EventEmitter<void>();
+  @Output() finishRequested = new EventEmitter<void>();
   @Output() download = new EventEmitter<void>();
-  @Output() downloadHighQuality = new EventEmitter<void>();
   @Output() reoptimize = new EventEmitter<void>();
   @Output() dataChange = new EventEmitter<CvGeneratedSchema>();
   @Output() designConfigChange = new EventEmitter<CvDesignConfig>();
   @Output() templateChange = new EventEmitter<SupportedEditorTemplate>();
-  @ViewChild('renderedPreviewContent') private renderedPreviewContent?: ElementRef<HTMLDivElement>;
+  @ViewChild('renderedPreviewContent')
+  set renderedPreviewContent(value: ElementRef<HTMLDivElement> | undefined) {
+    this.renderedPreviewContentRef = value;
+    if (value) {
+      this.attachPreviewObservers();
+      this.schedulePreviewOverlayRefresh();
+      this.attachPreviewAssetListeners();
+    } else {
+      this.previewResizeObserver?.disconnect();
+      this.previewMutationObserver?.disconnect();
+      this.detachPreviewAssetListeners();
+    }
+  }
+  private renderedPreviewContentRef?: ElementRef<HTMLDivElement>;
   private readonly sidebarService = inject(SidebarService);
 
   // DYNAMIC CHOSEN MODEL
@@ -159,11 +174,11 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   readonly documentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
   readonly isEditingDocumentTitle = signal<boolean>(false);
   readonly draftDocumentTitle = signal<string>('EL HAIL JAOUAD_Resume_4');
-  readonly activePreviewSection = signal<string | null>('summary');
+  readonly activePreviewSection = signal<string | null>(null);
   readonly isSectionFormOpen = signal<boolean>(false);
   readonly editingSectionTitle = signal<string | null>(null);
   readonly sectionTitleOverrides = signal<Record<string, string>>({});
-  readonly previewZoom = signal<number>(100);
+  readonly previewZoom = signal<number>(90);
   readonly previewSectionOverlays = signal<PreviewSectionOverlay[]>([]);
   readonly minPreviewZoom = 70;
   readonly maxPreviewZoom = 130;
@@ -171,6 +186,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   private overlayRefreshFrame: number | null = null;
   private previewResizeObserver: ResizeObserver | null = null;
   private previewMutationObserver: MutationObserver | null = null;
+  private previewAssetCleanup: Array<() => void> = [];
 
   // SIMULATED OPTIMIZATION LOADING
   readonly isImproving = signal<boolean>(false);
@@ -182,6 +198,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     projects: true,
     education: true,
     skills: true,
+    softskills: true,
     certifications: true,
     languages: true,
     activities: true,
@@ -194,6 +211,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     'projects',
     'education',
     'skills',
+    'softskills',
     'certifications',
     'languages',
     'activities',
@@ -330,7 +348,8 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     { id: 'activities', label: 'Activities', placement: 'main' as const },
     { id: 'accomplishments', label: 'Accomplishments', placement: 'main' as const },
     { id: 'education', label: 'Education', placement: 'sidebar' as const },
-    { id: 'skills', label: 'Skills', placement: 'sidebar' as const },
+    { id: 'skills', label: 'Technical Skills', placement: 'sidebar' as const },
+    { id: 'softskills', label: 'Soft Skills', placement: 'sidebar' as const },
     { id: 'languages', label: 'Languages', placement: 'sidebar' as const },
   ];
 
@@ -516,11 +535,13 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
 
   closeSectionForm(): void {
     this.isSectionFormOpen.set(false);
+    this.activePreviewSection.set(null);
+    this.schedulePreviewOverlayRefresh();
   }
 
   startSectionTitleEdit(sectionId: string): void {
     this.editingSectionTitle.set(sectionId);
-    this.activePreviewSection.set(sectionId);
+    this.activePreviewSection.set(this.normalizeSectionId(sectionId));
   }
 
   stopSectionTitleEdit(): void {
@@ -613,6 +634,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       projects: 'deployed_code',
       education: 'school',
       skills: 'bolt',
+      softskills: 'psychology',
       certifications: 'workspace_premium',
       languages: 'translate',
       activities: 'interests',
@@ -723,6 +745,8 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
           })),
         };
       case 'skills':
+      case 'softskills':
+        const skillCategory = id === 'softskills' ? 'soft' : 'technical';
         return {
           id,
           type: id,
@@ -730,9 +754,9 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
           placement: def.placement,
           isVisible: !!visibility[id],
           order,
-          items: data.skills.map(skill => ({
+          items: this.getSkillsBySection(skillCategory, data.skills).map(skill => ({
             primaryText: skill.name,
-            secondaryText: '',
+            secondaryText: skill.category ?? '',
             level: skill.level,
             isMatched: skill.isMatched,
             bullets: [],
@@ -1097,29 +1121,48 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     }));
   }
 
-  updateSkill(index: number, field: keyof Skill, value: any) {
+  updateSkill(section: 'technical' | 'soft', index: number, field: keyof Skill, value: any) {
     this.cvData.update(data => {
-      const s = [...data.skills];
-      s[index] = { ...s[index], [field]: value };
-      return { ...data, skills: s };
+      const targetIndexes = this.getSkillsBySection(section, data.skills)
+        .map((skill) => data.skills.indexOf(skill))
+        .filter((skillIndex) => skillIndex >= 0);
+      const absoluteIndex = targetIndexes[index];
+      if (absoluteIndex == null) {
+        return data;
+      }
+
+      const skills = [...data.skills];
+      skills[absoluteIndex] = { ...skills[absoluteIndex], [field]: value };
+      return { ...data, skills };
     });
   }
 
-  addSkill() {
+  addSkill(section: 'technical' | 'soft' = 'technical') {
+    const category = section === 'soft' ? 'Soft Skills' : 'Technical';
     this.cvData.update(data => ({
       ...data,
       skills: [
         ...data.skills,
-        { name: 'Nouveau Skill', level: 3, isMatched: true }
+        { name: section === 'soft' ? 'Communication' : 'Nouveau Skill', level: 3, isMatched: true, category, typeCompetence: category }
       ]
     }));
   }
 
-  removeSkill(index: number) {
-    this.cvData.update(data => ({
-      ...data,
-      skills: data.skills.filter((_, i) => i !== index)
-    }));
+  removeSkill(section: 'technical' | 'soft', index: number) {
+    this.cvData.update(data => {
+      const targetIndexes = this.getSkillsBySection(section, data.skills)
+        .map((skill) => data.skills.indexOf(skill))
+        .filter((skillIndex) => skillIndex >= 0);
+      const absoluteIndex = targetIndexes[index];
+      if (absoluteIndex == null) {
+        return data;
+      }
+
+      return {
+        ...data,
+        skills: data.skills.filter((_, i) => i !== absoluteIndex)
+      };
+    });
   }
 
   updateCertification(index: number, value: string) {
@@ -1310,7 +1353,6 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   ngAfterViewInit(): void {
-    this.attachPreviewObservers();
     this.schedulePreviewOverlayRefresh();
   }
 
@@ -1321,6 +1363,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     }
     this.previewResizeObserver?.disconnect();
     this.previewMutationObserver?.disconnect();
+    this.detachPreviewAssetListeners();
   }
 
   private hydrateFromGenerated(generated: any): void {
@@ -1352,9 +1395,12 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       ?? profilePersonal
       ?? {};
     const experience = this.firstArray(normalized, ['experience', 'experiences', 'experiences_optimisees']);
+    const sectionExperience = this.extractExperienceFromSections(normalized?.sections);
     const education = this.firstArray(normalized, ['education', 'formations', 'formations_optimisees']);
-    const skills = this.firstArray(normalized, ['skills', 'competences', 'competences_reordonnees', 'competences_mises_en_avant']);
+    const skills = this.collectHydratedSkills(normalized);
+    const sectionSkills = this.extractSkillsFromSections(normalized?.sections);
     const projects = this.firstArray(normalized, ['projects', 'projets', 'projets_optimises']);
+    const sectionProjects = this.extractProjectsFromSections(normalized?.sections);
     const certifications = this.firstArray(normalized, ['certifications', 'certificats', 'certifications_optimisees']);
     const languages = this.firstArray(normalized, ['languages', 'langues']);
     const activities = this.firstArray(normalized, ['activities', 'extracurricular', 'activites', 'activités']);
@@ -1368,7 +1414,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       hasCandidate: !!candidate,
       candidateName: this.extractCandidateName(candidate),
       profileName: this.extractCandidateName(profilePersonal),
-      hasPhoto: !!this.extractCandidatePhotoUrl(candidate, profilePersonal),
+      hasPhoto: !!this.extractCandidatePhotoUrl(candidate, profilePersonal, profileSource, generated),
       experienceCount: experience.length,
       skillsCount: skills.length,
       languagesCount: languages.length,
@@ -1385,21 +1431,28 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
         phone: this.cleanText(candidate?.phone ?? candidate?.telephone ?? profilePersonal?.phone ?? profilePersonal?.telephone) || current.candidate.phone,
         location: this.resolvePreferredLocation(candidate, profilePersonal, current.candidate.location),
         title: this.cleanText(candidate?.title ?? candidate?.titrePoste ?? candidate?.poste ?? profilePersonal?.title ?? profilePersonal?.titrePoste ?? profilePersonal?.poste) || current.candidate.title,
-        photoUrl: this.extractCandidatePhotoUrl(candidate, profilePersonal) ?? current.candidate.photoUrl,
+        photoUrl: this.extractCandidatePhotoUrl(candidate, profilePersonal, profileSource, generated) ?? current.candidate.photoUrl,
         linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? candidate?.lienLinkedin ?? profilePersonal?.linkedIn ?? profilePersonal?.linkedin ?? profilePersonal?.lienLinkedin ?? current.candidate.linkedIn,
         gitHub: candidate?.gitHub ?? candidate?.github ?? candidate?.lienGithub ?? profilePersonal?.gitHub ?? profilePersonal?.github ?? profilePersonal?.lienGithub ?? current.candidate.gitHub,
         portfolio: candidate?.portfolio ?? candidate?.lienPortfolio ?? profilePersonal?.portfolio ?? profilePersonal?.lienPortfolio ?? current.candidate.portfolio,
       },
       summary: normalized?.summary ?? normalized?.resume ?? normalized?.resumeProfessionnel ?? current.summary,
-      experience: experience.length > 0 ? experience.map((e: any) => ({
-        role: this.cleanText(e?.role ?? e?.title ?? e?.poste ?? e?.titre),
-        company: this.cleanText(e?.company ?? e?.entreprise),
-        start: this.toMonthValue(e?.start ?? e?.dateDebut ?? e?.date_debut),
-        end: this.toMonthValue(e?.end ?? e?.dateFin ?? e?.date_fin),
-        bullets: this.asStringArray(e?.bullets ?? e?.taches_optimisees ?? e?.missions ?? e?.taches ?? e?.description_optimisee ?? e?.description),
-        relevance: this.cleanText(e?.niveau_pertinence ?? e?.relevance),
-        keywords: this.asStringArray(e?.mots_cles_cibles ?? e?.keywords),
-      })) : current.experience,
+      experience: this.mergeHydratedExperience(
+        experience.length > 0 ? experience.map((e: any) => ({
+          role: this.cleanText(e?.role ?? e?.title ?? e?.poste ?? e?.titre),
+          company: this.cleanText(e?.company ?? e?.entreprise),
+          start: this.toMonthValue(e?.start ?? e?.dateDebut ?? e?.date_debut),
+          end: this.toMonthValue(e?.end ?? e?.dateFin ?? e?.date_fin),
+          bullets: this.asStringArray(e?.bullets ?? e?.taches_optimisees ?? e?.missions ?? e?.taches ?? e?.description_optimisee ?? e?.description),
+          relevance: this.cleanText(e?.niveau_pertinence ?? e?.relevance),
+          keywords: this.asStringArray(e?.mots_cles_cibles ?? e?.keywords),
+        })) : [],
+        sectionExperience,
+        projects.length > 0
+          ? projects.map((project: any) => this.cleanText(project?.title ?? project?.titreProjet ?? project?.titre))
+          : sectionProjects.map((project) => this.cleanText(project?.title)),
+        current.experience
+      ),
       education: education.length > 0
         ? education.map((education: any) => ({
             degree: String(education?.degree ?? education?.diplome ?? education?.titre ?? ''),
@@ -1409,35 +1462,46 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
             endYear: String(education?.endYear ?? education?.anneeFin ?? education?.dateFin ?? ''),
           }))
         : current.education,
-      skills: skills.length > 0 ? skills.map((skill: any) => ({
-        name: typeof skill === 'string' ? skill : this.cleanText(skill?.name ?? skill?.nom ?? skill?.label),
-        level: Math.min(5, Math.max(1, Number(skill?.level ?? skill?.niveau ?? 3))),
-        isMatched: !!(skill?.isMatched ?? skill?.matched ?? skill?.statut === 'correspond'),
-        isHighlighted: highlightedSkills.has(this.cleanText(typeof skill === 'string' ? skill : skill?.name ?? skill?.nom ?? skill?.label).toLowerCase()),
-      })).filter((skill: Skill) => !!skill.name) : current.skills,
-      projects: projects.length > 0
-        ? projects.map((project: any) => ({
-            title: String(project?.title ?? project?.titreProjet ?? project?.titre ?? ''),
-            description: String(project?.description ?? project?.description_optimisee ?? ''),
-            technologies: Array.isArray(project?.technologies)
-              ? project.technologies.map((technology: any) => String(technology ?? '')).filter(Boolean)
-              : [],
-            dateRealisation: this.toMonthValue(project?.dateRealisation ?? project?.date_realisation),
-            relevance: this.cleanText(project?.niveau_pertinence ?? project?.relevance),
-            keywords: this.asStringArray(project?.mots_cles_cibles ?? project?.keywords),
-            bullets: this.asStringArray(
-              project?.bullets
-              ?? project?.taches_optimisees
-              ?? project?.taches
-              ?? project?.missions
-              ?? project?.tasks
-              ?? project?.responsibilities
-              ?? project?.realisations
-              ?? project?.description_optimisee
-              ?? project?.description
-            ),
-          }))
-        : current.projects,
+      skills: this.mergeHydratedSkills(
+        skills.length > 0 ? skills.map((skill: any) => {
+          const name = typeof skill === 'string' ? skill : this.cleanText(skill?.name ?? skill?.nom ?? skill?.label);
+          return {
+            name: this.cleanText(name),
+            level: Math.min(5, Math.max(1, Number(skill?.level ?? skill?.niveau ?? 3))),
+            isMatched: !!(skill?.isMatched ?? skill?.matched ?? skill?.statut === 'correspond'),
+            isHighlighted: highlightedSkills.has(this.normalizeKey(name)),
+            category: this.cleanText(skill?.category ?? skill?.categorie ?? skill?.typeCompetence ?? skill?.type_competence),
+            typeCompetence: this.cleanText(skill?.typeCompetence ?? skill?.type_competence ?? skill?.category ?? skill?.categorie),
+          };
+        }).filter((skill: Skill) => !!skill.name) : [],
+        sectionSkills,
+        current.skills
+      ),
+      projects: this.mergeHydratedProjects(
+        projects.length > 0
+          ? projects.map((project: any) => ({
+              title: String(project?.title ?? project?.titreProjet ?? project?.titre ?? ''),
+              description: String(project?.description ?? project?.description_optimisee ?? ''),
+              technologies: this.extractProjectTechnologies(project),
+              dateRealisation: this.toMonthValue(project?.dateRealisation ?? project?.date_realisation),
+              relevance: this.cleanText(project?.niveau_pertinence ?? project?.relevance),
+              keywords: this.asStringArray(project?.mots_cles_cibles ?? project?.keywords),
+              bullets: this.asStringArray(
+                project?.bullets
+                ?? project?.taches_optimisees
+                ?? project?.taches
+                ?? project?.missions
+                ?? project?.tasks
+                ?? project?.responsibilities
+                ?? project?.realisations
+                ?? project?.description_optimisee
+                ?? project?.description
+              ),
+            }))
+          : [],
+        sectionProjects,
+        current.projects
+      ),
       certifications: certifications.length > 0 ? this.asStringArray(certifications) : current.certifications,
       languages: languages.length > 0 ? this.asStringArray(languages) : current.languages,
       activities: activities.length > 0
@@ -1499,6 +1563,323 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     }).filter(Boolean);
   }
 
+  private extractProjectTechnologies(project: any): string[] {
+    const raw =
+      project?.technologies
+      ?? project?.technologies_utilisees
+      ?? project?.technologiesUtilisees
+      ?? project?.technologiesUsed
+      ?? project?.stack
+      ?? project?.techStack
+      ?? project?.outils;
+
+    if (Array.isArray(raw)) {
+      return raw
+        .map((technology: any) => this.cleanText(technology))
+        .filter(Boolean);
+    }
+
+    const text = this.cleanText(raw);
+    if (!text) {
+      return [];
+    }
+
+    return text
+      .split(/[;,|]/g)
+      .map((technology) => technology.trim())
+      .filter(Boolean);
+  }
+
+  private extractProjectsFromSections(sections: any): Project[] {
+    if (!Array.isArray(sections)) {
+      return [];
+    }
+
+    return sections
+      .filter((section: any) => this.normalizeSectionId(section?.id ?? section?.type) === 'projects')
+      .flatMap((section: any) => Array.isArray(section?.items) ? section.items : [])
+      .map((item: any) => ({
+        title: this.cleanText(item?.primaryText ?? item?.primary_text),
+        description: this.cleanText(item?.description),
+        technologies: this.asStringArray(
+          item?.secondaryText
+          ?? item?.secondary_text
+          ?? item?.technologies
+          ?? item?.technologies_utilisees
+          ?? item?.technologiesUsed
+          ?? item?.tech_stack
+          ?? item?.techStack
+          ?? item?.stack
+        ),
+        dateRealisation: this.toMonthValue(item?.startDate ?? item?.start_date),
+        bullets: this.asStringArray(item?.bullets ?? item?.bullet_points),
+        relevance: '',
+        keywords: [],
+      }))
+      .filter((project) => !!project.title || !!project.description || project.bullets.length > 0);
+  }
+
+  private extractExperienceFromSections(sections: any): Experience[] {
+    if (!Array.isArray(sections)) {
+      return [];
+    }
+
+    return sections
+      .filter((section: any) => this.normalizeSectionId(section?.id ?? section?.type) === 'experience')
+      .flatMap((section: any) => Array.isArray(section?.items) ? section.items : [])
+      .map((item: any) => ({
+        role: this.cleanText(item?.primaryText ?? item?.primary_text),
+        company: this.cleanText(item?.secondaryText ?? item?.secondary_text),
+        start: this.toMonthValue(item?.startDate ?? item?.start_date),
+        end: this.toMonthValue(item?.endDate ?? item?.end_date),
+        bullets: this.asStringArray(item?.bullets ?? item?.bullet_points),
+        relevance: '',
+        keywords: [],
+      }))
+      .filter((item) => !!item.role || !!item.company || item.bullets.length > 0);
+  }
+
+  private extractSkillsFromSections(sections: any): Skill[] {
+    if (!Array.isArray(sections)) {
+      return [];
+    }
+
+    return sections
+      .filter((section: any) => {
+        const normalizedId = this.normalizeSectionId(section?.id ?? section?.type);
+        return normalizedId === 'skills' || normalizedId === 'softskills';
+      })
+      .flatMap((section: any) => {
+        const normalizedId = this.normalizeSectionId(section?.id ?? section?.type);
+        const category = normalizedId === 'softskills' ? 'Soft Skills' : 'Technical';
+        return (Array.isArray(section?.items) ? section.items : []).map((item: any) => ({
+          name: this.cleanText(item?.primaryText ?? item?.primary_text),
+          level: Math.min(5, Math.max(1, Number(item?.level ?? 3))),
+          isMatched: !!(item?.isMatched ?? item?.is_matched),
+          category,
+          typeCompetence: category,
+        }));
+      })
+      .filter((item) => !!item.name);
+  }
+
+  private collectHydratedSkills(source: any): any[] {
+    const technical = this.firstArray(source, [
+      'skills',
+      'technicalSkills',
+      'technical_skills',
+      'competences',
+      'competences_reordonnees',
+      'competences_mises_en_avant',
+    ]).map((skill: any) => ({
+      ...((skill && typeof skill === 'object') ? skill : { name: skill }),
+      category: skill?.category ?? skill?.categorie ?? skill?.typeCompetence ?? skill?.type_competence ?? 'Technical',
+      typeCompetence: skill?.typeCompetence ?? skill?.type_competence ?? skill?.category ?? skill?.categorie ?? 'Technical',
+    }));
+
+    const soft = this.firstArray(source, [
+      'softSkills',
+      'soft_skills',
+      'softskills',
+      'competences_comportementales',
+      'soft_skills_reordonnees',
+    ]).map((skill: any) => ({
+      ...((skill && typeof skill === 'object') ? skill : { name: skill }),
+      category: skill?.category ?? skill?.categorie ?? skill?.typeCompetence ?? skill?.type_competence ?? 'Soft Skills',
+      typeCompetence: skill?.typeCompetence ?? skill?.type_competence ?? skill?.category ?? skill?.categorie ?? 'Soft Skills',
+    }));
+
+    return [...technical, ...soft];
+  }
+
+  private mergeHydratedExperience(
+    primary: Experience[],
+    fallback: Experience[],
+    knownProjectTitles: string[],
+    current: Experience[]
+  ): Experience[] {
+    const projectTitleSet = new Set(
+      knownProjectTitles
+        .map((title) => this.normalizeKey(title))
+        .filter(Boolean)
+    );
+    const source = [...fallback, ...primary];
+    const incoming = new Map<string, Experience>();
+
+    for (const rawItem of source) {
+      const item = this.normalizeExperienceEntry(rawItem);
+      if (!item) {
+        continue;
+      }
+
+      if (this.looksLikeProjectEntry(item, projectTitleSet)) {
+        continue;
+      }
+
+      const key = this.getExperienceMergeKey(item);
+      const existing = incoming.get(key);
+      incoming.set(key, existing ? this.mergeExperienceEntry(existing, item) : item);
+    }
+
+    const values = [...incoming.values()];
+    return values.length > 0 ? values : current;
+  }
+
+  private mergeHydratedSkills(primary: Skill[], fallback: Skill[], current: Skill[]): Skill[] {
+    const incoming = [...fallback, ...primary].filter((item) => !!this.cleanText(item?.name));
+    if (incoming.length === 0) {
+      return current;
+    }
+
+    const merged = new Map<string, Skill>();
+    for (const skill of incoming) {
+      const sectionKey = this.isSoftSkillCategory(skill?.category ?? skill?.typeCompetence) ? 'softskills' : 'skills';
+      const key = `${sectionKey}::${this.normalizeKey(skill?.name)}`;
+      const existing = merged.get(key);
+      merged.set(key, {
+        ...existing,
+        ...skill,
+        name: this.cleanText(skill?.name) || existing?.name || '',
+        level: Math.min(5, Math.max(1, Number(skill?.level ?? existing?.level ?? 3))),
+        isMatched: !!(skill?.isMatched ?? existing?.isMatched),
+        category: this.cleanText(skill?.category ?? skill?.typeCompetence) || existing?.category || (sectionKey === 'softskills' ? 'Soft Skills' : 'Technical'),
+        typeCompetence: this.cleanText(skill?.typeCompetence ?? skill?.category) || existing?.typeCompetence || (sectionKey === 'softskills' ? 'Soft Skills' : 'Technical'),
+      });
+    }
+
+    return [...merged.values()];
+  }
+
+  private mergeHydratedProjects(primary: Project[], fallback: Project[], current: Project[]): Project[] {
+    const incoming = [...fallback, ...primary].filter((project) =>
+      !!this.cleanText(project?.title) || !!this.cleanText(project?.description) || (project?.bullets?.length ?? 0) > 0
+    );
+    const sourceProjects = incoming.length > 0 ? incoming : current;
+    const merged = new Map<string, Project>();
+
+    for (const project of sourceProjects) {
+      const key = this.cleanText(project?.title).toLowerCase();
+      if (!key) {
+        continue;
+      }
+
+      const existing = merged.get(key);
+      merged.set(key, {
+        ...existing,
+        ...project,
+        title: project.title || existing?.title || '',
+        description: project.description || existing?.description,
+        technologies: project.technologies?.length ? project.technologies : (existing?.technologies ?? []),
+        dateRealisation: project.dateRealisation || existing?.dateRealisation,
+        bullets: project.bullets?.length ? project.bullets : (existing?.bullets ?? []),
+        relevance: project.relevance || existing?.relevance,
+        keywords: project.keywords?.length ? project.keywords : (existing?.keywords ?? []),
+      });
+    }
+
+    return Array.from(merged.values());
+  }
+
+  private normalizeExperienceEntry(item: Experience | null | undefined): Experience | null {
+    const role = this.cleanText(item?.role);
+    const company = this.cleanText(item?.company);
+    const start = this.toMonthValue(item?.start);
+    const end = this.toMonthValue(item?.end);
+    const bullets = this.dedupeStrings(this.asStringArray(item?.bullets));
+    const relevance = this.cleanText(item?.relevance);
+    const keywords = this.dedupeStrings(this.asStringArray(item?.keywords));
+
+    if (!role && !company && bullets.length === 0) {
+      return null;
+    }
+
+    return {
+      role,
+      company,
+      start,
+      end,
+      bullets,
+      relevance,
+      keywords,
+    };
+  }
+
+  private looksLikeProjectEntry(item: Experience, projectTitleSet: Set<string>): boolean {
+    const roleKey = this.normalizeKey(item.role);
+    if (!roleKey || !projectTitleSet.has(roleKey)) {
+      return false;
+    }
+
+    const hasCompany = !!this.cleanText(item.company);
+    const hasDates = !!this.cleanText(item.start) || !!this.cleanText(item.end);
+    return !hasCompany && !hasDates;
+  }
+
+  private getExperienceMergeKey(item: Experience): string {
+    const role = this.normalizeKey(item.role);
+    const company = this.normalizeKey(item.company);
+    const start = this.cleanText(item.start).toLowerCase();
+    const end = this.cleanText(item.end).toLowerCase();
+    const bullets = this.dedupeStrings(item.bullets)
+      .map((bullet: string) => this.normalizeKey(bullet))
+      .filter(Boolean)
+      .join('|');
+
+    return [role, company, start, end, bullets].join('::');
+  }
+
+  private mergeExperienceEntry(existing: Experience, incoming: Experience): Experience {
+    return {
+      role: incoming.role || existing.role,
+      company: incoming.company || existing.company,
+      start: incoming.start || existing.start,
+      end: incoming.end || existing.end,
+      bullets: this.dedupeStrings([...(existing.bullets ?? []), ...(incoming.bullets ?? [])]),
+      relevance: incoming.relevance || existing.relevance,
+      keywords: this.dedupeStrings([...(existing.keywords ?? []), ...(incoming.keywords ?? [])]),
+    };
+  }
+
+  private dedupeStrings(values: string[]): string[] {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+      const clean = this.cleanText(value);
+      const key = this.normalizeKey(clean);
+      if (!key || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+  }
+
+  private normalizeKey(value: any): string {
+    return this.cleanText(value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  private isSoftSkillCategory(value: any): boolean {
+    const normalized = this.normalizeKey(value);
+    return normalized === 'soft'
+      || normalized === 'soft skill'
+      || normalized === 'soft skills'
+      || normalized === 'comportemental'
+      || normalized === 'behavioral'
+      || normalized === 'behavioural';
+  }
+
+  getSkillsBySection(section: 'technical' | 'soft', skills: Skill[]): Skill[] {
+    return skills.filter((skill) => {
+      const isSoft = this.isSoftSkillCategory(skill?.category ?? skill?.typeCompetence);
+      return section === 'soft' ? isSoft : !isSoft;
+    });
+  }
+
   private cleanText(value: any): string {
     return String(value ?? '').trim().replace(/\s+/g, ' ');
   }
@@ -1534,19 +1915,35 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     );
   }
 
-  private extractCandidatePhotoUrl(candidate: any, profilePersonal: any): string | null {
-    const photo = candidate?.photoUrl
-      ?? candidate?.photo_url
-      ?? candidate?.profilePhoto
-      ?? candidate?.profile_photo
-      ?? candidate?.avatar
-      ?? profilePersonal?.photoUrl
-      ?? profilePersonal?.photo_url
-      ?? profilePersonal?.profilePhoto
-      ?? profilePersonal?.profile_photo
-      ?? profilePersonal?.avatar;
-    const clean = this.cleanText(photo);
-    return clean || null;
+  private extractCandidatePhotoUrl(candidate: any, profilePersonal: any, profileSource?: any, generated?: any): string | null {
+    const candidates = [
+      candidate?.photoUrl,
+      candidate?.photo_url,
+      candidate?.profilePhoto,
+      candidate?.profile_photo,
+      candidate?.avatar,
+      profilePersonal?.photoUrl,
+      profilePersonal?.photo_url,
+      profilePersonal?.profilePhoto,
+      profilePersonal?.profile_photo,
+      profilePersonal?.avatar,
+      profileSource?.photoUrl,
+      profileSource?.photo_url,
+      profileSource?.profilePhoto,
+      profileSource?.profile_photo,
+      profileSource?.avatar,
+      generated?.profileData?.photoUrl,
+      generated?.profileData?.photo_url,
+      generated?.profileData?.profilePhoto,
+      generated?.profileData?.profile_photo,
+    ];
+
+    for (const value of candidates) {
+      const clean = this.cleanText(value);
+      if (clean) return clean;
+    }
+
+    return null;
   }
 
   private isGenericCandidateName(value: string): boolean {
@@ -1603,15 +2000,19 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
         text: typeof section?.text === 'string' ? section.text : null,
         items: Array.isArray(section?.items)
           ? section.items.map((item: any) => ({
-              primaryText: String(item?.primaryText ?? ''),
-              secondaryText: String(item?.secondaryText ?? ''),
-              startDate: item?.startDate ?? null,
-              endDate: item?.endDate ?? null,
+              primaryText: String(item?.primaryText ?? item?.primary_text ?? ''),
+              secondaryText: String(item?.secondaryText ?? item?.secondary_text ?? ''),
+              startDate: item?.startDate ?? item?.start_date ?? null,
+              endDate: item?.endDate ?? item?.end_date ?? null,
               location: item?.location ?? null,
               description: item?.description ?? null,
               level: typeof item?.level === 'number' ? item.level : null,
-              isMatched: !!item?.isMatched,
-              bullets: Array.isArray(item?.bullets) ? item.bullets.map((bullet: any) => String(bullet ?? '')) : [],
+              isMatched: !!(item?.isMatched ?? item?.is_matched),
+              bullets: Array.isArray(item?.bullets)
+                ? item.bullets.map((bullet: any) => String(bullet ?? ''))
+                : Array.isArray(item?.bullet_points)
+                  ? item.bullet_points.map((bullet: any) => String(bullet ?? ''))
+                  : [],
             }))
           : [],
       });
@@ -1826,8 +2227,9 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     this.download.emit();
   }
 
-  exportHighQualityPdf(): void {
-    this.downloadHighQuality.emit();
+  requestFinish(): void {
+    this.finishRequested.emit();
+    this.continue.emit();
   }
 
   zoomIn(): void {
@@ -1870,7 +2272,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   private attachPreviewObservers(): void {
-    const content = this.renderedPreviewContent?.nativeElement;
+    const content = this.renderedPreviewContentRef?.nativeElement;
     if (!content) {
       return;
     }
@@ -1904,7 +2306,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   private refreshPreviewOverlays(): void {
-    const content = this.renderedPreviewContent?.nativeElement;
+    const content = this.renderedPreviewContentRef?.nativeElement;
     if (!content) {
       this.previewSectionOverlays.set([]);
       return;
@@ -2014,6 +2416,32 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     this.previewSectionOverlays.set(overlays);
   }
 
+  private attachPreviewAssetListeners(): void {
+    const content = this.renderedPreviewContentRef?.nativeElement;
+    if (!content) {
+      return;
+    }
+
+    this.detachPreviewAssetListeners();
+    const images = Array.from(content.querySelectorAll<HTMLImageElement>('img'));
+    for (const image of images) {
+      const onLoadOrError = () => this.schedulePreviewOverlayRefresh();
+      image.addEventListener('load', onLoadOrError);
+      image.addEventListener('error', onLoadOrError);
+      this.previewAssetCleanup.push(() => {
+        image.removeEventListener('load', onLoadOrError);
+        image.removeEventListener('error', onLoadOrError);
+      });
+    }
+  }
+
+  private detachPreviewAssetListeners(): void {
+    for (const dispose of this.previewAssetCleanup) {
+      dispose();
+    }
+    this.previewAssetCleanup = [];
+  }
+
   private inferPreviewSectionId(node: HTMLElement): string | null {
     if (node.classList.contains('cv-identity-stack') || node.classList.contains('cv-latex-header')) {
       return 'header';
@@ -2031,6 +2459,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       project: 'projects',
       education: 'education',
       skills: 'skills',
+      'soft skills': 'softskills',
       certifications: 'certifications',
       languages: 'languages',
       activities: 'activities',
@@ -2058,9 +2487,9 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       education: 'education',
       skill: 'skills',
       skills: 'skills',
-      softskills: 'skills',
-      'soft-skills': 'skills',
-      soft_skills: 'skills',
+      softskills: 'softskills',
+      'soft-skills': 'softskills',
+      soft_skills: 'softskills',
       certification: 'certifications',
       certifications: 'certifications',
       language: 'languages',

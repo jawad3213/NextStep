@@ -3,7 +3,12 @@
     <aside class="cv-sidebar">
       <div class="cv-identity-stack" data-editor-section-id="header" data-editor-section-title="Header">
         {% if candidate.photo_url != blank %}
-        <img class="cv-avatar" src="{{ candidate.photo_url }}" alt="{{ candidate.name }}">
+        <img
+          class="cv-avatar"
+          src="{{ candidate.photo_url }}"
+          alt="{{ candidate.name }}"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+        <div class="cv-avatar cv-avatar-fallback" style="display:none;">{{ candidate.initials }}</div>
         {% else %}
         <div class="cv-avatar cv-avatar-fallback">{{ candidate.initials }}</div>
         {% endif %}
@@ -31,7 +36,7 @@
 
       {% for section in sidebar_sections %}
       {% assign sidebar_only = false %}
-      {% if section.id == "languages" or section.id == "language" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "accomplishments" or section.id == "achievements" or section.id == "activities" %}
+      {% if section.id == "languages" or section.id == "language" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "accomplishments" or section.id == "achievements" or section.id == "activities" %}
         {% assign sidebar_only = true %}
       {% endif %}
       {% if sidebar_only %}
@@ -49,7 +54,7 @@
       {% endfor %}
 
       {% for section in main_sections %}
-      {% if section.id == "activities" or section.id == "accomplishments" or section.id == "achievements" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "languages" or section.id == "language" %}
+      {% if section.id == "activities" or section.id == "accomplishments" or section.id == "achievements" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "languages" or section.id == "language" %}
       <section class="cv-section cv-section-sidebar{% if section.id == "activities" or section.id == "accomplishments" %} cv-section-sidebar-compact{% endif %}" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
         <h2>{{ section.title }}</h2>
         <div class="cv-rule"></div>
@@ -67,7 +72,7 @@
 
       {% for section in main_sections %}
       {% assign keep_in_sidebar = false %}
-      {% if section.id == "activities" or section.id == "accomplishments" or section.id == "achievements" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "languages" or section.id == "language" %}
+      {% if section.id == "activities" or section.id == "accomplishments" or section.id == "achievements" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "languages" or section.id == "language" %}
         {% assign keep_in_sidebar = true %}
       {% endif %}
       {% unless keep_in_sidebar %}
@@ -139,20 +144,34 @@
 
       {% for section in sidebar_sections %}
       {% assign move_to_main = true %}
-      {% if section.id == "languages" or section.id == "language" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "accomplishments" or section.id == "achievements" or section.id == "activities" %}
+      {% if section.id == "languages" or section.id == "language" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "accomplishments" or section.id == "achievements" or section.id == "activities" %}
         {% assign move_to_main = false %}
       {% endif %}
       {% if move_to_main %}
       <section class="cv-section cv-section-main" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
-        <h2>{{ section.title }}</h2>
+        <h2>{% if section.id == "skills" %}Technical Skills{% else %}{{ section.title }}{% endif %}</h2>
         <div class="cv-rule"></div>
 
         {% if section.id == "skills" %}
-          <ul class="cv-skill-grid">
-          {% for item in section.items %}
-            <li>{{ item.primary_text }}</li>
+          <div class="cv-skill-summary">
+          {% if skill_summary_rows.size > 0 %}
+          {% for row in skill_summary_rows %}
+            <div class="cv-skill-summary-row">
+              <strong>{{ row.label }} :</strong>
+              <span>{{ row.value }}</span>
+            </div>
           {% endfor %}
-          </ul>
+          {% else %}
+            <div class="cv-skill-summary-row">
+              <strong>Core :</strong>
+              <span>
+                {% for item in section.items %}
+                  {{ item.primary_text }}{% unless forloop.last %}, {% endunless %}
+                {% endfor %}
+              </span>
+            </div>
+          {% endif %}
+          </div>
         {% elsif section.id == "education" %}
           <div class="cv-stack-list">
           {% for item in section.items %}

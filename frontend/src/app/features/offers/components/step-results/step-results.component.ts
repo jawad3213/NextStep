@@ -1,30 +1,59 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { firstValueFrom } from 'rxjs';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
-import { CvHistoryItem, OfferApiService } from '../../services/offer-api.service';
+import {
+  CvHistoryItem,
+  EmailDraftResponse,
+  OfferApiService,
+  SendApplicationEmailRequest
+} from '../../services/offer-api.service';
 
 @Component({
   selector: 'app-step-results',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './step-results.component.html',
   styleUrl: './step-results.component.scss'
 })
 export class StepResultsComponent implements OnInit, OnDestroy {
-  pipeline = inject(PipelineStateService);
-  private api = inject(OfferApiService);
-  private sanitizer = inject(DomSanitizer);
+  readonly pipeline = inject(PipelineStateService);
+  private readonly api = inject(OfferApiService);
+  private readonly sanitizer = inject(DomSanitizer);
   private previewBlobUrl: string | null = null;
 
   cvPreviewUrl: SafeResourceUrl | null = null;
   isLoadingPreview = false;
   previewError: string | null = null;
 
-  get result() { return this.pipeline.pipelineResult(); }
+  recipientEmail = '';
+  emailSubject = '';
+  emailBody = '';
+  isSendingEmail = false;
+  sendError: string | null = null;
+  sendSuccessMessage: string | null = null;
+  lastSentDraft: EmailDraftResponse | null = null;
+
+  get result() {
+    return this.pipeline.pipelineResult();
+  }
+
+  get attachmentName(): string {
+    return `${this.pipeline.finalCvTitle() ?? `CV_${this.pipeline.currentOfferId()}`}.pdf`;
+  }
+
+  get canSend(): boolean {
+    return !this.isSendingEmail
+      && !!this.pipeline.currentOfferId()
+      && !!this.recipientEmail.trim()
+      && !!this.emailSubject.trim()
+      && !!this.emailBody.trim();
+  }
 
   async ngOnInit(): Promise<void> {
+    this.hydrateEmailFields();
     await this.loadFinalCvPreview();
   }
 
@@ -35,47 +64,111 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   }
 
   async downloadCv(): Promise<void> {
+    const historyId = this.pipeline.finalCvHistoryId();
     const offerId = this.pipeline.currentOfferId();
+
     if (!offerId) {
-      alert('Telechargement disponible dans la section CV Builder.');
+      this.previewError = 'Aucune offre active pour telecharger le CV.';
       return;
     }
 
     try {
-      let target = await this.findLatestCvForOffer(offerId);
+      const target = historyId
+        ? { id: historyId }
+        : await this.findLatestCvForOffer(offerId);
 
       if (!target?.id) {
-        const template = this.pipeline.selectedTemplateId() || 'modern';
-        await firstValueFrom(this.api.generatePdf(offerId, template));
-        target = await this.findLatestCvForOffer(offerId);
+        throw new Error('Le CV final n a pas encore ete sauvegarde.');
       }
 
-      if (!target?.id) throw new Error('CV history not found');
-
-      try {
-        const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
-        this.downloadBlob(fileBlob, offerId);
-      } catch {
-        const signed = await firstValueFrom(this.api.getCvDownloadUrl(target.id));
-        if (!signed?.downloadUrl) throw new Error('Signed url missing');
-        const fixedUrl = signed.downloadUrl
-          .replace('http://minio:9000', 'http://localhost:9000')
-          .replace('https://minio:9000', 'http://localhost:9000');
-        window.location.href = fixedUrl;
-      }
-    } catch {
-      alert('Telechargement indisponible pour le moment.');
+      const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
+      this.downloadBlob(fileBlob, offerId);
+    } catch (err: any) {
+      this.previewError = err?.message || 'Telechargement indisponible pour le moment.';
     }
   }
 
-  async loadFinalCvPreview(): Promise<void> {
+  async sendEmail(): Promise<void> {
     const offerId = this.pipeline.currentOfferId();
-    if (!offerId) return;
+    if (!offerId || !this.canSend) {
+      return;
+    }
+
+    this.isSendingEmail = true;
+    this.sendError = null;
+    this.sendSuccessMessage = null;
+
+    const payload: SendApplicationEmailRequest = {
+      offerId,
+      cvHistoryId: this.pipeline.finalCvHistoryId(),
+      recipientEmail: this.recipientEmail.trim(),
+      subject: this.emailSubject.trim(),
+      body: this.emailBody.trim(),
+      emailType: 'application',
+      language: 'fr',
+    };
+
+    try {
+      const sent = await firstValueFrom(this.api.sendApplicationEmail(payload));
+      this.lastSentDraft = sent;
+      this.sendSuccessMessage = `Email envoye a ${sent.recipientEmail} avec le CV en piece jointe.`;
+      this.pipeline.markStepDone(4);
+      this.pipeline.showSidebarBadge('email', 'Envoye', 'green');
+
+      const result = this.result;
+      if (result) {
+        this.pipeline.setResult({
+          ...result,
+          emailSubject: this.emailSubject,
+          emailBody: this.emailBody,
+        });
+      }
+    } catch (err: any) {
+      this.sendError = err?.error?.error ?? err?.error?.message ?? err?.message ?? 'Envoi de l email impossible.';
+    } finally {
+      this.isSendingEmail = false;
+    }
+  }
+
+  copyEmailBody(): void {
+    void navigator.clipboard.writeText(this.emailBody || '');
+  }
+
+  backToEditor(): void {
+    this.pipeline.goToStep(4);
+  }
+
+  finish(): void {
+    this.pipeline.closeFlow();
+  }
+
+  private hydrateEmailFields(): void {
+    const result = this.result;
+    this.recipientEmail = this.lastSentDraft?.recipientEmail ?? '';
+    this.emailSubject = result?.emailSubject?.trim() || `Application - ${result?.offerTitle || 'Poste'}`;
+    this.emailBody = result?.emailBody?.trim() || this.buildDefaultBody();
+  }
+
+  private buildDefaultBody(): string {
+    const result = this.result;
+    const recruiter = result?.recruiterName?.trim() || 'Bonjour';
+    const company = result?.companyName?.trim() || 'votre entreprise';
+    const role = result?.offerTitle?.trim() || 'le poste';
+
+    return `${recruiter},\n\nJe vous contacte pour vous transmettre ma candidature pour ${role} chez ${company}. Vous trouverez mon CV en piece jointe.\n\nJe reste a votre disposition pour un echange.\n\nCordialement,`;
+  }
+
+  private async loadFinalCvPreview(): Promise<void> {
+    const offerId = this.pipeline.currentOfferId();
+    if (!offerId) {
+      return;
+    }
 
     this.isLoadingPreview = true;
     this.previewError = null;
     try {
-      const target = await this.findLatestCvForOffer(offerId);
+      const targetId = this.pipeline.finalCvHistoryId();
+      const target = targetId ? { id: targetId } : await this.findLatestCvForOffer(offerId);
       if (!target?.id) {
         this.previewError = 'PDF final pas encore sauvegarde.';
         return;
@@ -98,23 +191,20 @@ export class StepResultsComponent implements OnInit, OnDestroy {
 
   private async findLatestCvForOffer(offerId: string): Promise<CvHistoryItem | undefined> {
     const history = await firstValueFrom(this.api.getCvHistory());
+    const expectedTitle = this.pipeline.finalCvTitle() ?? `CV_${offerId}`;
     return history
-      .filter((h) => h.title === `CV_${offerId}`)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      .filter((item) => item.title === expectedTitle)
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
   }
 
   private downloadBlob(blob: Blob, offerId: string): void {
     const blobUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `CV_${offerId}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = `CV_${offerId}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
     setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
-  }
-
-  finish(): void {
-    this.pipeline.closeFlow();
   }
 }

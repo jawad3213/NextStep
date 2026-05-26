@@ -14,11 +14,11 @@ namespace NextStep.Modules.Offer.Services;
 public interface IOfferService
 {
     Task<OffreEmploi> SaveOfferAsync(string rawText, string userId, CancellationToken ct = default);
-    Task<OfferAnalysisDto?> GetAnalysisAsync(Guid offerId, CancellationToken ct = default);
+    Task<OfferAnalysisDto?> GetAnalysisAsync(Guid userId, Guid offerId, CancellationToken ct = default);
     Task<List<OfferHistoryItemDto>> GetHistoryAsync(Guid userId, CancellationToken ct = default);
     Task<int> DeleteOffersAsync(Guid userId, List<Guid> offerIds, CancellationToken ct = default);
     Task SavePipelineResultAsync(Guid offerId, JsonDocument pipelineResult, Guid userId, CancellationToken ct = default);
-    Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid offerId, CancellationToken ct = default);
+    Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid userId, Guid offerId, CancellationToken ct = default);
     Task<CvDraftDto?> GetCvDraftAsync(Guid userId, Guid offerId, CancellationToken ct = default);
     Task<CvDraftDto> SaveCvDraftAsync(Guid userId, Guid offerId, JsonElement draft, CancellationToken ct = default);
 }
@@ -59,6 +59,8 @@ public class OfferService(
 
     public async Task SavePipelineResultAsync(Guid offerId, JsonDocument pipelineResult, Guid userId, CancellationToken ct = default)
     {
+        await EnsureOfferOwnedAsync(userId, offerId, ct);
+
         var root = pipelineResult.RootElement;
         var fullJson = root.GetRawText();
         var offer = await db.OffresEmploi.FirstOrDefaultAsync(o => o.Id == offerId, ct);
@@ -138,8 +140,10 @@ public class OfferService(
         logger.LogInformation("OfferService — Résultats pipeline sauvegardés pour offre {OfferId}", offerId);
     }
 
-    public async Task<OfferAnalysisDto?> GetAnalysisAsync(Guid offerId, CancellationToken ct = default)
+    public async Task<OfferAnalysisDto?> GetAnalysisAsync(Guid userId, Guid offerId, CancellationToken ct = default)
     {
+        await EnsureOfferOwnedAsync(userId, offerId, ct);
+
         var offre = await repository.GetByIdAsync(offerId, ct);
         if (offre is null) return null;
         if (string.IsNullOrEmpty(offre.AnalyseJson)) return null;
@@ -694,8 +698,9 @@ public class OfferService(
         return Math.Min(0.78, 0.45 + jaccard * 0.5);
     }
 
-    public async Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid offerId, CancellationToken ct = default)
+    public async Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid userId, Guid offerId, CancellationToken ct = default)
     {
+        await EnsureOfferOwnedAsync(userId, offerId, ct);
         return await repository.GetByIdWithAnalysisAsync(offerId, ct);
     }
 }

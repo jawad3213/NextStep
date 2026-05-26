@@ -1,14 +1,14 @@
-import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PipelineStateService, PipelineStep } from '../../services/pipeline-state.service';
-import { OfferStepId } from './offers.types';
-import { OfferApiService } from './services/offer-api.service';
-import { StepSubmitComponent } from './components/step-submit/step-submit.component';
 import { StepAnalysisComponent } from './components/step-analysis/step-analysis.component';
-import { StepTemplateComponent } from './components/step-template/step-template.component';
 import { StepGenerationComponent } from './components/step-generation/step-generation.component';
 import { StepResultsComponent } from './components/step-results/step-results.component';
+import { StepSubmitComponent } from './components/step-submit/step-submit.component';
+import { StepTemplateComponent } from './components/step-template/step-template.component';
+import { OfferApiService } from './services/offer-api.service';
+import { OfferStepId } from './offers.types';
 
 @Component({
   selector: 'app-offer-pipeline',
@@ -34,16 +34,24 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     { id: 'submit', label: 'Offre', icon: 'description' },
     { id: 'analysis', label: 'Skill Gap', icon: 'analytics' },
     { id: 'template', label: 'Template', icon: 'palette' },
-    { id: 'generation', label: 'Edition CV', icon: 'edit_note' },
-    { id: 'results', label: 'Résultats', icon: 'verified' },
+    { id: 'generation', label: 'CV Final', icon: 'edit_note' },
+    { id: 'results', label: 'Email & Send', icon: 'send' },
   ];
 
   private readonly stepToPipeline: Record<OfferStepId, PipelineStep> = {
-    submit: 1, analysis: 2, template: 3, generation: 4, results: 5,
+    submit: 1,
+    analysis: 2,
+    template: 3,
+    generation: 4,
+    results: 5,
   };
 
   private readonly pipelineToStep: Record<PipelineStep, OfferStepId> = {
-    1: 'submit', 2: 'analysis', 3: 'template', 4: 'generation', 5: 'results',
+    1: 'submit',
+    2: 'analysis',
+    3: 'template',
+    4: 'generation',
+    5: 'results',
   };
 
   readonly currentStepId = computed<OfferStepId>(() =>
@@ -51,12 +59,20 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
   );
 
   readonly stepStates = computed<Record<OfferStepId, 'idle' | 'active' | 'done' | 'error'>>(() => {
-    const states: any = {};
+    const states: Record<OfferStepId, 'idle' | 'active' | 'done' | 'error'> = {
+      submit: 'idle',
+      analysis: 'idle',
+      template: 'idle',
+      generation: 'idle',
+      results: 'idle',
+    };
+
     const pipelineSteps = this.pipeline.steps();
     for (const [offerStep, pipelineStep] of Object.entries(this.stepToPipeline)) {
       const ps = pipelineSteps[pipelineStep - 1];
-      states[offerStep] = ps ? ps.status : 'idle';
+      states[offerStep as OfferStepId] = ps ? ps.status : 'idle';
     }
+
     return states;
   });
 
@@ -75,9 +91,10 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     const queryOfferId = this.route.snapshot.queryParamMap.get('offerId');
     const currentOfferId = this.pipeline.currentOfferId();
     const offerId = queryOfferId || currentOfferId;
-    if (!offerId) return;
+    if (!offerId) {
+      return;
+    }
 
-    // If user clicked "Continuer" on a different offer, clear stale in-memory data.
     if (queryOfferId && currentOfferId && queryOfferId !== currentOfferId) {
       this.pipeline.pipelineResult.set(null);
       this.pipeline.currentOfferId.set(queryOfferId);
@@ -85,7 +102,10 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     } else {
       this.pipeline.currentOfferId.set(offerId);
     }
-    if (this.pipeline.pipelineResult() && !queryOfferId) return;
+
+    if (this.pipeline.pipelineResult() && !queryOfferId) {
+      return;
+    }
 
     this.pipeline.setLoading(true, 'Restauration de votre analyse...');
     this.offerApi.getAnalysis(offerId).subscribe({
@@ -104,9 +124,14 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
   }
 
   goToStep(id: OfferStepId): void {
-    if (this.pipeline.isLoading()) return;
+    if (this.pipeline.isLoading()) {
+      return;
+    }
+
     const pipelineStep = this.stepToPipeline[id];
-    if (!pipelineStep) return;
+    if (!pipelineStep) {
+      return;
+    }
 
     const targetIdx = pipelineStep - 1;
     const isDone = this.pipeline.steps()[targetIdx]?.status === 'done';

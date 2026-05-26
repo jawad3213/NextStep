@@ -56,16 +56,12 @@
         <span class="material-symbols-outlined">add</span>
       </button>
       <span class="toolbar-divider"></span>
-      <button class="btn-download" type="button" (click)="exportPdf()" [disabled]="isPreparingDownload || isGeneratingHighQualityPdf">
+      <button class="btn-download" type="button" (click)="exportPdf()" [disabled]="isGeneratingHighQualityPdf">
         <span class="material-symbols-outlined">file_download</span>
-        <span>{{ isPreparingDownload ? 'Preparing download...' : 'Download now' }}</span>
+        <span>{{ isGeneratingHighQualityPdf ? 'Generating PDF...' : 'Download PDF' }}</span>
       </button>
-      <button class="btn-download btn-download-secondary" type="button" (click)="exportHighQualityPdf()" [disabled]="isPreparingDownload || isGeneratingHighQualityPdf">
-        <span class="material-symbols-outlined">picture_as_pdf</span>
-        <span>{{ isGeneratingHighQualityPdf ? 'Generating high-quality PDF...' : 'High quality' }}</span>
-      </button>
-      <button class="btn-finish" type="button" (click)="continue.emit()">
-        <span>Finish</span>
+      <button class="btn-finish" type="button" (click)="requestFinish()" [disabled]="isSavingFinal">
+        <span>{{ isSavingFinal ? 'Saving...' : 'Finish' }}</span>
       </button>
     </div>
   </nav>
@@ -312,10 +308,19 @@
                   }
                   @case ('skills') {
                     <div class="inspector-list">
-                      @for (skill of cvData().skills; track skill.name + $index; let i = $index) {
+                      @for (skill of getSkillsBySection('technical', cvData().skills); track skill.name + $index; let i = $index) {
                         <div class="inspector-card inspector-skill-card">
-                          <input [ngModel]="skill.name" (ngModelChange)="updateSkill(i, 'name', $event)" />
-                          <input type="range" min="1" max="5" [ngModel]="skill.level" (ngModelChange)="updateSkill(i, 'level', +$event)" />
+                          <input [ngModel]="skill.name" (ngModelChange)="updateSkill('technical', i, 'name', $event)" />
+                          <input type="range" min="1" max="5" [ngModel]="skill.level" (ngModelChange)="updateSkill('technical', i, 'level', +$event)" />
+                        </div>
+                      }
+                    </div>
+                  }
+                  @case ('softskills') {
+                    <div class="inspector-list">
+                      @for (skill of getSkillsBySection('soft', cvData().skills); track skill.name + $index; let i = $index) {
+                        <div class="inspector-card inspector-skill-card">
+                          <input [ngModel]="skill.name" (ngModelChange)="updateSkill('soft', i, 'name', $event)" />
                         </div>
                       }
                     </div>
@@ -422,30 +427,39 @@
                   </div>
                 }
                 @case ('projects') {
-                  <div class="section-form-actions">
-                    <button class="panel-primary-btn" type="button" (click)="addProject()">Add project</button>
+                  <div class="section-form-actions section-form-actions-top">
+                    <p class="section-form-actions-caption">Projects list</p>
+                    <button class="panel-primary-btn section-form-add-btn" type="button" (click)="addProject()">
+                      <span class="material-symbols-outlined">add</span>
+                      <span>Add project</span>
+                    </button>
                   </div>
-                  <div class="inspector-list">
+                  <div class="inspector-list project-card-list">
                     @for (project of cvData().projects; track project.title + $index; let i = $index) {
-                      <div class="inspector-card">
+                      <article class="inspector-card project-edit-card">
                         <div class="section-form-item-head">
                           <strong>Project {{ i + 1 }}</strong>
                           <button class="delete-section-btn" type="button" (click)="removeProject(i)">Remove</button>
                         </div>
                         <label class="inspector-field"><span>Title</span><input [ngModel]="project.title" (ngModelChange)="updateProject(i, 'title', $event)" /></label>
                         <label class="inspector-field"><span>Description</span><textarea rows="3" [ngModel]="project.description" (ngModelChange)="updateProject(i, 'description', $event)"></textarea></label>
-                        <label class="inspector-field"><span>Date</span><input [ngModel]="project.dateRealisation" (ngModelChange)="updateProject(i, 'dateRealisation', $event)" placeholder="YYYY-MM" /></label>
-                        <label class="inspector-field"><span>Technologies (comma separated)</span><input [ngModel]="(project.technologies ?? []).join(', ')" (ngModelChange)="updateProject(i, 'technologies', parseCommaSeparatedList($event))" /></label>
-                        <div class="section-form-actions">
-                          <button class="panel-primary-btn" type="button" (click)="addProjectBullet(i)">Add bullet</button>
+                        <div class="inspector-split">
+                          <label class="inspector-field"><span>Date</span><input [ngModel]="project.dateRealisation" (ngModelChange)="updateProject(i, 'dateRealisation', $event)" placeholder="YYYY-MM" /></label>
+                          <label class="inspector-field"><span>Technologies (comma separated)</span><input [ngModel]="(project.technologies ?? []).join(', ')" (ngModelChange)="updateProject(i, 'technologies', parseCommaSeparatedList($event))" /></label>
+                        </div>
+                        <div class="section-form-actions project-bullet-actions">
+                          <button class="panel-primary-btn section-form-add-btn" type="button" (click)="addProjectBullet(i)">
+                            <span class="material-symbols-outlined">add</span>
+                            <span>Add bullet</span>
+                          </button>
                         </div>
                         @for (bullet of project.bullets; track bullet + $index; let b = $index) {
-                          <div class="inspector-split">
+                          <div class="inspector-split project-bullet-row">
                             <label class="inspector-field"><span>Bullet {{ b + 1 }}</span><input [ngModel]="bullet" (ngModelChange)="updateProjectBullet(i, b, $event)" /></label>
                             <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeProjectBullet(i, b)">Remove</button>
                           </div>
                         }
-                      </div>
+                      </article>
                     }
                   </div>
                 }
@@ -494,17 +508,65 @@
                   </div>
                 }
                 @case ('skills') {
-                  <div class="section-form-actions">
-                    <button class="panel-primary-btn" type="button" (click)="addSkill()">Add skill</button>
+                  <div class="section-form-actions section-form-actions-top">
+                    <p class="section-form-actions-caption">Technical skills</p>
+                    <button class="panel-primary-btn section-form-add-btn" type="button" (click)="addSkill('technical')">
+                      <span class="material-symbols-outlined">add</span>
+                      <span>Add skill</span>
+                    </button>
                   </div>
-                  <div class="inspector-list">
-                    @for (skill of cvData().skills; track skill.name + $index; let i = $index) {
-                      <div class="inspector-card inspector-skill-card">
-                        <button class="delete-section-btn inline-remove-btn" type="button" (click)="removeSkill(i)">Remove</button>
-                        <input [ngModel]="skill.name" (ngModelChange)="updateSkill(i, 'name', $event)" />
-                        <input type="range" min="1" max="5" [ngModel]="skill.level" (ngModelChange)="updateSkill(i, 'level', +$event)" />
-                        <label class="inspector-field"><span>Matched</span><input type="checkbox" [ngModel]="skill.isMatched" (ngModelChange)="updateSkill(i, 'isMatched', !!$event)" /></label>
-                      </div>
+                  <div class="inspector-list skills-card-list">
+                    @for (skill of getSkillsBySection('technical', cvData().skills); track skill.name + $index; let i = $index) {
+                      <article class="inspector-card skill-edit-card">
+                        <div class="skill-edit-card-head">
+                          <label class="inspector-field skill-name-field">
+                            <span>Skill name</span>
+                            <input [ngModel]="skill.name" (ngModelChange)="updateSkill('technical', i, 'name', $event)" />
+                          </label>
+                          <button class="delete-section-btn" type="button" (click)="removeSkill('technical', i)">Remove</button>
+                        </div>
+
+                        <div class="skill-edit-card-body">
+                          <label class="inspector-field skill-range-field">
+                            <span>Level</span>
+                            <input type="range" min="1" max="5" [ngModel]="skill.level" (ngModelChange)="updateSkill('technical', i, 'level', +$event)" />
+                          </label>
+                          <span class="skill-level-chip">Level {{ skill.level }}/5</span>
+                          <label class="skill-match-toggle">
+                            <span>Matched</span>
+                            <input type="checkbox" [ngModel]="skill.isMatched" (ngModelChange)="updateSkill('technical', i, 'isMatched', !!$event)" />
+                          </label>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+                @case ('softskills') {
+                  <div class="section-form-actions section-form-actions-top">
+                    <p class="section-form-actions-caption">Soft skills</p>
+                    <button class="panel-primary-btn section-form-add-btn" type="button" (click)="addSkill('soft')">
+                      <span class="material-symbols-outlined">add</span>
+                      <span>Add soft skill</span>
+                    </button>
+                  </div>
+                  <div class="inspector-list skills-card-list">
+                    @for (skill of getSkillsBySection('soft', cvData().skills); track skill.name + $index; let i = $index) {
+                      <article class="inspector-card skill-edit-card soft-skill-card">
+                        <div class="skill-edit-card-head">
+                          <label class="inspector-field skill-name-field">
+                            <span>Soft skill</span>
+                            <input [ngModel]="skill.name" (ngModelChange)="updateSkill('soft', i, 'name', $event)" />
+                          </label>
+                          <button class="delete-section-btn" type="button" (click)="removeSkill('soft', i)">Remove</button>
+                        </div>
+
+                        <div class="skill-edit-card-body soft-skill-card-body">
+                          <label class="skill-match-toggle">
+                            <span>Matched</span>
+                            <input type="checkbox" [ngModel]="skill.isMatched" (ngModelChange)="updateSkill('soft', i, 'isMatched', !!$event)" />
+                          </label>
+                        </div>
+                      </article>
                     }
                   </div>
                 }
@@ -595,7 +657,6 @@
                     <button
                       class="preview-section-overlay"
                       type="button"
-                      [class.active]="activePreviewSection() === overlay.id"
                       [style.top.px]="overlay.top"
                       [style.left.px]="overlay.left"
                       [style.width.px]="overlay.width"

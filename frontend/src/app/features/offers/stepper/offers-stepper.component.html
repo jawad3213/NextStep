@@ -1,33 +1,31 @@
-<div class="horizontal-stepper-container">
-  <div class="w-full px-4 md:px-6 flex items-center justify-center gap-4">
-    <nav class="node-stepper-wrapper">
-      <div class="stepper-progress-bar">
-        <div class="stepper-track"></div>
-        <div class="stepper-fill" [style.width.%]="(currentIndex() / (steps().length - 1)) * 100"></div>
-      </div>
+<div class="w-full px-4 md:px-6 flex items-center justify-center gap-4">
+  <nav class="node-stepper-wrapper">
+    <div class="stepper-progress-bar">
+      <div class="stepper-track"></div>
+      <div class="stepper-fill" [style.width.%]="(currentIndex() / (steps().length - 1)) * 100"></div>
+    </div>
 
-      <div class="stepper-nodes">
-        @for (step of steps(); track step.id; let i = $index) {
-          <button
-            class="stepper-node"
-            [class.active]="isStepActive(step.id)"
-            [class.completed]="isStepComplete(step.id) && !isStepActive(step.id)"
-            [class.future]="!isStepComplete(step.id) && !isStepActive(step.id)"
-            [class.disabled]="!isStepClickable(step.id)"
-            (click)="onStepClick(step.id)"
-            [attr.aria-label]="step.label"
-          >
-            <div class="node-circle">
-              @if (isStepComplete(step.id) && !isStepActive(step.id)) {
-                <mat-icon class="node-icon">check</mat-icon>
-              } @else {
-                <mat-icon class="node-icon step-icon">{{ step.icon }}</mat-icon>
-              }
-            </div>
-            <span class="node-label">{{ step.label }}</span>
-          </button>
-        }
-      </div>
-    </nav>
-  </div>
+    <div class="stepper-nodes">
+      @for (step of steps(); track step.id; let i = $index) {
+        <button
+          class="stepper-node"
+          [class.active]="isStepActive(step.id)"
+          [class.completed]="isStepComplete(step.id) && !isStepActive(step.id)"
+          [class.future]="!isStepComplete(step.id) && !isStepActive(step.id)"
+          [class.disabled]="!isStepClickable(step.id)"
+          (click)="onStepClick(step.id)"
+          [attr.aria-label]="step.label"
+        >
+          <div class="node-circle">
+            @if (isStepComplete(step.id) && !isStepActive(step.id)) {
+              <mat-icon class="node-icon">check</mat-icon>
+            } @else {
+              <mat-icon class="node-icon step-icon">{{ step.icon }}</mat-icon>
+            }
+          </div>
+          <span class="node-label">{{ step.label }}</span>
+        </button>
+      }
+    </div>
+  </nav>
 </div>

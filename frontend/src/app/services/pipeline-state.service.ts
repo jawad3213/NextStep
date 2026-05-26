@@ -1,17 +1,9 @@
-// ============================================================
-// PipelineStateService — State partagé GLOBAL pour le pipeline
-// Utilisé par le stepper Jobs + les badges sidebar
-// ============================================================
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { GenerationProgress } from './signalr.service';
 
 export type PipelineStep = 1 | 2 | 3 | 4 | 5;
 
-export type PipelineStepStatus =
-  | 'idle'       // pas encore démarré
-  | 'active'     // en cours
-  | 'done'       // terminé avec succès
-  | 'error';     // erreur
+export type PipelineStepStatus = 'idle' | 'active' | 'done' | 'error';
 
 export interface StepState {
   status: PipelineStepStatus;
@@ -19,7 +11,7 @@ export interface StepState {
 }
 
 export interface SidebarBadge {
-  page: string;            // "cv-builder" | "email" | "company-intel" | "skill-gap" | "notifications"
+  page: string;
   count?: number;
   label: string;
   variant: 'green' | 'blue' | 'red' | 'amber';
@@ -43,7 +35,6 @@ export interface KeywordPondere {
 }
 
 export interface PipelineResult {
-  // ─── Agent 1 : Analyse offre (OfferAnalyzerService) ───
   offerTitle: string;
   companyName: string;
   contractType: string;
@@ -55,13 +46,8 @@ export interface PipelineResult {
   modeTravail?: string;
   descriptionPoste?: string;
   originalRawText?: string;
-
-  // ─── Agent 2 : Récupération profil (ProfileRetrieverService) ───
-  // (profil interne — pas de champs UI directs, alimente Agent 3)
-
-  // ─── Agent 3 : Skill Gap (SkillGapService) ───
-  matchScore: number;           // 0-100
-  atsScore: number;             // 0-100
+  matchScore: number;
+  atsScore: number;
   matchBreakdown: {
     skills: number;
     experience: number;
@@ -72,15 +58,11 @@ export interface PipelineResult {
   matchingSkills: string[];
   missingSkills: string[];
   recommendations: string[];
-
-  // ─── Données entreprise (Agent 4 — pas dans Step 1) ───
   companyCultureScore: number;
   companySalaryMin: number;
   companySalaryMax: number;
   companySize: string;
   companyNews: { title: string; date: string }[];
-
-  // ─── Données avancées (Steps suivants) ───
   profileStrengths: string[];
   skillGaps: { skill: string; priority: string; weeks: number }[];
   cvPdfPath: string;
@@ -89,8 +71,6 @@ export interface PipelineResult {
   emailBody: string;
   recruiterName: string;
   coverLetterContent: string;
-
-  // ─── Enrichissements backend (v2) ───
   skillDetails?: SkillDetail[];
   recommendationsWithPriority?: RecommendationPriorisee[];
   keywordWeights?: KeywordPondere[];
@@ -103,30 +83,26 @@ export interface PipelineResult {
 export class PipelineStateService {
   private readonly STORAGE_KEY = 'nextstep.offer.pipeline.v1';
 
-  // ── State du stepper ────────────────────────────────────────────────────
   readonly currentStep = signal<PipelineStep>(1);
-  readonly isFlowOpen  = signal<boolean>(false);
-  readonly isLoading   = signal<boolean>(false);
+  readonly isFlowOpen = signal<boolean>(false);
+  readonly isLoading = signal<boolean>(false);
   readonly loadingMessage = signal<string>('');
 
   readonly steps = signal<StepState[]>([
     { status: 'idle', label: 'Offre' },
     { status: 'idle', label: 'Skill Gap' },
     { status: 'idle', label: 'Template' },
-    { status: 'idle', label: 'Génération' },
-    { status: 'idle', label: 'Résultats' },
+    { status: 'idle', label: 'CV final' },
+    { status: 'idle', label: 'Email & envoi' },
   ]);
 
-  // ── Entrées utilisateur ─────────────────────────────────────────────────
   readonly selectedTemplateId = signal<string>('modern');
-  readonly offerUrl  = signal<string>('');
+  readonly offerUrl = signal<string>('');
   readonly offerText = signal<string>('');
   readonly currentOfferId = signal<string | null>(null);
 
-  // ── Résultats pipeline ──────────────────────────────────────────────────
   readonly pipelineResult = signal<PipelineResult | null>(null);
 
-  // ── SignalR progress ────────────────────────────────────────────────────
   readonly currentAgentProgress = signal<{
     step: string;
     agentName: string;
@@ -136,27 +112,25 @@ export class PipelineStateService {
   } | null>(null);
 
   readonly pipelineError = signal<string | null>(null);
-
-  // ── PDF Generation ──────────────────────────────────────────────────────
   readonly generationProgress = signal<GenerationProgress | null>(null);
   readonly cvDownloadUrl = signal<string | null>(null);
+  readonly finalCvHistoryId = signal<string | null>(null);
+  readonly finalCvTitle = signal<string | null>(null);
 
-  // ── Badges sidebar ──────────────────────────────────────────────────────
   readonly sidebarBadges = signal<SidebarBadge[]>([
-    { page: 'cv-builder',    label: '',        variant: 'green', visible: false },
-    { page: 'email',         label: 'Généré',  variant: 'amber', visible: false },
-    { page: 'company-intel', label: 'Prêt',    variant: 'green', visible: false },
-    { page: 'skill-gap',     label: '0 gaps',  variant: 'red',   visible: false },
-    { page: 'notifications', label: '0',       variant: 'red',   visible: false },
+    { page: 'cv-builder', label: '', variant: 'green', visible: false },
+    { page: 'email', label: 'Genere', variant: 'amber', visible: false },
+    { page: 'company-intel', label: 'Pret', variant: 'green', visible: false },
+    { page: 'skill-gap', label: '0 gaps', variant: 'red', visible: false },
+    { page: 'notifications', label: '0', variant: 'red', visible: false },
   ]);
 
-  // ── Computed helpers ────────────────────────────────────────────────────
   readonly canGoNext = computed(() => {
-    const step = this.currentStep();
-    const loading = this.isLoading();
-    if (loading) return false;
-    if (step === 1) return !!this.offerUrl() || !!this.offerText();
-    return true;
+    if (this.isLoading()) {
+      return false;
+    }
+
+    return this.currentStep() !== 1 || !!this.offerUrl() || !!this.offerText();
   });
 
   readonly progressPercent = computed(() =>
@@ -166,8 +140,6 @@ export class PipelineStateService {
   constructor() {
     this.restoreFromStorage();
   }
-
-  // ── Actions ─────────────────────────────────────────────────────────────
 
   openFlow(): void {
     this.isFlowOpen.set(true);
@@ -206,21 +178,17 @@ export class PipelineStateService {
     this.persistToStorage();
   }
 
-  showSidebarBadge(
-    page: string,
-    label: string,
-    variant: 'green' | 'blue' | 'red' | 'amber'
-  ): void {
-    this.sidebarBadges.update(badges =>
-      badges.map(b =>
-        b.page === page ? { ...b, label, variant, visible: true } : b
+  showSidebarBadge(page: string, label: string, variant: 'green' | 'blue' | 'red' | 'amber'): void {
+    this.sidebarBadges.update((badges) =>
+      badges.map((badge) =>
+        badge.page === page ? { ...badge, label, variant, visible: true } : badge
       )
     );
   }
 
   hideSidebarBadge(page: string): void {
-    this.sidebarBadges.update(badges =>
-      badges.map(b => b.page === page ? { ...b, visible: false } : b)
+    this.sidebarBadges.update((badges) =>
+      badges.map((badge) => badge.page === page ? { ...badge, visible: false } : badge)
     );
   }
 
@@ -235,9 +203,11 @@ export class PipelineStateService {
     this.currentAgentProgress.set(null);
     this.generationProgress.set(null);
     this.cvDownloadUrl.set(null);
+    this.finalCvHistoryId.set(null);
+    this.finalCvTitle.set(null);
     this.pipelineError.set(null);
     this.resetSteps();
-    this.sidebarBadges.update(badges => badges.map(b => ({ ...b, visible: false })));
+    this.sidebarBadges.update((badges) => badges.map((badge) => ({ ...badge, visible: false })));
     this.persistToStorage();
   }
 
@@ -280,7 +250,6 @@ export class PipelineStateService {
       cvGeneratedContent: dto.cvGeneratedContent ?? dto.cv_data ?? dto.cvData ?? undefined,
     });
 
-    // Bridge the raw text to the input signal for step 1 persistence
     if (dto.texteBrut) {
       this.offerText.set(dto.texteBrut);
     } else if (dto.descriptionPoste) {
@@ -308,6 +277,8 @@ export class PipelineStateService {
         currentOfferId: this.currentOfferId(),
         pipelineResult: this.pipelineResult(),
         cvDownloadUrl: this.cvDownloadUrl(),
+        finalCvHistoryId: this.finalCvHistoryId(),
+        finalCvTitle: this.finalCvTitle(),
       }));
     } catch {}
   }
@@ -315,27 +286,32 @@ export class PipelineStateService {
   private restoreFromStorage(): void {
     try {
       const raw = localStorage.getItem(this.STORAGE_KEY);
-      if (!raw) return;
-      const s = JSON.parse(raw);
-      if (s.currentStep) this.currentStep.set(s.currentStep);
-      if (Array.isArray(s.steps)) this.steps.set(s.steps);
-      if (typeof s.selectedTemplateId === 'string') this.selectedTemplateId.set(s.selectedTemplateId);
-      if (typeof s.offerUrl === 'string') this.offerUrl.set(s.offerUrl);
-      if (typeof s.offerText === 'string') this.offerText.set(s.offerText);
-      if (typeof s.currentOfferId === 'string') this.currentOfferId.set(s.currentOfferId);
-      if (s.pipelineResult) this.pipelineResult.set(s.pipelineResult);
-      if (typeof s.cvDownloadUrl === 'string') this.cvDownloadUrl.set(s.cvDownloadUrl);
-      if (typeof s.isFlowOpen === 'boolean') this.isFlowOpen.set(s.isFlowOpen);
+      if (!raw) {
+        return;
+      }
+
+      const saved = JSON.parse(raw);
+      if (saved.currentStep) this.currentStep.set(saved.currentStep);
+      if (Array.isArray(saved.steps)) this.steps.set(saved.steps);
+      if (typeof saved.selectedTemplateId === 'string') this.selectedTemplateId.set(saved.selectedTemplateId);
+      if (typeof saved.offerUrl === 'string') this.offerUrl.set(saved.offerUrl);
+      if (typeof saved.offerText === 'string') this.offerText.set(saved.offerText);
+      if (typeof saved.currentOfferId === 'string') this.currentOfferId.set(saved.currentOfferId);
+      if (saved.pipelineResult) this.pipelineResult.set(saved.pipelineResult);
+      if (typeof saved.cvDownloadUrl === 'string') this.cvDownloadUrl.set(saved.cvDownloadUrl);
+      if (typeof saved.finalCvHistoryId === 'string') this.finalCvHistoryId.set(saved.finalCvHistoryId);
+      if (typeof saved.finalCvTitle === 'string') this.finalCvTitle.set(saved.finalCvTitle);
+      if (typeof saved.isFlowOpen === 'boolean') this.isFlowOpen.set(saved.isFlowOpen);
     } catch {}
   }
 
   private updateStepStatus(index: number, status: PipelineStepStatus): void {
-    this.steps.update(steps =>
-      steps.map((s, i) => i === index ? { ...s, status } : s)
+    this.steps.update((steps) =>
+      steps.map((step, i) => i === index ? { ...step, status } : step)
     );
   }
 
   private resetSteps(): void {
-    this.steps.update(steps => steps.map(s => ({ ...s, status: 'idle' })));
+    this.steps.update((steps) => steps.map((step) => ({ ...step, status: 'idle' })));
   }
 }

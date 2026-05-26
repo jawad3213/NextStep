@@ -1,7 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { OfferCard } from './offers-data';
 import { OfferApiService } from './services/offer-api.service';
 
@@ -90,57 +89,12 @@ export class OfferDetailComponent implements OnInit {
 
   async viewCv(): Promise<void> {
     if (!this.offer?.id || this.isDownloadingCv()) return;
-    this.isDownloadingCv.set(true);
-
-    try {
-      const history = await firstValueFrom(this.offerApi.getCvHistory());
-      let target = history
-        .filter((h) => h.title === `CV_${this.offer!.id}`)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-
-      // If no CV exists yet for this offer, generate one using the last known template preference.
-      if (!target?.id) {
-        const fallbackTemplate = history[0]?.templateSlug || 'modern';
-        await firstValueFrom(this.offerApi.generatePdf(this.offer.id, fallbackTemplate));
-        const refreshedHistory = await firstValueFrom(this.offerApi.getCvHistory());
-        target = refreshedHistory
-          .filter((h) => h.title === `CV_${this.offer!.id}`)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    this.router.navigate(['/offers/analyze'], {
+      queryParams: {
+        offerId: this.offer.id,
+        step: 'results'
       }
-
-      if (!target?.id) throw new Error('CV history not found after generation');
-
-      try {
-        const fileBlob = await firstValueFrom(this.offerApi.downloadCvHistoryFile(target.id));
-        this.downloadBlob(fileBlob, this.offer!.id);
-      } catch {
-        const signed = await firstValueFrom(this.offerApi.getCvDownloadUrl(target.id));
-        if (!signed?.downloadUrl) throw new Error('Signed url missing');
-        const fixedUrl = this.fixMinioHost(signed.downloadUrl);
-        window.location.href = fixedUrl;
-      }
-      this.isDownloadingCv.set(false);
-    } catch {
-      this.isDownloadingCv.set(false);
-      alert('CV non disponible pour le moment. Lance la generation depuis le pipeline puis reessaie.');
-    }
-  }
-
-  private fixMinioHost(url: string): string {
-    return url
-      .replace('http://minio:9000', 'http://localhost:9000')
-      .replace('https://minio:9000', 'http://localhost:9000');
-  }
-
-  private downloadBlob(blob: Blob, offerId: string): void {
-    const blobUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `CV_${offerId}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
+    });
   }
 
   private getInitials(value: string): string {

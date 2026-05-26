@@ -187,10 +187,10 @@ export class OffersComponent implements OnInit {
     }
   }
 
-  getNextAction(offer: OfferCard): { label: string; link: string; offerId?: string } | null {
+  getNextAction(offer: OfferCard): { label: string; link: string; queryParams?: Record<string, string> } | null {
     if (offer.expired) return null;
-    if (offer.currentStep <= 4) return { label: 'Continuer', link: '/offers/analyze', offerId: offer.id };
-    return { label: 'Voir les résultats', link: `/offers/${offer.id}` };
+    if (offer.currentStep <= 4) return { label: 'Continuer', link: '/offers/analyze', queryParams: { offerId: offer.id } };
+    return { label: 'Voir les résultats', link: '/offers/analyze', queryParams: { offerId: offer.id, step: 'results' } };
   }
 
   getRecencyLabel(date: Date): string {

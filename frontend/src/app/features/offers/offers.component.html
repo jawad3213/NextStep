@@ -191,7 +191,7 @@
             <div class="flex items-center gap-2">
               @if (getNextAction(offer); as action) {
                 <a [routerLink]="action.link"
-                  [queryParams]="action.offerId ? { offerId: action.offerId } : null"
+                  [queryParams]="action.queryParams ?? null"
                   class="flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-1.5 text-xs font-bold text-white transition-all hover:bg-brand-600 no-underline">
                   {{ action.label }}
                   <span class="material-symbols-outlined text-[14px]">arrow_forward</span>

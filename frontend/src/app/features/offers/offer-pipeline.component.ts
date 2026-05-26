@@ -89,6 +89,7 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     }
 
     const queryOfferId = this.route.snapshot.queryParamMap.get('offerId');
+    const requestedStep = this.route.snapshot.queryParamMap.get('step') as OfferStepId | null;
     const currentOfferId = this.pipeline.currentOfferId();
     const offerId = queryOfferId || currentOfferId;
     if (!offerId) {
@@ -111,6 +112,7 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     this.offerApi.getAnalysis(offerId).subscribe({
       next: (analysis) => {
         this.pipeline.hydrateFromAnalysis(offerId, analysis);
+        this.applyRequestedStep(requestedStep);
         this.pipeline.setLoading(false);
       },
       error: () => {
@@ -139,5 +141,17 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     if (pipelineStep <= this.pipeline.currentStep() || isDone) {
       this.pipeline.goToStep(pipelineStep);
     }
+  }
+
+  private applyRequestedStep(step: OfferStepId | null): void {
+    if (!step || !(step in this.stepToPipeline)) {
+      return;
+    }
+
+    const target = this.stepToPipeline[step];
+    for (let index = 0; index < target - 1; index++) {
+      this.pipeline.markStepDone(index);
+    }
+    this.pipeline.goToStep(target);
   }
 }

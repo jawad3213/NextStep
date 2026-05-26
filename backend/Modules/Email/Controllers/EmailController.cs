@@ -3,11 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Email.DTOs;
 using NextStep.Modules.Email.Services;
-<<<<<<< HEAD
 using NextStep.Modules.Identity.Repositories;
-=======
 using NextStep.Modules.Identity.Services;
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
 
 namespace NextStep.Modules.Email.Controllers;
 
@@ -17,21 +14,14 @@ namespace NextStep.Modules.Email.Controllers;
 public class EmailController : ControllerBase
 {
     private readonly IEmailService _emailService;
-<<<<<<< HEAD
     private readonly IUserRepository _userRepository;
+    private readonly IUserService _userService;
 
-    public EmailController(IEmailService emailService, IUserRepository userRepository)
+    public EmailController(IEmailService emailService, IUserRepository userRepository, IUserService userService)
     {
         _emailService     = emailService;
         _userRepository   = userRepository;
-=======
-    private readonly IUserService _userService;
-
-    public EmailController(IEmailService emailService, IUserService userService)
-    {
-        _emailService = emailService;
-        _userService = userService;
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
+        _userService      = userService;
     }
 
     // ── Existing: Generate draft ──────────────────────────────────────────────────
@@ -60,9 +50,6 @@ public class EmailController : ControllerBase
         }
     }
 
-<<<<<<< HEAD
-    // ── Existing: Get drafts by candidature ───────────────────────────────────────
-=======
     [HttpPost("send")]
     public async Task<ActionResult<EmailDraftDto>> SendApplicationEmail(
         [FromBody] SendApplicationEmailDto dto,
@@ -72,7 +59,8 @@ public class EmailController : ControllerBase
         var result = await _emailService.SendApplicationEmailAsync(user.Id, dto, cancellationToken);
         return Ok(result);
     }
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
+
+    // ── Existing: Get drafts by candidature ───────────────────────────────────────
 
     [HttpGet("candidature/{candidatureId:guid}")]
     public async Task<ActionResult<List<EmailDraftDto>>> GetByCandidature(

@@ -11,6 +11,7 @@
 # here so the existing Docker env vars (EMAIL_LLM_PROVIDER, EMAIL_LLM_MODEL) are
 # unchanged.
 # ============================================================
+import os
 import logging
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -41,6 +42,65 @@ from app.domain.email_composer.agents.prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _with_structured_output(llm, response_model):
+    provider = os.getenv("EMAIL_LLM_PROVIDER", "gemini").lower().strip()
+    if provider == "groq":
+        return llm.with_structured_output(response_model, method="json_mode")
+    return llm.with_structured_output(response_model)
+
+
+# Key aliases the LLM sometimes returns instead of the correct Pydantic field names
+_SUBJECT_ALIASES = {"subject", "objet", "sujet", "object", "titre", "title"}
+_BODY_ALIASES    = {"body", "corps", "contenu", "message", "texte", "content", "email_body", "email"}
+_LANG_ALIASES    = {"language", "langue", "lang"}
+_TONE_ALIASES    = {"tone", "ton", "style"}
+
+
+def _coerce_email_response(raw, options_language: str = "fr", options_tone: str = "professionnel") -> GenerateEmailResponse:
+    """
+    Safety net: if the LLM returns a dict with wrong field names
+    (e.g. 'corps' instead of 'body'), remap them to what Pydantic expects.
+    If `raw` is already a GenerateEmailResponse, return it as-is.
+    """
+    if isinstance(raw, GenerateEmailResponse):
+        return raw
+
+    if not isinstance(raw, dict):
+        # Try to access attributes (some parsers return objects)
+        try:
+            return GenerateEmailResponse(
+                subject=getattr(raw, "subject", "") or "",
+                body=getattr(raw, "body", "") or "",
+                language=getattr(raw, "language", options_language) or options_language,
+                tone=getattr(raw, "tone", options_tone) or options_tone,
+            )
+        except Exception:
+            raise ValueError(f"Cannot parse LLM response: {raw!r}")
+
+    raw_lower = {k.lower().strip(): v for k, v in raw.items()}
+
+    def _pick(aliases: set) -> str:
+        for alias in aliases:
+            if alias in raw_lower and raw_lower[alias]:
+                return str(raw_lower[alias])
+        return ""
+
+    subject  = _pick(_SUBJECT_ALIASES)
+    body     = _pick(_BODY_ALIASES)
+    language = _pick(_LANG_ALIASES) or options_language
+    tone     = _pick(_TONE_ALIASES) or options_tone
+
+    if not subject and not body:
+        logger.error("_coerce_email_response: no subject/body found in keys: %s", list(raw.keys()))
+        raise ValueError(f"LLM returned unrecognisable keys: {list(raw.keys())}")
+
+    logger.warning(
+        "_coerce_email_response: remapped LLM keys %s -> subject/body/language/tone",
+        list(raw.keys()),
+    )
+    return GenerateEmailResponse(subject=subject, body=body, language=language, tone=tone)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -81,7 +141,7 @@ async def generate_email_with_llm(
     )
 
     llm = get_email_llm()
-    structured_llm = llm.with_structured_output(GenerateEmailResponse)
+    structured_llm = _with_structured_output(llm, GenerateEmailResponse)
     prompt = ChatPromptTemplate.from_messages(
         [("system", APPLICATION_SYSTEM), ("human", APPLICATION_HUMAN)]
     )
@@ -122,7 +182,7 @@ async def generate_email_with_llm(
             intel.get("actualites", [""])[0] if intel.get("actualites") else "Non spécifié"
         )
 
-    result: GenerateEmailResponse = await chain.ainvoke(
+    raw = await chain.ainvoke(
         {
             # Candidate
             "full_name":    _safe(c.full_name),
@@ -157,6 +217,7 @@ async def generate_email_with_llm(
             "include_motivation_letter":  "Oui" if o.include_motivation_letter else "Non",
         }
     )
+    result = _coerce_email_response(raw, options_language=o.language, options_tone=o.tone)
 
     logger.info(
         "EmailComposer — generation succeeded candidature_id=%s | subject=%s",
@@ -298,7 +359,7 @@ async def generate_follow_up_email_with_llm(
         request.options.days_since_sent,
     )
     llm = get_email_llm()
-    structured_llm = llm.with_structured_output(GenerateEmailResponse)
+    structured_llm = _with_structured_output(llm, GenerateEmailResponse)
     prompt = ChatPromptTemplate.from_messages(
         [("system", FOLLOWUP_SYSTEM), ("human", FOLLOWUP_HUMAN)]
     )
@@ -310,7 +371,7 @@ async def generate_follow_up_email_with_llm(
     o = request.options
     days_label = str(o.days_since_sent) if o.days_since_sent is not None else "Non spécifié"
 
-    result: GenerateEmailResponse = await chain.ainvoke(
+    raw = await chain.ainvoke(
         {
             "full_name":     _safe(c.full_name),
             "email":         _safe(c.email),
@@ -336,6 +397,7 @@ async def generate_follow_up_email_with_llm(
             "tone":     o.tone,
         }
     )
+    result = _coerce_email_response(raw, options_language=o.language, options_tone=o.tone)
     logger.info("EmailComposer — follow-up succeeded candidature_id=%s", request.candidature_id)
     return result
 
@@ -351,7 +413,7 @@ async def classify_recruiter_response_with_llm(
         request.language,
     )
     llm = get_email_llm()
-    structured_llm = llm.with_structured_output(ClassifyResponseResult)
+    structured_llm = _with_structured_output(llm, ClassifyResponseResult)
     prompt = ChatPromptTemplate.from_messages(
         [("system", CLASSIFY_SYSTEM), ("human", CLASSIFY_HUMAN)]
     )
@@ -388,13 +450,13 @@ async def generate_reply_email_with_llm(
         request.language,
     )
     llm = get_email_llm()
-    structured_llm = llm.with_structured_output(GenerateEmailResponse)
+    structured_llm = _with_structured_output(llm, GenerateEmailResponse)
     prompt = ChatPromptTemplate.from_messages(
         [("system", REPLY_SYSTEM), ("human", REPLY_HUMAN)]
     )
     chain = prompt | structured_llm
 
-    result: GenerateEmailResponse = await chain.ainvoke(
+    raw = await chain.ainvoke(
         {
             "full_name":     request.candidate.full_name,
             "current_title": _safe(request.candidate.current_title),
@@ -415,5 +477,6 @@ async def generate_reply_email_with_llm(
             "tone":     request.tone,
         }
     )
+    result = _coerce_email_response(raw, options_language=request.language, options_tone=request.tone)
     logger.info("EmailComposer — reply succeeded candidature_id=%s", request.candidature_id)
     return result

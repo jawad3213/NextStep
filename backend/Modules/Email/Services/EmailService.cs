@@ -1,15 +1,11 @@
 using System.Net.Mail;
 using System.Text.Json;
 using System.Net;
-using System.Net.Mail;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NextStep.data;
-<<<<<<< HEAD
 using NextStep.Shared.Config;
-=======
 using NextStep.Modules.Candidature.Models;
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
 using NextStep.Shared.Http;
 using NextStep.Modules.Candidature.Repositories;
 using NextStep.Modules.Cv.Services;
@@ -43,21 +39,14 @@ public class EmailService : IEmailService
         IOptions<EmailFollowUpOptions> followUpOptions)
     {
         _candidatureRepository = candidatureRepository;
-<<<<<<< HEAD
         _emailDraftRepository  = emailDraftRepository;
         _emailSenderService    = emailSenderService;
         _agentHttpClient       = agentHttpClient;
         _db                    = db;
         _logger                = logger;
         _followUpOptions       = followUpOptions.Value;
-=======
         _cvService = cvService;
-        _emailDraftRepository = emailDraftRepository;
-        _agentHttpClient = agentHttpClient;
         _smtpOptions = smtpOptions.Value;
-        _db = db;
-        _logger = logger;
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
     }
 
     // ── GenerateDraftAsync ────────────────────────────────────────────────────────
@@ -837,8 +826,6 @@ public class EmailService : IEmailService
         catch { return null; }
     }
 
-<<<<<<< HEAD
-=======
     public async Task<EmailDraftDto> SendApplicationEmailAsync(
         Guid userId,
         SendApplicationEmailDto dto,
@@ -904,19 +891,8 @@ public class EmailService : IEmailService
         return MapToDto(draft);
     }
 
-    public async Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
-        Guid candidatureId,
-        CancellationToken cancellationToken = default)
-    {
-        var drafts = await _emailDraftRepository.GetByCandidatureIdAsync(
-            candidatureId, cancellationToken);
-
-        return drafts.Select(MapToDto).ToList();
-    }
-
     // ── Helpers ──────────────────────────────────────────────────────────────
 
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
     private static EmailDraftDto MapToDto(EmailDraft draft) => new()
     {
         Id                = draft.Id,
@@ -951,9 +927,6 @@ public class EmailService : IEmailService
         return [];
     }
 
-<<<<<<< HEAD
-    // ── Python response DTO (internal) ────────────────────────────────────────────
-=======
     private async Task SendEmailMessageAsync(EmailDraft draft, Guid offerId, byte[] attachmentBytes, CancellationToken cancellationToken)
     {
         ValidateSmtpConfiguration();
@@ -996,8 +969,7 @@ public class EmailService : IEmailService
         }
     }
 
-    // ── Python response DTO  ────────────────────────────────────────
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
+    // ── Python response DTO (internal) ────────────────────────────────────────────
     private sealed class PythonEmailResponse
     {
         public string Subject  { get; set; } = string.Empty;

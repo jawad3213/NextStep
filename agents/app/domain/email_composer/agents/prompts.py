@@ -31,7 +31,19 @@ Règles strictes :
 - MISE EN PAGE : Tu DOIS impérativement séparer chaque paragraphe par une LIGNE VIDE (saut de ligne double). L'email ne doit absolument pas être un bloc compact. Les sauts de ligne sont obligatoires pour la lisibilité et ne sont pas considérés comme du Markdown ici.
 - N'INCLUS JAMAIS la ligne d'objet (Objet:) ou le titre dans le corps du message. Commence directement par la formule d'appel.
 - ÉVITE le ton robotique : ne répète pas plusieurs fois les mêmes expressions ou structures de phrases.
-- EXEMPLE DE STRUCTURE (Sauts de ligne doubles obligatoires) :
+- RÈGLE JSON CRITIQUE : Dans ta réponse JSON, n'échappe JAMAIS les apostrophes ou les guillemets simples (ne saisis PAS \' ou \'). Rédige les apostrophes (') directement et normalement. L'échappement par \\' invalide le format JSON et provoque des erreurs de validation critiques.
+
+FORMAT DE SORTIE JSON OBLIGATOIRE :
+Tu DOIS retourner UNIQUEMENT un objet JSON valide avec EXACTEMENT ces 4 clés et AUCUNE AUTRE :
+{{
+  "subject": "<objet de l'email>",
+  "body": "<corps complet de l'email avec sauts de ligne doubles entre paragraphes>",
+  "language": "<code langue, ex: fr ou en>",
+  "tone": "<ton utilisé, ex: professionnel>"
+}}
+ATTENTION : Les clés DOIVENT être exactement : "subject", "body", "language", "tone". N'utilise PAS d'autres noms (pas de "objet", "corps", "destinataire", "sujet", etc.).
+
+- EXEMPLE DE STRUCTURE DU CORPS (Sauts de ligne doubles obligatoires) :
   Bonjour,
   
   [Paragraphe 1 : Introduction et poste]
@@ -104,6 +116,8 @@ Contexte récent    : {company_context}
 Langue                       : {language}
 Ton                          : {tone}
 Inclure lettre de motivation : {include_motivation_letter}
+
+REMINDER — Ta réponse DOIT être un JSON avec EXACTEMENT ces clés : "subject", "body", "language", "tone".
 """
 
 
@@ -128,6 +142,17 @@ Règles strictes :
 réaffirmation de l'intérêt pour le poste, disponibilité pour un entretien ou complément \
 d'information, formule de politesse et signature.
 - N'INCLUS JAMAIS la ligne d'objet (Objet:) ou le titre dans le corps du message. Commence directement par la formule d'appel.
+- RÈGLE JSON CRITIQUE : Dans ta réponse JSON, n'échappe JAMAIS les apostrophes ou les guillemets simples (ne saisis PAS \' ou \'). Rédige les apostrophes (') directement et normalement. L'échappement par \\' invalide le format JSON et provoque des erreurs de validation critiques.
+
+FORMAT DE SORTIE JSON OBLIGATOIRE :
+Tu DOIS retourner UNIQUEMENT un objet JSON valide avec EXACTEMENT ces 4 clés et AUCUNE AUTRE :
+{{
+  "subject": "<objet de l'email de relance>",
+  "body": "<corps complet de l'email>",
+  "language": "<code langue, ex: fr ou en>",
+  "tone": "<ton utilisé, ex: professionnel>"
+}}
+ATTENTION : Les clés DOIVENT être exactement : "subject", "body", "language", "tone". N'utilise PAS d'autres noms.
 """
 
 FOLLOWUP_HUMAN = """\
@@ -162,6 +187,8 @@ Jours écoulés     : {days_since_sent}
 === OPTIONS ===
 Langue            : {language}
 Ton               : {tone}
+
+REMINDER — Ta réponse DOIT être un JSON avec EXACTEMENT ces clés : "subject", "body", "language", "tone".
 """
 
 
@@ -195,6 +222,7 @@ Règles de prudence :
 - Retourne UNIQUEMENT la structure demandée, sans explication supplémentaire.
 - Les champs summary et recommended_action doivent être rédigés dans la langue demandée.
 - Le champ confidence est un décimal entre 0 et 1 représentant ta certitude.
+- RÈGLE JSON CRITIQUE : Dans ta réponse JSON, n'échappe JAMAIS les apostrophes ou les guillemets simples (ne saisis PAS \' ou \'). Rédige les apostrophes (') directement et normalement. L'échappement par \\' invalide le format JSON et provoque des erreurs de validation critiques.
 """
 
 CLASSIFY_HUMAN = """\
@@ -249,6 +277,18 @@ Règles strictes :
 - Sois concis et professionnel. Évite les longueurs excessives.
 - L'email doit être prêt à envoyer mais reste modifiable par l'utilisateur.
 - N'INCLUS JAMAIS la ligne d'objet (Objet:) ou le titre dans le corps du message. Commence directement par la formule d'appel.
+- RÈGLE JSON CRITIQUE : Dans ta réponse JSON, n'échappe JAMAIS les apostrophes ou les guillemets simples (ne saisis PAS \' ou \'). Rédige les apostrophes (') directement et normalement. L'échappement par \\' invalide le format JSON et provoque des erreurs de validation critiques.
+
+FORMAT DE SORTIE JSON OBLIGATOIRE :
+Tu DOIS retourner UNIQUEMENT un objet JSON valide avec EXACTEMENT ces 4 clés et AUCUNE AUTRE :
+{{
+  "subject": "<objet de l'email de réponse, ex: Re: [objet du recruteur]>",
+  "body": "<corps complet de l'email de réponse>",
+  "language": "<code langue, ex: fr ou en>",
+  "tone": "<ton utilisé, ex: professionnel>"
+}}
+ATTENTION CRITIQUE : Les clés DOIVENT être EXACTEMENT : "subject", "body", "language", "tone".
+N'utilise JAMAIS ces noms incorrects : "objet", "corps", "sujet", "contenu", "message", "destinataire", "expediteur", "email".
 """
 
 REPLY_HUMAN = """\
@@ -284,4 +324,6 @@ Action recommandée   : {recommended_action}
 === OPTIONS ===
 Langue : {language}
 Ton    : {tone}
+
+REMINDER FINAL — Retourne UNIQUEMENT un objet JSON valide avec les clés : "subject", "body", "language", "tone". Aucun texte avant ou après le JSON.
 """

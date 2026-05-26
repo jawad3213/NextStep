@@ -8,21 +8,19 @@ public interface IEmailService
         GenerateEmailDraftDto dto,
         CancellationToken cancellationToken = default);
 
-<<<<<<< HEAD
     Task<EmailDraftDto> GetDraftByIdAsync(
         Guid draftId,
         Guid localUserId,
-=======
+        CancellationToken cancellationToken = default);
+
     Task<EmailDraftDto> SendApplicationEmailAsync(
         Guid userId,
         SendApplicationEmailDto dto,
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
         CancellationToken cancellationToken = default);
 
     Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
         Guid candidatureId,
         CancellationToken cancellationToken = default);
-<<<<<<< HEAD
 
     Task<EmailDraftDto> UpdateDraftAsync(
         Guid draftId,
@@ -50,6 +48,3 @@ public interface IEmailService
         Guid localUserId,
         CancellationToken cancellationToken = default);
 }
-=======
-}
->>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938

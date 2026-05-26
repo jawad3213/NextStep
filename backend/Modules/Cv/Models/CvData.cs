@@ -20,6 +20,7 @@ public class CvData
 
     // Customization
     public string? ThemeColor { get; set; }
+    public string? FontFamily { get; set; }
 
     // AI Metadata
     public int AtsScore { get; set; }

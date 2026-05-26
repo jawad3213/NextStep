@@ -1,118 +1,46 @@
 <div class="generation-shell">
-  <header class="generation-toolbar">
-    <button class="toolbar-link" (click)="goBack()">
-      <span aria-hidden="true">&larr;</span>
-      <span>Templates</span>
-    </button>
-
-    <div class="document-meta">
-      <p>Edition CV</p>
-      <h2>{{ generatedCvData?.candidate?.name || 'CV candidat' }}</h2>
-    </div>
-
-    <div class="toolbar-spacer"></div>
-
-    <span class="template-chip">{{ selectedTemplate | titlecase }}</span>
-    <span class="score-chip">ATS {{ generatedCvData?.atsScore ?? 0 }}%</span>
-
-    <button class="secondary-action" (click)="openPreviewModal()" [disabled]="!livePreviewUrl">
-      Apercu grand
-    </button>
-    <button class="secondary-action" (click)="downloadFinalPdf()" [disabled]="isSavingFinal || isDownloadingFinal || !livePreviewUrl">
-      {{ isDownloadingFinal ? 'Telechargement...' : 'Telecharger PDF' }}
-    </button>
-    <button class="primary-action" (click)="continueToResults()" [disabled]="isSavingFinal || !livePreviewUrl">
-      {{ isSavingFinal ? 'Sauvegarde...' : 'Sauvegarder et continuer' }}
-      <span aria-hidden="true">-&gt;</span>
-    </button>
-  </header>
-
-  <div class="generation-grid">
-    <section class="editor-column">
-      <div class="column-heading">
-        <p>Contenu editable</p>
-        <h3>Personnalisez les sections</h3>
-      </div>
-
-      <app-resume-editor
-        [templateId]="selectedTemplate"
-        [offerId]="currentOfferId"
-        [initialData]="editorInitialData()"
-        (dataChange)="onEditorDataChange($event)"
-        (back)="goBack()"
-        (continue)="continueToResults()"
-      />
-    </section>
-
-    <aside class="pdf-column">
-      <div class="pdf-panel-header">
-        <div>
-          <p class="eyebrow">Preview final</p>
-          <h3>Ce que vous voyez sera telecharge</h3>
+  @if (isAwaitingGeneratedCv) {
+    <div class="generation-waiting">
+      <div class="generation-waiting-card">
+        <p class="waiting-eyebrow">Pipeline IA active</p>
+        <h3>{{ generationProgressLabel }}</h3>
+        <div class="waiting-progress-track">
+          <div class="waiting-progress-fill" [style.width.%]="generationProgressPercent"></div>
         </div>
-        <span class="status-pill" [class.loading]="isRenderingPreview" [class.error]="previewError">
-          @if (previewError) {
-            Erreur rendu
-          } @else {
-            {{ isRenderingPreview ? 'Mise a jour' : 'Synchronise' }}
-          }
-        </span>
-      </div>
+        <div class="waiting-progress-meta">
+          <span>Preparation du CV optimise</span>
+          <strong>{{ generationProgressPercent }}%</strong>
+        </div>
 
-          @if (livePreviewUrl) {
-        <button class="pdf-preview-card" (click)="openPreviewModal()" title="Ouvrir le CV en grand">
-            <iframe class="pdf-preview-frame" [src]="livePreviewUrl"></iframe>
-        </button>
-          } @else {
-            <div class="pdf-preview-empty" [class.error]="previewError">
-          <strong>{{ previewError ? 'Le backend a refuse le rendu PDF.' : 'Preparation du rendu PDF...' }}</strong>
-              @if (previewError) {
-                <span>{{ previewError }}</span>
-              } @else {
-            <span>Le meme flux sera utilise pour le PDF final.</span>
-              }
+        <div class="waiting-stage-list">
+          @for (stage of generationStages; track stage.key) {
+            <div class="waiting-stage" [class.running]="getGenerationStageStatus(stage.key) === 'running'" [class.done]="getGenerationStageStatus(stage.key) === 'done'">
+              <span class="stage-dot"></span>
+              <span>{{ stage.label }}</span>
             </div>
           }
-
-      <div class="template-strip" aria-label="Templates PDF reels">
-        @for (tpl of realTemplates; track tpl.slug) {
-          <button
-            class="template-thumb-card"
-            [class.active]="selectedTemplate === tpl.slug"
-            (click)="selectTemplate(tpl.slug)"
-            type="button">
-            <span class="thumb-frame">
-              <iframe [src]="templateThumbnailUrl(tpl.slug)" loading="lazy"></iframe>
-            </span>
-            <strong>{{ tpl.label }}</strong>
-            <small>{{ tpl.tone }}</small>
-          </button>
-        }
-      </div>
-
-      <div class="pdf-note" [class.saved]="savedHistoryId">
-        @if (savedHistoryId) {
-          PDF final sauvegarde. Le bouton Telecharger recupere le fichier backend sauvegarde.
-        } @else {
-          Le preview est regenere par <strong>/api/cv/preview/render</strong>. La sauvegarde utilise les memes donnees et le meme template.
-        }
-        <span class="draft-sync-note">{{ draftStatusText }}</span>
-      </div>
-    </aside>
-  </div>
-</div>
-
-@if (showPreviewModal && livePreviewUrl) {
-  <div class="preview-modal-backdrop" (click)="closePreviewModal()">
-    <div class="preview-modal" (click)="$event.stopPropagation()">
-      <div class="preview-modal-header">
-        <div>
-          <p>Apercu final</p>
-          <h3>PDF genere par le backend</h3>
         </div>
-        <button class="close-btn" (click)="closePreviewModal()">&times;</button>
       </div>
-      <iframe class="preview-modal-frame" [src]="livePreviewUrl"></iframe>
     </div>
-  </div>
-}
+  } @else {
+    <app-resume-editor
+      [templateId]="selectedTemplate"
+      [offerId]="currentOfferId"
+      [initialData]="editorInitialData()"
+      [renderedHtml]="renderedHtml"
+      [designConfig]="currentDesignConfig"
+      [isRenderingPreview]="isRenderingPreview"
+      [isReoptimizingCv]="isReoptimizingCv"
+      [isGeneratingHighQualityPdf]="isGeneratingHighQualityPdf"
+      [isSavingFinal]="isSavingFinal"
+      [previewError]="previewError"
+      (dataChange)="onEditorDataChange($event)"
+      (designConfigChange)="onDesignConfigChange($event)"
+      (download)="downloadFinalPdf()"
+      (reoptimize)="reoptimizeCv()"
+      (templateChange)="selectTemplate($event)"
+      (back)="goBack()"
+      (finishRequested)="continueToResults()"
+    />
+  }
+</div>

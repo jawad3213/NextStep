@@ -1,11 +1,18 @@
 using System.Net.Mail;
 using System.Text.Json;
+using System.Net;
+using System.Net.Mail;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NextStep.data;
+<<<<<<< HEAD
 using NextStep.Shared.Config;
+=======
+using NextStep.Modules.Candidature.Models;
+>>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
 using NextStep.Shared.Http;
 using NextStep.Modules.Candidature.Repositories;
+using NextStep.Modules.Cv.Services;
 using NextStep.Modules.Email.DTOs;
 using NextStep.Modules.Email.Models;
 using NextStep.Modules.Email.Repositories;
@@ -15,29 +22,42 @@ namespace NextStep.Modules.Email.Services;
 public class EmailService : IEmailService
 {
     private readonly ICandidatureRepository _candidatureRepository;
+    private readonly ICvService _cvService;
     private readonly IEmailDraftRepository _emailDraftRepository;
     private readonly IEmailSenderService _emailSenderService;
     private readonly IAgentHttpClient _agentHttpClient;
+    private readonly SmtpEmailOptions _smtpOptions;
     private readonly AppDbContext _db;
     private readonly ILogger<EmailService> _logger;
     private readonly EmailFollowUpOptions _followUpOptions;
 
     public EmailService(
         ICandidatureRepository candidatureRepository,
+        ICvService cvService,
         IEmailDraftRepository emailDraftRepository,
         IEmailSenderService emailSenderService,
         IAgentHttpClient agentHttpClient,
+        IOptions<SmtpEmailOptions> smtpOptions,
         AppDbContext db,
         ILogger<EmailService> logger,
         IOptions<EmailFollowUpOptions> followUpOptions)
     {
         _candidatureRepository = candidatureRepository;
+<<<<<<< HEAD
         _emailDraftRepository  = emailDraftRepository;
         _emailSenderService    = emailSenderService;
         _agentHttpClient       = agentHttpClient;
         _db                    = db;
         _logger                = logger;
         _followUpOptions       = followUpOptions.Value;
+=======
+        _cvService = cvService;
+        _emailDraftRepository = emailDraftRepository;
+        _agentHttpClient = agentHttpClient;
+        _smtpOptions = smtpOptions.Value;
+        _db = db;
+        _logger = logger;
+>>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
     }
 
     // ── GenerateDraftAsync ────────────────────────────────────────────────────────
@@ -817,6 +837,86 @@ public class EmailService : IEmailService
         catch { return null; }
     }
 
+<<<<<<< HEAD
+=======
+    public async Task<EmailDraftDto> SendApplicationEmailAsync(
+        Guid userId,
+        SendApplicationEmailDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.RecipientEmail))
+            throw new InvalidOperationException("Recipient email is required.");
+        if (string.IsNullOrWhiteSpace(dto.Subject))
+            throw new InvalidOperationException("Email subject is required.");
+        if (string.IsNullOrWhiteSpace(dto.Body))
+            throw new InvalidOperationException("Email body is required.");
+
+        var candidature = await _db.Candidatures
+            .FirstOrDefaultAsync(c => c.IdOffre == dto.OfferId && c.IdUtilisateur == userId, cancellationToken);
+
+        if (candidature is null)
+            throw new KeyNotFoundException($"No candidature found for offer {dto.OfferId}.");
+
+        var cvHistoryId = dto.CvHistoryId ?? await _db.CvHistories
+            .Where(h => h.UserId == userId && h.Title == $"CV_{dto.OfferId}")
+            .OrderByDescending(h => h.CreatedAt)
+            .Select(h => (Guid?)h.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!cvHistoryId.HasValue)
+            throw new InvalidOperationException("No final CV was found to attach to the email.");
+
+        var attachmentBytes = await _cvService.GetDownloadBytesAsync(userId, cvHistoryId.Value);
+        var draft = new EmailDraft
+        {
+            CandidatureId = candidature.IdCandidature,
+            EmailType = string.IsNullOrWhiteSpace(dto.EmailType) ? "application" : dto.EmailType.Trim(),
+            RecipientEmail = dto.RecipientEmail.Trim(),
+            Subject = dto.Subject.Trim(),
+            Body = dto.Body.Trim(),
+            Language = string.IsNullOrWhiteSpace(dto.Language) ? "fr" : dto.Language.Trim(),
+            IsApproved = true,
+            IsSent = false,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+
+        try
+        {
+            await SendEmailMessageAsync(draft, dto.OfferId, attachmentBytes, cancellationToken);
+            draft.IsSent = true;
+            draft.SentAtUtc = DateTime.UtcNow;
+            draft.UpdatedAtUtc = draft.SentAtUtc;
+            draft.ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            draft.IsSent = false;
+            draft.UpdatedAtUtc = DateTime.UtcNow;
+            draft.ErrorMessage = ex.Message;
+            _logger.LogError(ex, "EmailService - failed to send application email for offer {OfferId}", dto.OfferId);
+        }
+
+        await _emailDraftRepository.AddAsync(draft, cancellationToken);
+
+        if (!draft.IsSent)
+            throw new InvalidOperationException(draft.ErrorMessage ?? "Email sending failed.");
+
+        return MapToDto(draft);
+    }
+
+    public async Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default)
+    {
+        var drafts = await _emailDraftRepository.GetByCandidatureIdAsync(
+            candidatureId, cancellationToken);
+
+        return drafts.Select(MapToDto).ToList();
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+>>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
     private static EmailDraftDto MapToDto(EmailDraft draft) => new()
     {
         Id                = draft.Id,
@@ -851,7 +951,53 @@ public class EmailService : IEmailService
         return [];
     }
 
+<<<<<<< HEAD
     // ── Python response DTO (internal) ────────────────────────────────────────────
+=======
+    private async Task SendEmailMessageAsync(EmailDraft draft, Guid offerId, byte[] attachmentBytes, CancellationToken cancellationToken)
+    {
+        ValidateSmtpConfiguration();
+
+        using var message = new MailMessage
+        {
+            From = new MailAddress(_smtpOptions.FromEmail, _smtpOptions.FromName),
+            Subject = draft.Subject,
+            Body = draft.Body,
+            IsBodyHtml = false,
+            BodyEncoding = System.Text.Encoding.UTF8,
+            SubjectEncoding = System.Text.Encoding.UTF8,
+        };
+
+        message.To.Add(draft.RecipientEmail!);
+        var attachmentStream = new MemoryStream(attachmentBytes, writable: false);
+        var attachment = new Attachment(attachmentStream, $"CV_{offerId}.pdf", "application/pdf");
+        message.Attachments.Add(attachment);
+
+        using var client = new SmtpClient(_smtpOptions.Host, _smtpOptions.Port)
+        {
+            EnableSsl = _smtpOptions.EnableSsl,
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            UseDefaultCredentials = false,
+            Credentials = string.IsNullOrWhiteSpace(_smtpOptions.Username)
+                ? CredentialCache.DefaultNetworkCredentials
+                : new NetworkCredential(_smtpOptions.Username, _smtpOptions.Password)
+        };
+
+        using var ctr = cancellationToken.Register(() => client.SendAsyncCancel());
+        await client.SendMailAsync(message, cancellationToken);
+    }
+
+    private void ValidateSmtpConfiguration()
+    {
+        if (string.IsNullOrWhiteSpace(_smtpOptions.Host)
+            || string.IsNullOrWhiteSpace(_smtpOptions.FromEmail))
+        {
+            throw new InvalidOperationException("SMTP is not configured. Please set Email:Smtp:Host and Email:Smtp:FromEmail.");
+        }
+    }
+
+    // ── Python response DTO  ────────────────────────────────────────
+>>>>>>> dd6b6da26fce12d583ed2393398e6269c90a5938
     private sealed class PythonEmailResponse
     {
         public string Subject  { get; set; } = string.Empty;

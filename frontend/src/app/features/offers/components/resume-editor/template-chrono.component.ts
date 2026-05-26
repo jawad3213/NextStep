@@ -203,10 +203,16 @@ import { ResumeData } from './resume.model';
             Langues
           </h2>
           <div class="flex flex-wrap gap-4">
-            @for (lang of data().languages; track lang.name) {
+            @for (lang of data().languages; track $index) {
               <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-slate-700">{{ lang.name }}</span>
-                <span class="text-xs text-slate-400">({{ lang.proficiency }})</span>
+                @if (isString(lang)) {
+                  <span class="text-sm font-medium text-slate-700">{{ lang }}</span>
+                } @else {
+                  <span class="text-sm font-medium text-slate-700">{{ lang.name }}</span>
+                  @if (lang.proficiency) {
+                    <span class="text-xs text-slate-400">({{ lang.proficiency }})</span>
+                  }
+                }
               </div>
             }
           </div>
@@ -275,6 +281,10 @@ import { ResumeData } from './resume.model';
 })
 export class TemplateChronoComponent {
   data = input.required<ResumeData>();
+
+  protected isString(value: any): boolean {
+    return typeof value === 'string';
+  }
 
   protected get fontSizeClasses(): string {
     const size = this.data().fontSize;

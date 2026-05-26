@@ -43,8 +43,12 @@ public class PipelineRunnerService : IPipelineRunnerService
 
         try
         {
+            Guid userGuid = Guid.TryParse(userId, out var parsedUserId) ? parsedUserId : Guid.Empty;
+            if (userGuid == Guid.Empty)
+                throw new InvalidOperationException("Authenticated user id is missing or invalid.");
+
             await SendProgress(offerId, "analyzing_offer", "running", 10, "Analyse initiale...", "offer_analyzer");
-            var keepAliveTask = SendKeepAliveAsync(offerId, pipelineCt);
+            var keepAliveTask = SendKeepAliveAsync(offerId, "analysis", pipelineCt);
 
             using var scope = _scopeFactory.CreateScope();
             var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
@@ -57,10 +61,9 @@ public class PipelineRunnerService : IPipelineRunnerService
 
             // Save to DB
             var offerService = scope.ServiceProvider.GetRequiredService<IOfferService>();
-            Guid userGuid = Guid.TryParse(userId, out var pg) ? pg : Guid.Empty;
             await offerService.SavePipelineResultAsync(offerId, result, userGuid, CancellationToken.None);
 
-            var dto = await offerService.GetAnalysisAsync(offerId, CancellationToken.None);
+            var dto = await offerService.GetAnalysisAsync(userGuid, offerId, CancellationToken.None);
             
             await SendProgress(offerId, "analyzing_offer", "completed", 100, "Analyse terminée. Choisissez un template.", "db_persist");
 
@@ -83,15 +86,19 @@ public class PipelineRunnerService : IPipelineRunnerService
 
         try
         {
+            Guid userGuid = Guid.TryParse(userId, out var parsedUserId) ? parsedUserId : Guid.Empty;
+            if (userGuid == Guid.Empty)
+                throw new InvalidOperationException("Authenticated user id is missing or invalid.");
+
             await SendProgress(offerId, "generating_cv", "running", 10, "Génération du CV optimisé...", "cv_optimizer");
-            var keepAliveTask = SendKeepAliveAsync(offerId, pipelineCt);
+            var keepAliveTask = SendKeepAliveAsync(offerId, "generation", pipelineCt);
 
             using var scope = _scopeFactory.CreateScope();
             var offerService = scope.ServiceProvider.GetRequiredService<IOfferService>();
             var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
 
             // 1. Retrieve current analysis from DB
-            var offer = await offerService.GetOfferWithAnalysisAsync(offerId, CancellationToken.None);
+            var offer = await offerService.GetOfferWithAnalysisAsync(userGuid, offerId, CancellationToken.None);
             if (offer == null || string.IsNullOrEmpty(offer.AnalyseJson)) throw new Exception("Analysis data missing in DB");
 
             using var doc = JsonDocument.Parse(offer.AnalyseJson);
@@ -101,7 +108,16 @@ public class PipelineRunnerService : IPipelineRunnerService
             var resumeData = new {
                 analyzed_offer = root.TryGetProperty("analyzed_offer", out var ao) ? JsonSerializer.Deserialize<object>(ao.GetRawText()) : null,
                 profile_data = root.TryGetProperty("profile_data", out var pd) ? JsonSerializer.Deserialize<object>(pd.GetRawText()) : null,
-                match_result = root.TryGetProperty("match_result", out var mr) ? JsonSerializer.Deserialize<object>(mr.GetRawText()) : null,
+                skill_gap_analysis = root.TryGetProperty("skill_gap_analysis", out var sga)
+                    ? JsonSerializer.Deserialize<object>(sga.GetRawText())
+                    : root.TryGetProperty("match_result", out var mrForSkillGap)
+                        ? JsonSerializer.Deserialize<object>(mrForSkillGap.GetRawText())
+                        : null,
+                match_result = root.TryGetProperty("match_result", out var mr)
+                    ? JsonSerializer.Deserialize<object>(mr.GetRawText())
+                    : root.TryGetProperty("skill_gap_analysis", out var sgaForMatch)
+                        ? JsonSerializer.Deserialize<object>(sgaForMatch.GetRawText())
+                        : null,
                 company_intelligence = root.TryGetProperty("company_intelligence", out var ci) ? JsonSerializer.Deserialize<object>(ci.GetRawText()) : null
             };
 
@@ -112,10 +128,9 @@ public class PipelineRunnerService : IPipelineRunnerService
             try { await keepAliveTask; } catch (OperationCanceledException) { }
 
             // 4. Save Final Result
-            Guid userGuid = Guid.TryParse(userId, out var pg) ? pg : Guid.Empty;
             await offerService.SavePipelineResultAsync(offerId, result, userGuid, CancellationToken.None);
 
-            var dto = await offerService.GetAnalysisAsync(offerId, CancellationToken.None);
+            var dto = await offerService.GetAnalysisAsync(userGuid, offerId, CancellationToken.None);
             
             await SendProgress(offerId, "generating_cv", "completed", 100, "CV généré avec succès !", "db_persist");
 
@@ -133,8 +148,43 @@ public class PipelineRunnerService : IPipelineRunnerService
     /// Sends periodic keep-alive progress events every 15 seconds so the frontend
     /// knows the pipeline is still running and does not display a timeout error.
     /// </summary>
-    private async Task SendKeepAliveAsync(Guid offerId, CancellationToken ct)
+    private async Task SendKeepAliveAsync(Guid offerId, string mode, CancellationToken ct)
     {
+        if (mode == "generation")
+        {
+            var generationSteps = new[]
+            {
+                (20, "Preparation du contexte candidat...", "profile_context"),
+                (38, "Consolidation de l'analyse existante...", "analysis_context"),
+                (65, "Optimisation du CV...", "cv_optimizer"),
+                (82, "Generation du CV final...", "cv_engine"),
+            };
+
+            try
+            {
+                foreach (var (pct, msg, agent) in generationSteps)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(15), ct);
+                    await SendProgress(offerId, "pipeline_running", "running", pct, msg, agent);
+                }
+
+                var generationHeartbeat = 85;
+                while (!ct.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(20), ct);
+                    if (generationHeartbeat < 89) generationHeartbeat++;
+                    await SendProgress(offerId, "pipeline_running", "running", generationHeartbeat,
+                        "Finalisation en cours...", "db_persist");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when pipeline completes - silently exit
+            }
+
+            return;
+        }
+
         var steps = new[]
         {
             (15, "Analyse de l'offre en cours...", "offer_analyzer"),
@@ -203,8 +253,23 @@ public class PipelineRunnerService : IPipelineRunnerService
             dto.KeywordsAts = ao.GetStringList("keywords_ats");
         }
 
+        if (root.TryGetProperty("skill_gap_analysis", out var sga) && sga.ValueKind == JsonValueKind.Object)
+        {
+            dto.MatchResult = JsonSerializer.Deserialize<object>(sga.GetRawText());
+            dto.SkillGapAnalysis = JsonSerializer.Deserialize<object>(sga.GetRawText());
+            dto.ScoreMatching = sga.GetIntOrDefault("score_matching") ?? 0;
+            dto.ScoreAts = sga.GetIntOrDefault("score_ats") ?? 0;
+            dto.KeywordsPresents = sga.GetStringList("keywords_presents");
+            dto.KeywordsManquants = sga.GetStringList("keywords_manquants");
+            dto.Recommandations = sga.GetStringList("recommandations");
+            dto.CompetencesMatching = sga.GetStringList("competences_matching");
+            dto.CompetencesManquantes = sga.GetStringList("competences_manquantes");
+        }
+
         if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)
         {
+            dto.MatchResult ??= JsonSerializer.Deserialize<object>(mr.GetRawText());
+            dto.SkillGapAnalysis ??= JsonSerializer.Deserialize<object>(mr.GetRawText());
             dto.ScoreMatching = mr.GetIntOrDefault("score_matching") ?? 0;
             dto.ScoreAts = mr.GetIntOrDefault("score_ats") ?? 0;
             dto.KeywordsPresents = mr.GetStringList("keywords_presents");

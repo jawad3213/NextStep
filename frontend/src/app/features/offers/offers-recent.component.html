@@ -1,189 +1,251 @@
 <div class="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 lg:p-5 pt-1 md:pt-2">
-
-  <!-- Header -->
-  <div class="mb-6">
-    <h1 class="text-xl font-bold text-gray-900">Offres récentes</h1>
-    <p class="mt-0.5 text-xs text-slate-500">Consultez vos dernières offres analysées et leur statut</p>
+  <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Offres sourcees</h1>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Workspace de sourcing multi-provider pour trier, sauvegarder, shortlist et promouvoir les meilleures offres.
+      </p>
+    </div>
+    <div class="text-xs text-slate-400">
+      Derniere actualisation: {{ formatLastUpdated() }}
+    </div>
   </div>
 
-  <!-- Filter Bar -->
-  <div class="mb-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-    <div class="flex w-full items-center gap-3 sm:w-auto">
-      <div class="relative w-full sm:w-72">
+  <section class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="grid gap-3 lg:grid-cols-[1.1fr_1fr_180px_200px_auto]">
+      <label class="block">
+        <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Keywords</span>
         <input
-          (input)="onSearchInput($any($event.target).value)"
-          placeholder="Rechercher une offre, une entreprise..."
-          class="w-full rounded-xl border-slate-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm transition-all focus:bg-white"
+          [ngModel]="keywords()"
+          (ngModelChange)="keywords.set($event)"
+          class="w-full rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
+          placeholder="software engineer, python, data analyst..."
         />
-        <span class="material-symbols-outlined absolute left-3 top-2.5 text-base text-slate-400">search</span>
-      </div>
-      <div class="flex items-center rounded-xl border border-slate-200 bg-gray-50 p-1">
-        <button (click)="viewMode.set('list')"
-          class="flex cursor-pointer items-center justify-center rounded-lg p-2 transition-colors"
-          [class]="viewMode() === 'list' ? 'bg-white text-brand-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
-          title="Vue en ligne">
-          <span class="material-symbols-outlined text-xl">view_list</span>
-        </button>
-        <button (click)="viewMode.set('grid')"
-          class="flex cursor-pointer items-center justify-center rounded-lg p-2 transition-colors"
-          [class]="viewMode() === 'grid' ? 'bg-white text-brand-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
-          title="Vue en colonne">
-          <span class="material-symbols-outlined text-xl">grid_view</span>
-        </button>
-      </div>
-    </div>
-    <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-      <select (change)="onSortChange($any($event.target).value)"
-        class="cursor-pointer rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-brand-500">
-        <option value="date">Plus récentes</option>
-        <option value="score">Score croissant</option>
-        <option value="company">Entreprise A-Z</option>
-        <option value="daysLeft">Jours restants</option>
-      </select>
-      <select (change)="onFilterContractChange($any($event.target).value)"
-        class="cursor-pointer rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-brand-500">
-        <option value="">Type de Contrat</option>
-        <option value="stage">Stage</option>
-        <option value="cdi">CDI</option>
-        <option value="freelance">Freelance</option>
-      </select>
-      <select (change)="onFilterStatusChange($any($event.target).value)"
-        class="cursor-pointer rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-brand-500">
-        <option value="">Statut</option>
-        <option value="analysee">Analysée</option>
-        <option value="cv_genere">CV Généré</option>
-        <option value="non_traitee">Non traitée</option>
-      </select>
-    </div>
-  </div>
+      </label>
 
-  <!-- Offer Grid -->
-  @if (paginatedOffers.length > 0) {
-    <div [@cardAnimation]="paginatedOffers.length"
-      class="gap-4"
-      [class]="viewMode() === 'grid' ? 'grid grid-cols-1 md:grid-cols-2' : 'grid grid-cols-1'">
+      <label class="block">
+        <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Location</span>
+        <input
+          [ngModel]="location()"
+          (ngModelChange)="location.set($event)"
+          class="w-full rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
+          placeholder="Morocco, Rabat, Remote..."
+        />
+      </label>
 
-      @for (offer of paginatedOffers; track offer.id) {
-        <article class="group relative rounded-2xl border p-5 transition-all hover:shadow-md"
-          [class]="offer.expired ? 'border-slate-100 bg-slate-50/50 opacity-75 grayscale' : (offer.urgent ? 'border-2 border-amber-100 bg-white' : 'border-slate-200 bg-white')">
-
-          @if (offer.urgent) {
-            <div class="absolute right-0 top-0 rounded-bl-lg bg-amber-500 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-white">Urgent</div>
+      <label class="block">
+        <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Posted</span>
+        <select
+          [ngModel]="selectedPostedWindow()"
+          (ngModelChange)="selectedPostedWindow.set($event); loadCachedOffers()"
+          class="w-full rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white"
+        >
+          @for (window of postedWindows; track window.value) {
+            <option [value]="window.value">{{ window.label }}</option>
           }
+        </select>
+      </label>
 
-          <div class="flex items-start justify-between">
+      <label class="block">
+        <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Country</span>
+        <input
+          [ngModel]="indeedCountryCode()"
+          (ngModelChange)="indeedCountryCode.set($event)"
+          class="w-full rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
+          placeholder="ma"
+        />
+      </label>
+
+      <div class="flex items-end">
+        <button
+          (click)="refreshOffers()"
+          [disabled]="isLoading() || selectedProviders().length === 0"
+          class="w-full rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+        >
+          {{ isLoading() ? 'Refreshing...' : 'Refresh providers' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-2">
+      @for (provider of providers; track provider.key) {
+        <button
+          (click)="toggleProvider(provider.key)"
+          class="rounded-xl border px-3 py-2 text-left text-sm transition"
+          [class]="selectedProviders().includes(provider.key) ? provider.tone + ' shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
+        >
+          <div class="flex items-center gap-2">
+            <span class="font-semibold">{{ provider.label }}</span>
+            <span class="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+              {{ getProviderCount(provider.key) }}
+            </span>
+          </div>
+        </button>
+      }
+    </div>
+
+    <div class="mt-4">
+      <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Contract type</span>
+      <div class="flex flex-wrap gap-2">
+        @for (option of contractOptions; track option.value) {
+          <button
+            (click)="toggleContractType(option.value)"
+            class="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+            [class]="selectedContractTypes().includes(option.value) ? 'border-brand-200 bg-brand-50 text-brand-600' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'"
+          >
+            {{ option.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-wrap gap-2">
+        @for (tab of workflowTabs; track tab.key) {
+          <button
+            (click)="setWorkflowTab(tab.key)"
+            class="rounded-xl border px-3 py-2 text-sm font-semibold transition"
+            [class]="workflowTab() === tab.key ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'"
+          >
+            {{ tab.label }}
+          </button>
+        }
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <input
+          (input)="searchTerm.set($any($event.target).value)"
+          class="w-72 rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
+          placeholder="Search in cached results..."
+        />
+        <select
+          [ngModel]="sortBy()"
+          (ngModelChange)="sortBy.set($event)"
+          class="rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white"
+        >
+          <option value="recent">Most recent</option>
+          <option value="company">Company A-Z</option>
+          <option value="title">Title A-Z</option>
+        </select>
+      </div>
+    </div>
+
+    @if (warnings().length > 0) {
+      <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+        {{ warnings().join(' | ') }}
+      </div>
+    }
+
+    @if (errorMessage()) {
+      <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ errorMessage() }}
+      </div>
+    }
+  </section>
+
+  @if (filteredOffers().length > 0) {
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      @for (offer of filteredOffers(); track offer.id) {
+        <article class="rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:shadow-md">
+          <div class="flex items-start justify-between gap-4">
             <div class="flex items-start gap-3">
-              <!-- Bubble -->
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white"
-                [style.background]="getBubbleGradient(offer.company)">
-                {{ offer.initials }}
+              <div
+                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white"
+                [style.background]="getBubbleGradient(offer.company || offer.title)"
+              >
+                {{ getInitials(offer.company || offer.title) }}
               </div>
-              <!-- Info -->
               <div>
-                <a [routerLink]="['/offers', offer.id]"
-                  class="text-lg font-bold text-gray-900 no-underline transition-colors hover:text-brand-500">
+                <button (click)="openOfferDetail(offer.id)" class="text-left text-base font-bold text-slate-900 transition hover:text-brand-600">
                   {{ offer.title }}
-                </a>
-                <div class="flex items-center gap-2 text-sm text-slate-500">
-                  <span class="font-medium">{{ offer.company }}</span>
+                </button>
+                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                  <span class="font-medium">{{ offer.company || 'Unknown company' }}</span>
                   @if (offer.location) {
                     <span class="h-1 w-1 rounded-full bg-slate-300"></span>
                     <span>{{ offer.location }}</span>
                   }
                 </div>
-                <div class="mt-0.5 text-[10px] text-slate-400">
-                  {{ getRecencyLabel(offer.createdAt) }}
+                <div class="mt-1 text-xs text-slate-400">
+                  {{ offer.postedAtText || 'Unknown recency' }} | {{ offer.normalizedContractType || 'other' }}
                 </div>
               </div>
             </div>
 
-            @if (offer.matchingScore !== undefined) {
-              <div class="flex shrink-0 flex-col items-end gap-0.5">
-                <span class="font-mono text-2xl font-bold leading-none" [class]="getScoreClass(offer.matchingScore)">{{ offer.matchingScore }}%</span>
-                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Match</span>
-              </div>
-            } @else {
-              <div class="flex shrink-0 flex-col items-end gap-0.5">
-                <span class="font-mono text-lg italic leading-none text-slate-300">N/A</span>
-                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Match</span>
-              </div>
+            <span [class]="'rounded-full border px-2.5 py-1 text-[11px] font-semibold ' + getProviderChip(offer.provider).tone">
+              {{ getProviderChip(offer.provider).label }}
+            </span>
+          </div>
+
+          <div class="mt-3 flex flex-wrap gap-2">
+            @for (tag of offer.matchedItTerms.slice(0, 5); track tag) {
+              <span class="rounded-md bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">{{ tag }}</span>
+            }
+            @if (offer.employmentType) {
+              <span class="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{{ offer.employmentType }}</span>
+            }
+            @if (offer.seniorityLevel) {
+              <span class="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{{ offer.seniorityLevel }}</span>
             }
           </div>
 
-          @if (offer.tags.length) {
-            <div class="mt-3 flex flex-wrap gap-2">
-              @for (tag of offer.tags; track tag) {
-                <span class="rounded-md bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600"
-                  [class]="offer.expired ? 'bg-slate-100 text-slate-400' : 'bg-brand-50 text-brand-600'">{{ tag }}</span>
-              }
-            </div>
-          }
+          <p class="mt-4 line-clamp-4 text-sm leading-6 text-slate-600">
+            {{ offer.description || 'No description available yet.' }}
+          </p>
 
-          <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-            <div class="flex items-center gap-4">
-              @if (offer.expired) {
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-500">
-                  Expirée
-                </span>
-              } @else {
-                <span [class]="'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ' + getStatusConfig(offer.status).bg + ' ' + getStatusConfig(offer.status).text">
-                  <span class="h-1.5 w-1.5 rounded-full" [class]="getStatusConfig(offer.status).dot"></span>
-                  @switch (offer.status) {
-                    @case ('cv_genere') { CV généré }
-                    @case ('analysee') { Analysée }
-                    @case ('non_traitee') { Non traitée }
-                  }
-                </span>
-                @if (offer.daysLeft !== undefined) {
-                  <span class="font-mono text-xs text-slate-400" [class]="offer.urgent ? 'font-bold text-amber-600' : ''">{{ offer.daysLeft }} jours restants</span>
-                }
-              }
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <div class="flex flex-wrap gap-2">
+              <button
+                (click)="saveOffer(offer)"
+                [disabled]="actionOfferId() === offer.id"
+                class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300"
+              >
+                {{ offer.isSaved ? 'Unsave' : 'Save' }}
+              </button>
+              <button
+                (click)="shortlistOffer(offer)"
+                [disabled]="actionOfferId() === offer.id"
+                class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300"
+              >
+                {{ offer.isShortlisted ? 'Remove shortlist' : 'Shortlist' }}
+              </button>
+              <button
+                (click)="archiveOffer(offer)"
+                [disabled]="actionOfferId() === offer.id"
+                class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300"
+              >
+                {{ offer.isArchived ? 'Restore' : 'Archive' }}
+              </button>
             </div>
 
-            @if (!offer.expired) {
-              @switch (offer.status) {
-                @case ('cv_genere') {
-                  <button class="cursor-pointer rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-gray-800">Voir le CV</button>
-                }
-                @case ('analysee') {
-                  <button class="cursor-pointer rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-brand-600">Générer un CV</button>
-                }
-                @case ('non_traitee') {
-                  <button routerLink="/offers/analyze" class="flex cursor-pointer items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-brand-600">
-                    <span class="material-symbols-outlined text-sm">rocket_launch</span>
-                    Lancer le pipeline
-                  </button>
-                }
-              }
-            } @else {
-              <button disabled class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-sm font-bold text-slate-400">Archives</button>
-            }
+            <div class="flex flex-wrap gap-2">
+              <a
+                [href]="offer.externalUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300"
+              >
+                Open source
+              </a>
+              <button
+                (click)="analyzeOffer(offer)"
+                [disabled]="actionOfferId() === offer.id"
+                class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-60"
+              >
+                {{ actionOfferId() === offer.id ? 'Analyzing...' : 'Analyze' }}
+              </button>
+            </div>
           </div>
         </article>
       }
     </div>
-
-    @if (hasMore) {
-      <div class="mt-6 text-center">
-        <button (click)="loadMore()"
-          class="cursor-pointer rounded-xl border border-slate-200 bg-white px-8 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:border-brand-300 hover:text-brand-500">
-          Charger plus ({{ filteredOffers.length - paginatedOffers.length }} restantes)
-        </button>
-      </div>
-    }
-  } @else {
-    <!-- Empty State -->
-    <div class="flex flex-col items-center justify-center py-20 text-center">
-      <span class="material-symbols-outlined text-6xl text-slate-200">inbox</span>
-      <h3 class="mt-4 text-lg font-bold text-slate-500">Aucune offre récente</h3>
-      <p class="mt-1 max-w-xs text-sm text-slate-400">
-        Vous n'avez pas encore analysé d'offres. Rendez-vous dans la page Offres pour commencer.
+  } @else if (!isLoading()) {
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-20 text-center">
+      <span class="material-symbols-outlined text-6xl text-slate-200">travel_explore</span>
+      <h3 class="mt-4 text-lg font-bold text-slate-500">No sourced offers yet</h3>
+      <p class="mt-1 max-w-md text-sm text-slate-400">
+        Refresh providers to populate the sourcing cache, then save or shortlist the strongest offers for deeper analysis.
       </p>
-      <button routerLink="/offers"
-        class="mt-6 flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 px-6 py-3 font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600">
-        Voir toutes les offres
-      </button>
     </div>
   }
-
 </div>

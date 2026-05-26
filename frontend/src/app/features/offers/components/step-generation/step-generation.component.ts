@@ -1,16 +1,29 @@
 import { Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
 import { ResumeEditorComponent } from '../resume-editor/resume-editor.component';
-import { CvSaveResponse, OfferApiService } from '../../services/offer-api.service';
+import {
+  CvDesignConfig,
+  CvRenderResponse,
+  CvSaveResponse,
+  OfferApiService
+} from '../../services/offer-api.service';
 import { environment } from '../../../../../environments/environment';
+import { SignalRService } from '../../../../services/signalr.service';
+import { ProfileService } from '../../../profile/profile.service';
 
 interface RealCvTemplate {
   slug: string;
   label: string;
   tone: string;
+}
+
+interface CvEditorDraft {
+  cvData: any;
+  designConfig: CvDesignConfig;
+  htmlSnapshot?: string | null;
 }
 
 @Component({
@@ -24,23 +37,27 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   pipeline = inject(PipelineStateService);
   private readonly offerApi = inject(OfferApiService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly signalR = inject(SignalRService);
+  private readonly profileService = inject(ProfileService);
   private previewDebounceId: number | null = null;
   private autosaveDebounceId: number | null = null;
   private previewRequestSub: Subscription | null = null;
   private autosaveSub: Subscription | null = null;
   private loadDraftSub: Subscription | null = null;
   private lastDraftHash = '';
-  private previewBlobUrl: string | null = null;
-  private readonly thumbnailUrlCache = new Map<string, SafeResourceUrl>();
+  private signedProfilePhotoUrl: string | null = null;
+  private readonly thumbnailUrlCache = new Map<string, string>();
+  private readonly thumbnailNonce = Date.now();
   private readonly draftKey = 'nextstep_cv_draft';
   private readonly draftOfferKey = 'nextstep_cv_draft_offer_id';
   private hasUserEditedDraft = false;
 
   editorInitialData = signal<any | null>(null);
   private editorDraft = signal<any | null>(null);
-  livePreviewUrl: SafeResourceUrl | null = null;
+  private readonly designConfigState = signal<CvDesignConfig>(this.defaultDesignConfig('modern'));
+  renderedHtml: SafeHtml | null = null;
+  private renderedHtmlSnapshot: string | null = null;
   isRenderingPreview = false;
-  showPreviewModal = false;
   previewError: string | null = null;
   draftStatus: 'idle' | 'local' | 'saving' | 'saved' | 'error' = 'idle';
   draftSavedAt: string | null = null;
@@ -49,120 +66,39 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   savedHistoryId: string | null = null;
   savedFileUrl: string | null = null;
   isSavingFinal = false;
-  isDownloadingFinal = false;
+  isGeneratingHighQualityPdf = false;
+  isReoptimizingCv = false;
   private savedDraftHash = '';
   private readonly activitySignals = [
     'hackathon', 'club', 'association', 'organisateur', 'organizer',
-    'membre', 'member', 'volunteer', 'benevole', 'bénévole', 'event',
+    'membre', 'member', 'volunteer', 'benevole', 'benevole', 'event',
     'community', 'communaut', 'it day', 'prize', 'prix', 'participant',
     'formateur', 'trainer', 'formation', 'solihackathon', 'itwave', 'ids'
   ];
 
-  // Floating designer bar state
-  showFontDropdown = false;
-  showSizeDropdown = false;
-
-  get currentFontFamily(): string {
-    const data = this.currentCvData();
-    return data?.fontFamily || 'Lato';
-  }
-
-  get currentThemeColor(): string {
-    const data = this.currentCvData();
-    return data?.themeColor || '#1A91F0';
-  }
-
-  get currentFontSize(): string {
-    const data = this.currentCvData();
-    return data?.fontSize || '14px';
-  }
-
-  get currentLineSpacing(): string {
-    const data = this.currentCvData();
-    return data?.lineSpacing || '1.15';
-  }
-
-  get draftStatusText(): string {
-    if (this.draftError) return this.draftError;
-    if (this.draftStatus === 'saving') return 'Autosave backend en cours...';
-    if (this.draftStatus === 'saved') {
-      const version = this.draftVersion ? ` v${this.draftVersion}` : '';
-      const time = this.draftSavedAt ? ` a ${this.draftSavedAt}` : '';
-      return `Brouillon synchronise${version}${time}`;
-    }
-    if (this.draftStatus === 'local') return 'Brouillon local protege, synchronisation en attente.';
-    return 'Brouillon pret.';
-  }
-
-  toggleFontDropdown(): void {
-    this.showFontDropdown = !this.showFontDropdown;
-    this.showSizeDropdown = false;
-  }
-
-  toggleSizeDropdown(): void {
-    this.showSizeDropdown = !this.showSizeDropdown;
-    this.showFontDropdown = false;
-  }
-
-  selectFont(font: string): void {
-    this.changeFontFamily(font);
-    this.showFontDropdown = false;
-  }
-
-  selectSize(size: string): void {
-    this.changeFontSize(size);
-    this.showSizeDropdown = false;
-  }
-
-  selectThemeColor(color: string): void {
-    this.changeThemeColor(color);
-  }
-
-  changeFontFamily(font: string): void {
-    this.patchCurrentDraft({ fontFamily: font });
-  }
-
-  changeThemeColor(color: string): void {
-    this.patchCurrentDraft({ themeColor: color });
-  }
-
-  changeFontSize(size: string): void {
-    this.patchCurrentDraft({ fontSize: size });
-  }
-
-  changeLineSpacing(spacing: string): void {
-    this.patchCurrentDraft({ lineSpacing: spacing });
-  }
-
   readonly realTemplates: RealCvTemplate[] = [
-    { slug: 'chrono', label: 'Chrono', tone: 'Green Accent' },
-    { slug: 'elegant', label: 'Elegant', tone: 'Dark Teal' },
-    { slug: 'circular', label: 'Circular', tone: 'Wavy Sidebar' },
+    { slug: 'latex', label: 'LaTeX Tech', tone: 'Classic Engineering' },
     { slug: 'modern', label: 'Modern', tone: 'Tech Minimal' },
-    { slug: 'luxe', label: 'Luxe', tone: 'Premium Centered' },
   ];
 
+  readonly generationStages = [
+    { key: 'profile_context', label: 'Contexte candidat' },
+    { key: 'analysis_context', label: 'Analyse consolidee' },
+    { key: 'cv_optimizer', label: 'CV optimizer' },
+    { key: 'cv_engine', label: 'CV engine' },
+    { key: 'db_persist', label: 'Finalisation' },
+  ] as const;
+
   private readonly templateMap: Record<string, string> = {
-    chrono: 'chrono',
-    elegant: 'elegant',
-    circular: 'circular',
+    latex: 'latex',
     modern: 'modern',
-    luxe: 'luxe',
   };
 
-  private readonly generationTrace = effect(() => {
-    const offerId = this.pipeline.currentOfferId();
-    const result = this.pipeline.pipelineResult();
-    const generated = result?.cvGeneratedContent;
-    console.log('[CV-PIPELINE] StepGeneration state', {
-      offerId,
-      hasPipelineResult: !!result,
-      hasGeneratedCv: !!generated,
-      hasCandidate: !!generated?.candidate,
-      experienceCount: Array.isArray(generated?.experience) ? generated.experience.length : 0,
-      skillsCount: Array.isArray(generated?.skills) ? generated.skills.length : 0,
-      languagesCount: Array.isArray(generated?.languages) ? generated.languages.length : 0
-    });
+  private readonly generatedCvSync = effect(() => {
+    const generated = this.generatedCvData;
+    if (!this.hasRenderableCvData(generated)) return;
+    if (!generated || this.hasUserEditedDraft || this.editorDraft()) return;
+    this.applyInitialDraft({ cvData: generated, designConfig: this.defaultDesignConfig(this.selectedTemplate) }, 'idle');
   });
 
   get selectedTemplate(): string {
@@ -178,8 +114,65 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     return this.pipeline.currentOfferId();
   }
 
+  get generationAgentProgress() {
+    return this.pipeline.currentAgentProgress();
+  }
+
+  get generationProgressLabel(): string {
+    return this.generationAgentProgress?.label || 'Generation du CV en cours...';
+  }
+
+  get generationProgressPercent(): number {
+    return this.generationAgentProgress?.progressPercent ?? 5;
+  }
+
+  get isAwaitingGeneratedCv(): boolean {
+    return !this.editorInitialData() && !this.generatedCvData;
+  }
+
+  get currentDesignConfig(): CvDesignConfig {
+    return this.designConfigState();
+  }
+
+  private hasRenderableCvData(data: any | null | undefined): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const normalized = this.unwrapCvPayload(data);
+    const candidate = this.getCandidateSource(normalized);
+    const hasIdentity = !!this.cleanText(candidate?.name)
+      || !!this.cleanText(candidate?.nomComplet)
+      || !!this.cleanText(candidate?.fullName)
+      || !!this.cleanText(candidate?.email)
+      || !!this.cleanText(normalized?.summary)
+      || !!this.cleanText(normalized?.resume)
+      || !!this.cleanText(normalized?.resumeProfessionnel);
+    const hasSections = this.firstArray(normalized, ['experience', 'experiences', 'experiences_optimisees']).length > 0
+      || this.firstArray(normalized, ['education', 'formations', 'formations_optimisees']).length > 0
+      || this.firstArray(normalized, ['skills', 'competences', 'competences_reordonnees', 'competences_mises_en_avant']).length > 0
+      || this.firstArray(normalized, ['projects', 'projets', 'projets_optimises']).length > 0;
+    return hasIdentity || hasSections;
+  }
+
   ngOnInit(): void {
+    const offerId = this.currentOfferId;
+    if (offerId) {
+      void this.signalR.joinOfferGroup(offerId).catch((err) => {
+        console.warn('[CV-PIPELINE] SignalR join failed from generation step', err);
+      });
+    }
+    void this.prefetchSignedProfilePhoto();
     this.hydrateInitialDraft();
+  }
+
+  private async prefetchSignedProfilePhoto(): Promise<void> {
+    try {
+      this.signedProfilePhotoUrl = await this.profileService.getSignedProfilePhotoUrl();
+      if (this.signedProfilePhotoUrl && this.currentCvData()) {
+        this.queueLivePreview(this.currentCvData(), 0);
+      }
+    } catch (error) {
+      console.warn('[CV-PIPELINE] Failed to prefetch signed profile photo URL', error);
+      this.signedProfilePhotoUrl = null;
+    }
   }
 
   ngOnDestroy(): void {
@@ -188,19 +181,21 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.previewRequestSub?.unsubscribe();
     this.autosaveSub?.unsubscribe();
     this.loadDraftSub?.unsubscribe();
-    if (this.previewBlobUrl) {
-      window.URL.revokeObjectURL(this.previewBlobUrl);
-      this.previewBlobUrl = null;
-    }
   }
 
   async continueToResults(): Promise<void> {
+    if (this.isSavingFinal) {
+      return;
+    }
+
     try {
       await this.saveFinalCv();
-      this.pipeline.markStepDone(3);
-      this.pipeline.goToStep(5);
     } catch (err: any) {
       this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Impossible de sauvegarder le CV final.');
+    } finally {
+      // Always move to the email composer step so the flow cannot get stuck.
+      this.pipeline.markStepDone(3);
+      this.pipeline.goToStep(5);
     }
   }
 
@@ -208,45 +203,140 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.pipeline.goToStep(3);
   }
 
-  openPreviewModal(): void {
-    if (!this.livePreviewUrl) return;
-    this.showPreviewModal = true;
-  }
+  async reoptimizeCv(): Promise<void> {
+    const offerId = this.currentOfferId;
+    if (!offerId || this.isReoptimizingCv) return;
 
-  closePreviewModal(): void {
-    this.showPreviewModal = false;
+    const templateId = this.agentTemplateId(this.selectedTemplate);
+    this.pipeline.pipelineError.set(null);
+    this.isReoptimizingCv = true;
+    this.pipeline.setLoading(true, 'Re-analyse du CV optimise en cours...');
+    this.pipeline.currentAgentProgress.set({
+      step: 'generating_cv',
+      agentName: 'cv_optimizer',
+      label: 'Nouvelle optimisation du CV...',
+      status: 'running',
+      progressPercent: 8
+    });
+
+    try {
+      await this.signalR.joinOfferGroup(offerId);
+    } catch (err) {
+      console.warn('[CV-PIPELINE] SignalR join failed for re-optimization, polling only', err);
+    }
+
+    const currentResult = this.pipeline.pipelineResult();
+    const localProfile = currentResult?.profileData ?? null;
+
+    this.offerApi.resumePipeline(offerId, templateId).subscribe({
+      next: (res: any) => {
+        const current = this.pipeline.pipelineResult();
+        if (!current) {
+          this.finishReoptimization();
+          return;
+        }
+
+        const profileForFallback = res?.profileData
+          ?? res?.profile_data
+          ?? current.profileData
+          ?? localProfile;
+
+        const generatedCv = res?.cvGeneratedContent
+          ?? res?.cv_data
+          ?? res?.cvData
+          ?? res?.cv_optimized_content
+          ?? res?.cvOptimizedContent;
+
+        if (generatedCv) {
+          this.pipeline.setResult({
+            ...current,
+            profileData: profileForFallback ?? current.profileData,
+            cvGeneratedContent: generatedCv,
+            emailSubject: res?.email_subject ?? current.emailSubject ?? '',
+            emailBody: res?.email_body ?? current.emailBody ?? '',
+            recruiterName: res?.recruiter_name ?? current.recruiterName ?? '',
+          });
+
+          this.hasUserEditedDraft = false;
+          this.savedHistoryId = null;
+          this.savedFileUrl = null;
+          this.savedDraftHash = '';
+          this.lastDraftHash = '';
+          this.draftStatus = 'idle';
+          this.draftError = null;
+
+          const nextDraft: CvEditorDraft = {
+            cvData: generatedCv,
+            designConfig: this.currentDesignConfig,
+            htmlSnapshot: null
+          };
+          this.applyInitialDraft(nextDraft, 'idle');
+        }
+
+        this.pipeline.currentAgentProgress.set({
+          step: 'generating_cv',
+          agentName: 'db_persist',
+          label: 'CV re-optimise et recharge dans l editeur.',
+          status: 'done',
+          progressPercent: 100
+        });
+        this.finishReoptimization();
+      },
+      error: (err) => {
+        console.error('[CV-PIPELINE] Re-optimization failed', err);
+        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Echec de la re-optimisation du CV.');
+        this.pipeline.currentAgentProgress.set(null);
+        this.finishReoptimization();
+      }
+    });
   }
 
   selectTemplate(slug: string): void {
     if (slug === this.selectedTemplate) return;
     this.pipeline.selectedTemplateId.set(slug);
+    this.designConfigState.set(this.defaultDesignConfig(slug));
     this.savedHistoryId = null;
     this.savedFileUrl = null;
     this.savedDraftHash = '';
     this.lastDraftHash = '';
     this.queueLivePreview();
+    this.queueBackendAutosave();
   }
 
-  templateThumbnailUrl(slug: string): SafeResourceUrl {
+  getGenerationStageStatus(stageKey: string): 'done' | 'running' | 'todo' {
+    const current = this.generationAgentProgress?.agentName;
+    if (!current) return stageKey === 'cv_optimizer' ? 'running' : 'todo';
+
+    const order = this.generationStages.map((stage) => stage.key);
+    const currentIndex = order.indexOf(current as typeof order[number]);
+    const targetIndex = order.indexOf(stageKey as typeof order[number]);
+
+    if (currentIndex === -1) {
+      return stageKey === 'cv_optimizer' ? 'running' : 'todo';
+    }
+    if (targetIndex < currentIndex) return 'done';
+    if (targetIndex === currentIndex) return 'running';
+    return 'todo';
+  }
+
+  templateThumbnailUrl(slug: string): string {
     const cached = this.thumbnailUrlCache.get(slug);
     if (cached) return cached;
 
     const origin = new URL(environment.apiBaseUrl).origin;
-    const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-      `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail#toolbar=0&navpanes=0&scrollbar=0`
-    );
-    this.thumbnailUrlCache.set(slug, safeUrl);
-    return safeUrl;
+    const url = `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.thumbnailNonce}`;
+    this.thumbnailUrlCache.set(slug, url);
+    return url;
   }
 
   onEditorDataChange(rawData: any): void {
     const data = this.normalizeCvForBackend(rawData);
     const previous = this.editorDraft();
-    const previousHash = previous ? this.buildDraftHash(previous) : '';
-    const nextHash = this.buildDraftHash(data);
+    const previousHash = previous ? this.buildDraftHash(previous, this.currentDesignConfig) : '';
+    const nextHash = this.buildDraftHash(data, this.currentDesignConfig);
 
     if (previousHash && previousHash === nextHash) {
-      this.writeLocalDraft(data);
+      this.writeLocalDraft(data, this.currentDesignConfig);
       return;
     }
 
@@ -255,30 +345,52 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     }
 
     this.editorDraft.set(data);
-    this.writeLocalDraft(data);
+    this.writeLocalDraft(data, this.currentDesignConfig);
     this.draftStatus = 'local';
     this.draftError = null;
     this.queueLivePreview(data);
     this.queueBackendAutosave(data);
   }
 
+  onDesignConfigChange(config: CvDesignConfig): void {
+    this.designConfigState.set({ ...config });
+    this.writeLocalDraft(this.currentCvData(), config);
+    this.draftStatus = 'local';
+    this.draftError = null;
+    this.queueLivePreview();
+    this.queueBackendAutosave();
+  }
+
   async saveFinalCv(): Promise<CvSaveResponse> {
     const offerId = this.currentOfferId;
     const data = this.currentCvData();
-    if (!offerId || !data) {
+    if (!data) {
       throw new Error('CV introuvable pour la sauvegarde finale.');
     }
+
+    const finalTitle = offerId
+      ? `CV_${offerId}`
+      : `CV_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}`;
 
     this.isSavingFinal = true;
     this.pipeline.setLoading(true, 'Sauvegarde du PDF final...');
     try {
       const saved = await firstValueFrom(
-        this.offerApi.saveFinalCv(this.selectedTemplate, `CV_${offerId}`, data)
+        this.offerApi.saveFinalCv({
+          templateSlug: this.selectedTemplate,
+          title: finalTitle,
+          offerId,
+          data,
+          designConfig: this.currentDesignConfig,
+          htmlSnapshot: this.renderedHtmlSnapshot
+        })
       );
       this.savedHistoryId = saved?.historyId ?? null;
       this.savedFileUrl = saved?.fileUrl ?? null;
-      this.savedDraftHash = this.buildDraftHash(data);
+      this.savedDraftHash = this.buildDraftHash(data, this.currentDesignConfig);
       this.pipeline.cvDownloadUrl.set(saved?.fileUrl ?? null);
+      this.pipeline.finalCvHistoryId.set(saved?.historyId ?? null);
+      this.pipeline.finalCvTitle.set(finalTitle);
       return saved;
     } catch (err) {
       console.error('[CV-PIPELINE] Final CV save failed', err);
@@ -291,36 +403,38 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   async downloadFinalPdf(): Promise<void> {
     try {
-      if (!this.savedHistoryId || this.savedDraftHash !== this.buildDraftHash(this.currentCvData())) {
-        await this.saveFinalCv();
+      const data = this.currentCvData();
+      if (!data) throw new Error('CV introuvable pour le telechargement.');
+
+      this.isGeneratingHighQualityPdf = true;
+      this.pipeline.pipelineError.set(null);
+      const blob = await firstValueFrom(this.offerApi.exportCvPdf({
+        templateSlug: this.selectedTemplate,
+        data,
+        designConfig: this.currentDesignConfig,
+        htmlSnapshot: this.renderedHtmlSnapshot
+      }));
+
+      if (!blob || blob.size === 0) {
+        throw new Error('PDF vide recu depuis le backend.');
       }
-
-      if (!this.savedHistoryId) throw new Error('Historique CV introuvable.');
-
-      this.isDownloadingFinal = true;
-      const blob = await firstValueFrom(this.offerApi.downloadCvHistoryFile(this.savedHistoryId));
       this.downloadBlob(blob);
     } catch (err: any) {
       console.error('[CV-PIPELINE] Final CV download failed', err);
       this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Telechargement PDF indisponible.');
     } finally {
-      this.isDownloadingFinal = false;
+      this.isGeneratingHighQualityPdf = false;
     }
   }
 
   private queueLivePreview(data: any | null = this.currentCvData(), delayMs = 320): void {
-    if (!data) return;
+    if (!this.hasRenderableCvData(data)) return;
 
-    const hash = this.buildDraftHash(data);
+    const hash = this.buildDraftHash(data, this.currentDesignConfig);
     if (this.savedDraftHash && this.savedDraftHash !== hash) {
       this.savedHistoryId = null;
       this.savedFileUrl = null;
       this.savedDraftHash = '';
-    }
-
-    if (hash !== this.lastDraftHash || this.previewError) {
-      this.isRenderingPreview = true;
-      this.previewError = null;
     }
 
     if (this.previewDebounceId !== null) {
@@ -334,7 +448,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private renderLivePreview(data: any): void {
-    const hash = this.buildDraftHash(data);
+    const hash = this.buildDraftHash(data, this.currentDesignConfig);
     if (hash === this.lastDraftHash && !this.previewError) {
       this.isRenderingPreview = false;
       return;
@@ -345,29 +459,33 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.isRenderingPreview = true;
     this.previewError = null;
 
-    this.previewRequestSub = this.offerApi.renderCvPreview(this.selectedTemplate, data).subscribe({
-      next: (blob) => {
-        if (this.previewBlobUrl) {
-          window.URL.revokeObjectURL(this.previewBlobUrl);
-        }
-        this.previewBlobUrl = window.URL.createObjectURL(blob);
-        this.livePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0`
-        );
+    this.previewRequestSub = this.offerApi.renderCvPreview({
+      templateSlug: this.selectedTemplate,
+      data,
+      designConfig: this.currentDesignConfig
+    }).subscribe({
+      next: (response) => {
+        this.applyRenderedPreview(response);
         this.previewError = null;
         this.isRenderingPreview = false;
       },
-      error: (err) => {
-        console.error('[CV-PIPELINE] Live PDF preview failed', err);
+      error: async (err) => {
+        console.error('[CV-PIPELINE] Live HTML preview failed', err);
         this.lastDraftHash = '';
-        this.previewError = err?.error?.message || err?.error || err?.message || 'Apercu PDF indisponible.';
+        this.previewError = await this.extractHttpErrorMessage(err, 'Apercu HTML indisponible.');
         this.isRenderingPreview = false;
       }
     });
   }
 
-  private buildDraftHash(data: any): string {
-    return JSON.stringify({ t: this.selectedTemplate, data });
+  private applyRenderedPreview(response: CvRenderResponse): void {
+    this.designConfigState.set({ ...response.designConfig });
+    this.renderedHtmlSnapshot = response.html;
+    this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(response.html);
+  }
+
+  private buildDraftHash(data: any, designConfig: CvDesignConfig): string {
+    return JSON.stringify({ t: this.selectedTemplate, data, designConfig });
   }
 
   private downloadBlob(blob: Blob): void {
@@ -400,20 +518,26 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   private hydrateInitialDraft(): void {
     const localDraft = this.readLocalDraftForCurrentOffer();
-    const fallback = localDraft || this.generatedCvData;
+    const validLocalDraft = localDraft && this.hasRenderableCvData(localDraft.cvData) ? localDraft : null;
+    const validGenerated = this.hasRenderableCvData(this.generatedCvData) ? this.generatedCvData : null;
+    const fallback = validLocalDraft ?? (validGenerated
+      ? { cvData: validGenerated, designConfig: this.defaultDesignConfig(this.selectedTemplate) }
+      : null);
 
     if (fallback) {
-      this.applyInitialDraft(fallback, localDraft ? 'local' : 'idle');
+      this.applyInitialDraft(fallback, validLocalDraft ? 'local' : 'idle');
     }
 
-    const offerId = this.currentOfferId;
-    if (!offerId) return;
+    if (!this.currentOfferId) return;
 
-    this.loadDraftSub = this.offerApi.getCvDraft(offerId).subscribe({
+    this.loadDraftSub = this.offerApi.getCvDraft(this.currentOfferId).subscribe({
       next: (draft) => {
         if (!draft?.data || this.hasUserEditedDraft) return;
+        const parsedDraft = this.asEditorDraft(draft.data);
+        if (parsedDraft === null) return;
+        if (!this.hasRenderableCvData(parsedDraft.cvData)) return;
 
-        this.applyInitialDraft(draft.data, 'saved');
+        this.applyInitialDraft(parsedDraft, 'saved');
         this.draftVersion = draft.version ?? null;
         this.draftSavedAt = this.formatDraftTime(draft.updatedAtUtc);
       },
@@ -426,31 +550,40 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     });
   }
 
-  private applyInitialDraft(rawData: any, status: 'idle' | 'local' | 'saved'): void {
+  private applyInitialDraft(rawDraft: CvEditorDraft, status: 'idle' | 'local' | 'saved'): void {
     if (this.autosaveDebounceId !== null) {
       window.clearTimeout(this.autosaveDebounceId);
       this.autosaveDebounceId = null;
     }
 
-    const data = this.normalizeCvForBackend(rawData);
+    const data = this.normalizeCvForBackend(rawDraft.cvData);
+    if (!this.hasRenderableCvData(data)) return;
     this.editorInitialData.set(data);
     this.editorDraft.set(data);
-    this.writeLocalDraft(data);
+    this.designConfigState.set({ ...this.defaultDesignConfig(this.selectedTemplate), ...rawDraft.designConfig });
+    this.renderedHtmlSnapshot = rawDraft.htmlSnapshot ?? null;
+    this.writeLocalDraft(data, this.currentDesignConfig);
     this.draftStatus = status;
     this.draftError = null;
     this.queueLivePreview(data, 0);
   }
 
-  private readLocalDraftForCurrentOffer(): any | null {
+  private readLocalDraftForCurrentOffer(): CvEditorDraft | null {
     if (!this.currentOfferId) return null;
     const draftOfferId = localStorage.getItem(this.draftOfferKey);
     if (draftOfferId !== this.currentOfferId) return null;
-    return this.safeParseJson(localStorage.getItem(this.draftKey));
+    return this.asEditorDraft(this.safeParseJson(localStorage.getItem(this.draftKey)));
   }
 
-  private writeLocalDraft(data: any): void {
+  private writeLocalDraft(data: any | null, designConfig: CvDesignConfig): void {
+    if (!data) return;
     try {
-      localStorage.setItem(this.draftKey, JSON.stringify(data));
+      const draft: CvEditorDraft = {
+        cvData: data,
+        designConfig,
+        htmlSnapshot: this.renderedHtmlSnapshot
+      };
+      localStorage.setItem(this.draftKey, JSON.stringify(draft));
       if (this.currentOfferId) {
         localStorage.setItem(this.draftOfferKey, this.currentOfferId);
       }
@@ -459,14 +592,8 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     }
   }
 
-  private patchCurrentDraft(patch: Record<string, any>): void {
-    const data = this.currentCvData();
-    if (!data) return;
-    this.onEditorDataChange({ ...data, ...patch });
-  }
-
   private queueBackendAutosave(data: any | null = this.currentCvData(), delayMs = 900): void {
-    if (!this.currentOfferId || !data) return;
+    if (!this.currentOfferId || !this.hasRenderableCvData(data)) return;
     if (this.autosaveDebounceId !== null) {
       window.clearTimeout(this.autosaveDebounceId);
     }
@@ -485,7 +612,13 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.draftStatus = 'saving';
     this.draftError = null;
 
-    this.autosaveSub = this.offerApi.saveCvDraft(offerId, data).subscribe({
+    const payload: CvEditorDraft = {
+      cvData: data,
+      designConfig: this.currentDesignConfig,
+      htmlSnapshot: this.renderedHtmlSnapshot
+    };
+
+    this.autosaveSub = this.offerApi.saveCvDraft(offerId, payload).subscribe({
       next: (draft) => {
         this.draftStatus = 'saved';
         this.draftVersion = draft?.version ?? this.draftVersion;
@@ -501,104 +634,273 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private currentCvData(): any | null {
-    const data = this.editorDraft() || this.readLocalDraftForCurrentOffer() || this.generatedCvData;
+    const data = this.editorDraft()?.candidate ? this.editorDraft() : this.readLocalDraftForCurrentOffer()?.cvData || this.generatedCvData;
     return data ? this.normalizeCvForBackend(data) : null;
   }
 
-  private prepareDraftForCurrentOffer(): void {
-    const offerId = this.currentOfferId;
-    const generated = this.generatedCvData;
-    const draftOfferId = localStorage.getItem(this.draftOfferKey);
-
-    if (!offerId || !generated) return;
-
-    if (draftOfferId === offerId) {
-      const draft = this.safeParseJson(localStorage.getItem(this.draftKey));
-      if (draft && !this.shouldReplaceDraft(draft, generated)) return;
-    }
-
-    localStorage.setItem(this.draftKey, JSON.stringify(generated));
-    localStorage.setItem(this.draftOfferKey, offerId);
+  private defaultDesignConfig(templateSlug: string): CvDesignConfig {
+    return templateSlug === 'latex'
+      ? {
+          themeColor: '#111827',
+          fontFamily: "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
+          fontSize: '13px',
+          lineSpacing: '1.38',
+          sectionSpacing: '1rem',
+          sidebarWidth: '0%'
+        }
+      : {
+          themeColor: '#2d3a8c',
+          fontFamily: "Inter, 'Segoe UI', Arial, sans-serif",
+          fontSize: '14px',
+          lineSpacing: '1.45',
+          sectionSpacing: '1.2rem',
+          sidebarWidth: '31%'
+        };
   }
 
-  private shouldReplaceDraft(draft: any, generated: any): boolean {
-    const draftName = String(draft?.candidate?.name ?? '').trim().toLowerCase();
-    const generatedName = String(generated?.candidate?.name ?? '').trim();
-    const draftEmail = String(draft?.candidate?.email ?? '').trim();
-    const generatedEmail = String(generated?.candidate?.email ?? '').trim();
+  private asEditorDraft(value: any): CvEditorDraft | null {
+    if (!value || typeof value !== 'object') return null;
+    if (value.cvData && typeof value.cvData === 'object') {
+      return {
+        cvData: value.cvData,
+        designConfig: { ...this.defaultDesignConfig(this.selectedTemplate), ...(value.designConfig ?? {}) },
+        htmlSnapshot: typeof value.htmlSnapshot === 'string' ? value.htmlSnapshot : null
+      };
+    }
 
-    if (!draftName || draftName === 'candidat') return !!generatedName && generatedName.toLowerCase() !== 'candidat';
-    if (!draftEmail && generatedEmail) return true;
-    if (!Array.isArray(draft?.skills) || draft.skills.length === 0) return Array.isArray(generated?.skills) && generated.skills.length > 0;
-    return false;
+    return {
+      cvData: value,
+      designConfig: this.defaultDesignConfig(this.selectedTemplate),
+      htmlSnapshot: null
+    };
+  }
+
+  private async extractHttpErrorMessage(err: any, fallback: string): Promise<string> {
+    const payload = err?.error;
+    if (typeof payload === 'string' && payload.trim()) return payload;
+    if (payload?.message) return String(payload.message);
+    if (payload?.error) return String(payload.error);
+
+    if (payload instanceof Blob) {
+      try {
+        const text = await payload.text();
+        if (!text) return err?.message || fallback;
+        try {
+          const parsed = JSON.parse(text);
+          return parsed?.error || parsed?.message || text;
+        } catch {
+          return text;
+        }
+      } catch {
+        return err?.message || fallback;
+      }
+    }
+
+    return err?.message || fallback;
   }
 
   private normalizeCvForBackend(data: any): any {
-    const candidate = data?.candidate ?? {};
-    const activities = this.normalizeActivities(data?.activities);
-    const experience = this.asArray(data?.experience)
+    data = this.unwrapCvPayload(data);
+    const { fontFamily, sections, ...rawWithoutFontFamily } = data ?? {};
+    void fontFamily;
+    void sections;
+    const pipelineResult: any = this.pipeline.pipelineResult();
+    const profileSource = pipelineResult?.profileData?.data
+      ?? pipelineResult?.profileData?.profile
+      ?? pipelineResult?.profileData
+      ?? {};
+    const profilePersonal = profileSource?.personalInfo
+      ?? profileSource?.personal_info
+      ?? profileSource?.personal
+      ?? {};
+    const liveProfilePersonal = this.profileService.profile()?.personal ?? {};
+    const candidate = this.getCandidateSource(data);
+    const activities = this.normalizeActivities(this.firstArray(data, ['activities', 'extracurricular', 'activites', 'activitÃ©s']));
+    const highlightedSkills = new Set(
+      this.firstArray(data, ['competences_mises_en_avant'])
+        .map((skill: any) => this.normalizeKey(typeof skill === 'string' ? skill : skill?.name ?? skill?.nom ?? skill?.label))
+        .filter(Boolean)
+    );
+    const experience = this.firstArray(data, ['experience', 'experiences', 'experiences_optimisees'])
       .map((exp: any) => ({
-        role: this.cleanText(exp?.role ?? exp?.title),
-        company: this.cleanText(exp?.company),
-        start: this.toMonthValue(exp?.start),
-        end: this.toMonthValue(exp?.end),
-        bullets: this.dedupeStrings(this.asStringArray(exp?.bullets)).slice(0, 4),
+        role: this.cleanText(exp?.role ?? exp?.title ?? exp?.poste ?? exp?.titre),
+        company: this.cleanText(exp?.company ?? exp?.entreprise),
+        start: this.toMonthValue(exp?.start ?? exp?.dateDebut ?? exp?.date_debut),
+        end: this.toMonthValue(exp?.end ?? exp?.dateFin ?? exp?.date_fin),
+        bullets: this.dedupeStrings(this.asStringArray(exp?.bullets ?? exp?.taches_optimisees ?? exp?.missions ?? exp?.taches ?? exp?.description_optimisee ?? exp?.description)),
+        relevance: this.cleanText(exp?.niveau_pertinence ?? exp?.relevance),
+        keywords: this.dedupeStrings(this.asStringArray(exp?.mots_cles_cibles ?? exp?.keywords)),
       }))
       .filter((exp: any) => {
         if (!exp.role && !exp.company) return false;
         if (!this.looksLikeActivity(exp)) return true;
         activities.push({
-          title: exp.company || exp.role,
-          role: exp.company ? exp.role : null,
+          title: exp.role || exp.company,
+          role: exp.company || null,
           description: exp.bullets[0] ?? '',
+          startDate: exp.start ?? null,
+          endDate: exp.end ?? null,
         });
         return false;
       });
-    const projects = this.normalizeProjects(data?.projects);
+    const rawProjects = this.firstArray(data, ['projects', 'projets', 'projets_optimises']);
+    const normalizedSections = this.normalizeSections(data?.sections);
+    const projects = this.mergeNormalizedProjects(
+      this.normalizeProjects(rawProjects),
+      this.extractProjectsFromSections(normalizedSections)
+    );
 
     return {
-      ...data,
+      ...rawWithoutFontFamily,
       candidate: {
-        name: this.cleanText(candidate?.name),
-        email: this.cleanText(candidate?.email),
-        phone: this.cleanText(candidate?.phone),
-        location: this.cleanText(candidate?.location),
-        linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? null,
-        gitHub: candidate?.gitHub ?? candidate?.github ?? null,
-        portfolio: candidate?.portfolio ?? null,
+        name: this.resolvePreferredCandidateName(candidate, profilePersonal, liveProfilePersonal),
+        email: this.cleanText(candidate?.email ?? candidate?.mail ?? profilePersonal?.email ?? profilePersonal?.mail ?? liveProfilePersonal?.email),
+        phone: this.cleanText(candidate?.phone ?? candidate?.telephone ?? profilePersonal?.phone ?? profilePersonal?.telephone ?? liveProfilePersonal?.phone),
+        location: this.resolvePreferredLocation(candidate, profilePersonal, liveProfilePersonal),
+        title: this.cleanText(candidate?.title ?? candidate?.titrePoste ?? candidate?.poste ?? profilePersonal?.title ?? profilePersonal?.titrePoste ?? profilePersonal?.poste ?? liveProfilePersonal?.jobTitle),
+        photoUrl: this.extractCandidatePhotoUrl(candidate, profilePersonal, liveProfilePersonal),
+        linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? candidate?.lienLinkedin ?? profilePersonal?.linkedIn ?? profilePersonal?.linkedin ?? profilePersonal?.lienLinkedin ?? liveProfilePersonal?.linkedinUrl ?? null,
+        gitHub: candidate?.gitHub ?? candidate?.github ?? candidate?.lienGithub ?? profilePersonal?.gitHub ?? profilePersonal?.github ?? profilePersonal?.lienGithub ?? liveProfilePersonal?.githubUrl ?? null,
+        portfolio: candidate?.portfolio ?? candidate?.lienPortfolio ?? profilePersonal?.portfolio ?? profilePersonal?.lienPortfolio ?? liveProfilePersonal?.portfolioUrl ?? null,
       },
-      summary: this.cleanText(data?.summary),
+      summary: this.cleanText(data?.summary ?? data?.resume ?? data?.resumeProfessionnel ?? candidate?.resumeProfessionnel),
       experience,
-      education: this.asArray(data?.education).map((edu: any) => ({
-        degree: this.cleanText(edu?.degree),
-        institution: this.cleanText(edu?.institution),
-        year: this.cleanText(edu?.year),
+      education: this.firstArray(data, ['education', 'formations', 'formations_optimisees']).map((edu: any) => ({
+        degree: this.cleanText(edu?.degree ?? edu?.diplome ?? edu?.titre),
+        institution: this.cleanText(edu?.institution ?? edu?.etablissement ?? edu?.ecole),
+        year: this.cleanText(edu?.year ?? edu?.annee ?? edu?.anneeFin ?? edu?.dateFin),
+        startYear: this.cleanText(edu?.startYear ?? edu?.anneeDebut ?? edu?.dateDebut),
+        endYear: this.cleanText(edu?.endYear ?? edu?.anneeFin ?? edu?.dateFin),
       })),
-      skills: this.asArray(data?.skills).map((skill: any) => ({
-        name: this.cleanText(skill?.name),
-        level: Math.min(5, Math.max(1, Number(skill?.level ?? 3))),
-        isMatched: !!skill?.isMatched,
-      })).filter((skill: any) => !!skill.name).slice(0, 18),
+      skills: [
+        ...this.firstArray(data, ['skills', 'technicalSkills', 'technical_skills', 'competences', 'competences_reordonnees']),
+        ...this.firstArray(data, ['softSkills', 'soft_skills', 'softskills', 'competences_comportementales'])
+          .map((skill: any) => ({
+            ...((skill && typeof skill === 'object') ? skill : { name: skill }),
+            category: skill?.category ?? skill?.categorie ?? skill?.typeCompetence ?? skill?.type_competence ?? 'Soft Skills',
+            typeCompetence: skill?.typeCompetence ?? skill?.type_competence ?? skill?.category ?? skill?.categorie ?? 'Soft Skills',
+          })),
+      ].map((skill: any) => {
+        const name = typeof skill === 'string' ? skill : this.cleanText(skill?.name ?? skill?.nom ?? skill?.label);
+        return {
+          name: this.cleanText(name),
+          level: this.toSkillLevel(skill?.level ?? skill?.niveau ?? skill?.score ?? 3),
+          isMatched: !!(skill?.isMatched ?? skill?.matched ?? skill?.statut === 'correspond'),
+          isHighlighted: highlightedSkills.has(this.normalizeKey(name)),
+          category: this.cleanText(skill?.category ?? skill?.categorie ?? skill?.typeCompetence),
+          typeCompetence: this.cleanText(skill?.typeCompetence ?? skill?.type_competence),
+        };
+      }).filter((skill: any) => !!skill.name),
       projects,
-      certifications: this.dedupeStrings(this.asStringArray(data?.certifications)).slice(0, 6),
-      languages: this.dedupeStrings(this.asStringArray(data?.languages)).slice(0, 6),
-      activities: this.dedupeActivities(activities).slice(0, 5),
-      atsScore: Number(data?.atsScore ?? 0),
-      matchingScore: Number(data?.matchingScore ?? 0),
-      atsCoveragePct: Number(data?.atsCoveragePct ?? data?.atsScore ?? 0),
+      certifications: this.dedupeStrings(this.asStringArray(this.firstArray(data, ['certifications', 'certificats', 'certifications_optimisees']))),
+      languages: this.dedupeStrings(this.asStringArray(this.firstArray(data, ['languages', 'langues']))),
+      activities: this.dedupeActivities(activities),
+      sections: this.normalizeSections(data?.sections, projects),
+      atsScore: Number(data?.atsScore ?? data?.ats_score ?? 0),
+      matchingScore: Number(data?.matchingScore ?? data?.matching_score ?? 0),
+      atsCoveragePct: Number(data?.atsCoveragePct ?? data?.ats_coverage_pct ?? data?.atsScore ?? data?.ats_score ?? 0),
     };
+  }
+
+  private normalizeSections(value: any, normalizedProjects: any[] = []): any[] {
+    const projectTechByTitle = new Map<string, string>();
+    normalizedProjects.forEach((project) => {
+      const key = this.normalizeKey(project?.title);
+      const tech = this.dedupeStrings(this.asStringArray(project?.technologies)).join(', ');
+      if (key && tech) {
+        projectTechByTitle.set(key, tech);
+      }
+    });
+
+    return this.asArray(value)
+      .map((section: any, index: number) => {
+        const normalizedId = this.normalizeSectionId(section?.id ?? section?.type);
+        const sectionItems = this.asArray(section?.items);
+        return {
+        id: normalizedId || `section-${index + 1}`,
+        type: normalizedId || this.cleanText(section?.type) || 'custom',
+        title: this.cleanText(section?.title),
+        placement: section?.placement === 'sidebar' ? 'sidebar' : 'main',
+        isVisible: section?.isVisible !== false,
+        order: Number.isFinite(Number(section?.order)) ? Number(section.order) : index,
+        text: this.cleanText(section?.text) || null,
+        items: sectionItems
+          .map((item: any, itemIndex: number) => {
+            const rawPrimaryText = this.stringifySectionText(item?.primaryText ?? item?.primary_text);
+            const rawSecondaryText = this.stringifySectionText(item?.secondaryText ?? item?.secondary_text);
+            const projectTechByName = normalizedId === 'projects'
+              ? (projectTechByTitle.get(this.normalizeKey(rawPrimaryText)) ?? '')
+              : '';
+            const projectFallbackTech = normalizedId === 'projects'
+              ? this.dedupeStrings(this.asStringArray(
+                  item?.technologies
+                  ?? item?.technologies_utilisees
+                  ?? item?.technologiesUtilisees
+                  ?? item?.technologiesUsed
+                  ?? item?.tech_stack
+                  ?? item?.techStack
+                  ?? item?.stack
+                  ?? projectTechByName
+                  ?? normalizedProjects[itemIndex]?.technologies
+                )).join(', ')
+              : '';
+            return {
+            primaryText: rawPrimaryText,
+            secondaryText: rawSecondaryText || projectFallbackTech,
+            startDate: this.cleanText(item?.startDate ?? item?.start_date) || null,
+            endDate: this.cleanText(item?.endDate ?? item?.end_date) || null,
+            location: this.cleanText(item?.location) || null,
+            description: this.cleanText(item?.description) || null,
+            level: item?.level == null ? null : Math.min(5, Math.max(1, Number(item.level))),
+            isMatched: !!(item?.isMatched ?? item?.is_matched),
+            bullets: this.dedupeStrings(this.asStringArray(item?.bullets ?? item?.bullet_points)),
+          };
+          })
+          .filter((item: any) =>
+            !!item.primaryText ||
+            !!item.secondaryText ||
+            !!item.description ||
+            item.bullets.length > 0
+          ),
+      };
+      })
+      .filter((section: any) => !!section.title || !!section.text || section.items.length > 0);
+  }
+
+  private stringifySectionText(value: any): string {
+    if (typeof value === 'string') return this.cleanText(value);
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (value && typeof value === 'object') {
+      return this.cleanText(
+        value.name
+        ?? value.label
+        ?? value.title
+        ?? value.value
+        ?? value.primaryText
+        ?? ''
+      );
+    }
+    return '';
   }
 
   private normalizeActivities(value: any): any[] {
     return this.asArray(value)
       .map((activity: any) => {
         if (typeof activity === 'string') {
-          return { title: this.cleanText(activity), role: null, description: '' };
+          return {
+            title: this.cleanText(activity),
+            role: null,
+            description: '',
+            startDate: null,
+            endDate: null,
+          };
         }
         return {
           title: this.cleanText(activity?.title ?? activity?.name),
           role: this.cleanText(activity?.role) || null,
           description: this.cleanText(activity?.description),
+          startDate: this.toMonthValue(activity?.startDate ?? activity?.start ?? activity?.dateDebut ?? activity?.date_debut),
+          endDate: this.toMonthValue(activity?.endDate ?? activity?.end ?? activity?.dateFin ?? activity?.date_fin),
         };
       })
       .filter((activity: any) => !!activity.title || !!activity.description);
@@ -608,24 +910,207 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     const seen = new Set<string>();
     return this.asArray(value)
       .map((project: any) => {
-        const description = this.cleanText(project?.description);
-        const bullets = this.dedupeStrings(this.asStringArray(project?.bullets))
-          .filter((bullet) => !this.isSameMeaning(bullet, description))
-          .slice(0, 4);
+        const description = this.cleanText(project?.description ?? project?.description_optimisee);
+        const bullets = this.dedupeStrings(this.asStringArray(project?.bullets ?? project?.taches_optimisees ?? project?.taches ?? project?.missions))
+          .filter((bullet) => !this.isSameMeaning(bullet, description));
         return {
-          title: this.cleanText(project?.title ?? project?.name),
-          description: bullets.length > 0 ? null : description,
+          title: this.cleanText(project?.title ?? project?.name ?? project?.titreProjet ?? project?.titre),
+          description,
+          technologies: this.dedupeStrings(this.asStringArray(
+            project?.technologies
+            ?? project?.technologies_utilisees
+            ?? project?.technologiesUtilisees
+            ?? project?.technologiesUsed
+            ?? project?.stack
+            ?? project?.techStack
+            ?? project?.outils
+          )),
+          dateRealisation: this.toMonthValue(project?.dateRealisation ?? project?.date_realisation),
+          relevance: this.cleanText(project?.niveau_pertinence ?? project?.relevance),
+          keywords: this.dedupeStrings(this.asStringArray(project?.mots_cles_cibles ?? project?.keywords)),
           bullets,
         };
       })
       .filter((project: any) => {
-        if (!project.title && project.bullets.length === 0) return false;
-        const key = this.normalizeKey(project.title);
+        if (!project.title && !project.description && project.bullets.length === 0) return false;
+        const key = this.normalizeKey(`${project.title}|${project.description ?? ''}`);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      })
-      .slice(0, 4);
+      });
+  }
+
+  private extractProjectsFromSections(sections: any[]): any[] {
+    return this.asArray(sections)
+      .filter((section: any) => this.normalizeSectionId(section?.id ?? section?.type) === 'projects')
+      .flatMap((section: any) => this.asArray(section?.items))
+      .map((item: any) => ({
+        title: this.cleanText(item?.primaryText ?? item?.primary_text),
+        description: this.cleanText(item?.description),
+        technologies: this.dedupeStrings(this.asStringArray(
+          item?.secondaryText
+          ?? item?.secondary_text
+          ?? item?.technologies
+          ?? item?.technologies_utilisees
+          ?? item?.technologiesUsed
+          ?? item?.tech_stack
+          ?? item?.techStack
+          ?? item?.stack
+        )),
+        dateRealisation: this.toMonthValue(item?.startDate ?? item?.start_date),
+        relevance: '',
+        keywords: [],
+        bullets: this.dedupeStrings(this.asStringArray(item?.bullets ?? item?.bullet_points)),
+      }))
+      .filter((project: any) => !!project.title || !!project.description || project.bullets.length > 0);
+  }
+
+  private mergeNormalizedProjects(primary: any[], fallback: any[]): any[] {
+    const merged = new Map<string, any>();
+
+    for (const project of fallback) {
+      const key = this.normalizeKey(project?.title);
+      if (!key) continue;
+      merged.set(key, project);
+    }
+
+    for (const project of primary) {
+      const key = this.normalizeKey(project?.title);
+      if (!key) continue;
+      const existing = merged.get(key);
+      merged.set(key, {
+        ...existing,
+        ...project,
+        technologies: (project?.technologies?.length ? project.technologies : existing?.technologies) ?? [],
+        bullets: (project?.bullets?.length ? project.bullets : existing?.bullets) ?? [],
+        description: project?.description || existing?.description || '',
+        dateRealisation: project?.dateRealisation || existing?.dateRealisation || '',
+      });
+    }
+
+    return Array.from(merged.values());
+  }
+
+  private unwrapCvPayload(value: any): any {
+    if (!value || typeof value !== 'object') return value;
+    return value.cvData
+      ?? value.cv_data
+      ?? value.cvGeneratedContent
+      ?? value.cv_optimized_content
+      ?? value.cvOptimizedContent
+      ?? value.data
+      ?? value;
+  }
+
+  private getCandidateSource(data: any): any {
+    return data?.candidate
+      ?? data?.personal
+      ?? data?.personalInfo
+      ?? data?.personal_info
+      ?? data?.informations_personnelles
+      ?? {};
+  }
+
+  private resolvePreferredCandidateName(candidate: any, profilePersonal: any, liveProfilePersonal: any): string {
+    const candidateName = this.extractCandidateName(candidate);
+    const profileName = this.extractCandidateName(profilePersonal);
+    const liveName = this.extractCandidateName(liveProfilePersonal);
+    if (candidateName && !this.isGenericCandidateName(candidateName)) {
+      return candidateName;
+    }
+    return profileName || liveName || candidateName;
+  }
+
+  private resolvePreferredLocation(candidate: any, profilePersonal: any, liveProfilePersonal: any): string {
+    const candidateLocation = this.cleanText(
+      candidate?.location ?? [candidate?.ville ?? candidate?.city, candidate?.pays ?? candidate?.country].filter(Boolean).join(', ')
+    );
+    const profileLocation = this.cleanText(
+      profilePersonal?.location ?? [profilePersonal?.ville ?? profilePersonal?.city, profilePersonal?.pays ?? profilePersonal?.country].filter(Boolean).join(', ')
+    );
+    const liveLocation = this.cleanText(
+      [liveProfilePersonal?.city, liveProfilePersonal?.country].filter(Boolean).join(', ')
+    );
+    return candidateLocation || profileLocation || liveLocation;
+  }
+
+  private extractCandidateName(source: any): string {
+    return this.cleanText(
+      source?.name
+      ?? source?.nomComplet
+      ?? source?.fullName
+      ?? [source?.firstName, source?.lastName].filter(Boolean).join(' ')
+      ?? [source?.prenom ?? source?.firstName, source?.nom ?? source?.lastName].filter(Boolean).join(' ')
+    );
+  }
+
+  private extractCandidatePhotoUrl(candidate: any, profilePersonal: any, liveProfilePersonal: any): string | null {
+    const candidates = [
+      candidate?.photoUrl,
+      candidate?.photo_url,
+      candidate?.profilePhoto,
+      candidate?.profile_photo,
+      candidate?.avatar,
+      profilePersonal?.photoUrl,
+      profilePersonal?.photo_url,
+      profilePersonal?.profilePhoto,
+      profilePersonal?.profile_photo,
+      profilePersonal?.avatar,
+      liveProfilePersonal?.photoUrl,
+      liveProfilePersonal?.photo_url,
+      liveProfilePersonal?.profilePhoto,
+      liveProfilePersonal?.profile_photo,
+      liveProfilePersonal?.avatar,
+      this.signedProfilePhotoUrl,
+    ];
+
+    for (const value of candidates) {
+      const clean = this.cleanText(value);
+      if (clean) return clean;
+    }
+
+    return null;
+  }
+
+  private normalizeSectionId(sectionId: any): string {
+    const normalized = this.cleanText(sectionId).toLowerCase();
+    const aliases: Record<string, string> = {
+      summary: 'summary',
+      resume: 'summary',
+      experience: 'experience',
+      experiences: 'experience',
+      project: 'projects',
+      projects: 'projects',
+      education: 'education',
+      skill: 'skills',
+      skills: 'skills',
+      softskills: 'softskills',
+      'soft-skills': 'softskills',
+      soft_skills: 'softskills',
+      certification: 'certifications',
+      certifications: 'certifications',
+      language: 'languages',
+      languages: 'languages',
+      activity: 'activities',
+      activities: 'activities',
+      achievement: 'accomplishments',
+      achievements: 'accomplishments',
+      accomplishments: 'accomplishments',
+    };
+    return aliases[normalized] ?? normalized;
+  }
+
+  private isGenericCandidateName(value: string): boolean {
+    const normalized = this.cleanText(value).toLowerCase();
+    return normalized === 'candidat' || normalized === 'candidate';
+  }
+
+  private firstArray(source: any, keys: string[]): any[] {
+    for (const key of keys) {
+      const value = source?.[key];
+      if (Array.isArray(value)) return value;
+    }
+    return [];
   }
 
   private dedupeActivities(activities: any[]): any[] {
@@ -681,7 +1166,23 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private asStringArray(value: any): string[] {
-    return this.asArray(value).map((item: any) => String(item ?? '').trim()).filter(Boolean);
+    const values = Array.isArray(value) ? value : [value];
+    return values.map((item: any) => {
+      if (typeof item === 'string') return item.trim();
+      if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+      if (item && typeof item === 'object')
+        return this.cleanText(item.name ?? item.nom ?? item.label ?? item.title ?? item.titre ?? item.description ?? '');
+      return String(item ?? '').trim();
+    }).filter(Boolean);
+  }
+
+  private toSkillLevel(value: any): number {
+    if (typeof value === 'number') return Math.min(5, Math.max(1, Math.round(value)));
+    const normalized = this.normalizeKey(value);
+    if (['expert', 'avance', 'advanced', 'proficient', 'native', 'maternelle'].includes(normalized)) return 5;
+    if (['intermediaire', 'intermediate', 'courant', 'upper intermediate'].includes(normalized)) return 4;
+    if (['elementaire', 'elementary', 'debutant', 'beginner'].includes(normalized)) return 2;
+    return 3;
   }
 
   private toMonthValue(value: any): string {
@@ -689,4 +1190,15 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     const match = text.match(/^(\d{4})-(\d{2})/);
     return match ? `${match[1]}-${match[2]}` : '';
   }
+
+  private finishReoptimization(): void {
+    this.isReoptimizingCv = false;
+    this.pipeline.setLoading(false);
+  }
+
+  private agentTemplateId(slug: string | null): number {
+    return slug === 'modern' ? 4 : 1;
+  }
 }
+
+

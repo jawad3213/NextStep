@@ -1,60 +1,96 @@
 <div class="step-content">
   <div class="success-banner">
-    <div class="icon-circle">✓</div>
+    <div class="icon-circle">5</div>
     <div>
-      <h3 class="sb-title">Candidature prête !</h3>
-      <p class="sb-desc">Vos documents ont été optimisés pour les systèmes ATS de {{ result?.companyName }}.</p>
+      <h3 class="sb-title">Final review and send</h3>
+      <p class="sb-desc">Votre CV final est sauvegarde. Choisissez le destinataire, ajustez le message, puis envoyez votre candidature depuis l application.</p>
     </div>
   </div>
 
   <div class="results-layout">
-    <!-- Colonne CV -->
-    <div class="doc-card">
+    <section class="doc-card cv-card">
       <div class="doc-header">
-        <span class="doc-type">Curriculum Vitae</span>
-        <span class="doc-score">Score ATS: {{ result?.atsScore }}%</span>
+        <span class="doc-type">CV attache</span>
+        <span class="doc-score">ATS {{ result?.atsScore }}%</span>
       </div>
+
       <div class="doc-preview cv-preview">
         @if (cvPreviewUrl) {
           <iframe class="final-cv-frame" [src]="cvPreviewUrl"></iframe>
         } @else {
           <div class="final-cv-empty" [class.error]="previewError">
-            <strong>{{ isLoadingPreview ? 'Chargement du PDF final...' : (previewError || 'PDF final en preparation') }}</strong>
-            <span>Le fichier affiche ici est le meme fichier recupere par Telecharger PDF.</span>
+            <strong>{{ isLoadingPreview ? 'Chargement du CV final...' : (previewError || 'CV final en preparation') }}</strong>
+            <span>Le fichier visible ici sera le meme fichier attache a l email.</span>
           </div>
         }
       </div>
-      <button class="btn-download" (click)="downloadCv()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Télécharger PDF
-      </button>
-    </div>
 
-    <!-- Colonne Email -->
-    <div class="doc-card">
+      <div class="attachment-meta">
+        <div>
+          <strong>{{ attachmentName }}</strong>
+          <span>Piece jointe envoyee avec votre email</span>
+        </div>
+        <button class="btn-secondary" type="button" (click)="downloadCv()">Download PDF</button>
+      </div>
+    </section>
+
+    <section class="doc-card email-card">
       <div class="doc-header">
-        <span class="doc-type">Email d'accompagnement</span>
+        <span class="doc-type">Email de candidature</span>
+        <span class="doc-subtype">Send from NextStep</span>
       </div>
-      <div class="doc-preview email-preview">
-        <div class="email-field">
-          <strong>Sujet :</strong> {{ result?.emailSubject }}
+
+      <div class="composer-form">
+        <label class="composer-field">
+          <span>To</span>
+          <input type="email" [(ngModel)]="recipientEmail" placeholder="recruiter@company.com" />
+        </label>
+
+        <label class="composer-field">
+          <span>Subject</span>
+          <input type="text" [(ngModel)]="emailSubject" placeholder="Application - Full-Stack QA Engineer" />
+        </label>
+
+        <label class="composer-field composer-field-body">
+          <span>Message</span>
+          <textarea rows="12" [(ngModel)]="emailBody"></textarea>
+        </label>
+
+        <div class="composer-attachment">
+          <div class="attachment-pill">
+            <span class="attachment-icon">PDF</span>
+            <div>
+              <strong>{{ attachmentName }}</strong>
+              <span>Will be attached automatically</span>
+            </div>
+          </div>
+          <button class="btn-ghost" type="button" (click)="copyEmailBody()">Copy message</button>
         </div>
-        <div class="email-field">
-          <strong>À :</strong> {{ result?.recruiterName || 'Recrutement' }}
-        </div>
-        <div class="email-body">
-          {{ result?.emailBody }}
+
+        @if (sendError) {
+          <div class="status-banner error">{{ sendError }}</div>
+        }
+
+        @if (sendSuccessMessage) {
+          <div class="status-banner success">{{ sendSuccessMessage }}</div>
+        }
+
+        <div class="composer-actions">
+          <button class="btn-secondary" type="button" (click)="backToEditor()">Back to CV</button>
+          <button class="btn-primary" type="button" [disabled]="!canSend" (click)="sendEmail()">
+            @if (isSendingEmail) {
+              <span class="spinner"></span>
+              Sending...
+            } @else {
+              Send application
+            }
+          </button>
         </div>
       </div>
-      <button class="btn-copy" onclick="navigator.clipboard.writeText(document.querySelector('.email-body').innerText); alert('Copié !')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        Copier le texte
-      </button>
-    </div>
+    </section>
   </div>
 
-  <!-- Actions -->
   <div class="step-actions">
-    <button class="btn-primary" (click)="finish()">Terminer & Retour au Dashboard</button>
+    <button class="btn-secondary" type="button" (click)="finish()">Close flow</button>
   </div>
 </div>

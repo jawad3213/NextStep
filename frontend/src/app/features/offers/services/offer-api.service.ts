@@ -25,6 +25,209 @@ export interface OfferHistoryItem {
   dateCreation: string;
 }
 
+export type ScrapeProvider = 'linkedin' | 'indeed' | 'glassdoor';
+
+export interface LinkedInJobsSearchRequest {
+  keywords: string;
+  location?: string;
+  limit?: number;
+  posted_since_seconds?: number;
+  search_url?: string;
+  fetch_details?: boolean;
+  it_only?: boolean;
+}
+
+export interface LinkedInScrapedJob {
+  job_id?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  posted_at_text?: string | null;
+  url?: string | null;
+  description?: string | null;
+  employment_type?: string | null;
+  seniority_level?: string | null;
+  job_function?: string | null;
+  industries?: string[];
+  source: string;
+  search_url?: string | null;
+  is_it_offer?: boolean;
+  matched_it_terms?: string[];
+}
+
+export interface LinkedInJobsSearchResponse {
+  keywords?: string | null;
+  location?: string | null;
+  total_found: number;
+  total_returned: number;
+  it_only: boolean;
+  search_urls: string[];
+  jobs: LinkedInScrapedJob[];
+  errors: string[];
+}
+
+export interface IndeedJobsSearchRequest {
+  keywords: string;
+  location?: string;
+  limit?: number;
+  search_url?: string;
+  fetch_details?: boolean;
+  it_only?: boolean;
+  country_code?: string;
+}
+
+export interface IndeedScrapedJob {
+  job_id?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  posted_at_text?: string | null;
+  url?: string | null;
+  description?: string | null;
+  employment_type?: string | null;
+  seniority_level?: string | null;
+  job_function?: string | null;
+  industries?: string[];
+  source: string;
+  search_url?: string | null;
+  is_it_offer?: boolean;
+  matched_it_terms?: string[];
+}
+
+export interface IndeedJobsSearchResponse {
+  keywords?: string | null;
+  location?: string | null;
+  total_found: number;
+  total_returned: number;
+  it_only: boolean;
+  search_urls: string[];
+  jobs: IndeedScrapedJob[];
+  errors: string[];
+}
+
+export interface GlassdoorJobsSearchRequest {
+  keywords: string;
+  location?: string;
+  limit?: number;
+  search_url?: string;
+  fetch_details?: boolean;
+  it_only?: boolean;
+}
+
+export interface GlassdoorScrapedJob {
+  job_id?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  posted_at_text?: string | null;
+  url?: string | null;
+  description?: string | null;
+  employment_type?: string | null;
+  seniority_level?: string | null;
+  job_function?: string | null;
+  industries?: string[];
+  source: string;
+  search_url?: string | null;
+  is_it_offer?: boolean;
+  matched_it_terms?: string[];
+}
+
+export interface GlassdoorJobsSearchResponse {
+  keywords?: string | null;
+  location?: string | null;
+  total_found: number;
+  total_returned: number;
+  it_only: boolean;
+  search_urls: string[];
+  jobs: GlassdoorScrapedJob[];
+  errors: string[];
+}
+
+export type PostedWindow = '24h' | '3d' | '7d' | '14d' | '30d' | 'any';
+export type NormalizedContractType =
+  | 'internship'
+  | 'cdi'
+  | 'cdd'
+  | 'freelance'
+  | 'alternance'
+  | 'part_time'
+  | 'full_time'
+  | 'temporary'
+  | 'other';
+
+export interface SourcedOfferSearchRequest {
+  keywords?: string | null;
+  location?: string | null;
+  providers?: ScrapeProvider[];
+  limit?: number;
+  postedWindow?: PostedWindow;
+  contractTypes?: NormalizedContractType[];
+  indeedCountryCode?: string | null;
+  workflowState?: 'saved' | 'shortlisted' | 'archived' | null;
+}
+
+export interface ScrapeSessionDto {
+  id: string;
+  keywords?: string | null;
+  location?: string | null;
+  providers: string[];
+  countryCode?: string | null;
+  postedWindow: PostedWindow;
+  contractTypes: NormalizedContractType[];
+  limit: number;
+  resultCount: number;
+  warnings: string[];
+  errors: string[];
+  createdAtUtc: string;
+}
+
+export interface SourcedOfferListItemDto {
+  id: string;
+  provider: ScrapeProvider;
+  providerJobId?: string | null;
+  externalUrl?: string | null;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  description?: string | null;
+  postedAtText?: string | null;
+  postedWindow?: PostedWindow | null;
+  rawContractType?: string | null;
+  normalizedContractType?: NormalizedContractType | null;
+  employmentType?: string | null;
+  seniorityLevel?: string | null;
+  matchedItTerms: string[];
+  isSaved: boolean;
+  isShortlisted: boolean;
+  isArchived: boolean;
+  promotedOfferId?: string | null;
+  firstSeenAtUtc: string;
+  lastSeenAtUtc: string;
+  scrapedAtUtc: string;
+}
+
+export interface SourcedOfferDetailDto extends SourcedOfferListItemDto {
+  sourceQuery: Record<string, unknown>;
+  similarOffers: SourcedOfferListItemDto[];
+}
+
+export interface SourcedOfferSearchResponse {
+  session?: ScrapeSessionDto | null;
+  offers: SourcedOfferListItemDto[];
+  warnings: string[];
+}
+
+export interface SourcedOfferUpdateRequest {
+  isSaved?: boolean;
+  isShortlisted?: boolean;
+  isArchived?: boolean;
+}
+
+export interface PromoteSourcedOfferResponse {
+  offerId: string;
+  alreadyPromoted: boolean;
+}
+
 export interface PdfGeneratePayload {
   templateId: string;
 }
@@ -67,11 +270,95 @@ export interface CvSaveResponse {
   fileSizeBytes: number;
 }
 
+export interface SaveFinalCvRequest {
+  templateSlug: string;
+  title: string;
+  offerId?: string | null;
+  data: any;
+  designConfig: CvDesignConfig;
+  htmlSnapshot?: string | null;
+}
+
+export interface CvDesignConfig {
+  themeColor: string;
+  fontFamily: string;
+  fontSize: string;
+  lineSpacing: string;
+  sectionSpacing: string;
+  sidebarWidth: string;
+}
+
+export interface CvTemplateDto {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  industries: string[];
+  experienceLevels: string[];
+  style: string;
+  layoutFlags: string[];
+  backgroundColor: string;
+  tags: string[];
+}
+
+export interface CvRenderRequest {
+  templateSlug: string;
+  data: any;
+  designConfig: CvDesignConfig;
+}
+
+export interface CvRenderResponse {
+  templateSlug: string;
+  designConfig: CvDesignConfig;
+  html: string;
+}
+
+export interface CvPreviewResponse {
+  templateSlug: string;
+  data: any;
+  designConfig: CvDesignConfig;
+  html: string;
+}
+
+export interface CvExportPdfRequest {
+  templateSlug: string;
+  data: any;
+  designConfig: CvDesignConfig;
+  htmlSnapshot?: string | null;
+}
+
 export interface CvDraftResponse {
   offerId: string;
   data: any;
   version: number;
   updatedAtUtc: string;
+}
+
+export interface SendApplicationEmailRequest {
+  offerId: string;
+  cvHistoryId?: string | null;
+  recipientEmail: string;
+  subject: string;
+  body: string;
+  emailType?: string;
+  language?: string;
+}
+
+export interface EmailDraftResponse {
+  id: string;
+  candidatureId: string;
+  emailType: string;
+  recipientEmail?: string | null;
+  subject: string;
+  body: string;
+  language: string;
+  isApproved: boolean;
+  isSent: boolean;
+  createdAtUtc: string;
+  updatedAtUtc?: string | null;
+  sentAtUtc?: string | null;
+  errorMessage?: string | null;
 }
 
 export interface SkillDetail {
@@ -133,6 +420,7 @@ export interface OfferAnalysisResponse {
 export class OfferApiService {
   private http = inject(HttpClient);
   private base = environment.apiBaseUrl;
+  private agentsBase = environment.agentsBaseUrl;
 
   submitOffer(payload: OfferSubmitPayload): Observable<OfferSubmitResponse> {
     return this.http.post<OfferSubmitResponse>(
@@ -143,6 +431,48 @@ export class OfferApiService {
 
   getOffersHistory(): Observable<OfferHistoryItem[]> {
     return this.http.get<OfferHistoryItem[]>(`${this.base}/offers`);
+  }
+
+  searchSourcedOffers(payload: SourcedOfferSearchRequest): Observable<SourcedOfferSearchResponse> {
+    return this.http.post<SourcedOfferSearchResponse>(`${this.base}/sourced-offers/search`, payload);
+  }
+
+  getSourcedOffers(params: SourcedOfferSearchRequest = {}): Observable<SourcedOfferListItemDto[]> {
+    const query = new URLSearchParams();
+    if (params.keywords) query.set('keywords', params.keywords);
+    if (params.location) query.set('location', params.location);
+    for (const provider of params.providers ?? []) query.append('providers', provider);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.postedWindow) query.set('postedWindow', params.postedWindow);
+    for (const contractType of params.contractTypes ?? []) query.append('contractTypes', contractType);
+    if (params.indeedCountryCode) query.set('indeedCountryCode', params.indeedCountryCode);
+    if (params.workflowState) query.set('workflowState', params.workflowState);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.http.get<SourcedOfferListItemDto[]>(`${this.base}/sourced-offers${suffix}`);
+  }
+
+  getSourcedOffer(id: string): Observable<SourcedOfferDetailDto> {
+    return this.http.get<SourcedOfferDetailDto>(`${this.base}/sourced-offers/${id}`);
+  }
+
+  updateSourcedOffer(id: string, payload: SourcedOfferUpdateRequest): Observable<SourcedOfferDetailDto> {
+    return this.http.patch<SourcedOfferDetailDto>(`${this.base}/sourced-offers/${id}`, payload);
+  }
+
+  promoteSourcedOffer(id: string): Observable<PromoteSourcedOfferResponse> {
+    return this.http.post<PromoteSourcedOfferResponse>(`${this.base}/sourced-offers/${id}/promote`, {});
+  }
+
+  searchLinkedInJobs(payload: LinkedInJobsSearchRequest): Observable<LinkedInJobsSearchResponse> {
+    return this.http.post<LinkedInJobsSearchResponse>(`${this.agentsBase}/linkedin-jobs/search`, payload);
+  }
+
+  searchIndeedJobs(payload: IndeedJobsSearchRequest): Observable<IndeedJobsSearchResponse> {
+    return this.http.post<IndeedJobsSearchResponse>(`${this.agentsBase}/indeed-jobs/search`, payload);
+  }
+
+  searchGlassdoorJobs(payload: GlassdoorJobsSearchRequest): Observable<GlassdoorJobsSearchResponse> {
+    return this.http.post<GlassdoorJobsSearchResponse>(`${this.agentsBase}/glassdoor-jobs/search`, payload);
   }
 
   bulkDeleteOffers(offerIds: string[]): Observable<{ deletedCount: number }> {
@@ -259,6 +589,10 @@ export class OfferApiService {
     return this.http.get<CvHistoryItem[]>(`${this.base}/cv/history`);
   }
 
+  getCvTemplates(): Observable<CvTemplateDto[]> {
+    return this.http.get<CvTemplateDto[]>(`${this.base}/cv/templates`);
+  }
+
   getCvDownloadUrl(historyId: string): Observable<{ downloadUrl: string }> {
     return this.http.get<{ downloadUrl: string }>(`${this.base}/cv/${historyId}/download`);
   }
@@ -269,17 +603,28 @@ export class OfferApiService {
     });
   }
 
-  renderCvPreview(templateSlug: string, data: any): Observable<Blob> {
-    return this.http.post(`${this.base}/cv/preview/render?template=${encodeURIComponent(templateSlug)}`, data, {
+  previewCv(templateSlug: string, offerId?: string | null): Observable<CvPreviewResponse> {
+    const params = new URLSearchParams();
+    params.set('template', templateSlug);
+    if (offerId) params.set('offerId', offerId);
+    return this.http.post<CvPreviewResponse>(`${this.base}/cv/preview?${params.toString()}`, {});
+  }
+
+  renderCvPreview(request: CvRenderRequest): Observable<CvRenderResponse> {
+    return this.http.post<CvRenderResponse>(`${this.base}/cv/preview/render`, request);
+  }
+
+  exportCvPdf(request: CvExportPdfRequest): Observable<Blob> {
+    return this.http.post(`${this.base}/cv/export/pdf`, request, {
       responseType: 'blob'
     });
   }
 
-  saveFinalCv(templateSlug: string, title: string, data: any): Observable<CvSaveResponse> {
-    return this.http.post<CvSaveResponse>(`${this.base}/cv/save`, {
-      templateSlug,
-      title,
-      data
-    });
+  saveFinalCv(payload: SaveFinalCvRequest): Observable<CvSaveResponse> {
+    return this.http.post<CvSaveResponse>(`${this.base}/cv/save`, payload);
+  }
+
+  sendApplicationEmail(payload: SendApplicationEmailRequest): Observable<EmailDraftResponse> {
+    return this.http.post<EmailDraftResponse>(`${this.base}/emails/send`, payload);
   }
 }

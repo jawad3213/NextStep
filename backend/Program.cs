@@ -12,6 +12,7 @@ using NextStep.Modules.Identity.Repositories;
 using NextStep.Modules.Identity.Services;
 using NextStep.Modules.Profile.Services;
 using NextStep.Modules.Cv.Services;
+using NextStep.Modules.Sourcing.Services;
 using NextStep.Shared.Storage;
 using Amazon.S3;
 using System.Linq;
@@ -81,6 +82,7 @@ builder.Services.AddDbContext<AppDbContext>(options => {
 });
 
 builder.Services.Configure<AgentPythonOptions>(builder.Configuration.GetSection("PythonAgents"));
+builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection("Email:Smtp"));
 builder.Services.AddHttpClient<IAgentHttpClient, AgentHttpClient>();
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IOfferService, OfferService>();
@@ -102,8 +104,11 @@ builder.Services.AddScoped<IResponseClassificationService, ResponseClassificatio
 builder.Services.AddScoped<CheckEmailRepliesJob>();
 builder.Services.AddScoped<DetectFollowUpNeededJob>();
 builder.Services.AddScoped<ICvService, CvService>();
+builder.Services.AddScoped<ICvHtmlTemplateRenderer, CvHtmlTemplateRenderer>();
+builder.Services.AddScoped<ICvPdfRenderer, CvPdfRenderer>();
 builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
-builder.Services.AddSingleton<ITemplateThumbnailService, TemplateThumbnailService>();
+builder.Services.AddScoped<ITemplateThumbnailService, TemplateThumbnailService>();
+builder.Services.AddScoped<ISourcedOfferService, SourcedOfferService>();
 
 // ── Google OAuth configuration ───────────────────────────────────────────────
 builder.Services.Configure<GoogleOAuthOptions>(
@@ -231,6 +236,56 @@ using (var scope = app.Services.CreateScope())
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ALTER COLUMN id_skill_keyword SET DEFAULT gen_random_uuid();");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'Technique';");
         await context.Database.ExecuteSqlRawAsync("CREATE UNIQUE INDEX IF NOT EXISTS ux_skill_keyword_mot_categorie ON public.skill_keyword (lower(mot), categorie);");
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.sourced_offer (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                provider TEXT NOT NULL,
+                provider_job_id TEXT NULL,
+                external_url TEXT NULL,
+                title TEXT NOT NULL,
+                company TEXT NULL,
+                location TEXT NULL,
+                description TEXT NULL,
+                posted_at_text TEXT NULL,
+                posted_window TEXT NULL,
+                raw_contract_type TEXT NULL,
+                normalized_contract_type TEXT NULL,
+                employment_type TEXT NULL,
+                seniority_level TEXT NULL,
+                matched_it_terms_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                source_query_json JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+                dedupe_key TEXT NOT NULL,
+                is_saved BOOLEAN NOT NULL DEFAULT FALSE,
+                is_shortlisted BOOLEAN NOT NULL DEFAULT FALSE,
+                is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+                promoted_offer_id UUID NULL,
+                first_seen_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                last_seen_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                scraped_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                created_at_utc TIMESTAMP NOT NULL DEFAULT now(),
+                updated_at_utc TIMESTAMP NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS public.scrape_session (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                keywords TEXT NULL,
+                location TEXT NULL,
+                providers_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                country_code TEXT NULL,
+                posted_window TEXT NULL,
+                contract_types_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                limit_value INTEGER NOT NULL DEFAULT 20,
+                result_count INTEGER NOT NULL DEFAULT 0,
+                warnings_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                errors_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                created_at_utc TIMESTAMP NOT NULL DEFAULT now()
+            );
+        ");
+        await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS ix_sourced_offer_user_provider_job ON public.sourced_offer (user_id, provider, provider_job_id);");
+        await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS ix_sourced_offer_user_dedupe ON public.sourced_offer (user_id, dedupe_key);");
+        await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS ix_scrape_session_user_created ON public.scrape_session (user_id, created_at_utc);");
 
         // Ensure core recommendations always exist (idempotent).
         await context.Database.ExecuteSqlRawAsync(@"
@@ -426,40 +481,22 @@ using (var scope = app.Services.CreateScope())
             );
         ");
 
-        // Seed default templates
+        // Seed default templates (only those with actual IDocument implementations)
         await context.Database.ExecuteSqlRawAsync(@"
             DELETE FROM public.cv_template;
             INSERT INTO public.cv_template (slug, name, description, thumbnail_url, industries, experience_levels, style, layout, background_color, tags, sort_order)
             VALUES
-                ('chrono',    'Chrono',    'Minimal and structured timeline layout.',      '/api/cv/templates/chrono/thumbnail',
-                 '[""AdministrativeAndOffice"",""EducationAndAcademic"",""FinanceAndAccounting"",""HealthcareAndMedical""]'::jsonb,
-                 '[""StudentEntryLevel"",""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Traditional', 9, '#FFFFFF',
-                 '[""single-column"",""ATS-friendly"",""clean""]'::jsonb, 1),
-
-                ('elegant',   'Elegant',   'Dark navy sidebar, spaced-letter headings.',   '/api/cv/templates/elegant/thumbnail',
-                 '[""CreativeAndDesign"",""MarketingAndSales"",""BusinessAndManagement""]'::jsonb,
-                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Elegant', 6, '#1A1F36',
-                 '[""two-column"",""sidebar"",""elegant""]'::jsonb, 2),
-
-                ('circular',  'Circular',  'Blue sidebar with circular initials bubble.',  '/api/cv/templates/circular/thumbnail',
-                 '[""ITAndEngineering"",""CreativeAndDesign"",""BusinessAndManagement""]'::jsonb,
-                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
-                 'Creative', 6, '#1E3A8A',
-                 '[""two-column"",""sidebar"",""circular""]'::jsonb, 3),
-
                 ('modern',    'Modern',    'Dark blue header, two-column layout.',         '/api/cv/templates/modern/thumbnail',
                  '[""ITAndEngineering"",""CreativeAndDesign"",""MarketingAndSales""]'::jsonb,
                  '[""MidLevel"",""SeniorExecutive""]'::jsonb,
                  'Modern', 6, '#1B2A4A',
-                 '[""two-column"",""dark-header""]'::jsonb, 4),
+                 '[""two-column"",""dark-header""]'::jsonb, 1),
 
-                ('luxe',      'Luxe',      'Salmon/peach premium executive design.',       '/api/cv/templates/luxe/thumbnail',
-                 '[""BusinessAndManagement"",""FinanceAndAccounting"",""MarketingAndSales""]'::jsonb,
-                 '[""SeniorExecutive""]'::jsonb,
-                 'Elegant', 6, '#F4A68C',
-                 '[""two-column"",""premium"",""executive""]'::jsonb, 5);
+                ('latex',     'LaTeX Tech','Traditional ATS-friendly classic engineering structure.', '/api/cv/templates/latex/thumbnail',
+                 '[""ITAndEngineering"",""EducationAndAcademic""]'::jsonb,
+                 '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                 'Traditional', 5, '#FFFFFF',
+                 '[""single-column"",""ATS-friendly"",""classic""]'::jsonb, 2);
         ");
 
         // Update thumbnail_url for existing templates that may have null
@@ -555,7 +592,7 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("DEBUG: CHECKING TEMPLATE THUMBNAILS...");
         var thumbnailService = scope.ServiceProvider.GetRequiredService<ITemplateThumbnailService>();
         var missing = thumbnailService.GetTemplateSlugs()
-            .Where(s => thumbnailService.GetThumbnailPdf(s) is null)
+            .Where(s => thumbnailService.GetThumbnailPng(s) is null)
             .ToList();
         if (missing.Count > 0)
         {

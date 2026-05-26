@@ -5,7 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { ProfileService } from '../profile/profile.service';
 import { firstValueFrom } from 'rxjs';
-import { SafeUrlPipe } from '../../shared/pipe/safe-url.pipe';
+
 
 interface CvTemplate {
   id: string;
@@ -52,7 +52,7 @@ interface CvData {
 @Component({
   selector: 'app-cv-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule, SafeUrlPipe],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="cv-shell">
       <header class="page-header">
@@ -105,8 +105,8 @@ interface CvData {
               @for (tpl of filteredTemplates(); track tpl.id) {
                 <div class="template-card" [class.selected]="selectedTemplate()?.id === tpl.id" (click)="selectTemplate(tpl)">
                   <div class="template-thumb" [style.background]="tpl.backgroundColor || '#F1F5F9'">
-                    @if (tpl.thumbnailUrl) {
-                      <iframe [src]="thumbnailUrl(tpl.thumbnailUrl) | safeUrl" class="thumb-pdf" loading="lazy" title="{{ tpl.name }} preview"></iframe>
+                    @if (isPngThumbnailSupported(tpl.thumbnailUrl)) {
+                      <img [src]="thumbnailUrl(tpl.thumbnailUrl)" class="thumb-pdf" loading="lazy" alt="{{ tpl.name }} preview" />
                     } @else {
                       <div class="thumb-placeholder">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -447,9 +447,16 @@ export class CvBuilderComponent implements OnInit {
   }
 
   thumbnailUrl(path: string): string {
-    if (path.startsWith('http')) return path;
+    const normalizedPath = path.replace(/\/thumbnail\.pdf(\?.*)?$/i, '/thumbnail');
+    if (normalizedPath.startsWith('http')) return normalizedPath;
     const origin = new URL(this.baseUrl).origin;
-    return `${origin}${path}`;
+    return `${origin}${normalizedPath}`;
+  }
+
+  isPngThumbnailSupported(path: string): boolean {
+    const normalizedPath = path.replace(/\/thumbnail\.pdf(\?.*)?$/i, '/thumbnail').toLowerCase();
+    return normalizedPath.includes('/api/cv/templates/modern/thumbnail')
+      || normalizedPath.includes('/api/cv/templates/latex/thumbnail');
   }
 
   selectTemplate(tpl: CvTemplate) {
@@ -556,11 +563,8 @@ export class CvBuilderComponent implements OnInit {
 }
 
 const mockTemplates: CvTemplate[] = [
-  { id: '1', slug: 'chrono', name: 'Chrono', description: 'Design moderne avec timeline et accents verts, parfait pour structurer votre parcours.', thumbnailUrl: '/api/cv/templates/chrono/thumbnail', industries: ['IT', 'Tech'], experienceLevels: ['Junior', 'Mid'], style: 'Modern', layoutFlags: ['Two Column', 'With Photo'], backgroundColor: '#EEF2FF', tags: ['ATS', 'Green'] },
-  { id: '2', slug: 'elegant', name: 'Élégant', description: 'Design élégant et minimaliste avec barre latérale bleu marine/ardoise.', thumbnailUrl: '/api/cv/templates/elegant/thumbnail', industries: ['Finance', 'Management'], experienceLevels: ['Senior', 'Executive'], style: 'Elegant', layoutFlags: ['Two Column', 'Without Photo'], backgroundColor: '#FAFAFA', tags: ['Premium', 'Navy'] },
-  { id: '3', slug: 'circular', name: 'Circular', description: 'Sidebar courbe moderne avec badge initiales distinctif et accents bleus.', thumbnailUrl: '/api/cv/templates/circular/thumbnail', industries: ['Creative', 'Design'], experienceLevels: ['Junior', 'Senior'], style: 'Creative', layoutFlags: ['Two Column', 'With Photo'], backgroundColor: '#EEF2FF', tags: ['Creative', 'Blue'] },
-  { id: '4', slug: 'modern', name: 'Modern', description: 'Format tech stylé avec séparations de colonnes nettes.', thumbnailUrl: '/api/cv/templates/modern/thumbnail', industries: ['IT', 'Tech'], experienceLevels: ['Mid', 'Senior'], style: 'Modern', layoutFlags: ['Two Column', 'With Photo'], backgroundColor: '#F5F5FF', tags: ['ATS', 'Minimal'] },
-  { id: '5', slug: 'luxe', name: 'Luxe', description: 'Design haut de gamme minimaliste et centré.', thumbnailUrl: '/api/cv/templates/luxe/thumbnail', industries: ['Management', 'Executive'], experienceLevels: ['Senior', 'Executive'], style: 'Luxe', layoutFlags: ['One Column', 'Without Photo'], backgroundColor: '#F0F0F0', tags: ['Premium', 'Dark'] },
+  { id: '1', slug: 'latex', name: 'LaTeX Tech', description: 'Design épuré et ultra-structuré, optimisé pour les systèmes ATS.', thumbnailUrl: '/api/cv/templates/latex/thumbnail', industries: ['IT', 'Tech', 'Engineering'], experienceLevels: ['Mid', 'Senior'], style: 'Traditional', layoutFlags: ['One Column', 'Without Photo'], backgroundColor: '#FFFFFF', tags: ['ATS', 'Classic'] },
+  { id: '2', slug: 'modern', name: 'Modern', description: 'Format tech stylé avec séparations de colonnes nettes.', thumbnailUrl: '/api/cv/templates/modern/thumbnail', industries: ['IT', 'Tech'], experienceLevels: ['Mid', 'Senior'], style: 'Modern', layoutFlags: ['Two Column', 'With Photo'], backgroundColor: '#F5F5FF', tags: ['ATS', 'Minimal'] },
 ];
 
 const mockPreviewData: CvData = {

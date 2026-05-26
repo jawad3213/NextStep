@@ -1,9 +1,21 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-import { MOCK_OFFERS, OfferCard } from './offers-data';
+import { Router, RouterModule } from '@angular/router';
+import {
+  NormalizedContractType,
+  OfferApiService,
+  PostedWindow,
+  ScrapeProvider,
+  ScrapeSessionDto,
+  SourcedOfferListItemDto,
+} from './services/offer-api.service';
+
+type ProviderSummary = {
+  key: ScrapeProvider;
+  label: string;
+  tone: string;
+};
 
 @Component({
   selector: 'app-offers-recent',
@@ -11,101 +23,225 @@ import { MOCK_OFFERS, OfferCard } from './offers-data';
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './offers-recent.component.html',
   styleUrl: './offers.component.scss',
-  animations: [
-    trigger('cardAnimation', [
-      transition('* => *', [
-        query(':enter', [
-          style({ opacity: 0, transform: 'translateY(12px)' }),
-          stagger(60, [
-            animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
-          ])
-        ], { optional: true })
-      ])
-    ])
-  ]
 })
-export class OffersRecentComponent {
-  readonly offers: OfferCard[] = MOCK_OFFERS;
+export class OffersRecentComponent implements OnInit {
+  private readonly offerApi = inject(OfferApiService);
+  private readonly router = inject(Router);
+
+  readonly providers: ProviderSummary[] = [
+    { key: 'linkedin', label: 'LinkedIn', tone: 'bg-sky-50 text-sky-700 border-sky-200' },
+    { key: 'indeed', label: 'Indeed', tone: 'bg-violet-50 text-violet-700 border-violet-200' },
+    { key: 'glassdoor', label: 'Glassdoor', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  ];
+
+  readonly contractOptions: { value: NormalizedContractType; label: string }[] = [
+    { value: 'internship', label: 'Internship' },
+    { value: 'cdi', label: 'CDI' },
+    { value: 'cdd', label: 'CDD' },
+    { value: 'freelance', label: 'Freelance' },
+    { value: 'alternance', label: 'Alternance' },
+    { value: 'part_time', label: 'Part-time' },
+    { value: 'full_time', label: 'Full-time' },
+    { value: 'temporary', label: 'Temporary' },
+  ];
+
+  readonly postedWindows: { value: PostedWindow; label: string }[] = [
+    { value: '24h', label: 'Last 24h' },
+    { value: '3d', label: 'Last 3 days' },
+    { value: '7d', label: 'Last 7 days' },
+    { value: '14d', label: 'Last 14 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: 'any', label: 'Any time' },
+  ];
+
+  readonly workflowTabs = [
+    { key: 'all', label: 'All' },
+    { key: 'saved', label: 'Saved' },
+    { key: 'shortlisted', label: 'Shortlisted' },
+    { key: 'archived', label: 'Archived' },
+  ] as const;
+
+  readonly selectedProviders = signal<ScrapeProvider[]>(['linkedin', 'indeed', 'glassdoor']);
+  readonly selectedContractTypes = signal<NormalizedContractType[]>([]);
+  readonly selectedPostedWindow = signal<PostedWindow>('7d');
+  readonly workflowTab = signal<'all' | 'saved' | 'shortlisted' | 'archived'>('all');
+
+  readonly keywords = signal('software engineer');
+  readonly location = signal('Morocco');
+  readonly indeedCountryCode = signal('ma');
+  readonly limit = signal(24);
 
   readonly searchTerm = signal('');
-  readonly filterContract = signal('');
-  readonly filterStatus = signal('');
-  readonly sortBy = signal<'date' | 'score' | 'company' | 'daysLeft'>('date');
-  readonly viewMode = signal<'list' | 'grid'>('list');
+  readonly sortBy = signal<'recent' | 'company' | 'title'>('recent');
+  readonly isLoading = signal(false);
+  readonly actionOfferId = signal<string | null>(null);
+  readonly errorMessage = signal('');
+  readonly warnings = signal<string[]>([]);
+  readonly offers = signal<SourcedOfferListItemDto[]>([]);
+  readonly lastSession = signal<ScrapeSessionDto | null>(null);
 
-  readonly pageSize = signal(6);
-  readonly currentPage = signal(1);
-
-  get filteredOffers(): OfferCard[] {
+  readonly filteredOffers = computed(() => {
     const search = this.searchTerm().trim().toLowerCase();
-    const contract = this.filterContract();
-    const status = this.filterStatus();
     const sort = this.sortBy();
-
-    let result = this.offers.filter(o => {
-      const matchSearch = !search ||
-        o.title.toLowerCase().includes(search) ||
-        o.company.toLowerCase().includes(search) ||
-        o.location.toLowerCase().includes(search) ||
-        o.tags.some(t => t.toLowerCase().includes(search));
-
-      const matchContract = !contract || o.tags.some(t => t.toLowerCase().includes(contract.toLowerCase()));
-      const matchStatus = !status || o.status === status;
-
-      return matchSearch && matchContract && matchStatus;
+    const result = this.offers().filter((offer) => {
+      if (!search) return true;
+      return (
+        offer.title.toLowerCase().includes(search) ||
+        (offer.company ?? '').toLowerCase().includes(search) ||
+        (offer.location ?? '').toLowerCase().includes(search) ||
+        (offer.description ?? '').toLowerCase().includes(search) ||
+        offer.matchedItTerms.some((tag) => tag.toLowerCase().includes(search))
+      );
     });
 
     result.sort((a, b) => {
       switch (sort) {
-        case 'score': return (b.matchingScore ?? 0) - (a.matchingScore ?? 0);
-        case 'company': return a.company.localeCompare(b.company);
-        case 'daysLeft': return (a.daysLeft ?? 0) - (b.daysLeft ?? 0);
-        case 'date': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'company':
+          return (a.company ?? '').localeCompare(b.company ?? '');
+        case 'title':
+          return a.title.localeCompare(b.title);
+        case 'recent':
+        default:
+          return new Date(b.lastSeenAtUtc).getTime() - new Date(a.lastSeenAtUtc).getTime();
       }
     });
 
     return result;
+  });
+
+  ngOnInit(): void {
+    this.loadCachedOffers();
   }
 
-  get paginatedOffers(): OfferCard[] {
-    return this.filteredOffers.slice(0, this.currentPage() * this.pageSize());
+  loadCachedOffers(): void {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+
+    this.offerApi.getSourcedOffers({
+      keywords: this.keywords(),
+      location: this.location(),
+      providers: this.selectedProviders(),
+      limit: this.limit(),
+      postedWindow: this.selectedPostedWindow(),
+      contractTypes: this.selectedContractTypes(),
+      indeedCountryCode: this.indeedCountryCode(),
+      workflowState: this.workflowTab() === 'all'
+        ? null
+        : (this.workflowTab() as 'saved' | 'shortlisted' | 'archived'),
+    }).subscribe({
+      next: (offers) => {
+        this.offers.set(offers);
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to load sourced offers.');
+        this.offers.set([]);
+        this.isLoading.set(false);
+      },
+    });
   }
 
-  get hasMore(): boolean {
-    return this.paginatedOffers.length < this.filteredOffers.length;
+  refreshOffers(): void {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    this.warnings.set([]);
+
+    this.offerApi.searchSourcedOffers({
+      keywords: this.keywords(),
+      location: this.location(),
+      providers: this.selectedProviders(),
+      limit: this.limit(),
+      postedWindow: this.selectedPostedWindow(),
+      contractTypes: this.selectedContractTypes(),
+      indeedCountryCode: this.indeedCountryCode(),
+    }).subscribe({
+      next: (response) => {
+        this.offers.set(response.offers ?? []);
+        this.lastSession.set(response.session ?? null);
+        this.warnings.set(response.warnings ?? []);
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to refresh sourced offers.');
+        this.isLoading.set(false);
+      },
+    });
   }
 
-  onSearchInput(value: string): void {
-    this.searchTerm.set(value);
-    this.currentPage.set(1);
+  toggleProvider(provider: ScrapeProvider): void {
+    const next = new Set(this.selectedProviders());
+    if (next.has(provider)) next.delete(provider);
+    else next.add(provider);
+    this.selectedProviders.set([...next]);
+    this.loadCachedOffers();
   }
 
-  onSortChange(value: string): void {
-    this.sortBy.set(value as 'date' | 'score' | 'company' | 'daysLeft');
-    this.currentPage.set(1);
+  toggleContractType(contractType: NormalizedContractType): void {
+    const next = new Set(this.selectedContractTypes());
+    if (next.has(contractType)) next.delete(contractType);
+    else next.add(contractType);
+    this.selectedContractTypes.set([...next]);
+    this.loadCachedOffers();
   }
 
-  onFilterContractChange(value: string): void {
-    this.filterContract.set(value);
-    this.currentPage.set(1);
+  setWorkflowTab(tab: 'all' | 'saved' | 'shortlisted' | 'archived'): void {
+    this.workflowTab.set(tab);
+    this.loadCachedOffers();
   }
 
-  onFilterStatusChange(value: string): void {
-    this.filterStatus.set(value);
-    this.currentPage.set(1);
+  saveOffer(offer: SourcedOfferListItemDto): void {
+    this.patchOfferState(offer.id, { isSaved: !offer.isSaved });
   }
 
-  loadMore(): void {
-    this.currentPage.update(p => p + 1);
+  shortlistOffer(offer: SourcedOfferListItemDto): void {
+    this.patchOfferState(offer.id, { isShortlisted: !offer.isShortlisted, isSaved: true });
   }
 
-  getRecencyLabel(date: Date): string {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Ajouté aujourd'hui";
-    if (days === 1) return 'Ajouté hier';
-    return `Ajouté il y a ${days} jours`;
+  archiveOffer(offer: SourcedOfferListItemDto): void {
+    this.patchOfferState(offer.id, { isArchived: !offer.isArchived });
+  }
+
+  openOfferDetail(offerId: string): void {
+    this.router.navigate(['/offers-recent', offerId]);
+  }
+
+  analyzeOffer(offer: SourcedOfferListItemDto): void {
+    this.actionOfferId.set(offer.id);
+    this.errorMessage.set('');
+
+    this.offerApi.promoteSourcedOffer(offer.id).subscribe({
+      next: (promotion) => {
+        this.offerApi.analyzeSync(promotion.offerId).subscribe({
+          next: () => {
+            this.actionOfferId.set(null);
+            this.router.navigate(['/offers', promotion.offerId]);
+          },
+          error: (err) => {
+            this.actionOfferId.set(null);
+            this.errorMessage.set(err?.error?.error || err?.message || 'Promotion succeeded but analysis failed.');
+            this.router.navigate(['/offers', promotion.offerId]);
+          },
+        });
+      },
+      error: (err) => {
+        this.actionOfferId.set(null);
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to promote sourced offer.');
+      },
+    });
+  }
+
+  formatLastUpdated(): string {
+    const value = this.lastSession()?.createdAtUtc;
+    if (!value) return 'Cached results';
+    return new Date(value).toLocaleString();
+  }
+
+  getProviderChip(provider: ScrapeProvider): ProviderSummary {
+    return this.providers.find((item) => item.key === provider) ?? this.providers[0];
+  }
+
+  getProviderCount(provider: ScrapeProvider): number {
+    return this.offers().filter((offer) => offer.provider === provider).length;
   }
 
   getBubbleGradient(company: string): string {
@@ -122,19 +258,24 @@ export class OffersRecentComponent {
     return colors[sum % colors.length];
   }
 
-  getScoreClass(score: number): string {
-    if (score >= 70) return 'text-green-600';
-    if (score >= 50) return 'text-amber-500';
-    return 'text-red-500';
+  getInitials(value: string): string {
+    const parts = value.split(' ').filter(Boolean);
+    if (parts.length === 0) return 'NS';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 
-  getStatusConfig(status: OfferCard['status']): { bg: string; text: string; dot: string } {
-    const map: Record<string, { bg: string; text: string; dot: string }> = {
-      cv_genere: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
-      analysee: { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
-      non_traitee: { bg: 'bg-slate-100', text: 'text-slate-500', dot: 'bg-slate-400' },
-    };
-    const key = status as string;
-    return map[key] || map['non_traitee'];
+  private patchOfferState(id: string, payload: { isSaved?: boolean; isShortlisted?: boolean; isArchived?: boolean }): void {
+    this.actionOfferId.set(id);
+    this.offerApi.updateSourcedOffer(id, payload).subscribe({
+      next: (updated) => {
+        this.offers.update((current) => current.map((offer) => offer.id === id ? { ...offer, ...updated } : offer));
+        this.actionOfferId.set(null);
+      },
+      error: (err) => {
+        this.actionOfferId.set(null);
+        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to update sourced offer.');
+      },
+    });
   }
 }

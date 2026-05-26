@@ -1,0 +1,221 @@
+<div class="cv-document cv-document-modern" style="{{ root_style }}">
+  <div class="cv-sheet cv-sheet-modern">
+    <aside class="cv-sidebar">
+      <div class="cv-identity-stack" data-editor-section-id="header" data-editor-section-title="Header">
+        {% if candidate.photo_url != blank %}
+        <img
+          class="cv-avatar"
+          src="{{ candidate.photo_url }}"
+          alt="{{ candidate.name }}"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+        <div class="cv-avatar cv-avatar-fallback" style="display:none;">{{ candidate.initials }}</div>
+        {% else %}
+        <div class="cv-avatar cv-avatar-fallback">{{ candidate.initials }}</div>
+        {% endif %}
+        {% if candidate.name != blank %}
+        <h1 class="cv-sidebar-name">{{ candidate.name }}</h1>
+        {% endif %}
+        <ul class="cv-sidebar-links">
+          {% if candidate.email != blank %}
+          <li><strong>Email:</strong><span>{{ candidate.email }}</span></li>
+          {% endif %}
+          {% if candidate.location != blank %}
+          <li><strong>Location:</strong><span>{{ candidate.location }}</span></li>
+          {% endif %}
+          {% if candidate.linked_in != blank %}
+          <li><strong>LinkedIn:</strong><span>{{ candidate.linked_in }}</span></li>
+          {% endif %}
+          {% if candidate.git_hub != blank %}
+          <li><strong>GitHub:</strong><span>{{ candidate.git_hub }}</span></li>
+          {% endif %}
+          {% if candidate.portfolio != blank %}
+          <li><strong>Portfolio:</strong><span>{{ candidate.portfolio }}</span></li>
+          {% endif %}
+        </ul>
+      </div>
+
+      {% for section in sidebar_sections %}
+      {% assign sidebar_only = false %}
+      {% if section.id == "languages" or section.id == "language" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "accomplishments" or section.id == "achievements" or section.id == "activities" %}
+        {% assign sidebar_only = true %}
+      {% endif %}
+      {% if sidebar_only %}
+      <section class="cv-section cv-section-sidebar{% if section.id == "activities" or section.id == "accomplishments" %} cv-section-sidebar-compact{% endif %}" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+        <h2>{{ section.title }}</h2>
+        <div class="cv-rule"></div>
+
+        <ul class="cv-pill-list">
+        {% for item in section.items %}
+          <li>{{ item.primary_text }}</li>
+        {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+      {% endfor %}
+
+      {% for section in main_sections %}
+      {% if section.id == "activities" or section.id == "accomplishments" or section.id == "achievements" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "languages" or section.id == "language" %}
+      <section class="cv-section cv-section-sidebar{% if section.id == "activities" or section.id == "accomplishments" %} cv-section-sidebar-compact{% endif %}" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+        <h2>{{ section.title }}</h2>
+        <div class="cv-rule"></div>
+        <ul class="cv-pill-list">
+        {% for item in section.items %}
+          <li>{{ item.primary_text }}</li>
+        {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+      {% endfor %}
+    </aside>
+
+    <main class="cv-main">
+
+      {% for section in main_sections %}
+      {% assign keep_in_sidebar = false %}
+      {% if section.id == "activities" or section.id == "accomplishments" or section.id == "achievements" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "languages" or section.id == "language" %}
+        {% assign keep_in_sidebar = true %}
+      {% endif %}
+      {% unless keep_in_sidebar %}
+      <section class="cv-section cv-section-main" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+        <h2>{{ section.title }}</h2>
+        <div class="cv-rule"></div>
+
+        {% if section.id == "summary" %}
+          <p class="cv-summary">{{ section.text }}</p>
+        {% elsif section.id == "projects" %}
+          {% for item in section.items %}
+          <article class="cv-entry cv-entry-project">
+            <div class="cv-entry-head">
+              <div class="cv-entry-title-row">
+                <strong>{{ item.primary_text }}</strong>
+              </div>
+              {% if item.date_range != blank %}<span>{{ item.date_range }}</span>{% endif %}
+            </div>
+            {% if item.secondary_text != blank %}
+            <p class="cv-tech-under-title">{{ item.secondary_text }}</p>
+            {% endif %}
+            {% if item.description != blank %}<p class="cv-entry-description">{{ item.description }}</p>{% endif %}
+            {% if item.bullets.size > 0 %}
+            <ul class="cv-bullet-list cv-bullet-list-highlight">
+              {% for bullet in item.bullets %}
+              {% if bullet contains "Technologies:" %}
+              <li class="cv-tech-line">{{ bullet }}</li>
+              {% else %}
+              <li>{{ bullet }}</li>
+              {% endif %}
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </article>
+          {% endfor %}
+        {% elsif section.id == "certifications" %}
+          <ul class="cv-cert-list">
+          {% for item in section.items %}
+            <li>
+              {{ item.primary_text }}
+              {% if item.secondary_text != blank %} - {{ item.secondary_text }}{% endif %}
+            </li>
+          {% endfor %}
+          </ul>
+        {% else %}
+          {% for item in section.items %}
+          <article class="cv-entry">
+            <div class="cv-entry-head">
+              <div>
+                <strong>{{ item.primary_text }}</strong>
+                {% if item.secondary_text != blank %}<p>{{ item.secondary_text }}</p>{% endif %}
+              </div>
+              {% if item.date_range != blank %}<span>{{ item.date_range }}</span>{% endif %}
+            </div>
+            {% if item.description != blank %}<p class="cv-entry-description">{{ item.description }}</p>{% endif %}
+            {% if item.bullets.size > 0 %}
+            <ul class="cv-bullet-list{% if section.id == "experience" %} cv-bullet-list-highlight{% endif %}">
+              {% for bullet in item.bullets %}
+              <li>{{ bullet }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </article>
+          {% endfor %}
+        {% endif %}
+      </section>
+      {% endunless %}
+      {% endfor %}
+
+      {% for section in sidebar_sections %}
+      {% assign move_to_main = true %}
+      {% if section.id == "languages" or section.id == "language" or section.id == "softskills" or section.id == "soft_skills" or section.id == "soft-skills" or section.id == "accomplishments" or section.id == "achievements" or section.id == "activities" %}
+        {% assign move_to_main = false %}
+      {% endif %}
+      {% if move_to_main %}
+      <section class="cv-section cv-section-main" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+        <h2>{% if section.id == "skills" %}Technical Skills{% else %}{{ section.title }}{% endif %}</h2>
+        <div class="cv-rule"></div>
+
+        {% if section.id == "skills" %}
+          <div class="cv-skill-summary">
+          {% if skill_summary_rows.size > 0 %}
+          {% for row in skill_summary_rows %}
+            <div class="cv-skill-summary-row">
+              <strong>{{ row.label }} :</strong>
+              <span>{{ row.value }}</span>
+            </div>
+          {% endfor %}
+          {% else %}
+            <div class="cv-skill-summary-row">
+              <strong>Core :</strong>
+              <span>
+                {% for item in section.items %}
+                  {{ item.primary_text }}{% unless forloop.last %}, {% endunless %}
+                {% endfor %}
+              </span>
+            </div>
+          {% endif %}
+          </div>
+        {% elsif section.id == "education" %}
+          <div class="cv-stack-list">
+          {% for item in section.items %}
+            <article class="cv-stack-item">
+              <strong>{{ item.primary_text }}</strong>
+              <span>{{ item.secondary_text }}</span>
+              {% if item.description != blank %}<small>{{ item.description }}</small>{% endif %}
+              {% if item.date_range != blank %}<small>{{ item.date_range }}</small>{% endif %}
+            </article>
+          {% endfor %}
+          </div>
+        {% elsif section.id == "certifications" %}
+          <ul class="cv-cert-list">
+          {% for item in section.items %}
+            <li>
+              {{ item.primary_text }}
+              {% if item.secondary_text != blank %} - {{ item.secondary_text }}{% endif %}
+            </li>
+          {% endfor %}
+          </ul>
+        {% else %}
+          {% for item in section.items %}
+          <article class="cv-entry">
+            <div class="cv-entry-head">
+              <div>
+                <strong>{{ item.primary_text }}</strong>
+                {% if item.secondary_text != blank %}<p>{{ item.secondary_text }}</p>{% endif %}
+              </div>
+              {% if item.date_range != blank %}<span>{{ item.date_range }}</span>{% endif %}
+            </div>
+            {% if item.description != blank %}<p class="cv-entry-description">{{ item.description }}</p>{% endif %}
+            {% if item.bullets.size > 0 %}
+            <ul class="cv-bullet-list">
+              {% for bullet in item.bullets %}
+              <li>{{ bullet }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </article>
+          {% endfor %}
+        {% endif %}
+      </section>
+      {% endif %}
+      {% endfor %}
+    </main>
+  </div>
+</div>

@@ -42,6 +42,11 @@ export const routes: Routes = [
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/offers/offers-recent.component').then(m => m.OffersRecentComponent) 
       },
+      {
+        path: 'offers-recent/:id',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/sourced-offer-detail.component').then(m => m.SourcedOfferDetailComponent)
+      },
       { 
         path: 'cv', 
         canActivate: [onboardingGuard],

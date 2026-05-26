@@ -68,36 +68,40 @@ async def prepare_cv(payload: PrepareCvRequest) -> dict:
         else:
             logger.info("Aucune offre fournie. Utilisation du profil brut.")
             optimized_cv = {
-                "resume_optimise": {"contenu": profile.get("resume", "") or "", "justification_rewrite": ""},
+                "resume_optimise": {"contenu": profile.get("resume", "") or ""},
                 "experiences_optimisees": [
                     {
                         "titre": exp.get("titre") or "",
                         "entreprise": exp.get("entreprise") or "",
                         "description_optimisee": exp.get("description") or "",
-                        "justification_reorder": "", "justification_rewrite": ""
+                        "taches_optimisees": exp.get("taches") or exp.get("tasks") or [],
+                        "mots_cles_cibles": [],
+                        "niveau_pertinence": "medium",
                     } for exp in profile.get("experiences", [])
                 ],
                 "projets_optimises": [
                     {
                         "titre": p.get("titre") or "",
                         "description_optimisee": p.get("description") or "",
-                        "technologies": [],
-                        "justification_reorder": "", "justification_rewrite": ""
+                        "technologies": p.get("technologies") or p.get("technologies_utilisees") or [],
+                        "taches_optimisees": p.get("taches") or p.get("tasks") or [],
+                        "mots_cles_cibles": [],
+                        "niveau_pertinence": "medium",
                     } for p in profile.get("projets", [])
                 ],
                 "formations_optimisees": [
                     {
                         "diplome": f.get("diplome") or "",
                         "etablissement": f.get("etablissement") or "",
-                        "justification_reorder": "", "justification_rewrite": ""
                     } for f in profile.get("formations", [])
                 ],
                 "certifications_optimisees": [],
                 "competences_reordonnees": [
                     c.get("nom") for c in profile.get("competences", []) if c.get("nom")
                 ],
-                "justification_competences": "",
-                "global_justification": "Previsualisation standard sans optimisation."
+                "competences_mises_en_avant": [
+                    c.get("nom") for c in profile.get("competences", []) if c.get("nom")
+                ][:8],
             }
 
         # 3. Formatage pour QuestPDF

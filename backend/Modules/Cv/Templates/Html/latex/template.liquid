@@ -1,0 +1,69 @@
+<div class="cv-document cv-document-latex" style="{{ root_style }}">
+  <div class="cv-sheet cv-sheet-latex">
+    <header class="cv-latex-header" data-editor-section-id="header" data-editor-section-title="Header">
+      <h1>{{ candidate.name }}</h1>
+      <p>{{ contact_line }}</p>
+      <div class="cv-link-row">
+        {% for link in profile_links %}
+        <span>{{ link.label }}: {{ link.href }}</span>
+        {% endfor %}
+      </div>
+    </header>
+
+    {% for section in main_sections %}
+    <section class="cv-section cv-section-main" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+      <div class="cv-section-title-row">
+        <h2>{{ section.title }}</h2>
+        <div class="cv-rule"></div>
+      </div>
+
+      {% if section.id == "summary" %}
+        <p class="cv-summary">{{ section.text }}</p>
+      {% else %}
+        {% for item in section.items %}
+        <article class="cv-entry">
+          <div class="cv-entry-head">
+            <div>
+              <strong>{{ item.primary_text }}</strong>
+              {% if item.secondary_text != blank %}<p>{{ item.secondary_text }}</p>{% endif %}
+            </div>
+            {% if item.date_range != blank %}<span>{{ item.date_range }}</span>{% endif %}
+          </div>
+          {% if item.description != blank %}<p class="cv-entry-description">{{ item.description }}</p>{% endif %}
+          {% if item.bullets.size > 0 %}
+          <ul class="cv-bullet-list">
+            {% for bullet in item.bullets %}
+            <li>{{ bullet }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+        {% endfor %}
+      {% endif %}
+    </section>
+    {% endfor %}
+
+    {% if sidebar_sections.size > 0 %}
+    <section class="cv-section cv-section-meta">
+      {% for section in sidebar_sections %}
+      <div class="cv-meta-block" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+        <h3>{{ section.title }}</h3>
+        {% if section.id == "skills" %}
+          <div class="cv-tag-grid">
+            {% for item in section.items %}
+            <span class="cv-tag{% if item.is_matched %} matched{% endif %}">{{ item.primary_text }}</span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <ul class="cv-inline-list">
+            {% for item in section.items %}
+            <li>{{ item.primary_text }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </div>
+</div>

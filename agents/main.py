@@ -25,6 +25,9 @@ from app.api.company_routes import router as company_router
 from app.api.cv_optimizer_routes import router as cv_optimizer_router
 from app.api.cv_engine_routes import router as cv_engine_router
 from app.api.chatbot_routes import router as chatbot_router
+from app.api.glassdoor_jobs_routes import router as glassdoor_jobs_router
+from app.api.indeed_jobs_routes import router as indeed_jobs_router
+from app.api.linkedin_jobs_routes import router as linkedin_jobs_router
 from app.api.resume_routes import router as resume_router
 
 # Email Composer (M4) — domain-driven refactor of email_engine
@@ -119,6 +122,9 @@ app.add_middleware(
 # ─── Routers domaines ─────────────────────────────────────────
 app.include_router(offer_router, prefix="/offer")
 app.include_router(company_router, prefix="/company")
+app.include_router(glassdoor_jobs_router, prefix="/glassdoor-jobs")
+app.include_router(indeed_jobs_router, prefix="/indeed-jobs")
+app.include_router(linkedin_jobs_router, prefix="/linkedin-jobs")
 app.include_router(cv_optimizer_router)
 app.include_router(cv_engine_router)
 app.include_router(chatbot_router)
@@ -142,16 +148,22 @@ async def health_check():
         "version": "3.0.0",
         "architecture": "Domain-Driven + LangGraph StateGraph",
         "endpoints": {
-            "pipeline":          "POST /offer/run-pipeline",
-            "analyze_offer":     "POST /offer/analyze-offer",
-            "match":             "POST /offer/match",
-            "format_questpdf":   "POST /cv-engine/format-questpdf",
-            "analyze_company":   "POST /company/analyze-company",
-            "optimize_cv":       "POST /cv-optimizer/optimize",
-            "generate_email":    "POST /email/generate",
+            "pipeline": "POST /offer/run-pipeline",
+            "analyze_offer": "POST /offer/analyze-offer",
+            "match": "POST /offer/match",
+
+            "glassdoor_jobs": "POST /glassdoor-jobs/search",
+            "indeed_jobs": "POST /indeed-jobs/search",
+            "linkedin_jobs": "POST /linkedin-jobs/search",
+
+            "format_questpdf": "POST /cv-engine/format-questpdf",
+            "analyze_company": "POST /company/analyze-company",
+            "optimize_cv": "POST /cv-optimizer/optimize",
+
+            "generate_email": "POST /email/generate",
             "generate_followup": "POST /email/generate-follow-up",
             "classify_response": "POST /email/classify-response",
-            "generate_reply":    "POST /email/generate-reply",
+            "generate_reply": "POST /email/generate-reply",
         },
     }
 

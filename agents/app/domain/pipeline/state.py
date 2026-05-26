@@ -21,6 +21,7 @@ class PipelineState(TypedDict, total=False):
     profile_full_text: str
     normalized_profile_skills: Annotated[list[str], operator.add]
     
+    skill_gap_analysis: Optional[Dict[str, Any]]
     match_result: Optional[Dict[str, Any]]
     """Skill gap analysis result (legacy key used by skill_gap_node)."""
 

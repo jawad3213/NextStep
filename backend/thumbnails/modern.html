@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body { margin: 0; padding: 0; background: #eef2f7; }
+    body { width: 794px; min-height: 1123px; overflow: hidden; }
+    .cv-document { margin: 0 !important; }
+    .cv-sheet { box-shadow: none !important; }
+  </style>
+</head>
+<body>
+<style>.cv-document {
+  box-sizing: border-box;
+  width: 794px;
+  min-height: 1123px;
+  margin: 0 auto;
+  color: #0f172a;
+  font-family: var(--cv-font-family);
+  font-size: var(--cv-font-size);
+  line-height: var(--cv-line-height);
+}
+
+.cv-document * {
+  box-sizing: border-box;
+}
+
+.cv-sheet {
+  width: 100%;
+  min-height: 1123px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.14);
+}
+
+.cv-sheet-modern {
+  display: grid;
+  grid-template-columns: var(--cv-sidebar-width) 1fr;
+}
+
+.cv-sidebar {
+  padding: 34px 28px;
+  color: #e2e8f0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cv-theme-color) 86%, #0f172a 14%) 0%, #0f172a 100%);
+}
+
+.cv-main {
+  padding: 34px 40px;
+  background: #fff;
+}
+
+.cv-identity-stack,
+.cv-main-header {
+  margin-bottom: calc(var(--cv-section-spacing) * 1.3);
+}
+
+.cv-main-header h1,
+.cv-sidebar-name {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.cv-sidebar-name {
+  color: #ffffff;
+  font-size: 2.18rem;
+  font-weight: 800;
+}
+
+.cv-sidebar-contact,
+.cv-link-row {
+  margin: 10px 0 0;
+  color: inherit;
+  font-size: 0.88rem;
+}
+
+.cv-sidebar-links {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-sidebar-links li + li {
+  margin-top: 10px;
+}
+
+.cv-sidebar-links li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.cv-sidebar-links li strong {
+  color: color-mix(in srgb, #ffffff 85%, var(--cv-theme-color) 15%);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cv-sidebar-links li span {
+  color: #e2e8f0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.cv-avatar,
+.cv-avatar-fallback {
+  width: 138px;
+  height: 138px;
+  border-radius: 18px;
+  margin-bottom: 18px;
+}
+
+.cv-avatar {
+  object-fit: cover;
+}
+
+.cv-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.cv-section {
+  margin-top: var(--cv-section-spacing);
+}
+
+.cv-section h2 {
+  margin: 0;
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cv-rule {
+  width: 56px;
+  height: 3px;
+  margin: 10px 0 14px;
+  border-radius: 999px;
+  background: var(--cv-theme-color);
+}
+
+.cv-stack-list,
+.cv-skill-list,
+.cv-bullet-list,
+.cv-pill-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-stack-item + .cv-stack-item,
+.cv-entry + .cv-entry,
+.cv-skill-row + .cv-skill-row {
+  margin-top: 14px;
+}
+
+.cv-stack-item strong,
+.cv-entry strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.cv-stack-item span,
+.cv-stack-item small,
+.cv-entry p,
+.cv-entry span,
+.cv-summary {
+  margin: 4px 0 0;
+}
+
+.cv-entry-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.cv-entry-head span {
+  flex: 0 0 auto;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.cv-entry-head p,
+.cv-entry-description {
+  color: #475569;
+}
+
+.cv-bullet-list,
+.cv-pill-list {
+  padding-left: 18px;
+}
+
+.cv-bullet-list li + li,
+.cv-pill-list li + li {
+  margin-top: 8px;
+}
+
+.cv-skill-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+.cv-skill-grid li {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.cv-main .cv-skill-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cv-section-sidebar-compact .cv-pill-list li {
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.cv-entry-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-tech-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.cv-entry-project .cv-entry-description {
+  margin-top: 6px;
+}
+
+.cv-tech-under-title {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.cv-bullet-list {
+  list-style: none;
+  margin-top: 8px;
+  padding-left: 0;
+}
+
+.cv-bullet-list li {
+  position: relative;
+  padding-left: 16px;
+}
+
+.cv-bullet-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.cv-bullet-list-highlight li::before {
+  content: "✦";
+  color: var(--cv-theme-color);
+}
+
+.cv-bullet-list li.cv-tech-line {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.cv-bullet-list li.cv-tech-line::before {
+  content: "◦";
+  color: #94a3b8;
+}
+
+.cv-section-sidebar .cv-pill-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.cv-section-sidebar .cv-pill-list li {
+  position: relative;
+  padding-left: 14px;
+  line-height: 1.4;
+}
+
+.cv-section-sidebar .cv-pill-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: color-mix(in srgb, var(--cv-theme-color) 55%, #ffffff 45%);
+  font-weight: 700;
+}
+
+.cv-section-sidebar-compact .cv-pill-list li::before {
+  content: "✦";
+}
+
+.cv-cert-list {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.cv-cert-list li {
+  color: #334155;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.cv-cert-list li + li {
+  margin-top: 8px;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+</style>
+<div class="cv-document cv-document-modern" style="--cv-theme-color: #2d3a8c; --cv-font-family: Inter, &#x27;Segoe UI&#x27;, Arial, sans-serif; --cv-font-size: 14px; --cv-line-height: 1.45; --cv-section-spacing: 1.2rem; --cv-sidebar-width: 31%">
+  <div class="cv-sheet cv-sheet-modern">
+    <aside class="cv-sidebar">
+      <div class="cv-identity-stack" data-editor-section-id="header" data-editor-section-title="Header">
+        
+        <div class="cv-avatar cv-avatar-fallback">AM</div>
+        
+        
+        <h1 class="cv-sidebar-name">Alex Mercer</h1>
+        
+        <ul class="cv-sidebar-links">
+          
+          <li><strong>Email:</strong><span>alex.mercer@email.com</span></li>
+          
+          
+          <li><strong>Location:</strong><span>San Francisco, CA</span></li>
+          
+          
+          <li><strong>LinkedIn:</strong><span>linkedin.com/in/alexmercer</span></li>
+          
+          
+          <li><strong>GitHub:</strong><span>github.com/alexmercer</span></li>
+          
+          
+          <li><strong>Portfolio:</strong><span>alexmercer.dev</span></li>
+          
+        </ul>
+      </div>
+
+      
+      
+      
+        
+      
+      
+      <section class="cv-section cv-section-sidebar cv-section-sidebar-compact" data-editor-section-id="activities" data-editor-section-title="Activities">
+        <h2>Activities</h2>
+        <div class="cv-rule"></div>
+
+        <ul class="cv-pill-list">
+        
+          <li>IDS</li>
+        
+          <li>ITWAVE</li>
+        
+        </ul>
+      </section>
+      
+      
+      
+      
+        
+      
+      
+      <section class="cv-section cv-section-sidebar cv-section-sidebar-compact" data-editor-section-id="accomplishments" data-editor-section-title="Accomplishments">
+        <h2>Accomplishments</h2>
+        <div class="cv-rule"></div>
+
+        <ul class="cv-pill-list">
+        
+          <li>Built full-stack and AI-powered projects with measurable delivery outcomes</li>
+        
+          <li>Recognized in hackathon and team-based technical competitions</li>
+        
+        </ul>
+      </section>
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <section class="cv-section cv-section-sidebar" data-editor-section-id="languages" data-editor-section-title="Languages">
+        <h2>Languages</h2>
+        <div class="cv-rule"></div>
+
+        <ul class="cv-pill-list">
+        
+          <li>English - Native</li>
+        
+          <li>French - Professional (C1)</li>
+        
+        </ul>
+      </section>
+      
+      
+
+      
+      
+      
+      
+      
+      
+      
+      
+      
+    </aside>
+
+    <main class="cv-main">
+
+      
+      
+      
+      
+      <section class="cv-section cv-section-main" data-editor-section-id="summary" data-editor-section-title="Summary">
+        <h2>Summary</h2>
+        <div class="cv-rule"></div>
+
+        
+          <p class="cv-summary">Senior Full-Stack Engineer with 8+ years of experience building scalable web applications. Expert in Angular, React, Node.js, and cloud-native architectures on AWS. Passionate about developer experience, CI/CD automation, and mentoring junior engineers.</p>
+        
+      </section>
+      
+      
+      
+      
+      
+      <section class="cv-section cv-section-main" data-editor-section-id="experience" data-editor-section-title="Experience">
+        <h2>Experience</h2>
+        <div class="cv-rule"></div>
+
+        
+          
+          <article class="cv-entry">
+            <div class="cv-entry-head">
+              <div>
+                <strong>Full-Stack Developer</strong>
+                <p>StartupXYZ</p>
+              </div>
+              <span>Jun 2018 - Feb 2021</span>
+            </div>
+            
+            
+            <ul class="cv-bullet-list cv-bullet-list-highlight">
+              
+              <li>Built real-time dashboard with React, Redux, and WebSockets for live data visualization</li>
+              
+              <li>Developed RESTful APIs with Node.js, Express, and PostgreSQL handling 1M+ requests/day</li>
+              
+              <li>Implemented end-to-end testing with Cypress and integration tests with Supertest, achieving 90% code coverage</li>
+              
+            </ul>
+            
+          </article>
+          
+        
+      </section>
+      
+      
+      
+      
+      
+      <section class="cv-section cv-section-main" data-editor-section-id="projects" data-editor-section-title="Projects">
+        <h2>Projects</h2>
+        <div class="cv-rule"></div>
+
+        
+          
+          <article class="cv-entry cv-entry-project">
+            <div class="cv-entry-head">
+              <div class="cv-entry-title-row">
+                <strong>Open Source - ngx-dashboard</strong>
+              </div>
+              
+            </div>
+            
+            <p class="cv-entry-description">Open-source Angular component library for building analytics dashboards</p>
+            
+            <ul class="cv-bullet-list cv-bullet-list-highlight">
+              
+              
+              <li>Published on npm with 2K+ weekly downloads and 400+ GitHub stars</li>
+              
+              
+              
+              <li>Built 20+ reusable components with Storybook documentation and coverage</li>
+              
+              
+            </ul>
+            
+          </article>
+          
+        
+      </section>
+      
+      
+      
+      
+      
+      <section class="cv-section cv-section-main" data-editor-section-id="certifications" data-editor-section-title="Certifications">
+        <h2>Certifications</h2>
+        <div class="cv-rule"></div>
+
+        
+          <ul class="cv-cert-list">
+          
+            <li>
+              AWS Solutions Architect - Professional
+              
+            </li>
+          
+            <li>
+              Google Cloud Professional Data Engineer
+              
+            </li>
+          
+          </ul>
+        
+      </section>
+      
+      
+
+      
+      
+      
+        
+      
+      
+      
+      
+      
+        
+      
+      
+      
+      
+      
+      
+      <section class="cv-section cv-section-main" data-editor-section-id="skills" data-editor-section-title="Skills">
+        <h2>Skills</h2>
+        <div class="cv-rule"></div>
+
+        
+          <ul class="cv-skill-grid">
+          
+            <li>Angular</li>
+          
+            <li>React</li>
+          
+            <li>Node.js</li>
+          
+            <li>TypeScript</li>
+          
+            <li>Python</li>
+          
+            <li>PostgreSQL</li>
+          
+            <li>Docker</li>
+          
+          </ul>
+        
+      </section>
+      
+      
+      
+      
+      
+      <section class="cv-section cv-section-main" data-editor-section-id="education" data-editor-section-title="Education">
+        <h2>Education</h2>
+        <div class="cv-rule"></div>
+
+        
+          <div class="cv-stack-list">
+          
+            <article class="cv-stack-item">
+              <strong>M.Sc. in Computer Science</strong>
+              <span>Stanford University</span>
+              
+              
+            </article>
+          
+            <article class="cv-stack-item">
+              <strong>B.Sc. in Software Engineering</strong>
+              <span>UC Berkeley</span>
+              
+              
+            </article>
+          
+          </div>
+        
+      </section>
+      
+      
+      
+      
+        
+      
+      
+      
+    </main>
+  </div>
+</div>
+
+</body>
+</html>

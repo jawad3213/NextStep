@@ -9,6 +9,8 @@ import { OnboardingService } from '../../../services/onboarding.service';
 import { AppSidebarComponent } from '../../../shared/layout/app-sidebar/app-sidebar.component';
 import { SidebarService } from '../../../shared/services/sidebar.service';
 import { ThemeService } from '../../../shared/services/theme.service';
+import { OfferStepId } from '../../../features/offers/offers.types';
+import { OffersStepperComponent } from '../../../features/offers/stepper/offers-stepper.component';
 
 type HeaderState = {
   eyebrow: string;
@@ -18,7 +20,7 @@ type HeaderState = {
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, AppSidebarComponent],
+  imports: [CommonModule, RouterModule, AppSidebarComponent, OffersStepperComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss'
 })
@@ -34,6 +36,7 @@ export class MainLayoutComponent {
   readonly isExpanded$ = this.sidebarService.isExpanded$;
   readonly isMobileOpen$ = this.sidebarService.isMobileOpen$;
   readonly isHovered$ = this.sidebarService.isHovered$;
+  readonly isEditorFocusMode$ = this.sidebarService.isEditorFocusMode$;
   readonly isFullBleedRoute$ = this.router.events.pipe(
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),
     startWith(null),
@@ -46,6 +49,11 @@ export class MainLayoutComponent {
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),
     startWith(null),
     map(() => this.buildHeaderState(this.router.url))
+  );
+  readonly isOfferPipelineRoute$ = this.router.events.pipe(
+    filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+    startWith(null),
+    map(() => this.router.url.startsWith('/offers/analyze'))
   );
   readonly showSidebar$ = this.router.events.pipe(
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -97,6 +105,37 @@ export class MainLayoutComponent {
       badge => badge.page === 'notifications' && badge.visible && badge.label !== '0'
     )
   );
+  readonly offerPipelineSteps: { id: OfferStepId; label: string; icon: string }[] = [
+    { id: 'submit', label: 'Offre', icon: 'description' },
+    { id: 'analysis', label: 'Skill Gap', icon: 'analytics' },
+    { id: 'template', label: 'Template', icon: 'palette' },
+    { id: 'generation', label: 'Edition CV', icon: 'edit_note' },
+    { id: 'results', label: 'Résultats', icon: 'verified' },
+  ];
+  private readonly stepToPipeline: Record<OfferStepId, 1 | 2 | 3 | 4 | 5> = {
+    submit: 1, analysis: 2, template: 3, generation: 4, results: 5,
+  };
+  private readonly pipelineToStep: Record<1 | 2 | 3 | 4 | 5, OfferStepId> = {
+    1: 'submit', 2: 'analysis', 3: 'template', 4: 'generation', 5: 'results',
+  };
+  readonly currentOfferPipelineStep = computed<OfferStepId>(() =>
+    this.pipelineToStep[this.pipelineState.currentStep() as 1 | 2 | 3 | 4 | 5] ?? 'submit'
+  );
+  readonly offerPipelineStepStates = computed<Record<OfferStepId, 'idle' | 'active' | 'done' | 'error'>>(() => {
+    const states: Record<OfferStepId, 'idle' | 'active' | 'done' | 'error'> = {
+      submit: 'idle',
+      analysis: 'idle',
+      template: 'idle',
+      generation: 'idle',
+      results: 'idle',
+    };
+    const pipelineSteps = this.pipelineState.steps();
+    for (const [offerStep, pipelineStep] of Object.entries(this.stepToPipeline) as [OfferStepId, 1 | 2 | 3 | 4 | 5][]) {
+      const step = pipelineSteps[pipelineStep - 1];
+      states[offerStep] = step ? step.status : 'idle';
+    }
+    return states;
+  });
 
   handleSidebarToggle(): void {
     if (window.innerWidth >= 1280) {
@@ -173,6 +212,16 @@ export class MainLayoutComponent {
   goToSupport(): void {
     this.isProfileMenuOpen.set(false);
     this.router.navigate(['/chatbot']);
+  }
+
+  goToOfferPipelineStep(id: OfferStepId): void {
+    if (this.pipelineState.isLoading()) return;
+    const pipelineStep = this.stepToPipeline[id];
+    const targetIdx = pipelineStep - 1;
+    const isDone = this.pipelineState.steps()[targetIdx]?.status === 'done';
+    if (pipelineStep <= this.pipelineState.currentStep() || isDone) {
+      this.pipelineState.goToStep(pipelineStep);
+    }
   }
 
   logout(): void {

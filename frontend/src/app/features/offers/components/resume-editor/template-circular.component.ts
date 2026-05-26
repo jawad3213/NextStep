@@ -113,10 +113,16 @@ import { ResumeData } from './resume.model';
               Langues
             </h3>
             <div class="space-y-2">
-              @for (lang of data().languages; track lang.name) {
+              @for (lang of data().languages; track $index) {
                 <div class="flex justify-between items-center text-sm">
-                  <span>{{ lang.name }}</span>
-                  <span class="text-xs opacity-70">{{ lang.proficiency }}</span>
+                  @if (isString(lang)) {
+                    <span>{{ lang }}</span>
+                  } @else {
+                    <span>{{ lang.name }}</span>
+                    @if (lang.proficiency) {
+                      <span class="text-xs opacity-70">{{ lang.proficiency }}</span>
+                    }
+                  }
                 </div>
               }
             </div>
@@ -269,6 +275,10 @@ import { ResumeData } from './resume.model';
 })
 export class TemplateCircularComponent {
   data = input.required<ResumeData>();
+
+  protected isString(value: any): boolean {
+    return typeof value === 'string';
+  }
 
   protected get fontSizeClasses(): string {
     const size = this.data().fontSize;

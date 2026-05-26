@@ -5,16 +5,22 @@ import { BehaviorSubject } from 'rxjs';
   providedIn: 'root'
 })
 export class SidebarService {
-  private readonly isExpandedSubject = new BehaviorSubject<boolean>(true);
+  private readonly isExpandedSubject = new BehaviorSubject<boolean>(false);
   private readonly isMobileOpenSubject = new BehaviorSubject<boolean>(false);
   private readonly isHoveredSubject = new BehaviorSubject<boolean>(false);
+  private readonly isEditorFocusModeSubject = new BehaviorSubject<boolean>(false);
 
   readonly isExpanded$ = this.isExpandedSubject.asObservable();
   readonly isMobileOpen$ = this.isMobileOpenSubject.asObservable();
   readonly isHovered$ = this.isHoveredSubject.asObservable();
+  readonly isEditorFocusMode$ = this.isEditorFocusModeSubject.asObservable();
 
   get expandedValue(): boolean {
     return this.isExpandedSubject.value;
+  }
+
+  get editorFocusModeValue(): boolean {
+    return this.isEditorFocusModeSubject.value;
   }
 
   setExpanded(value: boolean): void {
@@ -35,5 +41,13 @@ export class SidebarService {
 
   setHovered(value: boolean): void {
     this.isHoveredSubject.next(value);
+  }
+
+  setEditorFocusMode(value: boolean): void {
+    this.isEditorFocusModeSubject.next(value);
+  }
+
+  toggleEditorFocusMode(): void {
+    this.isEditorFocusModeSubject.next(!this.isEditorFocusModeSubject.value);
   }
 }

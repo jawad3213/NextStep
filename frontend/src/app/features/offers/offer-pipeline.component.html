@@ -1,23 +1,4 @@
 <div class="flex h-full flex-col">
-  <div class="grid grid-cols-[180px_1fr_180px] items-center border-b border-gray-200 bg-white px-4 py-3 md:px-6">
-    <div class="justify-self-start">
-      <button (click)="backToList()"
-        class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 border border-gray-100">
-        <span class="material-symbols-outlined text-lg">arrow_back</span>
-        Retour
-      </button>
-    </div>
-    <div class="w-full">
-      <app-offers-stepper
-        [steps]="steps"
-        [currentStep]="currentStepId()"
-        [stepStates]="stepStates()"
-        (stepClick)="goToStep($any($event))"
-      />
-    </div>
-    <div class="justify-self-end"></div>
-  </div>
-
   <div class="min-h-0 flex-1 bg-[#f8f9ff] flex flex-col">
     @switch (currentStepId()) {
       @case ('submit') {

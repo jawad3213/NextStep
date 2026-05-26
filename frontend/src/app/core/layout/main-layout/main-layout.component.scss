@@ -2,3 +2,43 @@
   display: block;
   min-height: 100vh;
 }
+
+.offer-nav-inline {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(760px, 54vw);
+  min-width: 520px;
+  z-index: 1;
+}
+
+.offer-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+  .offer-nav-inline {
+    width: min(640px, 52vw);
+    min-width: 430px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .offer-nav-inline {
+    display: none;
+  }
+}

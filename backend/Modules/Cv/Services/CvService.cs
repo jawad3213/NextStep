@@ -1,94 +1,54 @@
-using System.Text.Json;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
 using NextStep.data;
+using NextStep.Modules.Candidature.Models;
 using NextStep.Modules.Cv.Models;
 using NextStep.Modules.Cv.Templates;
-using NextStep.Modules.Profile.Services;
-using NextStep.Shared.Storage;
-using NextStep.Shared.Http;
 using NextStep.Modules.Offer.Services;
-using NextStep.Modules.Candidature.Models;
+using NextStep.Modules.Profile.Services;
+using NextStep.Shared.Http;
+using NextStep.Shared.Storage;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 
 namespace NextStep.Modules.Cv.Services;
 
 public interface ICvService
 {
-    /// <summary>
-    /// Preview only — generates PDF from the user's profile data. No storage.
-    /// Used when the user first picks a template.
-    /// </summary>
     Task<CvPreviewResult> PreviewCvAsync(Guid userId, string templateId, Guid? jobId = null);
-
-    /// <summary>
-    /// Preview from edited data — generates PDF from the CvData the user modified.
-    /// Used during real-time editing to refresh the preview.
-    /// </summary>
-    byte[] PreviewFromData(string templateId, CvData data);
-
-    /// <summary>
-    /// Save — generates the final PDF from edited data, uploads to MinIO,
-    /// and saves a history record. Called when the user clicks "Sauvegarder".
-    /// </summary>
+    Task<CvRenderResponse> PreviewFromDataAsync(CvRenderRequest request);
+    Task<byte[]> ExportPdfAsync(CvExportPdfRequest request);
     Task<CvSaveResult> SaveCvAsync(Guid userId, CvSaveRequest request);
-
-    /// <summary>
-    /// Update an existing saved CV — re-generates the PDF, re-uploads, updates history.
-    /// </summary>
     Task<CvSaveResult> UpdateCvAsync(Guid userId, Guid historyId, CvSaveRequest request);
-
-    /// <summary>
-    /// Get all saved CVs for a user (most recent first).
-    /// </summary>
     Task<List<CvHistoryDto>> GetHistoryAsync(Guid userId);
-
-    /// <summary>
-    /// Load a saved CV for re-editing (returns the CvData + template info).
-    /// </summary>
     Task<CvLoadResult> LoadCvAsync(Guid userId, Guid historyId);
-
-    /// <summary>
-    /// Get a fresh pre-signed download URL for a saved CV.
-    /// </summary>
     Task<string> GetDownloadUrlAsync(Guid userId, Guid historyId);
     Task<byte[]> GetDownloadBytesAsync(Guid userId, Guid historyId);
-
-    /// <summary>
-    /// Delete a saved CV (removes from MinIO + database).
-    /// </summary>
     Task DeleteCvAsync(Guid userId, Guid historyId);
 }
 
-// ─── DTOs ──────────────────────────────────────────────────────
-
-/// <summary>
-/// Returned when the user first picks a template — PDF preview + the initial CvData.
-/// The frontend uses CvData to populate the editor.
-/// </summary>
 public class CvPreviewResult
 {
-    public byte[] PdfBytes { get; set; } = Array.Empty<byte>();
+    public string TemplateSlug { get; set; } = string.Empty;
     public CvData Data { get; set; } = new();
+    public CvDesignConfig DesignConfig { get; set; } = new();
+    public string Html { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// Request body when the user clicks "Sauvegarder".
-/// </summary>
 public class CvSaveRequest
 {
     public string TemplateSlug { get; set; } = string.Empty;
     public string? Title { get; set; }
+    public Guid? OfferId { get; set; }
     public CvData Data { get; set; } = new();
+    public CvDesignConfig? DesignConfig { get; set; }
+    public string? HtmlSnapshot { get; set; }
 }
 
-/// <summary>
-/// Returned after a successful save.
-/// </summary>
 public class CvSaveResult
 {
     public Guid HistoryId { get; set; }
@@ -96,9 +56,6 @@ public class CvSaveResult
     public long FileSizeBytes { get; set; }
 }
 
-/// <summary>
-/// Returned when loading a saved CV for re-editing.
-/// </summary>
 public class CvLoadResult
 {
     public Guid HistoryId { get; set; }
@@ -106,14 +63,13 @@ public class CvLoadResult
     public string? TemplateName { get; set; }
     public string? Title { get; set; }
     public CvData Data { get; set; } = new();
+    public CvDesignConfig DesignConfig { get; set; } = new();
+    public string? HtmlSnapshot { get; set; }
     public string FileUrl { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }
 
-/// <summary>
-/// DTO for the CV history listing.
-/// </summary>
 public class CvHistoryDto
 {
     public Guid Id { get; set; }
@@ -126,8 +82,6 @@ public class CvHistoryDto
     public DateTime? UpdatedAt { get; set; }
 }
 
-// ─── Implementation ────────────────────────────────────────────
-
 public class CvService : ICvService
 {
     private readonly IProfileService _profileService;
@@ -136,6 +90,9 @@ public class CvService : ICvService
     private readonly MinioOptions _minioOptions;
     private readonly AppDbContext _db;
     private readonly IAgentHttpClient _agentClient;
+    private readonly ICvHtmlTemplateRenderer _htmlTemplateRenderer;
+    private readonly ICvPdfRenderer _pdfRenderer;
+
     private static readonly string[] ActivitySignals =
     {
         "hackathon", "club", "association", "organisateur", "organizer",
@@ -156,25 +113,26 @@ public class CvService : ICvService
         IStorageService storageService,
         IOptions<MinioOptions> minioOptions,
         AppDbContext db,
-        IAgentHttpClient agentClient)
+        IAgentHttpClient agentClient,
+        ICvHtmlTemplateRenderer htmlTemplateRenderer,
+        ICvPdfRenderer pdfRenderer)
     {
         _profileService = profileService;
-        _offerService   = offerService;
+        _offerService = offerService;
         _storageService = storageService;
-        _minioOptions   = minioOptions.Value;
-        _db             = db;
-        _agentClient    = agentClient;
+        _minioOptions = minioOptions.Value;
+        _db = db;
+        _agentClient = agentClient;
+        _htmlTemplateRenderer = htmlTemplateRenderer;
+        _pdfRenderer = pdfRenderer;
     }
-
-    // ─── Preview (no storage) ──────────────────────────────────
 
     public async Task<CvPreviewResult> PreviewCvAsync(Guid userId, string templateId, Guid? jobId = null)
     {
-        // 1. Préparer le contexte de l'offre si présent
         object? offerData = null;
         if (jobId.HasValue)
         {
-            var analysis = await _offerService.GetAnalysisAsync(jobId.Value);
+            var analysis = await _offerService.GetAnalysisAsync(userId, jobId.Value);
             if (analysis != null)
             {
                 offerData = new
@@ -187,19 +145,18 @@ public class CvService : ICvService
             }
         }
 
-        // 2. Appeler l'API Python pour obtenir le CvData prêt et scoré
-        var request = new 
-        { 
-            user_id = userId.ToString(), 
+        var request = new
+        {
+            user_id = userId.ToString(),
             template_slug = templateId,
             offer_data = offerData
         };
-        
-        var response = await _agentClient.PostAsync<object, CvEngineResult>("/prepare-cv", request);
-        
-        var data = SanitizeCvData(response.CvJson ?? new CvData());
 
-        // 2.1. Sauvegarde automatique dans document_genere si lié à une offre
+        var response = await _agentClient.PostAsync<object, CvEngineResult>("/prepare-cv", request);
+
+        var data = SanitizeCvData(response.CvJson ?? new CvData());
+        data.ThemeColor = null;
+
         if (jobId.HasValue && jobId.Value != Guid.Empty)
         {
             var candidature = await _db.Candidatures
@@ -234,62 +191,122 @@ public class CvService : ICvService
             }
         }
 
-        // 3. Render PDF avec QuestPDF
-        var document = CvDocumentFactory.Create(templateId, data);
-        QuestPDF.Settings.License = LicenseType.Community;
-        var pdfBytes = document.GeneratePdf();
+        var renderResult = await _htmlTemplateRenderer.RenderAsync(templateId, data);
 
         return new CvPreviewResult
         {
-            PdfBytes = pdfBytes,
-            Data     = data,
+            TemplateSlug = renderResult.TemplateSlug,
+            Data = data,
+            DesignConfig = renderResult.DesignConfig,
+            Html = renderResult.Html,
         };
     }
 
-    public byte[] PreviewFromData(string templateId, CvData data)
+    public async Task<CvRenderResponse> PreviewFromDataAsync(CvRenderRequest request)
     {
-        data = SanitizeCvData(data);
-        var document = CvDocumentFactory.Create(templateId, data);
-        QuestPDF.Settings.License = LicenseType.Community;
-        return document.GeneratePdf();
+        ArgumentNullException.ThrowIfNull(request);
+        request.Data = SanitizeCvData(request.Data);
+        return await _htmlTemplateRenderer.RenderAsync(request.TemplateSlug, request.Data, request.DesignConfig);
     }
 
-    // ─── Save (MinIO + DB) ─────────────────────────────────────
+    public async Task<byte[]> ExportPdfAsync(CvExportPdfRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        request.Data = SanitizeCvData(request.Data);
+
+        var html = string.IsNullOrWhiteSpace(request.HtmlSnapshot)
+            ? (await _htmlTemplateRenderer.RenderAsync(request.TemplateSlug, request.Data, request.DesignConfig)).Html
+            : request.HtmlSnapshot!;
+
+        return await RenderPdfWithFallbackAsync(request.TemplateSlug, request.Data, html);
+    }
 
     public async Task<CvSaveResult> SaveCvAsync(Guid userId, CvSaveRequest request)
     {
         request.Data = SanitizeCvData(request.Data);
+        var renderResult = await _htmlTemplateRenderer.RenderAsync(request.TemplateSlug, request.Data, request.DesignConfig);
+        var htmlSnapshot = request.HtmlSnapshot ?? renderResult.Html;
+        var pdfBytes = await RenderPdfWithFallbackAsync(renderResult.TemplateSlug, request.Data, htmlSnapshot);
 
-        // 1. Generate final PDF from the user-edited data
-        var pdfBytes = PreviewFromData(request.TemplateSlug, request.Data);
-
-        // 2. Upload to MinIO
         var objectKey = $"cvs/{userId}/{Guid.NewGuid()}.pdf";
         var fileUrl = await _storageService.UploadFileAsync(objectKey, pdfBytes, "application/pdf");
 
-        // 3. Save history record with the CvData JSON snapshot
         var history = new CvHistory
         {
-            Id            = Guid.NewGuid(),
-            UserId        = userId,
-            Title         = request.Title,
-            TemplateSlug  = request.TemplateSlug.ToLowerInvariant(),
-            TemplateName  = request.TemplateSlug,
-            CvDataJson    = JsonSerializer.Serialize(request.Data, _jsonOptions),
-            FileUrl       = fileUrl,
-            ObjectKey     = objectKey,
-            BucketName    = _minioOptions.BucketName,
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Title = request.Title,
+            TemplateSlug = renderResult.TemplateSlug,
+            TemplateName = renderResult.TemplateSlug,
+            CvDataJson = JsonSerializer.Serialize(request.Data, _jsonOptions),
+            DesignConfigJson = JsonSerializer.Serialize(renderResult.DesignConfig, _jsonOptions),
+            HtmlSnapshot = htmlSnapshot,
+            FileUrl = fileUrl,
+            ObjectKey = objectKey,
+            BucketName = _minioOptions.BucketName,
             FileSizeBytes = pdfBytes.Length,
-            CreatedAt     = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
         };
 
         _db.CvHistories.Add(history);
         await _db.SaveChangesAsync();
 
+        if (request.OfferId.HasValue && request.OfferId.Value != Guid.Empty)
+        {
+            var offer = await _db.OffresEmploi
+                .FirstOrDefaultAsync(o => o.Id == request.OfferId.Value && o.UtilisateurId == userId);
+
+            if (offer is not null)
+            {
+                var candidature = await _db.Candidatures
+                    .FirstOrDefaultAsync(c => c.IdOffre == request.OfferId.Value && c.IdUtilisateur == userId);
+
+                if (candidature == null)
+                {
+                    candidature = new NextStep.Modules.Candidature.Models.Candidature
+                    {
+                        IdUtilisateur = userId,
+                        IdOffre = request.OfferId.Value,
+                        Offre = offer,
+                        Statut = "EN_ATTENTE",
+                        DateCreation = DateTime.UtcNow
+                    };
+                    _db.Candidatures.Add(candidature);
+                    await _db.SaveChangesAsync();
+                }
+
+                var document = await _db.DocumentsGeneres
+                    .FirstOrDefaultAsync(d => d.IdCandidature == candidature.IdCandidature);
+
+                var serializedCv = JsonSerializer.Serialize(request.Data, _jsonOptions);
+                if (document == null)
+                {
+                    document = new DocumentGenere
+                    {
+                        IdCandidature = candidature.IdCandidature,
+                        CvContenuIaJson = serializedCv,
+                        CheminPdfCv = fileUrl,
+                        Version = 1,
+                        DateGeneration = DateTime.UtcNow
+                    };
+                    _db.DocumentsGeneres.Add(document);
+                }
+                else
+                {
+                    document.CvContenuIaJson = serializedCv;
+                    document.CheminPdfCv = fileUrl;
+                    document.Version += 1;
+                    document.DateGeneration = DateTime.UtcNow;
+                }
+
+                await _db.SaveChangesAsync();
+            }
+        }
+
         return new CvSaveResult
         {
-            HistoryId     = history.Id,
-            FileUrl       = fileUrl,
+            HistoryId = history.Id,
+            FileUrl = fileUrl,
             FileSizeBytes = pdfBytes.Length,
         };
     }
@@ -297,39 +314,37 @@ public class CvService : ICvService
     public async Task<CvSaveResult> UpdateCvAsync(Guid userId, Guid historyId, CvSaveRequest request)
     {
         request.Data = SanitizeCvData(request.Data);
+        var renderResult = await _htmlTemplateRenderer.RenderAsync(request.TemplateSlug, request.Data, request.DesignConfig);
+        var htmlSnapshot = request.HtmlSnapshot ?? renderResult.Html;
 
         var history = await _db.CvHistories
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
             ?? throw new KeyNotFoundException("CV not found.");
 
-        // 1. Generate new PDF
-        var pdfBytes = PreviewFromData(request.TemplateSlug, request.Data);
-
-        // 2. Upload new version to MinIO (new object key)
+        var pdfBytes = await RenderPdfWithFallbackAsync(renderResult.TemplateSlug, request.Data, htmlSnapshot);
         var objectKey = $"cvs/{userId}/{Guid.NewGuid()}.pdf";
         var fileUrl = await _storageService.UploadFileAsync(objectKey, pdfBytes, "application/pdf");
 
-        // 3. Update the history record
-        history.Title         = request.Title;
-        history.TemplateSlug  = request.TemplateSlug.ToLowerInvariant();
-        history.TemplateName  = request.TemplateSlug;
-        history.CvDataJson    = JsonSerializer.Serialize(request.Data, _jsonOptions);
-        history.FileUrl       = fileUrl;
-        history.ObjectKey     = objectKey;
+        history.Title = request.Title;
+        history.TemplateSlug = renderResult.TemplateSlug;
+        history.TemplateName = renderResult.TemplateSlug;
+        history.CvDataJson = JsonSerializer.Serialize(request.Data, _jsonOptions);
+        history.DesignConfigJson = JsonSerializer.Serialize(renderResult.DesignConfig, _jsonOptions);
+        history.HtmlSnapshot = htmlSnapshot;
+        history.FileUrl = fileUrl;
+        history.ObjectKey = objectKey;
         history.FileSizeBytes = pdfBytes.Length;
-        history.UpdatedAt     = DateTime.UtcNow;
+        history.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
 
         return new CvSaveResult
         {
-            HistoryId     = history.Id,
-            FileUrl       = fileUrl,
+            HistoryId = history.Id,
+            FileUrl = fileUrl,
             FileSizeBytes = pdfBytes.Length,
         };
     }
-
-    // ─── History & Load ────────────────────────────────────────
 
     public async Task<List<CvHistoryDto>> GetHistoryAsync(Guid userId)
     {
@@ -338,14 +353,14 @@ public class CvService : ICvService
             .OrderByDescending(h => h.CreatedAt)
             .Select(h => new CvHistoryDto
             {
-                Id            = h.Id,
-                Title         = h.Title,
-                TemplateSlug  = h.TemplateSlug,
-                TemplateName  = h.TemplateName,
-                FileUrl       = h.FileUrl,
+                Id = h.Id,
+                Title = h.Title,
+                TemplateSlug = h.TemplateSlug,
+                TemplateName = h.TemplateName,
+                FileUrl = h.FileUrl,
                 FileSizeBytes = h.FileSizeBytes,
-                CreatedAt     = h.CreatedAt,
-                UpdatedAt     = h.UpdatedAt,
+                CreatedAt = h.CreatedAt,
+                UpdatedAt = h.UpdatedAt,
             })
             .ToListAsync();
     }
@@ -356,19 +371,22 @@ public class CvService : ICvService
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
             ?? throw new KeyNotFoundException("CV not found.");
 
-        var data = SanitizeCvData(JsonSerializer.Deserialize<CvData>(history.CvDataJson, _jsonOptions)
-                   ?? new CvData());
+        var data = SanitizeCvData(JsonSerializer.Deserialize<CvData>(history.CvDataJson, _jsonOptions) ?? new CvData());
+        var designConfig = JsonSerializer.Deserialize<CvDesignConfig>(history.DesignConfigJson, _jsonOptions)
+            ?? _htmlTemplateRenderer.GetDefaultDesignConfig(history.TemplateSlug);
 
         return new CvLoadResult
         {
-            HistoryId    = history.Id,
+            HistoryId = history.Id,
             TemplateSlug = history.TemplateSlug,
             TemplateName = history.TemplateName,
-            Title        = history.Title,
-            Data         = data,
-            FileUrl      = history.FileUrl,
-            CreatedAt    = history.CreatedAt,
-            UpdatedAt    = history.UpdatedAt,
+            Title = history.Title,
+            Data = data,
+            DesignConfig = designConfig,
+            HtmlSnapshot = history.HtmlSnapshot,
+            FileUrl = history.FileUrl,
+            CreatedAt = history.CreatedAt,
+            UpdatedAt = history.UpdatedAt,
         };
     }
 
@@ -404,18 +422,25 @@ public class CvService : ICvService
     {
         data ??= new CvData();
         data.Experience ??= new List<CvExperience>();
+        data.Education ??= new List<CvEducation>();
         data.Activities ??= new List<CvActivity>();
         data.Projects ??= new List<CvProject>();
         data.Skills ??= new List<CvSkill>();
+        data.TechnicalSkills ??= new List<CvSkill>();
+        data.SoftSkills ??= new List<CvSkill>();
         data.Certifications ??= new List<string>();
         data.Languages ??= new List<string>();
+        data.Sections ??= new List<CvSection>();
 
+        data.Skills = MergeSkillSources(data.Skills, data.TechnicalSkills, data.SoftSkills);
         data.Experience = NormalizeExperience(data.Experience, data.Activities);
         data.Activities = DeduplicateActivities(data.Activities);
         data.Projects = NormalizeProjects(data.Projects);
-        data.Skills = DeduplicateSkills(data.Skills).Take(18).ToList();
-        data.Certifications = DeduplicateStrings(data.Certifications).Take(6).ToList();
-        data.Languages = DeduplicateStrings(data.Languages).Take(6).ToList();
+        data.Skills = DeduplicateSkills(data.Skills).ToList();
+        data.Certifications = DeduplicateStrings(data.Certifications).ToList();
+        data.Languages = DeduplicateStrings(data.Languages).ToList();
+
+        data.Sections = CvSectionMapper.MergeWithLegacySections(data, data.Sections);
         return data;
     }
 
@@ -431,7 +456,7 @@ public class CvService : ICvService
             exp.Company = CleanText(exp.Company);
             exp.Start = NullIfEmpty(exp.Start);
             exp.End = NullIfEmpty(exp.End);
-            exp.Bullets = DeduplicateStrings(exp.Bullets).Take(4).ToList();
+            exp.Bullets = DeduplicateStrings(exp.Bullets).ToList();
 
             if (string.IsNullOrWhiteSpace(exp.Role) && string.IsNullOrWhiteSpace(exp.Company))
                 continue;
@@ -464,6 +489,8 @@ public class CvService : ICvService
         {
             project.Title = CleanText(project.Title);
             project.Description = NullIfEmpty(project.Description);
+            project.DateRealisation = NullIfEmpty(project.DateRealisation);
+            project.Technologies = DeduplicateStrings(project.Technologies).ToList();
             project.Bullets = DeduplicateStrings(project.Bullets).ToList();
 
             if (string.IsNullOrWhiteSpace(project.Title))
@@ -474,17 +501,12 @@ public class CvService : ICvService
 
             project.Bullets = project.Bullets
                 .Where(b => !IsSameMeaning(b, project.Description))
-                .Take(4)
                 .ToList();
-
-            // If bullets exist, avoid printing the same project story twice.
-            if (project.Bullets.Count > 0)
-                project.Description = null;
 
             clean.Add(project);
         }
 
-        return clean.Take(4).ToList();
+        return clean;
     }
 
     private static List<CvActivity> DeduplicateActivities(List<CvActivity>? activities)
@@ -497,6 +519,8 @@ public class CvService : ICvService
             activity.Title = CleanText(activity.Title);
             activity.Role = NullIfEmpty(activity.Role);
             activity.Description = NullIfEmpty(activity.Description);
+            activity.StartDate = NullIfEmpty(activity.StartDate);
+            activity.EndDate = NullIfEmpty(activity.EndDate);
 
             if (string.IsNullOrWhiteSpace(activity.Title) && string.IsNullOrWhiteSpace(activity.Role))
                 continue;
@@ -506,7 +530,7 @@ public class CvService : ICvService
             clean.Add(activity);
         }
 
-        return clean.Take(5).ToList();
+        return clean;
     }
 
     private static IEnumerable<string> DeduplicateStrings(IEnumerable<string>? values)
@@ -531,6 +555,27 @@ public class CvService : ICvService
             skill.Level = Math.Clamp(skill.Level, 1, 5);
             yield return skill;
         }
+    }
+
+    private static List<CvSkill> MergeSkillSources(
+        IEnumerable<CvSkill>? skills,
+        IEnumerable<CvSkill>? technicalSkills,
+        IEnumerable<CvSkill>? softSkills)
+    {
+        var merged = new List<CvSkill>();
+        merged.AddRange(skills ?? Enumerable.Empty<CvSkill>());
+        merged.AddRange(technicalSkills ?? Enumerable.Empty<CvSkill>());
+
+        foreach (var skill in softSkills ?? Enumerable.Empty<CvSkill>())
+        {
+            if (string.IsNullOrWhiteSpace(skill.Category))
+                skill.Category = "Soft Skills";
+            if (string.IsNullOrWhiteSpace(skill.TypeCompetence))
+                skill.TypeCompetence = "Comportemental";
+            merged.Add(skill);
+        }
+
+        return merged;
     }
 
     private static bool LooksLikeActivity(CvExperience exp)
@@ -577,11 +622,22 @@ public class CvService : ICvService
         return Regex.Replace(builder.ToString().Normalize(NormalizationForm.FormC), @"[^a-z0-9]+", " ").Trim();
     }
 
+    private async Task<byte[]> RenderPdfWithFallbackAsync(string templateSlug, CvData data, string htmlSnapshot)
+    {
+        try
+        {
+            return await _pdfRenderer.RenderPdfAsync(htmlSnapshot);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Chromium-compatible browser executable", StringComparison.OrdinalIgnoreCase))
+        {
+            var document = CvDocumentFactory.Create(templateSlug, data);
+            QuestPDF.Settings.License = LicenseType.Community;
+            return document.GeneratePdf();
+        }
+    }
 }
 
-// Helper class for Python response deserialization
 public class CvEngineResult
 {
     public CvData CvJson { get; set; } = new();
-    // We can also map ats_coverage if needed
 }

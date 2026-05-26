@@ -26,21 +26,8 @@ public class OfferController(
 {
     private async Task<Guid> GetUserIdAsync()
     {
-        var keycloakId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                      ?? User.FindFirst("sub")?.Value;
-
-        if (!string.IsNullOrEmpty(keycloakId))
-        {
-            var user = await userService.EnsureUserCreatedAsync(User);
-            return user.Id;
-        }
-
-        if (Request.Headers.TryGetValue("X-User-Id", out var uid) && Guid.TryParse(uid, out var parsedGuid))
-        {
-            return parsedGuid;
-        }
-
-        return Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var user = await userService.EnsureUserCreatedAsync(User);
+        return user.Id;
     }
 
     [HttpPost("submit")]
@@ -160,7 +147,7 @@ public class OfferController(
         try
         {
             // 1. Retrieve the existing offer
-            var offre = await offerService.GetOfferWithAnalysisAsync(id, ct);
+            var offre = await offerService.GetOfferWithAnalysisAsync(dbUserId, id, ct);
             if (offre == null)
             {
                 return NotFound(new { error = "Offer not found." });
@@ -182,6 +169,7 @@ public class OfferController(
             var combinedDict = new Dictionary<string, object>
             {
                 { "analyzed_offer", JsonSerializer.Deserialize<object>(analyzedOffer.GetRawText())! },
+                { "skill_gap_analysis", JsonSerializer.Deserialize<object>(matchDoc.RootElement.GetRawText())! },
                 { "match_result", JsonSerializer.Deserialize<object>(matchDoc.RootElement.GetRawText())! }
             };
             if (matchDoc.RootElement.TryGetProperty("profile_data", out var profileDataEl))
@@ -195,7 +183,7 @@ public class OfferController(
             await offerService.SavePipelineResultAsync(id, agentResponse, dbUserId, ct);
 
             // 4. Give the response to the frontend
-            var analysisDto = await offerService.GetAnalysisAsync(id, ct);
+            var analysisDto = await offerService.GetAnalysisAsync(dbUserId, id, ct);
 
             if (analysisDto == null)
             {
@@ -265,8 +253,16 @@ public class OfferController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetAnalysis(Guid id, CancellationToken ct)
     {
-        var result = await offerService.GetAnalysisAsync(id, ct);
-        return result is null ? NotFound() : Ok(result);
+        var dbUserId = await GetUserIdAsync();
+        try
+        {
+            var result = await offerService.GetAnalysisAsync(dbUserId, id, ct);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
 

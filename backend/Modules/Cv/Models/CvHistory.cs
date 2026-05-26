@@ -31,6 +31,12 @@ public class CvHistory
     /// </summary>
     public string CvDataJson { get; set; } = "{}";
 
+    /// <summary>Design configuration snapshot for HTML/CSS rendering.</summary>
+    public string DesignConfigJson { get; set; } = "{}";
+
+    /// <summary>Optional final HTML snapshot used for exact reopen/export parity.</summary>
+    public string? HtmlSnapshot { get; set; }
+
     /// <summary>Full URL to the PDF in MinIO.</summary>
     [MaxLength(1000)]
     public string FileUrl { get; set; } = string.Empty;

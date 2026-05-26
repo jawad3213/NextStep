@@ -224,6 +224,10 @@ using (var scope = app.Services.CreateScope())
         string[] ctCols = { "id_utilisateur UUID", "titre TEXT", "organisation TEXT", "date_obtention TIMESTAMP", "id_credential TEXT", "url_credential TEXT" };
         foreach (var c in ctCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.certification ADD COLUMN IF NOT EXISTS {c};");
 
+        // 8. Force Add Columns (Candidature)
+        string[] candCols = { "follow_up_needed BOOLEAN DEFAULT FALSE", "last_follow_up_at_utc TIMESTAMP" };
+        foreach (var c in candCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS {c};");
+
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ALTER COLUMN id_skill_keyword SET DEFAULT gen_random_uuid();");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'Technique';");
         await context.Database.ExecuteSqlRawAsync("CREATE UNIQUE INDEX IF NOT EXISTS ux_skill_keyword_mot_categorie ON public.skill_keyword (lower(mot), categorie);");

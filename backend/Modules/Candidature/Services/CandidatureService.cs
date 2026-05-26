@@ -82,6 +82,9 @@ public class CandidatureService : ICandidatureService
             RecommendedAction       = entity.RecommendedAction,
             ResponseConfidence      = entity.ResponseConfidence,
             ResponseClassifiedAtUtc = entity.ResponseClassifiedAtUtc,
+            // Follow-up tracking
+            FollowUpNeeded          = entity.FollowUpNeeded,
+            LastFollowUpAtUtc       = entity.LastFollowUpAtUtc,
         };
     }
 }

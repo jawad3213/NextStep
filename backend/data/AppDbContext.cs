@@ -120,6 +120,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.ResponseClassifiedAtUtc)
                 .HasColumnName("response_classified_at_utc");
 
+            entity.Property(e => e.FollowUpNeeded)
+                .HasColumnName("follow_up_needed")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.LastFollowUpAtUtc)
+                .HasColumnName("last_follow_up_at_utc");
+
             entity.HasMany(e => e.EmailDrafts)
                 .WithOne(e => e.Candidature)
                 .HasForeignKey(e => e.CandidatureId)

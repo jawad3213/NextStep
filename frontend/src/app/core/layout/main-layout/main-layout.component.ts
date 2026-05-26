@@ -140,7 +140,7 @@ export class MainLayoutComponent {
       items: [
         { path: '/cv', label: 'CV Builder', iconName: 'file-text' },
         { path: '/letters', label: 'Email & Letter', iconName: 'mail' },
-        { path: '/candidatures', label: 'Applications', iconName: 'kanban' },
+        { path: '/applications', label: 'Applications', iconName: 'kanban' },
       ]
     },
     {

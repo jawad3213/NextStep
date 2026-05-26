@@ -32,47 +32,15 @@
           <span class="material-symbols-outlined text-lg text-green-600 opacity-40">verified</span>
         </div>
       </div>
+      <!-- Real "Réponses reçues" stat from Hangfire CheckEmailRepliesJob -->
       <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Taux de réponse</p>
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Réponses</p>
         <div class="flex items-center justify-between">
-          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().tauxReponse }}%</h3>
-          <span class="material-symbols-outlined text-lg text-purple-500 opacity-40">insights</span>
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().avecReponse }}</h3>
+          <span class="material-symbols-outlined text-lg text-purple-500 opacity-40">forum</span>
         </div>
       </div>
     </div>
-
-    <!-- Performance Cards -->
-    <section class="mb-6">
-      <h4 class="mb-3 flex items-center gap-2 text-lg font-bold text-gray-900">
-        <span class="material-symbols-outlined text-brand-500">analytics</span>
-        Statistiques de Performance
-      </h4>
-      <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-        @for (card of performanceCards; track card.label) {
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-300"
-            [class.ring-2]="card.urgent" [class.ring-red-500]="card.urgent">
-            <div class="mb-2 flex items-center justify-between">
-              <div class="flex h-8 w-8 items-center justify-center rounded-lg" [class]="card.iconBg">
-                <span class="material-symbols-outlined text-base" [class]="card.iconColor">{{ card.icon }}</span>
-              </div>
-              <span class="flex items-center gap-0.5 text-[10px] font-bold" [class]="card.badgeColor">
-                @if (card.badgeIcon) {
-                  <span class="material-symbols-outlined text-sm">trending_up</span>
-                }
-                {{ card.badge }}
-              </span>
-            </div>
-            <p class="text-xs font-medium text-gray-500">{{ card.label }}</p>
-            <p class="font-mono text-xl font-bold text-gray-900">
-              {{ card.value }}
-              @if (card.sub) {
-                <span class="text-sm font-normal text-gray-400"> {{ card.sub }}</span>
-              }
-            </p>
-          </div>
-        }
-      </div>
-    </section>
 
     <!-- Toolbar -->
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -114,11 +82,28 @@
       }
     </div>
 
+    <!-- Loading state -->
+    @if (loading()) {
+      <div class="flex items-center justify-center py-16">
+        <div class="flex flex-col items-center gap-3">
+          <div class="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500"></div>
+          <p class="text-xs font-medium text-gray-400">Chargement...</p>
+        </div>
+      </div>
+    }
+
+    @if (error()) {
+      <div class="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+        <span class="material-symbols-outlined text-base">error</span>
+        {{ error() }}
+      </div>
+    }
+
     <!-- Kanban Board -->
-    @if (viewMode() === 'kanban') {
+    @if (!loading() && viewMode() === 'kanban') {
       <div class="mb-6 flex gap-4 overflow-x-auto pb-4">
         @for (col of columns; track col.key) {
-          <div class="flex min-w-[260px] max-w-[260px] flex-col gap-3">
+          <div class="flex min-w-[272px] max-w-[272px] flex-col gap-3">
             <div class="flex items-center justify-between px-1">
               <h5 class="text-[10px] font-black uppercase tracking-widest" [style.color]="col.color">{{ col.label }}</h5>
               <span class="h-2 w-2 rounded-full" [style.background]="col.color"></span>
@@ -129,36 +114,72 @@
               (dragleave)="onDragLeave()"
               (drop)="onDrop($event, col.key)">
               @for (card of getColumnCards(col.key); track card.id) {
-                <div class="cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
+                <div class="group cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
                   [class]="col.key === 'entretien' ? 'border-2 border-brand-500 shadow-sm ring-4 ring-brand-500/10' : 'border-gray-200'"
                   draggable="true"
                   (dragstart)="onDragStart(card)">
+
+                  <!-- Card header: type badge + menu -->
                   <div class="mb-2.5 flex items-start justify-between">
                     <span [class]="'rounded px-2 py-0.5 text-[9px] font-bold uppercase ' + getTypeBadgeClass(card.type)">{{ card.type }}</span>
-                    <span class="material-symbols-outlined text-sm text-gray-400">more_horiz</span>
+                    <!-- Hangfire: hasResponse badge — shown when a recruiter reply was detected -->
+                    @if (card.hasResponse) {
+                      <span class="flex items-center gap-0.5 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-600">
+                        <span class="material-symbols-outlined text-[10px]">mark_email_read</span>
+                        Réponse reçue
+                      </span>
+                    }
+                    <!-- Hangfire: followUpNeeded badge — set by DetectFollowUpNeededJob -->
+                    @if (!card.hasResponse && card.followUpNeeded) {
+                      <span class="flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                        <span class="material-symbols-outlined text-[10px]">notification_important</span>
+                        Relance recommandée
+                      </span>
+                    }
                   </div>
+
+                  <!-- Company & role -->
                   <h4 class="mb-0.5 text-sm font-bold text-gray-900">{{ card.entreprise }}</h4>
-                  <p class="mb-3 text-[11px] font-medium text-gray-500">{{ card.role }}</p>
-                  @if (col.key === 'envoye') {
-                    <div class="flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-bold text-red-600">
-                      <span class="material-symbols-outlined text-xs">schedule</span> Offre expire dans 2 jours
-                    </div>
+                  <p class="mb-2.5 text-[11px] font-medium text-gray-500">{{ card.role }}</p>
+
+                  <!-- Hangfire: AI response summary (truncated) -->
+                  @if (card.hasResponse && card.responseSummary) {
+                    <p class="mb-2 line-clamp-2 rounded-lg bg-purple-50 px-2.5 py-1.5 text-[10px] font-medium text-purple-700">
+                      <span class="font-bold">IA :</span> {{ card.responseSummary }}
+                    </p>
                   }
-                  @if (col.key === 'en-attente') {
-                    <div class="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] font-bold text-amber-700">
-                      <span class="material-symbols-outlined text-xs">notification_important</span> À relancer
-                    </div>
+
+                  <!-- Hangfire: recommended action chip -->
+                  @if (card.hasResponse && card.recommendedAction) {
+                    <p class="mb-2 flex items-center gap-1 text-[10px] font-semibold text-brand-600">
+                      <span class="material-symbols-outlined text-[11px]">lightbulb</span>
+                      {{ card.recommendedAction }}
+                    </p>
                   }
-                  @if (col.key === 'entretien') {
-                    <div class="flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-[10px] font-bold text-brand-600">
-                      <span class="material-symbols-outlined text-xs">calendar_today</span> Entretien dans 6 jours
-                    </div>
-                  }
-                  @if (col.key === 'accepte') {
-                    <div class="flex items-center gap-1.5 rounded-lg bg-green-50 px-2.5 py-1.5 text-[10px] font-bold text-green-700">
-                      <span class="material-symbols-outlined text-xs">check_circle</span> Offre reçue
-                    </div>
-                  }
+
+                  <!-- Action buttons row -->
+                  <div class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+                    @if (card.hasResponse) {
+                      <!-- Primary CTA when a recruiter response exists -->
+                      <button
+                        id="reply-btn-{{ card.id }}"
+                        class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-purple-600 px-3 py-1.5 text-[10px] font-bold text-white transition-all hover:bg-purple-700"
+                        (click)="openEmailWorkspace(card.id)">
+                        <span class="material-symbols-outlined text-xs">reply</span>
+                        Répondre au recruteur
+                      </button>
+                    } @else {
+                      <!-- Default: open email workspace -->
+                      <button
+                        id="email-btn-{{ card.id }}"
+                        class="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[10px] font-bold text-gray-600 transition-all hover:border-brand-300 hover:text-brand-600"
+                        (click)="openEmailWorkspace(card.id)">
+                        <span class="material-symbols-outlined text-xs">mail</span>
+                        Écrire un email
+                      </button>
+                    }
+                  </div>
+
                 </div>
               }
               @if (getColumnCards(col.key).length === 0) {

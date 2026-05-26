@@ -87,6 +87,16 @@ public class DetectFollowUpNeededJob
 
                 candidature.ResponseStatus = "RELANCE_NECESSAIRE";
                 candidature.Statut         = "RELANCE_NECESSAIRE";
+                candidature.FollowUpNeeded = true;
+
+                // Record the last time a relance was actually sent (for display context in frontend)
+                var lastRelanceSent = candidature.EmailDrafts
+                    .Where(d => d.EmailType == "relance" && d.IsSent && d.SentAtUtc != null)
+                    .OrderByDescending(d => d.SentAtUtc)
+                    .FirstOrDefault();
+                if (lastRelanceSent is not null)
+                    candidature.LastFollowUpAtUtc = lastRelanceSent.SentAtUtc;
+
                 markedCount++;
             }
         }

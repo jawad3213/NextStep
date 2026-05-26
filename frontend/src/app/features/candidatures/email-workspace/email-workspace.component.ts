@@ -70,7 +70,6 @@ export class EmailWorkspaceComponent implements OnInit {
     this.loadingPage.set(true);
     this.pageError.set(null);
 
-    // Parallel load: candidature + drafts + Gmail status
     forkJoin({
       candidature: this.candidatureService.getById(this.candidatureId).pipe(catchError(() => of(null))),
       drafts: this.emailService.getDraftsByCandidature(this.candidatureId).pipe(catchError(() => of([]))),
@@ -92,6 +91,11 @@ export class EmailWorkspaceComponent implements OnInit {
       );
       const best = sorted.find(d => !d.isSent) ?? sorted[0] ?? null;
       if (best) this.selectDraft(best);
+
+      // Pre-seed reply instructions from Hangfire snippet if a response exists
+      if (candidature.hasResponse && candidature.lastResponseSnippet && !this.userInstructions) {
+        this.userInstructions = '';  // Keep empty — snippet shown separately as context, not pre-filled
+      }
 
       // Load offer details
       if (candidature.idOffre) {
@@ -124,7 +128,6 @@ export class EmailWorkspaceComponent implements OnInit {
       language: this.language
     }).subscribe({
       next: (draft) => {
-        // Prepend to local drafts list and select immediately
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
         this.successMessage.set('Brouillon généré avec succès.');
@@ -150,11 +153,7 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (draft) => {
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
-        const current = this.candidature();
-        if (current) {
-          this.candidature.set({ ...current, responseStatus: 'RELANCE_GENEREE', statut: 'RELANCE_GENEREE' });
-        }
-        this.successMessage.set('Email de relance généré avec succès.');
+        this.successMessage.set('Email de relance généré avec succès. Relisez et approuvez avant envoi.');
         this.generatingDraft.set(false);
       },
       error: (err) => {
@@ -245,7 +244,6 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (result) => {
         this.sendingDraft.set(false);
         if (result.success) {
-          // Update the draft in local state
           const updated: EmailDraftDto = {
             ...draft,
             isSent: true,
@@ -294,6 +292,8 @@ export class EmailWorkspaceComponent implements OnInit {
     this.errorMessage.set(null);
   }
 
+  // ── Computed getters ──────────────────────────────────────────────────────
+
   get canSave(): boolean {
     const d = this.selectedDraft();
     return !!d && !d.isSent && !this.savingDraft();
@@ -314,6 +314,11 @@ export class EmailWorkspaceComponent implements OnInit {
       !!gmail?.isConnected && !this.sendingDraft();
   }
 
+  /**
+   * Whether the user CAN generate a relance.
+   * Logic: at least one draft has been sent (isSent=true) AND no recruiter response detected.
+   * NOTE: does NOT depend on responseStatus — which tracks recruiter reply classification, not send state.
+   */
   get canGenerateRelance(): boolean {
     const cand = this.candidature();
     if (!cand) return false;
@@ -321,16 +326,54 @@ export class EmailWorkspaceComponent implements OnInit {
     return this.drafts().some(d => d.isSent) && !this.generatingDraft();
   }
 
+  /**
+   * Whether to highlight / recommend a relance (Hangfire DetectFollowUpNeededJob).
+   * Used for visual emphasis only — does NOT gate canGenerateRelance.
+   */
+  get shouldHighlightFollowUp(): boolean {
+    return this.candidature()?.followUpNeeded === true;
+  }
+
   get canGenerateReply(): boolean {
     const cand = this.candidature();
     if (!cand) return false;
-    // Only show if a recruiter response was detected
     return !!cand.hasResponse && !this.generatingReply();
   }
 
-  formatDate(dateStr: string | null): string {
+  /** Returns CSS class for email type badge in the draft timeline. */
+  getEmailTypeBadgeClass(emailType: string): string {
+    switch (emailType) {
+      case 'application': return 'type-application';
+      case 'follow_up':
+      case 'relance':   return 'type-relance';
+      case 'reply':     return 'type-reply';
+      default:          return 'type-other';
+    }
+  }
+
+  /** Human-readable label for email type. */
+  getEmailTypeLabel(emailType: string): string {
+    switch (emailType) {
+      case 'application': return 'Candidature';
+      case 'follow_up':
+      case 'relance':    return 'Relance';
+      case 'reply':      return 'Réponse';
+      default:           return emailType;
+    }
+  }
+
+  /** Confidence bar width as percentage string. */
+  getConfidencePct(confidence: number | undefined): string {
+    if (confidence == null) return '0%';
+    return `${Math.round(confidence * 100)}%`;
+  }
+
+  formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(dateStr).toLocaleDateString('fr-FR', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
   }
 
   getDraftLabel(draft: EmailDraftDto): string {
@@ -346,15 +389,17 @@ export class EmailWorkspaceComponent implements OnInit {
 
   getCandidatureStatusClass(statut: string): string {
     switch (statut) {
-      case 'ENVOYE': return 'status-sent';
-      case 'VU': return 'status-approved';
-      case 'ENTRETIEN_PROPOSE': return 'status-info';
+      case 'ENVOYE':               return 'status-sent';
+      case 'VU':                   return 'status-approved';
+      case 'ENTRETIEN_PROPOSE':    return 'status-info';
       case 'INFORMATIONS_DEMANDEES': return 'status-warning';
-      case 'ACCEPTE': return 'status-success';
-      case 'REFUSE': return 'status-error';
-      case 'REPONSE_RECUE': return 'status-info';
-      case 'REPONSE_AUTOMATIQUE': return 'status-none';
-      default: return 'status-neutral';
+      case 'ACCEPTE':              return 'status-success';
+      case 'REFUSE':               return 'status-error';
+      case 'REPONSE_RECUE':        return 'status-info';
+      case 'REPONSE_AUTOMATIQUE':  return 'status-none';
+      case 'RELANCE_NECESSAIRE':   return 'status-warning';
+      case 'RELANCE_GENEREE':      return 'status-warning';
+      default:                     return 'status-neutral';
     }
   }
 

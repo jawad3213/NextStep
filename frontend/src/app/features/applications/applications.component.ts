@@ -2,11 +2,13 @@
 import { Component, signal, computed, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule, Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { CandidatureService, CandidatureDto } from '../../services/candidature.service';
 import { OfferService } from '../../services/offer.service';
 
+// ── Extended card interface carrying Hangfire-populated fields ────────────────
 interface CandidatureCard {
   id: string;
   entreprise: string;
@@ -14,21 +16,30 @@ interface CandidatureCard {
   type: string;
   statut: string;
   dateCreation: string;
-  notes?: string;
-
+  // Hangfire reply-tracking fields (from CheckEmailRepliesJob + ClassifyResponseJob)
+  hasResponse: boolean;
+  responseStatus: string;
+  lastResponseSnippet?: string;
+  responseSummary?: string;
+  recommendedAction?: string;
+  lastResponseAtUtc?: string;
+  // Hangfire follow-up fields (from DetectFollowUpNeededJob)
+  followUpNeeded?: boolean;
+  lastFollowUpAtUtc?: string;
 }
 
 @Component({
   selector: 'app-applications',
   standalone: true,
-
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './applications.component.html',
   styleUrl: './applications.component.scss'
 })
 export class ApplicationsComponent implements OnInit {
   private readonly candidatureService = inject(CandidatureService);
   private readonly offerService = inject(OfferService);
+  private readonly router = inject(Router);
+
   filterStatut = signal('Tous');
   searchQuery = signal('');
   viewMode = signal<'kanban' | 'liste'>('kanban');
@@ -77,9 +88,19 @@ export class ApplicationsComponent implements OnInit {
                 id: c.idCandidature,
                 entreprise: offer?.entreprise || 'Entreprise Inconnue',
                 role: offer?.titre || 'Poste Inconnu',
-                type: 'CDI', // Defaulting as original API doesn't have contract type natively
+                type: 'CDI',
                 statut: this.mapStatusToKanban(c.statut),
                 dateCreation: c.dateCreation,
+                // Hangfire reply-tracking fields
+                hasResponse: c.hasResponse,
+                responseStatus: c.responseStatus,
+                lastResponseSnippet: c.lastResponseSnippet,
+                responseSummary: c.responseSummary,
+                recommendedAction: c.recommendedAction,
+                lastResponseAtUtc: c.lastResponseAtUtc,
+                // Hangfire follow-up fields
+                followUpNeeded: c.followUpNeeded,
+                lastFollowUpAtUtc: c.lastFollowUpAtUtc,
               };
             });
             this.cards.set(mappedCards);
@@ -135,7 +156,8 @@ export class ApplicationsComponent implements OnInit {
       envoyees: all.filter(c => c.statut === 'envoye').length,
       enAttente: all.filter(c => c.statut === 'en-attente').length,
       acceptees: all.filter(c => c.statut === 'accepte').length,
-      tauxReponse: all.length > 0 ? Math.round((all.filter(c => c.statut !== 'envoye').length / all.length) * 100) : 0,
+      avecReponse: all.filter(c => c.hasResponse).length,
+      tauxReponse: all.length > 0 ? Math.round((all.filter(c => c.hasResponse).length / all.length) * 100) : 0,
     };
   });
 
@@ -146,6 +168,11 @@ export class ApplicationsComponent implements OnInit {
   setFilter(s: string) { this.filterStatut.set(s); }
   setView(v: 'kanban' | 'liste') { this.viewMode.set(v); }
 
+  /** Navigate to email workspace for a given candidature */
+  openEmailWorkspace(candidatureId: string) {
+    this.router.navigate(['/applications', candidatureId, 'email']);
+  }
+
   onDragStart(c: CandidatureCard) { this.draggedCard.set(c); }
   onDragOver(e: DragEvent, col: string) { e.preventDefault(); this.dragOverCol.set(col); }
   onDragLeave() { this.dragOverCol.set(null); }
@@ -154,11 +181,7 @@ export class ApplicationsComponent implements OnInit {
     this.dragOverCol.set(null);
     const card = this.draggedCard();
     if (card && card.statut !== col) {
-      // Optimistic update
       this.cards.update(list => list.map(c2 => c2.id === card.id ? { ...c2, statut: col } : c2));
-      
-      // We would ideally call the backend here to update the status
-      // this.candidatureService.updateStatus(card.id, this.mapKanbanToBackend(col)).subscribe(...)
     }
     this.draggedCard.set(null);
   }
@@ -173,6 +196,8 @@ export class ApplicationsComponent implements OnInit {
       type: f.type,
       statut: f.statut,
       dateCreation: new Date().toISOString().slice(0, 10),
+      hasResponse: false,
+      responseStatus: 'EN_ATTENTE',
     }, ...list]);
     this.showNewForm.set(false);
     this.newForm.set({ entreprise: '', role: '', type: 'Stage', statut: 'envoye' });
@@ -206,12 +231,4 @@ export class ApplicationsComponent implements OnInit {
     { initial: 'M', company: 'MedTech Hub', role: 'Backend Dev', date: '05 Oct. 2023', issue: 'Retiré', issueClass: 'neutral' },
     { initial: 'A', company: 'Alten Maroc', role: 'Apprenti QA', date: '22 Sep. 2023', issue: 'Accepté', issueClass: 'success' },
   ];
-
-  performanceCards = [
-    { icon: 'analytics', iconBg: 'bg-brand-50', iconColor: 'text-brand-500', label: 'Taux de Conversion', value: '15%', badge: '+2%', badgeIcon: true, badgeColor: 'text-green-600', urgent: false },
-    { icon: 'timer', iconBg: 'bg-purple-50', iconColor: 'text-purple-600', label: 'Temps Moyen', value: '4 jours', badge: 'Stabilité', badgeIcon: false, badgeColor: 'text-gray-500', urgent: false },
-    { icon: 'forum', iconBg: 'bg-green-50', iconColor: 'text-green-600', label: 'Entretiens', value: '3', sub: 'cette semaine', badge: 'Actif', badgeIcon: false, badgeColor: 'text-brand-600', urgent: false },
-    { icon: 'priority_high', iconBg: 'bg-red-50', iconColor: 'text-red-600', label: 'Relances', value: '2', sub: 'critiques', badge: 'Urgent', badgeIcon: false, badgeColor: 'text-red-600', urgent: true },
-  ];
-
 }

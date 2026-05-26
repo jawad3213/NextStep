@@ -389,3 +389,87 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Hangfire Integration Styles ──────────────────────────────────────────────
+
+// Recruiter Reply Snippet
+.recruiter-reply-snippet {
+  margin-top: 16px;
+  padding: 14px;
+  background: rgba(vars.$color-info, 0.05);
+  border-left: 3px solid vars.$color-info;
+  border-radius: 0 vars.$radius-md vars.$radius-md 0;
+  
+  .snippet-text {
+    font-size: 13px;
+    font-style: italic;
+    color: vars.$color-text-secondary;
+    line-height: 1.5;
+    margin: 0;
+    quotes: "«" "»" "“" "”";
+    
+    &::before { content: open-quote; color: rgba(vars.$color-info, 0.4); font-size: 18px; line-height: 0; margin-right: 4px; }
+    &::after { content: close-quote; color: rgba(vars.$color-info, 0.4); font-size: 18px; line-height: 0; margin-left: 4px; }
+  }
+}
+
+// Confidence Bar
+.confidence-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.confidence-bar-bg {
+  flex: 1;
+  height: 4px;
+  background: vars.$color-border-default;
+  border-radius: vars.$radius-full;
+  overflow: hidden;
+}
+
+.confidence-bar-fill {
+  height: 100%;
+  background: vars.$color-primary;
+  border-radius: vars.$radius-full;
+  transition: width vars.$duration-slow vars.$ease-default;
+}
+
+.confidence-pct {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: monospace;
+  color: vars.$color-primary;
+}
+
+// Meta Chips (Follow-up needed, etc)
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: vars.$radius-full;
+  font-size: 11px;
+  font-weight: 600;
+  
+  &.chip-warning {
+    background: vars.$color-warning-tint;
+    color: vars.$color-warning;
+  }
+  
+  &.chip-info {
+    background: vars.$color-info-tint;
+    color: vars.$color-info;
+  }
+  
+  .material-symbols-outlined {
+    font-size: 14px;
+  }
+}
+
+// Draft Type Badges
+.type-application { color: vars.$color-primary; }
+.type-relance { color: vars.$color-warning; }
+.type-reply { color: vars.$color-info; }
+.type-other { color: vars.$color-text-secondary; }

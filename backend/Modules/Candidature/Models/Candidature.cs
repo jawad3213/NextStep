@@ -53,5 +53,21 @@ public class Candidature
     /// <summary>UTC timestamp when the LLM classification was last run. Null until classified.</summary>
     public DateTime? ResponseClassifiedAtUtc { get; set; }
 
+    // ── Follow-up tracking ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Set to true by DetectFollowUpNeededJob when the candidature has been waiting
+    /// long enough without a recruiter response and a follow-up email is recommended.
+    /// Reset to false when a relance draft is generated or a response is received.
+    /// </summary>
+    public bool FollowUpNeeded { get; set; } = false;
+
+    /// <summary>
+    /// UTC timestamp of the last time a follow-up (relance) email was actually sent.
+    /// Derived from the latest sent EmailDraft of type "relance".
+    /// Null until a relance has been sent.
+    /// </summary>
+    public DateTime? LastFollowUpAtUtc { get; set; }
+
     public ICollection<EmailDraft> EmailDrafts { get; set; } = new List<EmailDraft>();
 }

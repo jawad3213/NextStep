@@ -22,4 +22,8 @@ public class CandidatureDto
     public string? RecommendedAction { get; set; }
     public double? ResponseConfidence { get; set; }
     public DateTime? ResponseClassifiedAtUtc { get; set; }
+
+    // ── Follow-up tracking ────────────────────────────────────────────────────────
+    public bool FollowUpNeeded { get; set; }
+    public DateTime? LastFollowUpAtUtc { get; set; }
 }

@@ -24,6 +24,10 @@ export interface CandidatureDto {
   recommendedAction?: string;
   responseConfidence?: number;
   responseClassifiedAtUtc?: string;
+
+  // ── Follow-up tracking (set by Hangfire DetectFollowUpNeededJob) ──────────────
+  followUpNeeded?: boolean;
+  lastFollowUpAtUtc?: string;
 }
 
 export interface CreateCandidaturePayload {

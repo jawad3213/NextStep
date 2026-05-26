@@ -56,6 +56,11 @@ export const routes: Routes = [
         path: 'applications', 
         loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
       },
+      {
+        path: 'applications/:candidatureId/email',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/candidatures/email-workspace/email-workspace.component').then(m => m.EmailWorkspaceComponent)
+      },
       { 
         path: 'company-intel', 
         canActivate: [onboardingGuard],

@@ -50,6 +50,7 @@ export class ProfileService {
   private readonly authService = inject(AuthService);
   private readonly apiUrl = `${environment.apiBaseUrl}/profile`;
   private readonly SESSION_KEY = 'nextstep_onboarding_profile';
+  private profilePhotoObjectUrl: string | null = null;
 
   isOnboarding = signal(false);
 
@@ -217,11 +218,12 @@ export class ProfileService {
       
       this.profile.set(mappedProfile);
 
+      const profilePhotoUrl = data.personalInfo.photoUrl ? await this.loadProfilePhotoObjectUrl() : null;
       this.profile.update(profile => ({
         ...profile,
         personal: {
           ...profile.personal,
-          photoUrl: data.personalInfo.photoUrl ? this.profilePhotoEndpoint() : null,
+          photoUrl: profilePhotoUrl,
         }
       }));
     } catch (error) {
@@ -277,7 +279,10 @@ export class ProfileService {
       throw new Error('Profile photo upload succeeded but no photo URL was returned.');
     }
 
-    const photoUrl = this.profilePhotoEndpoint();
+    const photoUrl = await this.loadProfilePhotoObjectUrl();
+    if (!photoUrl) {
+      throw new Error('Profile photo upload succeeded but the image could not be loaded.');
+    }
 
     this.profile.update(profile => ({
       ...profile,
@@ -290,8 +295,24 @@ export class ProfileService {
     return photoUrl;
   }
 
-  private profilePhotoEndpoint(): string {
-    return `${this.apiUrl}/photo?v=${Date.now()}`;
+  private async loadProfilePhotoObjectUrl(): Promise<string | null> {
+    try {
+      const blob = await firstValueFrom(
+        this.http.get(`${this.apiUrl}/photo`, { responseType: 'blob' })
+      );
+
+      if (!blob.size) return null;
+
+      if (this.profilePhotoObjectUrl) {
+        URL.revokeObjectURL(this.profilePhotoObjectUrl);
+      }
+
+      this.profilePhotoObjectUrl = URL.createObjectURL(blob);
+      return this.profilePhotoObjectUrl;
+    } catch (error) {
+      console.warn('Unable to load profile photo', error);
+      return null;
+    }
   }
 
   async getSignedProfilePhotoUrl(): Promise<string | null> {
@@ -299,7 +320,7 @@ export class ProfileService {
       const response = await firstValueFrom(
         this.http.get<SignedProfilePhotoResponse>(`${this.apiUrl}/photo/signed`)
       );
-      return response?.photoUrl ? this.profilePhotoEndpoint() : null;
+      return response?.photoUrl ? await this.loadProfilePhotoObjectUrl() : null;
     } catch (error) {
       console.warn('Unable to get signed profile photo URL', error);
       return null;

@@ -348,21 +348,45 @@ public class CvService : ICvService
 
     public async Task<List<CvHistoryDto>> GetHistoryAsync(Guid userId)
     {
-        return await _db.CvHistories
+        var histories = await _db.CvHistories
             .Where(h => h.UserId == userId)
             .OrderByDescending(h => h.CreatedAt)
-            .Select(h => new CvHistoryDto
-            {
-                Id = h.Id,
-                Title = h.Title,
-                TemplateSlug = h.TemplateSlug,
-                TemplateName = h.TemplateName,
-                FileUrl = h.FileUrl,
-                FileSizeBytes = h.FileSizeBytes,
-                CreatedAt = h.CreatedAt,
-                UpdatedAt = h.UpdatedAt,
-            })
             .ToListAsync();
+
+        bool hasUpdates = false;
+        foreach (var h in histories)
+        {
+            if (h.Title != null && h.Title.StartsWith("CV_") && h.Title.Length > 30)
+            {
+                var offerIdString = h.Title.Substring(3);
+                if (Guid.TryParse(offerIdString, out var offerId))
+                {
+                    var analysis = await _offerService.GetAnalysisAsync(userId, offerId);
+                    if (analysis != null)
+                    {
+                        h.Title = $"CV - {analysis.Titre} - {analysis.Entreprise}";
+                        hasUpdates = true;
+                    }
+                }
+            }
+        }
+
+        if (hasUpdates)
+        {
+            await _db.SaveChangesAsync();
+        }
+
+        return histories.Select(h => new CvHistoryDto
+        {
+            Id = h.Id,
+            Title = h.Title,
+            TemplateSlug = h.TemplateSlug,
+            TemplateName = h.TemplateName,
+            FileUrl = h.FileUrl,
+            FileSizeBytes = h.FileSizeBytes,
+            CreatedAt = h.CreatedAt,
+            UpdatedAt = h.UpdatedAt,
+        }).ToList();
     }
 
     public async Task<CvLoadResult> LoadCvAsync(Guid userId, Guid historyId)

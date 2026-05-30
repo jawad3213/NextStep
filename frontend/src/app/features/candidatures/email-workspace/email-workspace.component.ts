@@ -64,6 +64,7 @@ export class EmailWorkspaceComponent implements OnInit {
   oauthClientId = '';
   oauthClientSecret = '';
   oauthRedirectUri = '';
+  navigationSource = '';
 
   // Attachments (Simulated for UI)
   get mockAttachments() {
@@ -82,6 +83,7 @@ export class EmailWorkspaceComponent implements OnInit {
   // ── Init ─────────────────────────────────────────────────────────────────
   ngOnInit() {
     this.candidatureId = this.route.snapshot.paramMap.get('candidatureId') ?? '';
+    this.navigationSource = (this.route.snapshot.queryParamMap.get('source') ?? '').toLowerCase();
     if (!this.candidatureId) {
       this.pageError.set('Identifiant de candidature manquant.');
       this.loadingPage.set(false);
@@ -508,6 +510,14 @@ export class EmailWorkspaceComponent implements OnInit {
   }
 
   goBack() {
+    if (this.navigationSource === 'applications') {
+      this.router.navigate(['/applications']);
+      return;
+    }
+    if (this.router.url.startsWith('/letters/')) {
+      this.router.navigate(['/letters']);
+      return;
+    }
     this.router.navigate(['/applications']);
   }
 }

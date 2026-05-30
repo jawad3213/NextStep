@@ -180,7 +180,7 @@
                       </span>
                     </td>
                     <td class="px-5 py-3.5 text-right">
-                      <button [routerLink]="['/applications', app.candidatureId, 'email']" class="text-gray-300 transition-colors hover:text-brand-500">
+                      <button [routerLink]="['/letters', app.candidatureId]" class="text-gray-300 transition-colors hover:text-brand-500">
                         <span class="material-symbols-outlined text-lg">visibility</span>
                       </button>
                     </td>
@@ -235,7 +235,7 @@
           <h4 class="mb-3 text-lg font-bold text-gray-900">Mes candidatures</h4>
           <div class="space-y-2.5">
             @for (app of applications(); track app.candidatureId) {
-              <div [routerLink]="['/applications', app.candidatureId, 'email']" class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm transition-colors hover:border-brand-300">
+              <div [routerLink]="['/letters', app.candidatureId]" class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm transition-colors hover:border-brand-300">
                 <div class="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
                   <span class="material-symbols-outlined text-gray-400">business</span>
                 </div>

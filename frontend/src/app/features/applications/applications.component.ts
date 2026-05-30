@@ -170,7 +170,9 @@ export class ApplicationsComponent implements OnInit {
 
   /** Navigate to email workspace for a given candidature */
   openEmailWorkspace(candidatureId: string) {
-    this.router.navigate(['/applications', candidatureId, 'email']);
+    this.router.navigate(['/letters', candidatureId], {
+      queryParams: { source: 'applications' }
+    });
   }
 
   onDragStart(c: CandidatureCard) { this.draggedCard.set(c); }

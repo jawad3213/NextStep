@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using NextStep.Modules.Cv.Services;
 using NextStep.Modules.Offer.DTOs;
+using NextStep.Modules.Offer.Models;
 using NextStep.SignalR;
 
 namespace NextStep.Modules.Offer.Services;
@@ -16,15 +17,18 @@ public class PdfGenerationService : IPdfGenerationService
     private readonly ICvService _cvService;
     private readonly IHubContext<PipelineHub> _hubContext;
     private readonly ILogger<PdfGenerationService> _logger;
+    private readonly IOfferService _offerService;
 
     public PdfGenerationService(
         ICvService cvService,
         IHubContext<PipelineHub> hubContext,
-        ILogger<PdfGenerationService> logger)
+        ILogger<PdfGenerationService> logger,
+        IOfferService offerService)
     {
         _cvService = cvService;
         _hubContext = hubContext;
         _logger = logger;
+        _offerService = offerService;
     }
 
     public async Task<PdfGenerateResultDto> GeneratePdfAsync(
@@ -40,10 +44,15 @@ public class PdfGenerationService : IPdfGenerationService
 
             await SendProgress(offerId, 50, "Generation du PDF HTML/CSS...");
 
+            var analysis = await _offerService.GetAnalysisAsync(userId, offerId, ct);
+            string cvTitle = analysis != null 
+                ? $"CV - {analysis.Titre} - {analysis.Entreprise}" 
+                : $"CV_{offerId}";
+
             var saveResult = await _cvService.SaveCvAsync(userId, new CvSaveRequest
             {
                 TemplateSlug = templateId,
-                Title = $"CV_{offerId}",
+                Title = cvTitle,
                 Data = preview.Data,
                 DesignConfig = preview.DesignConfig,
                 HtmlSnapshot = preview.Html

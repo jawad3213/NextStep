@@ -6,6 +6,7 @@ import { MainLayoutComponent } from './core/layout/main-layout/main-layout.compo
 // Features (Shells)
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { OnboardingComponent } from './features/onboarding/onboarding.component';
+import { CvBuilderComponent } from './features/cv-builder/cv-builder.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'offers', pathMatch: 'full' },
@@ -78,12 +79,18 @@ export const routes: Routes = [
       { 
         path: 'cv', 
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/cv-builder/cv-builder.component').then(m => m.CvBuilderComponent) 
+        component: CvBuilderComponent
       },
       { 
         path: 'letters', 
+        pathMatch: 'full',
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/letters/letters.component').then(m => m.LettersComponent) 
+      },
+      {
+        path: 'letters/:candidatureId',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/candidatures/email-workspace/email-workspace.component').then(m => m.EmailWorkspaceComponent)
       },
       { 
         path: 'applications', 
@@ -92,13 +99,13 @@ export const routes: Routes = [
       },
       {
         path: 'applications/:candidatureId/email',
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/candidatures/email-workspace/email-workspace.component').then(m => m.EmailWorkspaceComponent)
+        pathMatch: 'full',
+        redirectTo: '/letters/:candidatureId'
       },
       {
         path: 'applications/:candidatureId/emails',
         pathMatch: 'full',
-        redirectTo: '/applications/:candidatureId/email'
+        redirectTo: '/letters/:candidatureId'
       },
       { 
         path: 'company-intel', 

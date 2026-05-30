@@ -83,6 +83,7 @@ export class MainLayoutComponent {
     )
   );
   readonly isProfileMenuOpen = signal(false);
+  readonly isNotificationsMenuOpen = signal(false);
   readonly theme = this.themeService.theme;
   readonly profile = this.profileService.profile;
   readonly userFullName = computed(() => {
@@ -151,10 +152,17 @@ export class MainLayoutComponent {
   }
 
   toggleProfileMenu(): void {
+    this.isNotificationsMenuOpen.set(false);
     this.isProfileMenuOpen.update(isOpen => !isOpen);
   }
 
+  toggleNotificationsMenu(): void {
+    this.isProfileMenuOpen.set(false);
+    this.isNotificationsMenuOpen.update(isOpen => !isOpen);
+  }
+
   goToNotifications(): void {
+    this.isNotificationsMenuOpen.set(false);
     this.router.navigate(['/notifications']);
   }
 
@@ -192,7 +200,6 @@ export class MainLayoutComponent {
     {
       title: 'System',
       items: [
-        { path: '/notifications', label: 'Notifications', iconName: 'bell' },
         { path: '/email/settings', label: 'Gmail Settings', iconName: 'send' },
         { path: '/settings', label: 'Settings', iconName: 'settings' },
       ]
@@ -229,16 +236,20 @@ export class MainLayoutComponent {
   }
 
   @HostListener('document:click', ['$event'])
-  closeProfileMenuOnOutsideClick(event: Event): void {
+  closeMenusOnOutsideClick(event: Event): void {
     const target = event.target as HTMLElement | null;
     if (!target?.closest('[data-user-menu]')) {
       this.isProfileMenuOpen.set(false);
     }
+    if (!target?.closest('[data-notifications-menu]')) {
+      this.isNotificationsMenuOpen.set(false);
+    }
   }
 
   @HostListener('document:keydown.escape')
-  closeProfileMenuOnEscape(): void {
+  closeMenusOnEscape(): void {
     this.isProfileMenuOpen.set(false);
+    this.isNotificationsMenuOpen.set(false);
   }
 
   private buildHeaderState(url: string): HeaderState {

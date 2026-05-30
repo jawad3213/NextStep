@@ -45,7 +45,7 @@ interface CompanyIntel {
     <div class="analysis-shell animate-fade-in">
       <!-- HEADER -->
       <header class="mb-8">
-        <button (click)="returnToOffer()" class="flex items-center gap-2 text-brand-500 hover:text-brand-600 font-bold text-sm mb-4 transition-colors">
+        <button (click)="returnToOffer()" class="flex items-center gap-2 text-primary-brand hover:text-primary-brand font-bold text-sm mb-4 transition-colors">
           <span class="material-symbols-outlined text-lg">arrow_back</span>
           Retour à l'offre
         </button>
@@ -90,12 +90,12 @@ interface CompanyIntel {
                   </div>
                   <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-500 text-xs mt-3">
                     <span class="flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-sm text-brand-500">apartment</span>
+                      <span class="material-symbols-outlined text-sm text-primary-brand">apartment</span>
                       {{ r.sector }}
                     </span>
                     <span class="text-slate-300">•</span>
                     <span class="flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-sm text-brand-500">location_on</span>
+                      <span class="material-symbols-outlined text-sm text-primary-brand">location_on</span>
                       {{ r.hqLocation }}
                     </span>
                     <span class="text-slate-300">•</span>
@@ -136,7 +136,7 @@ interface CompanyIntel {
           <div class="col-span-12 lg:col-span-7">
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-full">
               <div class="flex items-center gap-3 mb-6">
-                <span class="material-symbols-outlined text-brand-500">edit_note</span>
+                <span class="material-symbols-outlined text-primary-brand">edit_note</span>
                 <h3 class="font-outfit text-lg font-bold text-slate-900">Resume</h3>
               </div>
               <p class="text-slate-600 text-sm leading-relaxed">{{ r.summary }}</p>
@@ -146,7 +146,7 @@ interface CompanyIntel {
           <div class="col-span-12 lg:col-span-5">
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-full">
               <div class="flex items-center gap-3 mb-6">
-                <span class="material-symbols-outlined text-brand-500">assignment</span>
+                <span class="material-symbols-outlined text-primary-brand">assignment</span>
                 <h3 class="font-outfit text-lg font-bold text-slate-900">Culture</h3>
               </div>
               <div class="grid grid-cols-2 gap-y-4 gap-x-6 mb-6">
@@ -179,7 +179,7 @@ interface CompanyIntel {
           <div class="col-span-12">
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
               <div class="flex items-center gap-3 mb-6">
-                <span class="material-symbols-outlined text-brand-500">payments</span>
+                <span class="material-symbols-outlined text-primary-brand">payments</span>
                 <h3 class="font-outfit text-lg font-bold text-slate-900">Estimation Salariale</h3>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -252,7 +252,7 @@ interface CompanyIntel {
             <div class="col-span-12">
               <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                 <div class="flex items-center gap-3 mb-6">
-                  <span class="material-symbols-outlined text-brand-500">newspaper</span>
+                  <span class="material-symbols-outlined text-primary-brand">newspaper</span>
                   <h3 class="font-outfit text-lg font-bold text-slate-900">Actualités & Signaux</h3>
                 </div>
                 <div class="space-y-3">
@@ -278,15 +278,15 @@ interface CompanyIntel {
 
           <!-- AI STRATEGY -->
           <div class="col-span-12">
-            <div class="bg-gradient-to-br from-brand-500/10 to-transparent p-6 rounded-2xl border border-brand-500/20">
+            <div class="bg-gradient-to-br from-primary-brand/10 to-transparent p-6 rounded-2xl border border-primary-brand/20">
               <div class="flex items-center gap-3 mb-4">
-                <span class="material-symbols-outlined text-brand-500">auto_awesome</span>
+                <span class="material-symbols-outlined text-primary-brand">auto_awesome</span>
                 <h3 class="font-outfit text-lg font-bold text-slate-900">Conseils Stratégiques</h3>
               </div>
               <div class="flex flex-col gap-4">
                 @for (rec of r.recommendations; track rec) {
                   <div class="flex items-start gap-3">
-                    <span class="text-brand-500 font-bold mt-0.5">→</span>
+                    <span class="text-primary-brand font-bold mt-0.5">→</span>
                     <p class="text-slate-700 text-sm leading-relaxed italic font-medium m-0">{{ rec }}</p>
                   </div>
                 }
@@ -334,7 +334,7 @@ export class CompanyIntelComponent implements OnInit {
 
   getSeniorityClass(s: SalaryInfo): string {
     const label = this.getSeniorityLabel(s);
-    if (label === 'Senior') return 'bg-brand-500/10 text-brand-500';
+    if (label === 'Senior') return 'bg-primary-brand/10 text-primary-brand';
     if (label === 'Junior') return 'bg-slate-100 text-slate-500';
     return 'bg-blue-50 text-blue-600';
   }

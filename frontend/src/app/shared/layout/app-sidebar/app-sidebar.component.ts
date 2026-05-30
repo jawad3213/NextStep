@@ -89,7 +89,6 @@ export class AppSidebarComponent {
       name: 'System',
       icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M12 15.25C13.7949 15.25 15.25 13.7949 15.25 12C15.25 10.2051 13.7949 8.75 12 8.75C10.2051 8.75 8.75 10.2051 8.75 12C8.75 13.7949 10.2051 15.25 12 15.25Z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5L20.75 12L19.4 10.5L19.56 8.49L17.6 7.89L16.5 6.2L14.5 6.6L12.75 5.5L11 6.6L9 6.2L7.9 7.89L5.94 8.49L6.1 10.5L4.75 12L6.1 13.5L5.94 15.51L7.9 16.11L9 17.8L11 17.4L12.75 18.5L14.5 17.4L16.5 17.8L17.6 16.11L19.56 15.51L19.4 13.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
       subItems: [
-        { name: 'Notifications', path: '/notifications' },
         { name: 'Settings', path: '/settings' }
       ]
     }

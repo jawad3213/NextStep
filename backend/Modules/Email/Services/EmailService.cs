@@ -75,7 +75,8 @@ public class EmailService : IEmailService
                 include_motivation_letter = dto.IncludeMotivationLetter,
             },
             skill_gap            = ctx.SkillGap,
-            company_intelligence = ctx.CompanyIntelligence
+            company_intelligence = ctx.CompanyIntelligence,
+            cv_history_id        = dto.CvHistoryId.HasValue ? dto.CvHistoryId.Value.ToString() : (string?)null
         };
 
         _logger.LogInformation(
@@ -717,8 +718,8 @@ public class EmailService : IEmailService
                 requirements    = ExtractStringList(root, "requirements");
 
                 // Extract enrichment if the full pipeline JSON was saved
-                if (root.TryGetProperty("match_result", out var mr)) skillGap = mr;
-                if (root.TryGetProperty("company_intelligence", out var ci)) companyIntelligence = ci;
+                if (root.TryGetProperty("match_result", out var mr)) skillGap = mr.Clone();
+                if (root.TryGetProperty("company_intelligence", out var ci)) companyIntelligence = ci.Clone();
             }
             catch (Exception ex)
             {
@@ -869,11 +870,34 @@ public class EmailService : IEmailService
 
         try
         {
-            await SendEmailMessageAsync(draft, dto.OfferId, attachmentBytes, cancellationToken);
-            draft.IsSent = true;
-            draft.SentAtUtc = DateTime.UtcNow;
-            draft.UpdatedAtUtc = draft.SentAtUtc;
-            draft.ErrorMessage = null;
+            var gmailResult = await _emailSenderService.SendAsync(
+                userId,
+                draft.RecipientEmail!,
+                draft.Subject,
+                draft.Body,
+                attachmentName: $"CV_{dto.OfferId}.pdf",
+                attachmentBytes: attachmentBytes,
+                attachmentContentType: "application/pdf",
+                cancellationToken: cancellationToken);
+
+            if (gmailResult.Success)
+            {
+                draft.IsSent = true;
+                draft.ProviderMessageId = gmailResult.ProviderMessageId;
+                draft.ProviderThreadId = gmailResult.ProviderThreadId;
+                draft.SentAtUtc = DateTime.UtcNow;
+                draft.UpdatedAtUtc = draft.SentAtUtc;
+                draft.ErrorMessage = null;
+            }
+            else
+            {
+                _logger.LogWarning("EmailService - Gmail sending failed for user {UserId}: {Error}. Falling back to SMTP...", userId, gmailResult.ErrorMessage);
+                await SendEmailMessageAsync(draft, dto.OfferId, attachmentBytes, cancellationToken);
+                draft.IsSent = true;
+                draft.SentAtUtc = DateTime.UtcNow;
+                draft.UpdatedAtUtc = draft.SentAtUtc;
+                draft.ErrorMessage = null;
+            }
         }
         catch (Exception ex)
         {

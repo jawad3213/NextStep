@@ -190,6 +190,23 @@ RecurringJob.AddOrUpdate<DetectFollowUpNeededJob>(
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // ── CRITICAL SCHEMA FIX: runs in its own isolated block so it cannot be
+    // skipped if any other startup SQL fails. Adds columns that EF Core
+    // requires but that may be absent from databases created before the
+    // AddCvHtmlRenderingState migration was applied.
+    try
+    {
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS design_config_json JSONB NOT NULL DEFAULT '{{}}'::jsonb;");
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS html_snapshot TEXT;");
+        Console.WriteLine("DEBUG: cv_history schema fix applied.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"DEBUG: cv_history schema fix skipped (table may not exist yet): {ex.Message}");
+    }
+
     try
     {
         Console.WriteLine("DEBUG: STARTING FULL NUCLEAR REPAIR...");
@@ -515,6 +532,8 @@ using (var scope = app.Services.CreateScope())
                 template_slug VARCHAR(50) NOT NULL,
                 template_name VARCHAR(120),
                 cv_data_json JSONB DEFAULT '{{}}',
+                design_config_json JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+                html_snapshot TEXT,
                 file_url VARCHAR(1000) NOT NULL,
                 object_key VARCHAR(500) NOT NULL,
                 bucket_name VARCHAR(100) NOT NULL,
@@ -527,7 +546,7 @@ using (var scope = app.Services.CreateScope())
         ");
 
         // Add columns if table already exists (safe idempotent migration)
-        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{{}}'", "updated_at TIMESTAMP" };
+        string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{{}}'", "updated_at TIMESTAMP", "design_config_json JSONB NOT NULL DEFAULT '{{}}'::jsonb", "html_snapshot TEXT" };
         foreach (var c in histCols)
             await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS {c};");
 

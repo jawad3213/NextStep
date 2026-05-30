@@ -9,6 +9,7 @@ import { StepSubmitComponent } from './components/step-submit/step-submit.compon
 import { StepTemplateComponent } from './components/step-template/step-template.component';
 import { OfferApiService } from './services/offer-api.service';
 import { OfferStepId } from './offers.types';
+import { timeout } from 'rxjs';
 
 @Component({
   selector: 'app-offer-pipeline',
@@ -109,13 +110,17 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     }
 
     this.pipeline.setLoading(true, 'Restauration de votre analyse...');
-    this.offerApi.getAnalysis(offerId).subscribe({
+    this.offerApi.getAnalysis(offerId).pipe(
+      timeout(15000)
+    ).subscribe({
       next: (analysis) => {
         this.pipeline.hydrateFromAnalysis(offerId, analysis);
         this.applyRequestedStep(requestedStep);
         this.pipeline.setLoading(false);
       },
       error: () => {
+        // Keep navigation responsive even if analysis restore times out.
+        this.applyRequestedStep(requestedStep);
         this.pipeline.setLoading(false);
       }
     });

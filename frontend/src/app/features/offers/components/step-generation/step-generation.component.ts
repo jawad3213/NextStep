@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { Subscription, firstValueFrom } from 'rxjs';
+import { Subscription, firstValueFrom, timeout } from 'rxjs';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
 import { ResumeEditorComponent } from '../resume-editor/resume-editor.component';
 import {
@@ -383,7 +383,9 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
           data,
           designConfig: this.currentDesignConfig,
           htmlSnapshot: this.renderedHtmlSnapshot
-        })
+        }).pipe(
+          timeout(45000)
+        )
       );
       this.savedHistoryId = saved?.historyId ?? null;
       this.savedFileUrl = saved?.fileUrl ?? null;
@@ -413,7 +415,9 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
         data,
         designConfig: this.currentDesignConfig,
         htmlSnapshot: this.renderedHtmlSnapshot
-      }));
+      }).pipe(
+        timeout(45000)
+      ));
 
       if (!blob || blob.size === 0) {
         throw new Error('PDF vide recu depuis le backend.');

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, timeout } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 
@@ -519,7 +519,9 @@ export class OfferApiService {
       const poll = (attempt = 1) => {
         if (cancelled) return;
 
-        this.getAnalysis(offerId).subscribe({
+        this.getAnalysis(offerId).pipe(
+          timeout(12000)
+        ).subscribe({
           next: (analysis: any) => {
             const cvData = analysis?.cvGeneratedContent ?? analysis?.cv_data ?? analysis?.cvData;
             console.log('[CV-PIPELINE] API resumePipeline poll', {
@@ -558,7 +560,9 @@ export class OfferApiService {
         });
       };
 
-      const sub = this.http.post(`${this.base}/offers/${offerId}/resume`, { templateId }).subscribe({
+      const sub = this.http.post(`${this.base}/offers/${offerId}/resume`, { templateId }).pipe(
+        timeout(12000)
+      ).subscribe({
         next: (res: any) => {
           console.log('[CV-PIPELINE] API resumePipeline accepted', {
             status: res?.status,

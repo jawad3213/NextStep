@@ -50,6 +50,21 @@ export const routes: Routes = [
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
       },
+      {
+        path: 'offers/analyze',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offer-pipeline.component').then(m => m.OfferPipelineComponent)
+      },
+      {
+        path: 'offers/company-analysis',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent)
+      },
+      {
+        path: 'offers/:id',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offer-detail.component').then(m => m.OfferDetailComponent)
+      },
       { 
         path: 'offers-recent', 
         canActivate: [onboardingGuard],

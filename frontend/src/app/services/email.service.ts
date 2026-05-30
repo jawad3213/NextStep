@@ -29,6 +29,7 @@ export interface GenerateDraftPayload {
   emailType: string;
   language: string;
   tone?: string;
+  cvHistoryId?: string | null;
 }
 
 export interface GenerateFollowUpDraftPayload {

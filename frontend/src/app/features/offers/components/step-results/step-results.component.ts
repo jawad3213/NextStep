@@ -12,6 +12,8 @@ import {
   OfferApiService,
   SendApplicationEmailRequest
 } from '../../services/offer-api.service';
+import { CandidatureService } from '../../../../services/candidature.service';
+import { EmailService } from '../../../../services/email.service';
 
 @Component({
   selector: 'app-step-results',
@@ -26,6 +28,8 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   private readonly candidatureService = inject(CandidatureService);
   private readonly emailService = inject(EmailService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly candidatureService = inject(CandidatureService);
+  private readonly emailService = inject(EmailService);
   private previewBlobUrl: string | null = null;
 
   cvPreviewUrl: SafeResourceUrl | null = null;
@@ -36,6 +40,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   emailSubject = '';
   emailBody = '';
   isSendingEmail = false;
+  isLoadingEmailDraft = false;
   sendError: string | null = null;
   sendSuccessMessage: string | null = null;
   lastSentDraft: EmailDraftResponse | null = null;
@@ -156,8 +161,57 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   private hydrateEmailFields(): void {
     const result = this.result;
     this.recipientEmail = this.lastSentDraft?.recipientEmail ?? '';
-    this.emailSubject = result?.emailSubject?.trim() || `Application - ${result?.offerTitle || 'Poste'}`;
-    this.emailBody = result?.emailBody?.trim() || this.buildDefaultBody();
+    this.emailSubject = `Application - ${result?.offerTitle || 'Poste'}`;
+    this.emailBody = this.buildDefaultBody();
+
+    const offerId = this.pipeline.currentOfferId();
+    if (!offerId) return;
+
+    this.isLoadingEmailDraft = true;
+    this.candidatureService.getMyCandidatures().subscribe({
+      next: (candidatures) => {
+        const candidature = candidatures.find(c => c.idOffre === offerId);
+        if (!candidature) {
+          this.isLoadingEmailDraft = false;
+          return;
+        }
+
+        this.emailService.getDraftsByCandidature(candidature.idCandidature).subscribe({
+          next: (drafts) => {
+            const appDraft = drafts.find(d => d.emailType === 'application');
+            if (appDraft) {
+              this.recipientEmail = appDraft.recipientEmail ?? '';
+              this.emailSubject = appDraft.subject ?? '';
+              this.emailBody = appDraft.body ?? '';
+              this.isLoadingEmailDraft = false;
+            } else {
+              this.emailService.generateDraft({
+                candidatureId: candidature.idCandidature,
+                emailType: 'application',
+                language: 'fr',
+                cvHistoryId: this.pipeline.finalCvHistoryId()
+              }).subscribe({
+                next: (newDraft) => {
+                  this.recipientEmail = newDraft.recipientEmail ?? '';
+                  this.emailSubject = newDraft.subject ?? '';
+                  this.emailBody = newDraft.body ?? '';
+                  this.isLoadingEmailDraft = false;
+                },
+                error: () => {
+                  this.isLoadingEmailDraft = false;
+                }
+              });
+            }
+          },
+          error: () => {
+            this.isLoadingEmailDraft = false;
+          }
+        });
+      },
+      error: () => {
+        this.isLoadingEmailDraft = false;
+      }
+    });
   }
 
   private buildDefaultBody(): string {

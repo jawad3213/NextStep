@@ -24,5 +24,8 @@ public interface IEmailSenderService
         string recipientEmail,
         string subject,
         string body,
+        string? attachmentName = null,
+        byte[]? attachmentBytes = null,
+        string? attachmentContentType = null,
         CancellationToken cancellationToken = default);
 }

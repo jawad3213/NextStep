@@ -106,9 +106,19 @@ public class EmailConnectionService : IEmailConnectionService
         {
             decryptedClientId = _oauthClientProtector.Unprotect(credential.ClientIdEncrypted);
         }
-        catch
+        catch (Exception ex)
         {
-            // Keep masked as null if decryption fails.
+            _logger.LogWarning(
+                ex,
+                "EmailConnectionService — custom OAuth credentials are unreadable for user {UserId}. Removing corrupted credentials.",
+                localUserId);
+
+            await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
+            return new GoogleClientCredentialsSummaryDto
+            {
+                HasCredentials = false,
+                UsesCustomRedirectUri = false
+            };
         }
 
         return new GoogleClientCredentialsSummaryDto
@@ -290,6 +300,24 @@ public class EmailConnectionService : IEmailConnectionService
     {
         var customCred = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
         var hasCustomCred = customCred is not null;
+        if (customCred is not null)
+        {
+            try
+            {
+                _ = _oauthClientProtector.Unprotect(customCred.ClientIdEncrypted);
+                _ = _oauthClientProtector.Unprotect(customCred.ClientSecretEncrypted);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "EmailConnectionService — custom OAuth credentials are unreadable for user {UserId}. Removing corrupted credentials.",
+                    localUserId);
+                await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
+                hasCustomCred = false;
+            }
+        }
+
         var connection = await _connectionRepo.GetByUserAndProviderAsync(
             localUserId, "Gmail", ct);
 
@@ -434,8 +462,12 @@ public class EmailConnectionService : IEmailConnectionService
             {
                 _logger.LogWarning(
                     ex,
-                    "EmailConnectionService — failed to decrypt custom OAuth credentials for user {UserId}. Falling back to global OAuth config.",
+                    "EmailConnectionService — failed to decrypt custom OAuth credentials for user {UserId}. Removing corrupted credentials.",
                     localUserId);
+
+                await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
+                throw new InvalidOperationException(
+                    "Saved Google OAuth credentials are no longer readable. Please enter your Client ID and Client Secret again.");
             }
         }
 

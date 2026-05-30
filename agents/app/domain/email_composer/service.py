@@ -45,7 +45,10 @@ logger = logging.getLogger(__name__)
 
 
 def _with_structured_output(llm, response_model):
-    provider = os.getenv("EMAIL_LLM_PROVIDER", "gemini").lower().strip()
+    provider = os.getenv("EMAIL_LLM_PROVIDER", "").lower().strip()
+    class_name = llm.__class__.__name__.lower()
+    if not provider and "groq" in class_name:
+        provider = "groq"
     if provider == "groq":
         return llm.with_structured_output(response_model, method="json_mode")
     return llm.with_structured_output(response_model)

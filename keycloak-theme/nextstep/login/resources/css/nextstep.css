@@ -4,9 +4,9 @@
    ============================================================ */
 
 :root {
-  --auth-primary: #1A91F0;
-  --auth-primary-hover: #0F6EBB;
-  --auth-primary-soft: rgba(26, 145, 240, 0.08);
+  --auth-primary: #465FFF;
+  --auth-primary-hover: #3641F5;
+  --auth-primary-soft: rgba(70, 95, 255, 0.08);
   --auth-bg-page: #FFFFFF;
   --auth-bg-input: #F3F4F6;
   --auth-text-primary: #111111;
@@ -179,7 +179,7 @@ html, body {
 .auth-btn-primary {
   width: 100%;
   height: 40px;
-  background-color: #0C1986 !important;
+  background-color: #465FFF !important;
   color: white;
   border: none;
   border-radius: 10px;
@@ -192,8 +192,8 @@ html, body {
 }
 
 .auth-btn-primary:hover {
-  background-color: #091361 !important;
-  box-shadow: 0 6px 12px rgba(12, 25, 134, 0.2);
+  background-color: #3641F5 !important;
+  box-shadow: 0 6px 12px rgba(70, 95, 255, 0.2);
   transform: translateY(-1px);
 }
 

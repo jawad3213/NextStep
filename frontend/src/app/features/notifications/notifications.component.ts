@@ -78,19 +78,19 @@ interface Notification {
     .header-left { display: flex; flex-direction: column; gap: 4px; }
     .page-title { font-size: 24px; font-weight: 700; color: #212121; margin: 0; font-family: 'Lato', sans-serif; }
     .page-subtitle { font-size: 14px; color: #616161; margin: 0; }
-    .btn-mark-all { padding: 8px 16px; border: 1px solid #E0E0E0; border-radius: 8px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; &:hover { border-color: #1A91F0; } &:disabled { opacity: 0.4; cursor: not-allowed; } }
+    .btn-mark-all { padding: 8px 16px; border: 1px solid #E0E0E0; border-radius: 8px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; &:hover { border-color: #465FFF; } &:disabled { opacity: 0.4; cursor: not-allowed; } }
 
     .filter-bar { display: flex; gap: 8px; padding: 4px; background: #F5F5F5; border-radius: 8px; width: fit-content; }
-    .filter-btn { padding: 6px 14px; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: #616161; cursor: pointer; transition: all 0.2s; &.active { background: white; color: #0C1986; box-shadow: 0 1px 3px rgba(0,0,0,0.1); } }
+    .filter-btn { padding: 6px 14px; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: #616161; cursor: pointer; transition: all 0.2s; &.active { background: white; color: #465FFF; box-shadow: 0 1px 3px rgba(0,0,0,0.1); } }
 
     .notif-list { display: flex; flex-direction: column; gap: 8px; }
-    .notif-card { display: flex; gap: 16px; background: white; border: 1px solid #E0E0E0; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; &.unread { border-left: 3px solid #1A91F0; background: #F8FAFF; } &:hover { border-color: #1A91F0; } }
-    .notif-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; svg { width: 20px; height: 20px; } .type-follow_up & { background: #FFF8E6; color: #F59B00; } .type-new_offer & { background: #E8F4FD; color: #1A91F0; } .type-gmail_reply & { background: #E6F4EA; color: #34A853; } .type-interview & { background: #F0E6FF; color: #651FFF; } .type-system & { background: #F1F5F9; color: #475569; } }
+    .notif-card { display: flex; gap: 16px; background: white; border: 1px solid #E0E0E0; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; &.unread { border-left: 3px solid #465FFF; background: #ecf3ff; } &:hover { border-color: #465FFF; } }
+    .notif-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; svg { width: 20px; height: 20px; } .type-follow_up & { background: #FFF8E6; color: #F59B00; } .type-new_offer & { background: #ecf3ff; color: #465FFF; } .type-gmail_reply & { background: #E6F4EA; color: #34A853; } .type-interview & { background: #F0E6FF; color: #651FFF; } .type-system & { background: #F1F5F9; color: #475569; } }
     .notif-body { flex: 1; h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: #212121; } p { margin: 0; font-size: 13px; color: #616161; line-height: 1.5; } }
     .notif-header-row { display: flex; justify-content: space-between; align-items: center; }
     .notif-date { font-size: 11px; color: #9E9E9E; }
-    .notif-action { margin-top: 8px; padding: 6px 14px; background: #0C1986; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; &:hover { background: #091361; } }
-    .unread-dot { width: 8px; height: 8px; background: #1A91F0; border-radius: 50%; position: absolute; top: 16px; right: 16px; }
+    .notif-action { margin-top: 8px; padding: 6px 14px; background: #465FFF; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; &:hover { background: #3641F5; } }
+    .unread-dot { width: 8px; height: 8px; background: #465FFF; border-radius: 50%; position: absolute; top: 16px; right: 16px; }
 
     .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; .empty-icon { width: 64px; height: 64px; background: #F1F5F9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94A3B8; margin-bottom: 16px; svg { width: 32px; height: 32px; } } h3 { margin: 0 0 8px; font-size: 18px; color: #212121; } p { margin: 0; font-size: 14px; color: #616161; } }
   `]

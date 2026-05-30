@@ -17,7 +17,7 @@
         <div class="auth-container">
             <!-- Official NextStep Logo -->
             <div class="auth-logo">
-                <img src="${url.resourcesPath}/img/logo2.png" alt="NextStep Logo" class="auth-logo-img" />
+                <img src="${url.resourcesPath}/img/logo.png" alt="NextStep Logo" class="auth-logo-img" />
             </div>
 
             <#nested "form">

@@ -16,11 +16,11 @@ $brand-800: #252dae;
 $brand-900: #262e89;
 
 // Primary / deep brand identity
-$color-primary:         #0C1986;
-$color-primary-hover:   #091361;
-$color-primary-active:  #060D42;
-$color-primary-tint:    #E7E8F3;
-$color-primary-pale:    #F0F1F9;
+$color-primary:         $brand-500;
+$color-primary-hover:   $brand-600;
+$color-primary-active:  $brand-700;
+$color-primary-tint:    $brand-100;
+$color-primary-pale:    $brand-50;
 
 // Interactive accent
 $color-brand:           #465FFF;

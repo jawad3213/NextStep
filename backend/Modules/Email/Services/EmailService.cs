@@ -1,4 +1,4 @@
-using System.Net.Mail;
+﻿using System.Net.Mail;
 using System.Text.Json;
 using System.Net;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +49,7 @@ public class EmailService : IEmailService
         _smtpOptions = smtpOptions.Value;
     }
 
-    // ── GenerateDraftAsync ────────────────────────────────────────────────────────
+    // â”€â”€ GenerateDraftAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<EmailDraftDto> GenerateDraftAsync(
         GenerateEmailDraftDto dto,
@@ -74,16 +74,17 @@ public class EmailService : IEmailService
                 tone                      = dto.Tone,
                 include_motivation_letter = dto.IncludeMotivationLetter,
             },
-            skill_gap            = ctx.SkillGap,
-            company_intelligence = ctx.CompanyIntelligence,
+            skill_gap            = DeserializeJsonObjectOrNull(ctx.SkillGapJson),
+            company_intelligence = DeserializeJsonObjectOrNull(ctx.CompanyIntelligenceJson),
             cv_history_id        = dto.CvHistoryId.HasValue ? dto.CvHistoryId.Value.ToString() : (string?)null
         };
 
         _logger.LogInformation(
-            "EmailService — calling Python /email/generate for candidature {CandidatureId}",
+            "EmailService â€” calling Python /email/generate for candidature {CandidatureId}",
             dto.CandidatureId);
 
         PythonEmailResponse pythonResponse;
+        var usedFallbackDraft = false;
         try
         {
             pythonResponse = await _agentHttpClient
@@ -94,13 +95,12 @@ public class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                "EmailService — Python agent failed for candidature {CandidatureId}",
+            _logger.LogWarning(ex,
+                "EmailService — Python agent failed for candidature {CandidatureId}. Falling back to deterministic draft.",
                 dto.CandidatureId);
-            throw new InvalidOperationException(
-                $"Email generation failed: {ex.Message}", ex);
+            pythonResponse = BuildFallbackApplicationDraft(ctx, dto.Language);
+            usedFallbackDraft = true;
         }
-
         var draft = new EmailDraft
         {
             CandidatureId  = candidature.IdCandidature,
@@ -118,14 +118,23 @@ public class EmailService : IEmailService
 
         await _emailDraftRepository.AddAsync(draft, cancellationToken);
 
-        _logger.LogInformation(
-            "EmailService — draft saved for candidature {CandidatureId} | subject: {Subject}",
-            dto.CandidatureId, draft.Subject);
+        if (usedFallbackDraft)
+        {
+            _logger.LogInformation(
+                "EmailService â€” fallback draft saved for candidature {CandidatureId} | subject: {Subject}",
+                dto.CandidatureId, draft.Subject);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "EmailService â€” draft saved for candidature {CandidatureId} | subject: {Subject}",
+                dto.CandidatureId, draft.Subject);
+        }
 
         return MapToDto(draft);
     }
 
-    // ── GetDraftByIdAsync ─────────────────────────────────────────────────────────
+    // â”€â”€ GetDraftByIdAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<EmailDraftDto> GetDraftByIdAsync(
         Guid draftId,
@@ -137,7 +146,7 @@ public class EmailService : IEmailService
         return MapToDto(draft);
     }
 
-    // ── GetDraftsByCandidatureAsync ───────────────────────────────────────────────
+    // â”€â”€ GetDraftsByCandidatureAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<List<EmailDraftDto>> GetDraftsByCandidatureAsync(
         Guid candidatureId,
@@ -149,7 +158,7 @@ public class EmailService : IEmailService
         return drafts.Select(MapToDto).ToList();
     }
 
-    // ── UpdateDraftAsync ──────────────────────────────────────────────────────────
+    // â”€â”€ UpdateDraftAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<EmailDraftDto> UpdateDraftAsync(
         Guid draftId,
@@ -176,12 +185,12 @@ public class EmailService : IEmailService
         await _emailDraftRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "EmailService — draft {DraftId} updated by user {UserId}", draftId, localUserId);
+            "EmailService â€” draft {DraftId} updated by user {UserId}", draftId, localUserId);
 
         return MapToDto(draft);
     }
 
-    // ── ApproveDraftAsync ─────────────────────────────────────────────────────────
+    // â”€â”€ ApproveDraftAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<EmailDraftDto> ApproveDraftAsync(
         Guid draftId,
@@ -214,12 +223,12 @@ public class EmailService : IEmailService
         await _emailDraftRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "EmailService — draft {DraftId} approved by user {UserId}", draftId, localUserId);
+            "EmailService â€” draft {DraftId} approved by user {UserId}", draftId, localUserId);
 
         return MapToDto(draft);
     }
 
-    // ── SendDraftAsync ────────────────────────────────────────────────────────────
+    // â”€â”€ SendDraftAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<SendEmailResultDto> SendDraftAsync(
         Guid draftId,
@@ -251,11 +260,63 @@ public class EmailService : IEmailService
         draft.SendAttemptCount++;
         draft.UpdatedAtUtc = DateTime.UtcNow;
 
+        string? attachmentName = null;
+        byte[]? attachmentBytes = null;
+
+        if (string.Equals(draft.EmailType, "application", StringComparison.OrdinalIgnoreCase))
+        {
+            var candidatureForAttachment = await _db.Candidatures
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c =>
+                    c.IdCandidature == draft.CandidatureId &&
+                    c.IdUtilisateur == localUserId,
+                    cancellationToken);
+
+            if (candidatureForAttachment is not null)
+            {
+                var cvHistoryId = await _db.CvHistories
+                    .AsNoTracking()
+                    .Where(h =>
+                        h.UserId == localUserId &&
+                        h.Title == $"CV_{candidatureForAttachment.IdOffre}")
+                    .OrderByDescending(h => h.CreatedAt)
+                    .Select(h => (Guid?)h.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (cvHistoryId.HasValue)
+                {
+                    var bytes = await _cvService.GetDownloadBytesAsync(localUserId, cvHistoryId.Value);
+                    if (bytes.Length > 0)
+                    {
+                        attachmentName = $"CV_{candidatureForAttachment.IdOffre}.pdf";
+                        attachmentBytes = bytes;
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "EmailService - draft {DraftId}: CV bytes are empty for history {CvHistoryId}; sending without attachment.",
+                            draft.Id,
+                            cvHistoryId.Value);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "EmailService - draft {DraftId}: no final CV history found for offer {OfferId}; sending without attachment.",
+                        draft.Id,
+                        candidatureForAttachment.IdOffre);
+                }
+            }
+        }
+
         var result = await _emailSenderService.SendAsync(
             localUserId:       localUserId,
             recipientEmail:    draft.RecipientEmail,
             subject:           draft.Subject,
             body:              draft.Body,
+            attachmentName:    attachmentName,
+            attachmentBytes:   attachmentBytes,
+            attachmentContentType: "application/pdf",
             cancellationToken: cancellationToken);
 
         if (result.Success)
@@ -267,10 +328,10 @@ public class EmailService : IEmailService
             draft.ErrorMessage      = null;
 
             _logger.LogInformation(
-                "EmailService — draft {DraftId} sent for user {UserId}, Gmail message id: {GmailId}, thread id: {ThreadId}",
+                "EmailService â€” draft {DraftId} sent for user {UserId}, Gmail message id: {GmailId}, thread id: {ThreadId}",
                 draftId, localUserId, result.ProviderMessageId, result.ProviderThreadId);
 
-            // ── Update candidature status if this was a relance ──────────────
+            // â”€â”€ Update candidature status if this was a relance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (draft.EmailType == "relance")
             {
                 // We load without AsNoTracking to ensure status update is saved
@@ -281,7 +342,7 @@ public class EmailService : IEmailService
                     candidature.ResponseStatus = "RELANCE_ENVOYEE";
                     candidature.Statut         = "RELANCE_ENVOYEE";
                     _logger.LogInformation(
-                        "EmailService — candidature {CandidatureId} status updated to RELANCE_ENVOYEE",
+                        "EmailService â€” candidature {CandidatureId} status updated to RELANCE_ENVOYEE",
                         draft.CandidatureId);
                 }
             }
@@ -292,7 +353,7 @@ public class EmailService : IEmailService
             draft.ErrorMessage = result.ErrorMessage;
 
             _logger.LogWarning(
-                "EmailService — send failed for draft {DraftId}, user {UserId}: {Error}",
+                "EmailService â€” send failed for draft {DraftId}, user {UserId}: {Error}",
                 draftId, localUserId, result.ErrorMessage);
         }
 
@@ -309,14 +370,14 @@ public class EmailService : IEmailService
         };
     }
 
-    // ── GenerateFollowUpDraftAsync ────────────────────────────────────────────────
+    // â”€â”€ GenerateFollowUpDraftAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<EmailDraftDto> GenerateFollowUpDraftAsync(
         GenerateFollowUpDraftDto dto,
         Guid localUserId,
         CancellationToken cancellationToken = default)
     {
-        // ── 1. Load and verify candidature (with tracking) ───────────────────
+        // â”€â”€ 1. Load and verify candidature (with tracking) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var candidature = await _db.Candidatures
             .FirstOrDefaultAsync(c => c.IdCandidature == dto.CandidatureId, cancellationToken);
 
@@ -327,12 +388,12 @@ public class EmailService : IEmailService
             throw new UnauthorizedAccessException(
                 $"User {localUserId} does not own candidature {dto.CandidatureId}.");
 
-        // ── 2. Block if a reply was already received ─────────────────────────
+        // â”€â”€ 2. Block if a reply was already received â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (candidature.HasResponse)
             throw new InvalidOperationException(
                 "A response has already been received for this candidature. Follow-up is not needed.");
 
-        // ── 3. Check MaxFollowUps limit ──────────────────────────────────────
+        // â”€â”€ 3. Check MaxFollowUps limit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         int maxFollowUps = _followUpOptions.MaxFollowUps;
 
         int sentRelanceCount = await _db.EmailDrafts
@@ -346,7 +407,7 @@ public class EmailService : IEmailService
             throw new InvalidOperationException(
                 $"Maximum number of follow-ups ({maxFollowUps}) reached for this candidature.");
 
-        // ── 4. Return existing unsent relance draft if one already exists ────
+        // â”€â”€ 4. Return existing unsent relance draft if one already exists â”€â”€â”€â”€
         var existingUnsentRelance = await _db.EmailDrafts
             .AsNoTracking()
             .FirstOrDefaultAsync(d =>
@@ -358,12 +419,12 @@ public class EmailService : IEmailService
         if (existingUnsentRelance is not null)
         {
             _logger.LogWarning(
-                "EmailService — unsent relance draft {DraftId} already exists for candidature {CandidatureId}. Returning existing draft.",
+                "EmailService â€” unsent relance draft {DraftId} already exists for candidature {CandidatureId}. Returning existing draft.",
                 existingUnsentRelance.Id, dto.CandidatureId);
             return MapToDto(existingUnsentRelance);
         }
 
-        // ── 5. Find previous email context ───────────────────────────────────
+        // â”€â”€ 5. Find previous email context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // If relances have been sent, follow up on the latest relance.
         // Otherwise, follow up on the latest sent application email.
         EmailDraft? previousDraft;
@@ -398,11 +459,11 @@ public class EmailService : IEmailService
 
         int daysSinceSent = (int)(DateTime.UtcNow - previousDraft.SentAtUtc!.Value).TotalDays;
 
-        // ── 6. Load profile and offer context ────────────────────────────────
+        // â”€â”€ 6. Load profile and offer context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var ctx = await BuildCandidatureContextAsync(
             candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
 
-        // ── 7. Build Python payload ──────────────────────────────────────────
+        // â”€â”€ 7. Build Python payload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var pythonRequest = new
         {
             candidature_id = candidature.IdCandidature.ToString(),
@@ -423,7 +484,7 @@ public class EmailService : IEmailService
         };
 
         _logger.LogInformation(
-            "EmailService — calling Python /email/generate-follow-up for candidature {CandidatureId} | sentRelances={Count} | daysSinceSent={Days}",
+            "EmailService â€” calling Python /email/generate-follow-up for candidature {CandidatureId} | sentRelances={Count} | daysSinceSent={Days}",
             dto.CandidatureId, sentRelanceCount, daysSinceSent);
 
         PythonEmailResponse pythonResponse;
@@ -438,13 +499,13 @@ public class EmailService : IEmailService
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "EmailService — Python follow-up agent failed for candidature {CandidatureId}",
+                "EmailService â€” Python follow-up agent failed for candidature {CandidatureId}",
                 dto.CandidatureId);
             throw new InvalidOperationException(
                 $"Follow-up email generation failed: {ex.Message}", ex);
         }
 
-        // ── 8. Save relance draft ────────────────────────────────────────────
+        // â”€â”€ 8. Save relance draft â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var draft = new EmailDraft
         {
             CandidatureId  = candidature.IdCandidature,
@@ -462,27 +523,27 @@ public class EmailService : IEmailService
 
         await _emailDraftRepository.AddAsync(draft, cancellationToken);
 
-        // ── 9. Update candidature status ─────────────────────────────────────
+        // â”€â”€ 9. Update candidature status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         candidature.ResponseStatus = "RELANCE_GENEREE";
         candidature.Statut         = "RELANCE_GENEREE";
 
         await _emailDraftRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "EmailService — relance draft {DraftId} saved for candidature {CandidatureId} | subject: {Subject}",
+            "EmailService â€” relance draft {DraftId} saved for candidature {CandidatureId} | subject: {Subject}",
             draft.Id, dto.CandidatureId, draft.Subject);
 
         return MapToDto(draft);
     }
 
-    // ── GenerateReplyDraftAsync ───────────────────────────────────────────────────
+    // â”€â”€ GenerateReplyDraftAsync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public async Task<EmailDraftDto> GenerateReplyDraftAsync(
         GenerateReplyDraftDto dto,
         Guid localUserId,
         CancellationToken cancellationToken = default)
     {
-        // ── 1. Load and verify candidature ───────────────────────────────────
+        // â”€â”€ 1. Load and verify candidature â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var candidature = await _db.Candidatures
             .FirstOrDefaultAsync(c => c.IdCandidature == dto.CandidatureId, cancellationToken);
 
@@ -493,18 +554,18 @@ public class EmailService : IEmailService
             throw new UnauthorizedAccessException(
                 $"User {localUserId} does not own candidature {dto.CandidatureId}.");
 
-        // ── 2. Guard: reply must have been detected ───────────────────────────
+        // â”€â”€ 2. Guard: reply must have been detected â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (!candidature.HasResponse)
             throw new InvalidOperationException(
                 "Cannot generate reply draft because no recruiter response has been detected for this candidature.");
 
-        // ── 3. Guard: need some reply context ────────────────────────────────
+        // â”€â”€ 3. Guard: need some reply context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (string.IsNullOrWhiteSpace(candidature.LastResponseSnippet) &&
             string.IsNullOrWhiteSpace(candidature.ResponseSummary))
             throw new InvalidOperationException(
                 "Cannot generate reply draft because the recruiter response context (snippet/summary) is missing.");
 
-        // ── 4. Duplicate prevention: return existing unsent reply draft ──────
+        // â”€â”€ 4. Duplicate prevention: return existing unsent reply draft â”€â”€â”€â”€â”€â”€
         var existingUnsentReply = await _db.EmailDrafts
             .AsNoTracking()
             .FirstOrDefaultAsync(d =>
@@ -516,12 +577,12 @@ public class EmailService : IEmailService
         if (existingUnsentReply is not null)
         {
             _logger.LogWarning(
-                "EmailService — unsent reply draft {DraftId} already exists for candidature {CandidatureId}. Returning existing draft.",
+                "EmailService â€” unsent reply draft {DraftId} already exists for candidature {CandidatureId}. Returning existing draft.",
                 existingUnsentReply.Id, dto.CandidatureId);
             return MapToDto(existingUnsentReply);
         }
 
-        // ── 5. Find previous sent email for context ───────────────────────────
+        // â”€â”€ 5. Find previous sent email for context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var previousDraft = await _db.EmailDrafts
             .AsNoTracking()
             .Where(d =>
@@ -532,17 +593,17 @@ public class EmailService : IEmailService
             .OrderByDescending(d => d.SentAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
-        // ── 6. Load candidate + offer context ────────────────────────────────
+        // â”€â”€ 6. Load candidate + offer context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var ctx = await BuildCandidatureContextAsync(
             candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
 
-        // ── 7. Resolve recipient email ────────────────────────────────────────
+        // â”€â”€ 7. Resolve recipient email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Prefer LastResponseFrom (parse "Name <email>" format safely).
         // Fallback to previousDraft.RecipientEmail. Null if neither is valid.
         string? recipientEmail = TryParseEmailAddress(candidature.LastResponseFrom)
                                  ?? previousDraft?.RecipientEmail;
 
-        // ── 8. Build Python payload ──────────────────────────────────────────
+        // â”€â”€ 8. Build Python payload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var pythonRequest = new
         {
             candidature_id = candidature.IdCandidature.ToString(),
@@ -571,10 +632,10 @@ public class EmailService : IEmailService
         };
 
         _logger.LogInformation(
-            "EmailService — calling Python /email/generate-reply for candidature {CandidatureId} | responseType={ResponseType}",
+            "EmailService â€” calling Python /email/generate-reply for candidature {CandidatureId} | responseType={ResponseType}",
             dto.CandidatureId, candidature.ResponseStatus);
 
-        // ── 9. Call Python agent ──────────────────────────────────────────────
+        // â”€â”€ 9. Call Python agent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         PythonEmailResponse pythonResponse;
         try
         {
@@ -587,13 +648,13 @@ public class EmailService : IEmailService
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "EmailService — Python reply agent failed for candidature {CandidatureId}",
+                "EmailService â€” Python reply agent failed for candidature {CandidatureId}",
                 dto.CandidatureId);
             throw new InvalidOperationException(
                 $"Reply email generation failed: {ex.Message}", ex);
         }
 
-        // ── 10. Save reply draft ─────────────────────────────────────────────
+        // â”€â”€ 10. Save reply draft â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // IMPORTANT: Do NOT modify candidature.ResponseStatus or candidature.Statut here.
         // Classification information must remain visible to the user.
         var draft = new EmailDraft
@@ -615,13 +676,13 @@ public class EmailService : IEmailService
         await _emailDraftRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "EmailService — reply draft {DraftId} saved for candidature {CandidatureId} | subject: {Subject} | recipient: {Recipient}",
-            draft.Id, dto.CandidatureId, draft.Subject, recipientEmail ?? "(none — user must set)");
+            "EmailService â€” reply draft {DraftId} saved for candidature {CandidatureId} | subject: {Subject} | recipient: {Recipient}",
+            draft.Id, dto.CandidatureId, draft.Subject, recipientEmail ?? "(none â€” user must set)");
 
         return MapToDto(draft);
     }
 
-    // ── Private: profile + offer context builder ──────────────────────────────────
+    // â”€â”€ Private: profile + offer context builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private sealed record CandidatureContext(
         string FullName,
@@ -641,8 +702,8 @@ public class EmailService : IEmailService
         List<string> Missions,
         List<string> Requirements,
         string? RawText,
-        JsonElement? SkillGap = null,
-        JsonElement? CompanyIntelligence = null);
+        string? SkillGapJson = null,
+        string? CompanyIntelligenceJson = null);
 
     private async Task<CandidatureContext> BuildCandidatureContextAsync(
         Guid userId,
@@ -698,8 +759,8 @@ public class EmailService : IEmailService
         var preferredSkills = new List<string>();
         var missions        = new List<string>();
         var requirements    = new List<string>();
-        JsonElement? skillGap = null;
-        JsonElement? companyIntelligence = null;
+        string? skillGapJson = null;
+        string? companyIntelligenceJson = null;
 
         if (offre?.AnalyseJson is not null)
         {
@@ -718,13 +779,13 @@ public class EmailService : IEmailService
                 requirements    = ExtractStringList(root, "requirements");
 
                 // Extract enrichment if the full pipeline JSON was saved
-                if (root.TryGetProperty("match_result", out var mr)) skillGap = mr.Clone();
-                if (root.TryGetProperty("company_intelligence", out var ci)) companyIntelligence = ci.Clone();
+                if (root.TryGetProperty("match_result", out var mr)) skillGapJson = mr.GetRawText();
+                if (root.TryGetProperty("company_intelligence", out var ci)) companyIntelligenceJson = ci.GetRawText();
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
-                    "Could not parse AnalyseJson for offer {OfferId} — will use raw text only.", offreId);
+                    "Could not parse AnalyseJson for offer {OfferId} â€” will use raw text only.", offreId);
             }
         }
 
@@ -736,12 +797,12 @@ public class EmailService : IEmailService
             Skills:          skills,
             Experiences:     experiences.Select(e =>
                 $"{e.Poste} chez {e.Entreprise}" +
-                $" ({e.DateDebut?.Year}\u2013{(e.DateFin.HasValue ? e.DateFin.Value.Year.ToString() : "présent")})").ToList(),
+                $" ({e.DateDebut?.Year}\u2013{(e.DateFin.HasValue ? e.DateFin.Value.Year.ToString() : "prÃ©sent")})").ToList(),
             Education:       formations.Select(f =>
                 $"{f.Diplome} \u2013 {f.Etablissement} ({f.Annee})").ToList(),
             Projects:        projets,
             Certifications:  certifications,
-            JobTitle:        jobTitle ?? "Poste non spécifié",
+            JobTitle:        jobTitle ?? "Poste non spÃ©cifiÃ©",
             CompanyName:     companyName,
             Location:        location,
             RequiredSkills:  requiredSkills,
@@ -749,8 +810,8 @@ public class EmailService : IEmailService
             Missions:        missions,
             Requirements:    requirements,
             RawText:         offre?.TexteBrut,
-            SkillGap:        skillGap,
-            CompanyIntelligence: companyIntelligence);
+            SkillGapJson:        skillGapJson,
+            CompanyIntelligenceJson: companyIntelligenceJson);
     }
 
     private static object BuildCandidatePayload(CandidatureContext ctx) => new
@@ -779,7 +840,28 @@ public class EmailService : IEmailService
         analysis_json    = (object?)null,
     };
 
-    // ── Private: load + ownership check ──────────────────────────────────────────
+    private static PythonEmailResponse BuildFallbackApplicationDraft(
+        CandidatureContext ctx,
+        string language)
+    {
+        var company = string.IsNullOrWhiteSpace(ctx.CompanyName) ? "votre entreprise" : ctx.CompanyName!;
+        var title = string.IsNullOrWhiteSpace(ctx.JobTitle) ? "le poste" : ctx.JobTitle;
+        var body = "Bonjour,\n\n" +
+                   $"Je vous contacte pour vous transmettre ma candidature pour {title} chez {company}. " +
+                   "Vous trouverez mon CV en piece jointe.\n\n" +
+                   "Je reste a votre disposition pour un echange.\n\n" +
+                   "Cordialement,";
+
+        return new PythonEmailResponse
+        {
+            Subject = $"Application - {title}",
+            Body = body,
+            Language = string.IsNullOrWhiteSpace(language) ? "fr" : language,
+            Tone = "professionnel"
+        };
+    }
+
+    // â”€â”€ Private: load + ownership check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private async Task<EmailDraft> LoadAndVerifyOwnershipAsync(
         Guid draftId,
@@ -855,6 +937,14 @@ public class EmailService : IEmailService
             throw new InvalidOperationException("No final CV was found to attach to the email.");
 
         var attachmentBytes = await _cvService.GetDownloadBytesAsync(userId, cvHistoryId.Value);
+        if (attachmentBytes is null || attachmentBytes.Length == 0)
+            throw new InvalidOperationException("Final CV attachment is empty. Please regenerate your CV and try again.");
+
+        _logger.LogInformation(
+            "EmailService - sending application email with CV attachment for offer {OfferId}, user {UserId}, bytes={AttachmentBytes}",
+            dto.OfferId,
+            userId,
+            attachmentBytes.Length);
         var draft = new EmailDraft
         {
             CandidatureId = candidature.IdCandidature,
@@ -891,12 +981,32 @@ public class EmailService : IEmailService
             }
             else
             {
-                _logger.LogWarning("EmailService - Gmail sending failed for user {UserId}: {Error}. Falling back to SMTP...", userId, gmailResult.ErrorMessage);
-                await SendEmailMessageAsync(draft, dto.OfferId, attachmentBytes, cancellationToken);
-                draft.IsSent = true;
-                draft.SentAtUtc = DateTime.UtcNow;
-                draft.UpdatedAtUtc = draft.SentAtUtc;
-                draft.ErrorMessage = null;
+                var gmailError = string.IsNullOrWhiteSpace(gmailResult.ErrorMessage)
+                    ? "Gmail sending failed."
+                    : gmailResult.ErrorMessage;
+
+                if (IsSmtpConfigured())
+                {
+                    _logger.LogWarning(
+                        "EmailService - Gmail sending failed for user {UserId}: {Error}. Falling back to SMTP...",
+                        userId,
+                        gmailError);
+
+                    await SendEmailMessageAsync(draft, dto.OfferId, attachmentBytes, cancellationToken);
+                    draft.IsSent = true;
+                    draft.SentAtUtc = DateTime.UtcNow;
+                    draft.UpdatedAtUtc = draft.SentAtUtc;
+                    draft.ErrorMessage = null;
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "EmailService - Gmail sending failed for user {UserId}: {Error}. SMTP fallback disabled because SMTP is not configured.",
+                        userId,
+                        gmailError);
+
+                    throw new InvalidOperationException(gmailError);
+                }
             }
         }
         catch (Exception ex)
@@ -915,7 +1025,7 @@ public class EmailService : IEmailService
         return MapToDto(draft);
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private static EmailDraftDto MapToDto(EmailDraft draft) => new()
     {
@@ -949,6 +1059,23 @@ public class EmailService : IEmailService
                       .ToList();
         }
         return [];
+    }
+
+    private static object? DeserializeJsonObjectOrNull(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<object>(rawJson);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private async Task SendEmailMessageAsync(EmailDraft draft, Guid offerId, byte[] attachmentBytes, CancellationToken cancellationToken)
@@ -993,7 +1120,13 @@ public class EmailService : IEmailService
         }
     }
 
-    // ── Python response DTO (internal) ────────────────────────────────────────────
+    private bool IsSmtpConfigured()
+    {
+        return !string.IsNullOrWhiteSpace(_smtpOptions.Host)
+            && !string.IsNullOrWhiteSpace(_smtpOptions.FromEmail);
+    }
+
+    // â”€â”€ Python response DTO (internal) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private sealed class PythonEmailResponse
     {
         public string Subject  { get; set; } = string.Empty;
@@ -1002,3 +1135,4 @@ public class EmailService : IEmailService
         public string Tone     { get; set; } = string.Empty;
     }
 }
+

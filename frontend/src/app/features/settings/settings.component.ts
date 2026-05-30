@@ -147,19 +147,19 @@ import { AuthService } from '../../core/auth/services/auth.service';
     .page-subtitle { font-size: 14px; color: #616161; margin: 0; }
     .settings-sections { display: flex; flex-direction: column; gap: 16px; }
     .settings-card { background: white; border: 1px solid #E0E0E0; border-radius: 12px; padding: 24px; &.danger { border-color: #FCE8E6; h3 svg { stroke: #D93025; } } }
-    .settings-card h3 { margin: 0 0 16px; font-size: 16px; font-weight: 700; color: #212121; display: flex; align-items: center; gap: 10px; svg { width: 20px; height: 20px; stroke: #0C1986; } }
+    .settings-card h3 { margin: 0 0 16px; font-size: 16px; font-weight: 700; color: #212121; display: flex; align-items: center; gap: 10px; svg { width: 20px; height: 20px; stroke: #465FFF; } }
     .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F1F5F9; &:last-child { border: none; } }
     .setting-info { flex: 1; strong { display: block; font-size: 14px; color: #212121; margin-bottom: 2px; } p { margin: 0; font-size: 12px; color: #616161; } }
 
-    .btn-edit, .btn-connect, .btn-save-sm { padding: 8px 16px; border: 1px solid #E0E0E0; border-radius: 8px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; &:hover { border-color: #1A91F0; color: #1A91F0; } }
-    .btn-connect.connected { background: #E6F4EA; border-color: #34A853; color: #34A853; }
-    .btn-save-sm { background: #0C1986; color: white; border: none; &:hover { background: #091361; color: white; } }
+    .btn-edit, .btn-connect, .btn-save-sm { padding: 8px 16px; border: 1px solid #E0E0E0; border-radius: 8px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; &:hover { border-color: #465FFF; color: #465FFF; } }
+    .btn-connect.connected { background: #ecf3ff; border-color: #465FFF; color: #465FFF; }
+    .btn-save-sm { background: #465FFF; color: white; border: none; &:hover { background: #3641F5; color: white; } }
     .btn-danger { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: #FCE8E6; border: 1px solid #D93025; border-radius: 8px; color: #D93025; font-size: 13px; font-weight: 600; cursor: pointer; svg { width: 16px; height: 16px; } &:hover { background: #D93025; color: white; } }
 
-    .toggle { position: relative; display: inline-block; width: 44px; height: 24px; input { opacity: 0; width: 0; height: 0; &:checked + .toggle-slider { background: #0C1986; } &:checked + .toggle-slider:before { transform: translateX(20px); } } }
+    .toggle { position: relative; display: inline-block; width: 44px; height: 24px; input { opacity: 0; width: 0; height: 0; &:checked + .toggle-slider { background: #465FFF; } &:checked + .toggle-slider:before { transform: translateX(20px); } } }
     .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #BDBDBD; border-radius: 24px; transition: 0.3s; &:before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; } }
 
-    .setting-input { flex: 1; height: 36px; padding: 0 12px; border: 1px solid #E0E0E0; border-radius: 6px; background: #F5F5F5; font-size: 13px; margin-right: 8px; &:focus { outline: none; border-color: #1A91F0; background: white; } }
+    .setting-input { flex: 1; height: 36px; padding: 0 12px; border: 1px solid #E0E0E0; border-radius: 6px; background: #F5F5F5; font-size: 13px; margin-right: 8px; &:focus { outline: none; border-color: #465FFF; background: white; } }
     .setting-select { height: 36px; padding: 0 32px 0 12px; border: 1px solid #E0E0E0; border-radius: 6px; background: #F5F5F5; font-size: 13px; appearance: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%239E9E9E' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; background-size: 16px; }
   `]
 })

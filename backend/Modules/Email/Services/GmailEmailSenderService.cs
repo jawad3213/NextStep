@@ -98,6 +98,14 @@ public class GmailEmailSenderService : IEmailSenderService
             accessToken = refreshResult.NewAccessToken!;
         }
 
+        var hasAttachment = attachmentBytes is { Length: > 0 } && !string.IsNullOrWhiteSpace(attachmentName);
+        _logger.LogInformation(
+            "GmailSender - preparing MIME message for user {UserId}. HasAttachment={HasAttachment}, AttachmentName={AttachmentName}, AttachmentBytes={AttachmentSize}",
+            localUserId,
+            hasAttachment,
+            attachmentName ?? "(none)",
+            attachmentBytes?.Length ?? 0);
+
         var mimeMessage = BuildMimeMessage(
             fromAddress: connection.EmailAddress,
             toAddress:   recipientEmail,
@@ -107,7 +115,7 @@ public class GmailEmailSenderService : IEmailSenderService
             attachmentBytes: attachmentBytes,
             attachmentContentType: attachmentContentType);
 
-        var rawBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(mimeMessage));
+        var rawBase64 = Base64UrlEncode(Encoding.ASCII.GetBytes(mimeMessage));
 
         using var httpClient = _httpClientFactory.CreateClient();
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -269,44 +277,44 @@ public class GmailEmailSenderService : IEmailSenderService
         byte[]? attachmentBytes = null,
         string? attachmentContentType = null)
     {
+        const string crlf = "\r\n";
         var sb = new StringBuilder();
-        sb.AppendLine($"From: {fromAddress}");
-        sb.AppendLine($"To: {toAddress}");
-        sb.AppendLine($"Subject: =?UTF-8?B?{Convert.ToBase64String(Encoding.UTF8.GetBytes(subject))}?=");
-        sb.AppendLine("MIME-Version: 1.0");
+        sb.Append($"From: <{fromAddress}>{crlf}");
+        sb.Append($"To: <{toAddress}>{crlf}");
+        sb.Append($"Subject: =?UTF-8?B?{Convert.ToBase64String(Encoding.UTF8.GetBytes(subject))}?={crlf}");
+        sb.Append($"MIME-Version: 1.0{crlf}");
+        sb.Append($"Date: {DateTimeOffset.UtcNow:R}{crlf}");
 
         if (attachmentBytes != null && attachmentBytes.Length > 0 && !string.IsNullOrWhiteSpace(attachmentName))
         {
             var boundary = "----=_Part_" + Guid.NewGuid().ToString("N");
-            sb.AppendLine($"Content-Type: multipart/mixed; boundary=\"{boundary}\"");
-            sb.AppendLine();
-            sb.AppendLine($"--{boundary}");
-            sb.AppendLine("Content-Type: text/plain; charset=utf-8");
-            sb.AppendLine("Content-Transfer-Encoding: base64");
-            sb.AppendLine();
-            sb.AppendLine(Convert.ToBase64String(Encoding.UTF8.GetBytes(body)));
-            sb.AppendLine();
-            sb.AppendLine($"--{boundary}");
-            sb.AppendLine($"Content-Type: {attachmentContentType ?? "application/octet-stream"}; name=\"{attachmentName}\"");
-            sb.AppendLine($"Content-Disposition: attachment; filename=\"{attachmentName}\"");
-            sb.AppendLine("Content-Transfer-Encoding: base64");
-            sb.AppendLine();
+            sb.Append($"Content-Type: multipart/mixed; boundary=\"{boundary}\"{crlf}{crlf}");
+            sb.Append($"--{boundary}{crlf}");
+            sb.Append($"Content-Type: text/plain; charset=UTF-8{crlf}");
+            sb.Append($"Content-Transfer-Encoding: base64{crlf}{crlf}");
+            sb.Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(body)));
+            sb.Append($"{crlf}{crlf}");
+            sb.Append($"--{boundary}{crlf}");
+            sb.Append($"Content-Type: {attachmentContentType ?? "application/octet-stream"}; name=\"{attachmentName}\"{crlf}");
+            sb.Append($"Content-Disposition: attachment; filename=\"{attachmentName}\"{crlf}");
+            sb.Append($"Content-Transfer-Encoding: base64{crlf}{crlf}");
             
             // Base64 encoding needs to be wrapped for large files (RFC 2045)
             var base64Attachment = Convert.ToBase64String(attachmentBytes);
             for (int i = 0; i < base64Attachment.Length; i += 76)
             {
-                sb.AppendLine(base64Attachment.Substring(i, Math.Min(76, base64Attachment.Length - i)));
+                sb.Append(base64Attachment.Substring(i, Math.Min(76, base64Attachment.Length - i)));
+                sb.Append(crlf);
             }
-            sb.AppendLine();
-            sb.AppendLine($"--{boundary}--");
+            sb.Append(crlf);
+            sb.Append($"--{boundary}--{crlf}");
         }
         else
         {
-            sb.AppendLine("Content-Type: text/plain; charset=utf-8");
-            sb.AppendLine("Content-Transfer-Encoding: base64");
-            sb.AppendLine();
+            sb.Append($"Content-Type: text/plain; charset=UTF-8{crlf}");
+            sb.Append($"Content-Transfer-Encoding: base64{crlf}{crlf}");
             sb.Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(body)));
+            sb.Append(crlf);
         }
 
         return sb.ToString();

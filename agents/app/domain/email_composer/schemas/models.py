@@ -14,16 +14,18 @@ from pydantic import BaseModel, Field
 
 # ── Candidate & Offer inputs ──────────────────────────────────────────────────
 
+from typing import List, Optional, Dict, Any, Union
+
 class CandidateInput(BaseModel):
     full_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
     current_title: Optional[str] = None
-    skills: List[str] = Field(default_factory=list)
-    experiences: List[str] = Field(default_factory=list)
-    education: List[str] = Field(default_factory=list)
-    projects: List[str] = Field(default_factory=list)
-    certifications: List[str] = Field(default_factory=list)
+    skills: List[Union[str, Dict[str, Any]]] = Field(default_factory=list)
+    experiences: List[Union[str, Dict[str, Any]]] = Field(default_factory=list)
+    education: List[Union[str, Dict[str, Any]]] = Field(default_factory=list)
+    projects: List[Union[str, Dict[str, Any]]] = Field(default_factory=list)
+    certifications: List[Union[str, Dict[str, Any]]] = Field(default_factory=list)
 
 
 class JobOfferInput(BaseModel):

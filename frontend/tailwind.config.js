@@ -20,10 +20,10 @@ module.exports = {
         },
         // Matching _variables.scss
         primary: {
-          DEFAULT: '#0C1986',
-          dark: '#091361',
-          light: '#E7E8F3',
-          brand: '#1A91F0', // The interactive blue from rules
+          DEFAULT: '#465fff', // brand-500
+          dark: '#3641f5',    // brand-600
+          light: '#dde9ff',   // brand-100
+          brand: '#1A91F0',   // The interactive blue from rules
         },
         success: '#34A853',
         warning: '#F59B00',

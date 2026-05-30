@@ -13,24 +13,54 @@
 
   <section class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
     <div class="grid gap-3 lg:grid-cols-[1.1fr_1fr_180px_200px_auto]">
-      <label class="block">
+      <label class="block relative">
         <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Keywords</span>
-        <input
-          [ngModel]="keywords()"
-          (ngModelChange)="keywords.set($event)"
-          class="w-full rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
-          placeholder="software engineer, python, data analyst..."
-        />
+        <div class="relative">
+          <input
+            [ngModel]="keywords()"
+            (ngModelChange)="keywords.set($event); showKeywordSuggestions.set(true)"
+            (focus)="showKeywordSuggestions.set(true)"
+            (blur)="showKeywordSuggestions.set(false)"
+            class="w-full rounded-xl border border-slate-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-500"
+            placeholder="software engineer, python, data analyst..."
+          />
+          @if (showKeywordSuggestions() && filteredKeywords().length > 0) {
+            <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              @for (kw of filteredKeywords(); track kw) {
+                <li>
+                  <button type="button" (mousedown)="selectKeyword(kw)" class="w-full px-4 py-2 text-left text-sm transition hover:bg-brand-50 hover:text-brand-700">
+                    {{ kw }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
       </label>
 
-      <label class="block">
+      <label class="block relative">
         <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Location</span>
-        <input
-          [ngModel]="location()"
-          (ngModelChange)="location.set($event)"
-          class="w-full rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
-          placeholder="Morocco, Rabat, Remote..."
-        />
+        <div class="relative">
+          <input
+            [ngModel]="location()"
+            (ngModelChange)="location.set($event); showLocationSuggestions.set(true)"
+            (focus)="showLocationSuggestions.set(true)"
+            (blur)="showLocationSuggestions.set(false)"
+            class="w-full rounded-xl border border-slate-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-500"
+            placeholder="Maroc, Rabat, Remote..."
+          />
+          @if (showLocationSuggestions() && filteredLocations().length > 0) {
+            <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              @for (loc of filteredLocations(); track loc) {
+                <li>
+                  <button type="button" (mousedown)="selectLocation(loc)" class="w-full px-4 py-2 text-left text-sm transition hover:bg-brand-50 hover:text-brand-700">
+                    {{ loc }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
       </label>
 
       <label class="block">
@@ -38,7 +68,7 @@
         <select
           [ngModel]="selectedPostedWindow()"
           (ngModelChange)="selectedPostedWindow.set($event); loadCachedOffers()"
-          class="w-full rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white"
+          class="w-full rounded-xl border border-slate-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-500"
         >
           @for (window of postedWindows; track window.value) {
             <option [value]="window.value">{{ window.label }}</option>
@@ -46,14 +76,30 @@
         </select>
       </label>
 
-      <label class="block">
+      <label class="block relative">
         <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Country</span>
-        <input
-          [ngModel]="indeedCountryCode()"
-          (ngModelChange)="indeedCountryCode.set($event)"
-          class="w-full rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
-          placeholder="ma"
-        />
+        <div class="relative">
+          <input
+            [ngModel]="indeedCountryCode()"
+            (ngModelChange)="indeedCountryCode.set($event); showCountrySuggestions.set(true)"
+            (focus)="showCountrySuggestions.set(true)"
+            (blur)="showCountrySuggestions.set(false)"
+            class="w-full rounded-xl border border-slate-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-500"
+            placeholder="ma, fr, us..."
+          />
+          @if (showCountrySuggestions() && filteredCountries().length > 0) {
+            <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              @for (country of filteredCountries(); track country.code) {
+                <li>
+                  <button type="button" (mousedown)="selectCountry(country.code)" class="w-full flex justify-between px-4 py-2 text-left text-sm transition hover:bg-brand-50 hover:text-brand-700">
+                    <span>{{ country.label }}</span>
+                    <span class="font-bold text-slate-400">{{ country.code }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
       </label>
 
       <div class="flex items-end">

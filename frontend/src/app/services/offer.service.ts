@@ -23,6 +23,17 @@ export interface OfferDto {
   dateAnalyse: string;
 }
 
+export interface OfferHistoryItemDto {
+  offerId: string;
+  titre: string;
+  entreprise: string;
+  localisation: string;
+  scoreMatching?: number | null;
+  status: string;
+  currentStep: number;
+  dateCreation: string;
+}
+
 export interface OfferSubmitDto {
   rawText: string;
   titre?: string;
@@ -37,6 +48,10 @@ export class OfferService {
 
   getMyOffers(): Observable<OfferDto[]> {
     return this.http.get<OfferDto[]>(`${this.base}/offers`);
+  }
+
+  getMyOfferHistory(): Observable<OfferHistoryItemDto[]> {
+    return this.http.get<OfferHistoryItemDto[]>(`${this.base}/offers`);
   }
 
   getOfferById(id: string): Observable<OfferDto> {

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -32,6 +32,15 @@ export class EmailWorkspaceComponent implements OnInit {
   offer = signal<OfferDto | null>(null);
   drafts = signal<EmailDraftDto[]>([]);
   selectedDraft = signal<EmailDraftDto | null>(null);
+  showAllDrafts = signal<boolean>(false);
+
+  visibleDrafts = computed(() => {
+    const allDrafts = this.drafts();
+    if (this.showAllDrafts() || allDrafts.length <= 3) {
+      return allDrafts;
+    }
+    return allDrafts.slice(0, 3);
+  });
   gmailStatus = signal<EmailConnectionStatusDto | null>(null);
 
   // Loading flags
@@ -55,6 +64,15 @@ export class EmailWorkspaceComponent implements OnInit {
   oauthClientId = '';
   oauthClientSecret = '';
   oauthRedirectUri = '';
+
+  // Attachments (Simulated for UI)
+  get mockAttachments() {
+    const currentOffer = this.offer();
+    const offerId = currentOffer?.offerId || 'generated';
+    return [
+      { name: `CV_${offerId}.pdf`, size: '1.2 MB', type: 'pdf' }
+    ];
+  }
 
   // Messages
   successMessage = signal<string | null>(null);

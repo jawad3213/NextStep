@@ -317,6 +317,30 @@
 
 .drafts-list { display: flex; flex-direction: column; gap: 8px; }
 
+.drafts-toggle-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed vars.$color-border-default;
+  border-radius: vars.$radius-md;
+  color: vars.$color-text-secondary;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all vars.$duration-fast;
+
+  &:hover {
+    background: vars.$color-bg-input;
+    border-color: vars.$color-primary;
+    color: vars.$color-primary;
+  }
+}
+
 .draft-item {
   width: 100%;
   display: flex;
@@ -353,19 +377,167 @@
   &.pill-sent { background: vars.$color-success-tint; color: vars.$color-success; }
 }
 
-// Editor
-.editor-fields { display: flex; flex-direction: column; gap: 4px; }
-.form-textarea { min-height: 280px; resize: vertical; }
-
-.action-bar {
+// ── Composer Editor ────────────────────────────────────────────────────────────
+.composer-card {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid vars.$color-border-default;
-  flex-wrap: wrap;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid vars.$color-border-default;
+  background: vars.$color-bg-surface;
+  border-radius: vars.$radius-xl;
+  box-shadow: vars.$shadow-sm;
+}
 
-  .btn { display: inline-flex; align-items: center; gap: 8px; }
+.composer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid vars.$color-border-default;
+  background: rgba(vars.$color-bg-input, 0.5);
+  
+  .composer-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+    color: vars.$color-text-primary;
+  }
+}
+
+.composer-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px;
+}
+
+.composer-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(vars.$color-border-default, 0.6);
+  padding: 12px 0;
+  
+  .composer-label {
+    width: 60px;
+    font-size: 13px;
+    font-weight: 600;
+    color: vars.$color-text-secondary;
+  }
+  
+  .composer-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: vars.$color-text-primary;
+    outline: none;
+    &::placeholder {
+      color: vars.$color-text-tertiary;
+    }
+  }
+}
+
+.composer-textarea-container {
+  padding: 16px 0;
+}
+
+.composer-textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  resize: vertical;
+  min-height: 200px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: vars.$color-text-primary;
+  outline: none;
+}
+
+// ── Attachments ──────────────────────────────────────────────────────────────
+.composer-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(vars.$color-border-default, 0.4);
+}
+
+.attachment-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: vars.$color-bg-input;
+  border: 1px solid vars.$color-border-default;
+  border-radius: vars.$radius-lg;
+  transition: all vars.$duration-fast;
+  cursor: default;
+
+  &:hover {
+    border-color: vars.$color-primary;
+    background: vars.$color-primary-pale;
+  }
+
+  .att-icon {
+    color: vars.$color-text-tertiary;
+  }
+  
+  .att-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: vars.$color-text-primary;
+  }
+  
+  .att-size {
+    font-size: 11px;
+    color: vars.$color-text-tertiary;
+  }
+}
+
+// ── Composer Footer ──────────────────────────────────────────────────────────
+.composer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: rgba(vars.$color-bg-input, 0.3);
+
+  .composer-actions-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .composer-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .composer-send-btn {
+    padding: 8px 24px;
+    font-size: 13px;
+    border-radius: vars.$radius-full;
+  }
+
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: vars.$color-text-secondary;
+    cursor: pointer;
+    transition: all vars.$duration-fast;
+    
+    &:hover {
+      background: rgba(vars.$color-text-secondary, 0.1);
+      color: vars.$color-text-primary;
+    }
+  }
 }
 
 .sent-info {

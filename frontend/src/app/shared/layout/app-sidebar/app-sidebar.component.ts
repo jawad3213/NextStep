@@ -82,7 +82,6 @@ export class AppSidebarComponent {
       icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M12 3L14.4 8.1L20 8.9L16 12.8L17 18.5L12 15.7L7 18.5L8 12.8L4 8.9L9.6 8.1L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
       subItems: [
         { name: 'Company Intel', path: '/company-intel' },
-        { name: 'Skill Gap', path: '/skill-gap' },
         { name: 'AI Chatbot', path: '/chatbot' }
       ]
     },

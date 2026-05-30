@@ -61,15 +61,60 @@ export class OffersRecentComponent implements OnInit {
     { key: 'archived', label: 'Archived' },
   ] as const;
 
+  // Autocomplete Suggestions
+  readonly suggestedKeywords = [
+    'Software Engineer', 'Frontend Developer', 'Backend Developer', 'Fullstack Developer', 
+    'Data Scientist', 'Data Analyst', 'DevOps Engineer', 'Product Manager', 'UX/UI Designer',
+    'Mobile Developer', 'iOS Developer', 'Android Developer', 'QA Engineer', 'System Administrator'
+  ];
+
+  readonly suggestedLocations = [
+    'Maroc', 'Casablanca', 'Rabat', 'Marrakech', 'Tanger', 
+    'France', 'Paris', 'Lyon', 'Remote', 'Worldwide', 'United States', 'United Kingdom'
+  ];
+
+  readonly suggestedCountries = [
+    { code: 'ma', label: 'Maroc' },
+    { code: 'fr', label: 'France' },
+    { code: 'us', label: 'United States' },
+    { code: 'gb', label: 'United Kingdom' },
+    { code: 'ca', label: 'Canada' },
+    { code: 'de', label: 'Germany' },
+    { code: 'ae', label: 'UAE' },
+    { code: 'sa', label: 'Saudi Arabia' }
+  ];
+
   readonly selectedProviders = signal<ScrapeProvider[]>(['linkedin', 'indeed', 'glassdoor']);
   readonly selectedContractTypes = signal<NormalizedContractType[]>([]);
-  readonly selectedPostedWindow = signal<PostedWindow>('7d');
+  readonly selectedPostedWindow = signal<PostedWindow>('24h');
   readonly workflowTab = signal<'all' | 'saved' | 'shortlisted' | 'archived'>('all');
 
   readonly keywords = signal('software engineer');
-  readonly location = signal('Morocco');
+  readonly location = signal('Casablanca');
   readonly indeedCountryCode = signal('ma');
   readonly limit = signal(24);
+
+  // Dropdown States
+  readonly showKeywordSuggestions = signal(false);
+  readonly showLocationSuggestions = signal(false);
+  readonly showCountrySuggestions = signal(false);
+
+  readonly filteredKeywords = computed(() => {
+    const q = this.keywords().toLowerCase();
+    return this.suggestedKeywords.filter(k => k.toLowerCase().includes(q) && k.toLowerCase() !== q);
+  });
+
+  readonly filteredLocations = computed(() => {
+    const q = this.location().toLowerCase();
+    return this.suggestedLocations.filter(l => l.toLowerCase().includes(q) && l.toLowerCase() !== q);
+  });
+
+  readonly filteredCountries = computed(() => {
+    const q = this.indeedCountryCode().toLowerCase();
+    return this.suggestedCountries.filter(c => 
+      c.code.toLowerCase().includes(q) || c.label.toLowerCase().includes(q)
+    );
+  });
 
   readonly searchTerm = signal('');
   readonly sortBy = signal<'recent' | 'company' | 'title'>('recent');
@@ -139,6 +184,22 @@ export class OffersRecentComponent implements OnInit {
         this.isLoading.set(false);
       },
     });
+  }
+
+  // Autocomplete Selectors
+  selectKeyword(kw: string): void {
+    this.keywords.set(kw);
+    this.showKeywordSuggestions.set(false);
+  }
+
+  selectLocation(loc: string): void {
+    this.location.set(loc);
+    this.showLocationSuggestions.set(false);
+  }
+
+  selectCountry(code: string): void {
+    this.indeedCountryCode.set(code);
+    this.showCountrySuggestions.set(false);
   }
 
   refreshOffers(): void {

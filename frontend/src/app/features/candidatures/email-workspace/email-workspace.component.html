@@ -274,7 +274,7 @@
             </div>
           } @else {
             <div class="drafts-list">
-              @for (draft of drafts(); track draft.id) {
+              @for (draft of visibleDrafts(); track draft.id) {
                 <button
                   class="draft-item"
                   [class.draft-selected]="selectedDraft()?.id === draft.id"
@@ -297,75 +297,78 @@
                 </button>
               }
             </div>
+            
+            @if (drafts().length > 3) {
+              <button class="drafts-toggle-btn" (click)="showAllDrafts.set(!showAllDrafts())">
+                @if (showAllDrafts()) {
+                  Voir moins <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                } @else {
+                  Voir {{ drafts().length - 3 }} de plus <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                }
+              </button>
+            }
           }
         </div>
 
         <!-- Editor -->
         @if (selectedDraft()) {
-          <div class="section-card card">
-            <div class="section-header">
-              <h3 class="section-title">Éditeur</h3>
+          <div class="composer-card card">
+            <div class="composer-header">
+              <h3 class="composer-title">Nouveau message</h3>
               @if (selectedDraft()!.isSent) {
                 <span class="read-only-badge">Lecture seule — Déjà envoyé</span>
               }
             </div>
 
-            <div class="editor-fields">
-              <div class="form-group">
-                <label class="form-label">Email du recruteur *</label>
-                <input
-                  class="form-input"
-                  type="email"
-                  [(ngModel)]="recipientEmail"
-                  [disabled]="selectedDraft()!.isSent"
-                  placeholder="recruteur@entreprise.com" />
+            <div class="composer-body">
+              <div class="composer-row">
+                <label class="composer-label">À</label>
+                <input class="composer-input" type="email" [(ngModel)]="recipientEmail" [disabled]="selectedDraft()!.isSent" placeholder="recruteur@entreprise.com" />
               </div>
-              <div class="form-group">
-                <label class="form-label">Objet *</label>
-                <input
-                  class="form-input"
-                  type="text"
-                  [(ngModel)]="subject"
-                  [disabled]="selectedDraft()!.isSent"
-                  placeholder="Objet de l'email" />
+              <div class="composer-row">
+                <label class="composer-label">Objet</label>
+                <input class="composer-input" type="text" [(ngModel)]="subject" [disabled]="selectedDraft()!.isSent" placeholder="Objet de l'email" />
               </div>
-              <div class="form-group">
-                <label class="form-label">Corps de l'email *</label>
-                <textarea
-                  class="form-textarea"
-                  [(ngModel)]="body"
-                  [disabled]="selectedDraft()!.isSent"
-                  rows="14">
-                </textarea>
+              <div class="composer-textarea-container">
+                <textarea class="composer-textarea" [(ngModel)]="body" [disabled]="selectedDraft()!.isSent" rows="12"></textarea>
+              </div>
+
+              <!-- Attachments Section -->
+              <div class="composer-attachments">
+                @for (att of mockAttachments; track att.name) {
+                  <div class="attachment-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="att-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <span class="att-name">{{ att.name }}</span>
+                    <span class="att-size">{{ att.size }}</span>
+                  </div>
+                }
               </div>
             </div>
 
-            <!-- Action buttons -->
-            <div class="action-bar">
-              <button class="btn btn-secondary btn-sm"
-                (click)="saveDraft()"
-                [disabled]="!canSave">
-                @if (savingDraft()) { <div class="btn-spinner btn-spinner--dark"></div> Sauvegarde... }
-                @else { Sauvegarder }
-              </button>
-
-              <button class="btn btn-outline btn-sm"
-                (click)="approveDraft()"
-                [disabled]="!canApprove">
-                @if (approvingDraft()) { <div class="btn-spinner"></div> Approbation... }
-                @else { Approuver }
-              </button>
-
-              <button class="btn btn-primary btn-sm"
-                (click)="sendDraft()"
-                [disabled]="!canSend"
-                [title]="!gmailStatus()?.isConnected ? 'Connectez Gmail pour envoyer' : !selectedDraft()!.isApproved ? 'Approuvez le brouillon d\'abord' : ''">
-                @if (sendingDraft()) { <div class="btn-spinner"></div> Envoi en cours... }
-                @else {
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Envoyer
-                }
-              </button>
+            <div class="composer-footer">
+              <div class="composer-actions-left">
+                <button class="btn btn-primary btn-sm composer-send-btn"
+                  (click)="sendDraft()"
+                  [disabled]="!canSend"
+                  [title]="!gmailStatus()?.isConnected ? 'Connectez Gmail pour envoyer' : !selectedDraft()!.isApproved ? 'Approuvez le brouillon d\'abord' : ''">
+                  @if (sendingDraft()) { <div class="btn-spinner"></div> Envoi... }
+                  @else {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Envoyer
+                  }
+                </button>
+                <button class="btn-icon" title="Ajouter une pièce jointe">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                </button>
+              </div>
+              <div class="composer-actions-right">
+                <button class="btn btn-outline btn-sm" (click)="approveDraft()" [disabled]="!canApprove">
+                  @if (approvingDraft()) { <div class="btn-spinner"></div> } @else { Approuver }
+                </button>
+                <button class="btn btn-secondary btn-sm" (click)="saveDraft()" [disabled]="!canSave">
+                  @if (savingDraft()) { <div class="btn-spinner btn-spinner--dark"></div> } @else { Sauvegarder }
+                </button>
+              </div>
             </div>
 
             <!-- Send result info -->

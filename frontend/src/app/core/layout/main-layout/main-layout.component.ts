@@ -186,7 +186,6 @@ export class MainLayoutComponent {
       title: 'AI Insights',
       items: [
         { path: '/company-intel', label: 'Company Intel', iconName: 'search-analytics' },
-        { path: '/skill-gap', label: 'Skill Gap', iconName: 'target' },
         { path: '/chatbot', label: 'AI Chatbot', iconName: 'cpu' },
       ]
     },

@@ -165,6 +165,45 @@ export class MainLayoutComponent {
     });
   }
 
+  menuSections = [
+    {
+      title: 'Core',
+      items: [
+        { path: '/dashboard', label: 'Dashboard', iconName: 'layout' },
+        { path: '/profile', label: 'My Profile', iconName: 'user' },
+        { path: '/offers', label: 'Jobs', iconName: 'briefcase' },
+      ]
+    },
+    {
+      title: 'Tools',
+      items: [
+        { path: '/cv', label: 'CV Builder', iconName: 'file-text' },
+        { path: '/letters', label: 'Email & Letter', iconName: 'mail' },
+        { path: '/applications', label: 'Applications', iconName: 'kanban' },
+      ]
+    },
+    {
+      title: 'AI Insights',
+      items: [
+        { path: '/company-intel', label: 'Company Intel', iconName: 'search-analytics' },
+        { path: '/skill-gap', label: 'Skill Gap', iconName: 'target' },
+        { path: '/chatbot', label: 'AI Chatbot', iconName: 'cpu' },
+      ]
+    },
+    {
+      title: 'System',
+      items: [
+        { path: '/notifications', label: 'Notifications', iconName: 'bell' },
+        { path: '/email/settings', label: 'Gmail Settings', iconName: 'send' },
+        { path: '/settings', label: 'Settings', iconName: 'settings' },
+      ]
+    }
+  ];
+
+  isActive(path: string): boolean {
+    return this.router.url === path || this.router.url.startsWith(path + '/');
+  }
+
   goToSettings(): void {
     this.isProfileMenuOpen.set(false);
     this.router.navigate(['/settings']);

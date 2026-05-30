@@ -1,0 +1,96 @@
+<div class="shell-container">
+  <header class="page-header">
+    <h1 class="page-title">Connexion Gmail</h1>
+    <p class="page-description">Connectez votre compte Gmail pour envoyer vos emails de candidature directement depuis NextStep.</p>
+  </header>
+
+  @if (error()) {
+    <div class="alert alert-error">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+      {{ error() }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Vérification du statut Gmail...</p>
+    </div>
+  }
+
+  @if (!loading()) {
+    <div class="status-card card">
+      <div class="status-icon-wrapper" [class.connected]="status()?.isConnected && status()?.isTokenValid" [class.disconnected]="!status()?.isConnected" [class.warning]="status()?.isConnected && !status()?.isTokenValid">
+        @if (status()?.isConnected && status()?.isTokenValid) {
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        } @else if (status()?.isConnected && !status()?.isTokenValid) {
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        } @else {
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        }
+      </div>
+
+      <div class="status-details">
+        @if (status()?.isConnected) {
+          <h3 class="status-title" [class.status-ok]="status()?.isTokenValid" [class.status-warn]="!status()?.isTokenValid">
+            {{ status()?.isTokenValid ? 'Gmail connecté' : 'Session Gmail expirée' }}
+          </h3>
+          <p class="status-email">{{ status()?.emailAddress }}</p>
+          
+          @if (!status()?.isTokenValid) {
+            <div class="token-error-box">
+              <p class="status-error-msg">{{ status()?.errorMessage || 'Votre session Gmail a expiré ou a été révoquée. Veuillez vous reconnecter.' }}</p>
+              <button class="btn btn-primary btn-sm" (click)="connectGmail()" [disabled]="connecting()">
+                Reconnecter Gmail
+              </button>
+            </div>
+          } @else {
+            <p class="status-note">Votre compte Gmail est connecté. Vous pouvez envoyer des emails de candidature depuis le workspace.</p>
+          }
+
+          <div class="action-buttons">
+            <button class="btn btn-secondary btn-sm" (click)="verifyStatus()" [disabled]="verifying()">
+              @if (verifying()) {
+                <div class="btn-spinner"></div> Vérification...
+              } @else {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Vérifier le statut
+              }
+            </button>
+
+            <button class="btn btn-outline-danger btn-sm" (click)="disconnectGmail()" [disabled]="disconnecting()">
+              @if (disconnecting()) {
+                <div class="btn-spinner"></div> Déconnexion...
+              } @else {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                Déconnecter
+              }
+            </button>
+          </div>
+        } @else {
+          <h3 class="status-title status-warn">Gmail non connecté</h3>
+          <p class="status-note">Connectez votre compte Gmail pour activer l'envoi d'emails de candidature. Seule la permission d'envoi (<code>gmail.send</code>) sera demandée.</p>
+          <button class="btn btn-primary" (click)="connectGmail()" [disabled]="connecting()">
+            @if (connecting()) {
+              <div class="btn-spinner"></div> Redirection...
+            } @else {
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Connecter avec Gmail
+            }
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="info-box card card-accent">
+      <h4>Comment ça fonctionne ?</h4>
+      <ol>
+        <li>Cliquez sur "Connecter avec Gmail" ci-dessus.</li>
+        <li>Vous serez redirigé vers Google pour autoriser NextStep à envoyer des emails en votre nom.</li>
+        <li>Après autorisation, vous serez redirigé ici automatiquement.</li>
+        <li>Vos emails de candidature seront envoyés via votre adresse Gmail configurée.</li>
+      </ol>
+      <p class="info-note">🔒 Seule la permission <strong>gmail.send</strong> est demandée. Vos emails ne sont pas lus ni stockés.</p>
+    </div>
+  }
+</div>

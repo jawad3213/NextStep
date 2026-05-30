@@ -31,6 +31,17 @@ public class CandidatureRepository : ICandidatureRepository
             .FirstOrDefaultAsync(x => x.IdCandidature == id, cancellationToken);
     }
 
+    public async Task<List<CandidatureEntity>> GetByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Candidatures
+            .AsNoTracking()
+            .Where(x => x.IdUtilisateur == userId)
+            .OrderByDescending(x => x.DateCreation)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<CandidatureEntity?> GetByUserAndOfferAsync(
         Guid userId,
         Guid offerId,

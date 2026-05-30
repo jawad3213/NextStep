@@ -53,16 +53,38 @@ public class CandidatureService : ICandidatureService
         return entity is null ? null : MapToDto(entity);
     }
 
+    public async Task<List<CandidatureDto>> GetByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await _candidatureRepository.GetByUserIdAsync(userId, cancellationToken);
+        return entities.Select(MapToDto).ToList();
+    }
+
     private static CandidatureDto MapToDto(CandidatureEntity entity)
     {
         return new CandidatureDto
         {
-            IdCandidature = entity.IdCandidature,
-            IdUtilisateur = entity.IdUtilisateur,
-            IdOffre = entity.IdOffre,
-            DateCreation = entity.DateCreation,
+            IdCandidature           = entity.IdCandidature,
+            IdUtilisateur           = entity.IdUtilisateur,
+            IdOffre                 = entity.IdOffre,
+            DateCreation            = entity.DateCreation,
             InclureLettreMotivation = entity.InclureLettreMotivation,
-            Statut = entity.Statut
+            Statut                  = entity.Statut,
+            ResponseStatus          = entity.ResponseStatus,
+            HasResponse             = entity.HasResponse,
+            LastCheckedAtUtc        = entity.LastCheckedAtUtc,
+            LastResponseAtUtc       = entity.LastResponseAtUtc,
+            // AI Classification
+            LastResponseFrom        = entity.LastResponseFrom,
+            LastResponseSnippet     = entity.LastResponseSnippet,
+            ResponseSummary         = entity.ResponseSummary,
+            RecommendedAction       = entity.RecommendedAction,
+            ResponseConfidence      = entity.ResponseConfidence,
+            ResponseClassifiedAtUtc = entity.ResponseClassifiedAtUtc,
+            // Follow-up tracking
+            FollowUpNeeded          = entity.FollowUpNeeded,
+            LastFollowUpAtUtc       = entity.LastFollowUpAtUtc,
         };
     }
 }

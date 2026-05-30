@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import re
 from difflib import SequenceMatcher
 from langchain_core.messages import AIMessage
@@ -7,12 +7,15 @@ from langgraph.graph import StateGraph, END
 from app.domain.pipeline.state import PipelineState
 from app.domain.offer_analyzer.service import offer_analyzer_service
 from app.domain.profile_retriever.service import profile_retriever_service
+from app.domain.skill_gap.service import skill_gap_service
 from app.domain.company.service import company_service
+from app.domain.email_composer.agents.agent import email_composer_node as _email_composer_node
 from app.domain.cv_optimizer.service import cv_optimizer_service
 from app.domain.cv_engine.service import cv_engine_service
 from app.core.utils.normalizer.text_utils import normalize_skills, build_profile_full_text, normalize_text
 
 logger = logging.getLogger(__name__)
+
 
 
 def _similarity(a: str, b: str) -> float:
@@ -279,6 +282,8 @@ def _build_deterministic_match_result(profile_data: dict, analyzed_offer: dict) 
 
 
 async def offer_analyzer_node(state: PipelineState) -> dict:
+    """Nœud appelant le service d'analyse d'offre."""
+    logger.info("Pipeline — Calling OfferAnalyzerService")
     if state.get("analyzed_offer"):
         return {}
     result = await offer_analyzer_service.analyze(state["raw_offer_text"])
@@ -292,6 +297,8 @@ async def offer_analyzer_node(state: PipelineState) -> dict:
 
 
 async def profile_retriever_node(state: PipelineState) -> dict:
+    """Nœud appelant le service de récupération de profil."""
+    logger.info("Pipeline — Calling ProfileRetrieverService")
     if state.get("profile_data"):
         return {}
     result = await profile_retriever_service.get_profile(str(state["user_id"]))
@@ -303,6 +310,9 @@ async def profile_retriever_node(state: PipelineState) -> dict:
 
 
 async def skill_gap_node(state: PipelineState) -> dict:
+    """Nœud appelant le service de skill gap / deterministic matching."""
+    logger.info("Pipeline — Calling SkillGapService")
+
     if state.get("skill_gap_analysis") or state.get("match_result"):
         skill_gap_analysis = state.get("skill_gap_analysis") or state.get("match_result")
         return {
@@ -341,6 +351,45 @@ async def critical_skill_gap_node(state: PipelineState) -> dict:
         "match_result": match_result,
         "messages": [AIMessage(content="[Pipeline] Critical skill-gap validation applied", name="orchestrator")],
     }
+
+
+async def email_composer_node(state: PipelineState) -> dict:
+    """
+    Adaptor node — bridges PipelineState → EmailComposerState.
+    Maps match_result → skill_gap for the email_composer agent.
+    """
+    logger.info("Pipeline — Calling EmailComposerNode")
+
+    # Si on n'a pas été appelé avec l'intention de générer un email (par ex just CV), on peut ignorer ?
+    # Ici, nous le laissons courir car generation_options n'est pas strict.
+
+    email_state = {
+        "user_id":            str(state.get("user_id", "")),
+        "profile_data":       state.get("profile_data"),
+        "analyzed_offer":     state.get("analyzed_offer"),
+        "raw_offer_text":     state.get("raw_offer_text"),
+        "skill_gap":          state.get("match_result"),
+        "company_intelligence": state.get("company_intelligence"),
+        "generation_options": state.get("generation_options"),
+        "messages":           [],
+        "errors":             [],
+        "warnings":           [],
+        "iteration_count":    0,
+    }
+
+    result = await _email_composer_node(email_state)
+
+    output: dict = {}
+    if result.get("email_draft"):
+        output["email_draft"] = result["email_draft"]
+    if result.get("errors"):
+        output["errors"] = result["errors"]
+    if result.get("warnings"):
+        output["warnings"] = result["warnings"]
+    if result.get("messages"):
+        output["messages"] = result["messages"]
+
+    return output
 
 
 async def company_intelligence_node(state: PipelineState) -> dict:
@@ -453,6 +502,7 @@ async def db_persist_node(state: PipelineState) -> dict:
         return {"errors": [f"Erreur sauvegarde DB: {str(e)}"]}
 
 
+
 def build_offer_pipeline() -> StateGraph:
     workflow = StateGraph(PipelineState)
 
@@ -461,6 +511,7 @@ def build_offer_pipeline() -> StateGraph:
     workflow.add_node("skill_gap_node", skill_gap_node)
     workflow.add_node("critical_skill_gap_node", critical_skill_gap_node)
     workflow.add_node("company_intelligence_node", company_intelligence_node)
+    workflow.add_node("email_composer_node", email_composer_node)
     workflow.add_node("cv_optimizer_node", cv_optimizer_node)
     workflow.add_node("cv_engine_node", cv_engine_node)
     workflow.add_node("db_persist_node", db_persist_node)
@@ -487,7 +538,8 @@ def build_offer_pipeline() -> StateGraph:
     )
 
     workflow.add_edge("cv_optimizer_node", "cv_engine_node")
-    workflow.add_edge("cv_engine_node", "db_persist_node")
+    workflow.add_edge("cv_engine_node", "email_composer_node")
+    workflow.add_edge("email_composer_node", "db_persist_node")
     workflow.add_edge("db_persist_node", END)
 
     return workflow.compile()

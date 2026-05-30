@@ -1,3 +1,7 @@
+// ============================================================
+// Modules/Offer/Controllers/OfferController.cs
+// Endpoints: POST /api/offers/submit · GET /api/offers/{id}/analysis · GET /api/offers
+// ============================================================
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Identity.Services;
@@ -243,6 +247,7 @@ public class OfferController(
         }
     }
 
+
     [HttpGet("{id:guid}/analysis")]
     [ProducesResponseType(typeof(OfferAnalysisDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -259,4 +264,6 @@ public class OfferController(
             return NotFound();
         }
     }
+
+
 }

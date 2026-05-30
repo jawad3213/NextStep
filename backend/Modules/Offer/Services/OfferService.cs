@@ -152,6 +152,7 @@ public class OfferService(
         return MapToDto(offre.Id, doc.RootElement, offre.TexteBrut);
     }
 
+
     public async Task<CvDraftDto?> GetCvDraftAsync(Guid userId, Guid offerId, CancellationToken ct = default)
     {
         await EnsureOfferOwnedAsync(userId, offerId, ct);
@@ -338,19 +339,35 @@ public class OfferService(
     {
         var dto = new OfferAnalysisDto { OfferId = offerId, TexteBrut = rawText };
 
-        if (root.TryGetProperty("analyzed_offer", out var ao) && ao.ValueKind == JsonValueKind.Object)
+        // 1. Try to get data from AI Agent format ("analyzed_offer" property)
+        // OR fallback to the root level (Manual Submission format)
+        var source = root.TryGetProperty("analyzed_offer", out var ao) ? ao : root;
+
+        dto.Titre = source.GetStringOrDefault("titre") ?? "Poste non défini";
+        dto.Entreprise = source.GetStringOrDefault("entreprise") ?? "Entreprise non renseignée";
+        dto.TypeContrat = source.GetStringOrDefault("type_contrat");
+        dto.Localisation = source.GetStringOrDefault("localisation");
+        dto.DescriptionPoste = source.GetStringOrDefault("description_poste");
+        dto.AnneesExperience = source.GetIntOrDefault("annees_experience");
+        dto.NiveauEtudes = source.GetStringOrDefault("niveau_etudes");
+        dto.CompetencesRequises = source.GetStringList("competences_requises");
+        dto.CompetencesSouhaitees = source.GetStringList("competences_souhaitees");
+        dto.KeywordsAts = source.GetStringList("keywords_ats");
+
+        // 2. Try to get scoring from AI Agent format ("match_result" property)
+        if (root.TryGetProperty("analyzed_offer", out var analyzedOffer) && analyzedOffer.ValueKind == JsonValueKind.Object)
         {
-            dto.Titre = ao.GetStringOrDefault("titre") ?? "";
-            dto.Entreprise = ao.GetStringOrDefault("entreprise");
-            dto.TypeContrat = ao.GetStringOrDefault("type_contrat");
-            dto.Localisation = ao.GetStringOrDefault("localisation");
-            dto.DescriptionPoste = ao.GetStringOrDefault("description_poste");
-            dto.AnneesExperience = ao.GetStringAsIntOrDefault("annees_experience");
-            dto.NiveauEtudes = ao.GetStringOrDefault("niveau_etudes");
-            dto.ModeTravail = ao.GetStringOrDefault("mode_travail") ?? ao.GetStringOrDefault("modeTravail");
-            dto.CompetencesRequises = ao.GetStringList("competences_requises");
-            dto.CompetencesSouhaitees = ao.GetStringList("competences_souhaitees");
-            dto.KeywordsAts = ao.GetStringList("keywords_ats");
+            dto.Titre = analyzedOffer.GetStringOrDefault("titre") ?? "";
+            dto.Entreprise = analyzedOffer.GetStringOrDefault("entreprise");
+            dto.TypeContrat = analyzedOffer.GetStringOrDefault("type_contrat");
+            dto.Localisation = analyzedOffer.GetStringOrDefault("localisation");
+            dto.DescriptionPoste = analyzedOffer.GetStringOrDefault("description_poste");
+            dto.AnneesExperience = analyzedOffer.GetStringAsIntOrDefault("annees_experience");
+            dto.NiveauEtudes = analyzedOffer.GetStringOrDefault("niveau_etudes");
+            dto.ModeTravail = analyzedOffer.GetStringOrDefault("mode_travail") ?? analyzedOffer.GetStringOrDefault("modeTravail");
+            dto.CompetencesRequises = analyzedOffer.GetStringList("competences_requises");
+            dto.CompetencesSouhaitees = analyzedOffer.GetStringList("competences_souhaitees");
+            dto.KeywordsAts = analyzedOffer.GetStringList("keywords_ats");
         }
 
         if (root.TryGetProperty("cv_data", out var cvData) && cvData.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
@@ -537,6 +554,7 @@ public class OfferService(
                     .Select(a => new CompanyNewsItem { Title = a.GetString() ?? "", Date = "" })];
             }
         }
+
 
         if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)
         {

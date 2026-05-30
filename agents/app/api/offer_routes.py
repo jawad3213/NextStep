@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from difflib import SequenceMatcher
 import re
 from fastapi import APIRouter, HTTPException
@@ -17,6 +17,10 @@ class OfferInput(BaseModel):
     raw_text: str = Field(..., description="Le texte brut de l'offre d'emploi")
     user_id: str = Field(..., description="ID de l'utilisateur (UUID) pour recuperer son profil")
     template_id: int = Field(1, description="ID du template CV choisi")
+    generation_options: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Options de génération email : language, tone, include_motivation_letter"
+    )
     offer_id: str = Field(..., description="ID de l'offre d'emploi (UUID) pour sauvegarde DB")
     only_analysis: bool = Field(False, description="Si True, s'arrete apres l'analyse (Skill Gap)")
 
@@ -40,9 +44,11 @@ class PipelineResult(BaseModel):
     skill_gap_analysis: Optional[Dict[str, Any]] = None
     match_result: Optional[Dict[str, Any]] = None
     skill_gap: Optional[Dict[str, Any]] = None
+    email_draft: Optional[Dict[str, Any]] = None
     company_intelligence: Optional[Dict[str, Any]] = None
     cv_data: Optional[Dict[str, Any]] = None
     errors: list = []
+    warnings: list = []
 
 
 from app.domain.pipeline.workflow import get_offer_pipeline
@@ -115,7 +121,6 @@ def _is_noisy_skill_phrase(value: str) -> bool:
     c = _canon(value)
     if not c:
         return True
-    # Keep concise technical names, drop long sentence-like requirements.
     if _word_count(c) >= 5:
         return True
     return False
@@ -132,55 +137,59 @@ def _build_matching_targets(required: list[str], preferred: list[str], keywords:
     normalized_keywords = _collapse_ci_cd([_canon(s) for s in normalize_skills(keywords)])
     normalized_clean = _collapse_ci_cd([_canon(s) for s in normalize_skills([*clean_required, *clean_preferred])])
 
-    # If Agent 1 returned mostly sentence-like items, fallback to ATS keywords.
     raw_count = len(required) + len(preferred)
     clean_count = len(clean_required) + len(clean_preferred)
     mostly_noisy = raw_count > 0 and clean_count <= max(2, raw_count // 2)
+
     if mostly_noisy and normalized_keywords:
         return normalized_keywords
+
     return normalized_clean if normalized_clean else normalized_keywords
 
 
 def _build_rich_profile_text(profile_data: dict) -> str:
     chunks: list[str] = []
+
     if not isinstance(profile_data, dict):
         return ""
 
-    # personal info / summary
     chunks.append(str(profile_data.get("resume") or profile_data.get("resume_professionnel") or ""))
-    pi = profile_data.get("personalInfo") or {}
-    if isinstance(pi, dict):
-        chunks.append(str(pi.get("resumeProfessionnel") or ""))
-        chunks.append(str(pi.get("titrePoste") or ""))
 
-    # skills
+    personal_info = profile_data.get("personalInfo") or {}
+    if isinstance(personal_info, dict):
+        chunks.append(str(personal_info.get("resumeProfessionnel") or ""))
+        chunks.append(str(personal_info.get("titrePoste") or ""))
+
     for c in profile_data.get("competences", []) or []:
         if isinstance(c, dict):
             chunks.append(str(c.get("nom") or c.get("name") or ""))
         elif isinstance(c, str):
             chunks.append(c)
 
-    # experiences
     for e in profile_data.get("experiences", []) or []:
         if not isinstance(e, dict):
             continue
+
         chunks.append(str(e.get("titre") or e.get("poste") or ""))
         chunks.append(str(e.get("description") or e.get("missions") or ""))
         chunks.append(str(e.get("entreprise") or ""))
+
         for t in e.get("taches", []) or []:
             chunks.append(str(t))
 
-    # projects
     for p in profile_data.get("projets", []) or profile_data.get("projects", []) or []:
         if not isinstance(p, dict):
             continue
+
         chunks.append(str(p.get("titre") or p.get("titreProjet") or ""))
         chunks.append(str(p.get("description") or ""))
+
         techs = p.get("technologies") or p.get("technologiesUtilisees") or []
         if isinstance(techs, str):
             chunks.extend([t.strip() for t in techs.split(",") if t.strip()])
         elif isinstance(techs, list):
             chunks.extend([str(t) for t in techs if t])
+
         for t in p.get("taches", []) or []:
             chunks.append(str(t))
 
@@ -191,13 +200,16 @@ def _compute_deterministic_match(profile_data: dict, analyzed_offer: dict) -> di
     offer_keywords = analyzed_offer.get("keywords_ats", []) or []
     required = analyzed_offer.get("competences_requises", []) or []
     preferred = analyzed_offer.get("competences_souhaitees", []) or []
+
     normalized_targets = _build_matching_targets(required, preferred, offer_keywords)
     normalized_keywords = _collapse_ci_cd([_canon(s) for s in normalize_skills([str(t) for t in offer_keywords if t])])
 
     profile_skills = []
+
     for c in profile_data.get("competences", []) or []:
         if isinstance(c, dict) and c.get("nom"):
             profile_skills.append(c.get("nom"))
+
     for s in profile_data.get("skills", []) or []:
         if isinstance(s, str):
             profile_skills.append(s)
@@ -205,59 +217,78 @@ def _compute_deterministic_match(profile_data: dict, analyzed_offer: dict) -> di
             profile_skills.append(s.get("nom") or s.get("name") or "")
 
     normalized_profile_skills = _collapse_ci_cd([_canon(s) for s in normalize_skills([str(s) for s in profile_skills if s])])
+
     profile_text = f"{build_profile_full_text(profile_data)} {_build_rich_profile_text(profile_data)}"
     text_norm = normalize_text(profile_text)
+
     profile_tokens = set(normalized_profile_skills)
     profile_tokens.update(_tokenize_text(text_norm))
+
     if ("continuous integration" in text_norm) or ("continuous delivery" in text_norm) or ("github actions" in text_norm):
         profile_tokens.add("ci/cd")
-    if (" ai " in f" {text_norm} ") or (" artificial intelligence " in f" {text_norm} ") or (" intelligence artificielle " in f" {text_norm} ") or (" integration ia " in f" {text_norm} ") or (" integration ai " in f" {text_norm} "):
+
+    if (
+        " ai " in f" {text_norm} "
+        or " artificial intelligence " in f" {text_norm} "
+        or " intelligence artificielle " in f" {text_norm} "
+        or " integration ia " in f" {text_norm} "
+        or " integration ai " in f" {text_norm} "
+    ):
         profile_tokens.add("ia")
+
     if "n8n" in text_norm:
         profile_tokens.add("n8n")
+
     if "chatbot" in text_norm or "chatbots" in text_norm:
         profile_tokens.add("chatbot")
+
     if "retrieval augmented generation" in text_norm or " rag " in f" {text_norm} ":
         profile_tokens.add("rag")
 
     matched, partial, missing = [], [], []
-    for t in normalized_targets:
+
+    for target in normalized_targets:
         best = 0.0
-        for p in profile_tokens:
-            sim = _similarity(t, p)
+
+        for profile_token in profile_tokens:
+            sim = _similarity(target, profile_token)
             if sim > best:
                 best = sim
+
         if best >= 0.80:
-            matched.append(t)
+            matched.append(target)
         elif best >= 0.52:
-            partial.append(t)
+            partial.append(target)
         else:
-            missing.append(t)
+            missing.append(target)
 
     score_matching = int(round(((len(matched) + 0.5 * len(partial)) / max(1, len(normalized_targets))) * 100))
     score_matching = max(0, min(100, score_matching))
 
-    kw_present, kw_missing = [], []
-    for kw in normalized_keywords:
+    keywords_present, keywords_missing = [], []
+
+    for keyword in normalized_keywords:
         best = 0.0
-        for p in profile_tokens:
-            sim = _similarity(kw, p)
+
+        for profile_token in profile_tokens:
+            sim = _similarity(keyword, profile_token)
             if sim > best:
                 best = sim
-        if best >= 0.80:
-            kw_present.append(kw)
-        else:
-            kw_missing.append(kw)
 
-    score_ats = int(round((len(kw_present) / max(1, len(normalized_keywords))) * 100))
+        if best >= 0.80:
+            keywords_present.append(keyword)
+        else:
+            keywords_missing.append(keyword)
+
+    score_ats = int(round((len(keywords_present) / max(1, len(normalized_keywords))) * 100))
     score_ats = max(0, min(100, score_ats))
 
     return {
         "matched_skills": matched,
         "partial_skills": partial,
         "missing_skills": missing,
-        "keywords_presents": kw_present,
-        "keywords_manquants": kw_missing,
+        "keywords_presents": keywords_present,
+        "keywords_manquants": keywords_missing,
         "score_matching": score_matching,
         "score_ats": score_ats,
     }
@@ -269,9 +300,11 @@ def _display_label(canonical: str, analyzed_offer: dict) -> str:
         *(analyzed_offer.get("competences_souhaitees", []) or []),
         *(analyzed_offer.get("keywords_ats", []) or []),
     ]
+
     for label in labels:
         if _canon(str(label)) == canonical:
             return str(label)
+
     special = {
         "ci/cd": "CI/CD",
         "ia": "IA",
@@ -281,11 +314,13 @@ def _display_label(canonical: str, analyzed_offer: dict) -> str:
         "next.js": "Next.js",
         "postgresql": "PostgreSQL",
     }
+
     return special.get(canonical, canonical)
 
 
 def _build_deterministic_result(profile_data: dict, analyzed_offer: dict) -> dict:
     deterministic = _compute_deterministic_match(profile_data or {}, analyzed_offer or {})
+
     matched = _collapse_ci_cd(deterministic["matched_skills"])
     partial = [s for s in _collapse_ci_cd(deterministic["partial_skills"]) if s not in set(matched)]
     missing = [
@@ -294,7 +329,9 @@ def _build_deterministic_result(profile_data: dict, analyzed_offer: dict) -> dic
     ]
 
     matched_labels = [_display_label(s, analyzed_offer) for s in matched]
+    partial_labels = [_display_label(s, analyzed_offer) for s in partial]
     missing_labels = [_display_label(s, analyzed_offer) for s in missing]
+
     keyword_present = [_display_label(s, analyzed_offer) for s in _collapse_ci_cd(deterministic["keywords_presents"])]
     keyword_missing = [_display_label(s, analyzed_offer) for s in _collapse_ci_cd(deterministic["keywords_manquants"])]
 
@@ -306,7 +343,7 @@ def _build_deterministic_result(profile_data: dict, analyzed_offer: dict) -> dic
         "score_ats": deterministic["score_ats"],
         "matched_skills": matched_labels,
         "missing_skills": missing_labels,
-        "partial_skills": [_display_label(s, analyzed_offer) for s in partial],
+        "partial_skills": partial_labels,
         "competences_matching": matched_labels,
         "competences_manquantes": missing_labels,
         "keywords_presents": keyword_present,
@@ -328,18 +365,30 @@ def _build_deterministic_result(profile_data: dict, analyzed_offer: dict) -> dic
     }
 
 
-@router.post("/run-pipeline", response_model=PipelineResult)
+@router.post(
+    "/run-pipeline",
+    response_model=PipelineResult,
+    summary="Pipeline complet — Agents 1-5",
+    description=(
+        "Orchestre l'analyse de l'offre, la récupération du profil, le scoring/skill gap, "
+        "l'intelligence entreprise, la génération du brouillon d'email et l'optimisation du CV."
+    ),
+)
 async def run_pipeline(payload: OfferInput) -> PipelineResult:
     logger.info("POST /run-pipeline - user_id=%s", payload.user_id)
+
     try:
         pipeline = get_offer_pipeline()
+
         initial_state = {
             "raw_offer_text": payload.raw_text,
             "user_id": payload.user_id,
             "template_id": payload.template_id,
+            "generation_options": payload.generation_options,
             "offer_id": payload.offer_id,
             "messages": [],
             "errors": [],
+            "warnings": [],
             "normalized_offer_skills": [],
             "normalized_keywords": [],
             "normalized_profile_skills": [],
@@ -361,10 +410,13 @@ async def run_pipeline(payload: OfferInput) -> PipelineResult:
             skill_gap_analysis=skill_gap_analysis,
             match_result=final_state.get("match_result") or skill_gap_analysis,
             skill_gap=skill_gap_analysis,
+            email_draft=final_state.get("email_draft"),
             company_intelligence=final_state.get("company_intelligence"),
             cv_data=final_state.get("cv_engine_result"),
             errors=final_state.get("errors", []),
+            warnings=final_state.get("warnings", []),
         )
+
     except Exception as e:
         logger.error("POST /run-pipeline failed: %s", str(e))
         raise HTTPException(status_code=500, detail=f"Erreur pipeline : {str(e)}")
@@ -373,13 +425,18 @@ async def run_pipeline(payload: OfferInput) -> PipelineResult:
 @router.post("/analyze-offer", response_model=dict)
 async def analyze_offer(payload: OfferInput) -> dict:
     logger.info("POST /analyze-offer - user_id=%s", payload.user_id)
+
     try:
         result = await offer_analyzer_service.analyze(payload.raw_text)
+
         if not result or not result.get("analyzed_offer"):
             raise HTTPException(status_code=502, detail="Erreur LLM - analyse echouee")
+
         return result
+
     except HTTPException:
         raise
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -387,6 +444,7 @@ async def analyze_offer(payload: OfferInput) -> dict:
 @router.post("/match", response_model=dict)
 async def match_profile(payload: MatchRequest) -> dict:
     logger.info("POST /match - user_id=%s", payload.user_id)
+
     try:
         if payload.profile_data:
             profile_data = payload.profile_data
@@ -395,5 +453,6 @@ async def match_profile(payload: MatchRequest) -> dict:
             profile_data = profile_res.get("profile_data", {})
 
         return _build_deterministic_result(profile_data or {}, payload.analyzed_offer or {})
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

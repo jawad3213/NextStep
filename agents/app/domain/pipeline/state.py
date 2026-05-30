@@ -23,6 +23,22 @@ class PipelineState(TypedDict, total=False):
     
     skill_gap_analysis: Optional[Dict[str, Any]]
     match_result: Optional[Dict[str, Any]]
+    """Skill gap analysis result (legacy key used by skill_gap_node)."""
+
+    # -- Phase 2: Company + Email composer --
+    company_intelligence: Optional[Dict[str, Any]]
+    """Output of the company agent (intelligence + score + recommendations)."""
+
+    email_draft: Optional[Dict[str, Any]]
+    """Generated email draft: {subject, body, language, tone}."""
+
+    generation_options: Optional[Dict[str, Any]]
+    """Email generation options passed from the API request: language, tone, etc."""
+
+    # -- Métadonnées --
+    messages: Annotated[list[BaseMessage], add_messages]
+    errors: Annotated[list[str], operator.add]
+    warnings: Annotated[list[str], operator.add]
     company_intelligence: Optional[Dict[str, Any]]
     
     # -- Sorties Finales (CV) --

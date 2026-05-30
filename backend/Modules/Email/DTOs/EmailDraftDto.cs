@@ -24,7 +24,15 @@ public class EmailDraftDto
 
     public DateTime? UpdatedAtUtc { get; set; }
 
+    public DateTime? ApprovedAtUtc { get; set; }
+
     public DateTime? SentAtUtc { get; set; }
 
     public string? ErrorMessage { get; set; }
+
+    public string? ProviderMessageId { get; set; }
+
+    public string? ProviderThreadId { get; set; }
+
+    public int SendAttemptCount { get; set; }
 }

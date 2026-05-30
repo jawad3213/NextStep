@@ -12,8 +12,10 @@ public class OfferSubmitDto
     [Required]
     [MinLength(50, ErrorMessage = "Le texte de l'offre doit contenir au moins 50 caractères.")]
     public string RawText { get; set; } = string.Empty;
+    
+    public string? Titre { get; set; }
+    public string? Entreprise { get; set; }
 
-    /// <summary>ID du template CV choisi : 1 = Modern, 2 = Classic, 3 = Creative.</summary>
-    [Range(1, 3)]
-    public int TemplateId { get; set; } = 1;
+    /// <summary>ID du template CV choisi.</summary>
+    public string TemplateId { get; set; } = "standard";
 }

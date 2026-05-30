@@ -1,6 +1,7 @@
 using NextStep.data;
 using Microsoft.EntityFrameworkCore;
 using NextStep.Shared.Http;
+using NextStep.Shared.Config;
 using NextStep.Modules.Candidature.Repositories;
 using NextStep.Modules.Candidature.Services;
 using NextStep.Modules.Email.Repositories;
@@ -19,6 +20,9 @@ using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using Hangfire;
+using Hangfire.PostgreSql;
+using NextStep.Jobs;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -88,15 +92,42 @@ builder.Services.AddScoped<ICandidatureRepository, CandidatureRepository>();
 builder.Services.AddScoped<ICandidatureService, CandidatureService>();
 builder.Services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailSenderService, GmailEmailSenderService>();
+builder.Services.AddScoped<IEmailConnectionService, EmailConnectionService>();
+builder.Services.AddScoped<IUserEmailConnectionRepository, UserEmailConnectionRepository>();
+builder.Services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IGmailReplyMonitorService, GmailReplyMonitorService>();
+builder.Services.AddScoped<IResponseClassificationService, ResponseClassificationService>();
+builder.Services.AddScoped<CheckEmailRepliesJob>();
+builder.Services.AddScoped<DetectFollowUpNeededJob>();
 builder.Services.AddScoped<ICvService, CvService>();
 builder.Services.AddScoped<ICvHtmlTemplateRenderer, CvHtmlTemplateRenderer>();
 builder.Services.AddScoped<ICvPdfRenderer, CvPdfRenderer>();
 builder.Services.AddScoped<ICvTemplateService, CvTemplateService>();
 builder.Services.AddScoped<ITemplateThumbnailService, TemplateThumbnailService>();
 builder.Services.AddScoped<ISourcedOfferService, SourcedOfferService>();
+
+// ── Google OAuth configuration ───────────────────────────────────────────────
+builder.Services.Configure<GoogleOAuthOptions>(
+    builder.Configuration.GetSection(GoogleOAuthOptions.SectionName));
+
+// ── Email Follow-up configuration ───────────────────────────────────────────
+builder.Services.Configure<EmailFollowUpOptions>(
+    builder.Configuration.GetSection(EmailFollowUpOptions.SectionName));
+
+// ── ASP.NET Core Data Protection (encrypts Gmail tokens at rest) ─────────────
+builder.Services.AddDataProtection();
+
+// ── Hangfire (reply-monitoring recurring job) ─────────────────────────────────
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(opt => opt.UseNpgsqlConnection(connectionString)));
+builder.Services.AddHangfireServer();
 
 // ─── MinIO / S3 Storage ───
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
@@ -135,6 +166,26 @@ app.Use(async (ctx, next) =>
 
 app.MapControllers();
 app.MapHub<NextStep.SignalR.PipelineHub>("/hubs/pipeline");
+
+// ── Hangfire Dashboard (Development only) + Recurring Jobs ───────────────────
+if (app.Environment.IsDevelopment())
+{
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new NextStep.Shared.Http.AllowAllHangfireAuthorizationFilter() }
+    });
+}
+
+RecurringJob.AddOrUpdate<CheckEmailRepliesJob>(
+    "check-email-replies",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Daily);   // runs once per day; change to "0 */6 * * *" for every 6 hours
+
+RecurringJob.AddOrUpdate<DetectFollowUpNeededJob>(
+    "detect-follow-up-needed",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Daily);
+
 
 using (var scope = app.Services.CreateScope())
 {
@@ -177,6 +228,10 @@ using (var scope = app.Services.CreateScope())
         // 7. Force Add Columns (Certification)
         string[] ctCols = { "id_utilisateur UUID", "titre TEXT", "organisation TEXT", "date_obtention TIMESTAMP", "id_credential TEXT", "url_credential TEXT" };
         foreach (var c in ctCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.certification ADD COLUMN IF NOT EXISTS {c};");
+
+        // 8. Force Add Columns (Candidature)
+        string[] candCols = { "follow_up_needed BOOLEAN DEFAULT FALSE", "last_follow_up_at_utc TIMESTAMP" };
+        foreach (var c in candCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS {c};");
 
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ALTER COLUMN id_skill_keyword SET DEFAULT gen_random_uuid();");
         await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.skill_keyword ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'Technique';");
@@ -355,7 +410,57 @@ using (var scope = app.Services.CreateScope())
             );
         ");
 
-        // 8. CvTemplate table
+        // 8. EmailDraft — new columns for approve/send flow
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS date_approbation TIMESTAMP;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS provider_message_id TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS nb_tentatives_envoi INTEGER DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.email_draft ADD COLUMN IF NOT EXISTS provider_thread_id TEXT;");
+
+        // 8b. Candidature — email reply tracking fields
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_status TEXT DEFAULT 'EN_ATTENTE';");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS has_response BOOLEAN DEFAULT FALSE;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_checked_at_utc TIMESTAMP;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_response_at_utc TIMESTAMP;");
+
+        // 8c. Candidature — AI classification fields (Phase 3A)
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_response_from TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS last_response_snippet TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_summary TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS recommended_action TEXT;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_confidence DOUBLE PRECISION;");
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_classified_at_utc TIMESTAMP;");
+
+        // 9. user_email_connection — stores encrypted Gmail OAuth tokens
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.user_email_connection (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_utilisateur UUID NOT NULL,
+                provider TEXT NOT NULL,
+                adresse_email TEXT NOT NULL DEFAULT '',
+                access_token_chiffre TEXT NOT NULL DEFAULT '',
+                refresh_token_chiffre TEXT NOT NULL DEFAULT '',
+                access_token_expire_utc TIMESTAMP NOT NULL DEFAULT now(),
+                date_creation TIMESTAMP NOT NULL DEFAULT now(),
+                date_modification TIMESTAMP,
+                UNIQUE (id_utilisateur, provider)
+            );
+        ");
+
+        // 10. oauth_state — short-lived single-use CSRF state tokens for OAuth flows
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.oauth_state (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_utilisateur UUID NOT NULL,
+                provider TEXT NOT NULL,
+                state_token_hash TEXT NOT NULL UNIQUE,
+                expire_utc TIMESTAMP NOT NULL,
+                utilise BOOLEAN NOT NULL DEFAULT FALSE,
+                date_creation TIMESTAMP NOT NULL DEFAULT now(),
+                date_utilisation TIMESTAMP
+            );
+        ");
+
+        // 11. CvTemplate table
         await context.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS public.cv_template (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -401,9 +506,7 @@ using (var scope = app.Services.CreateScope())
             WHERE thumbnail_url IS NULL OR thumbnail_url = '';
         ");
 
-        Console.WriteLine("DEBUG: CV TEMPLATE TABLE AND SEED COMPLETED.");
-
-        // 9. CvHistory table
+        // 12. CvHistory table
         await context.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS public.cv_history (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -82,6 +82,51 @@
       </div>
     </div>
 
+    <div class="status-card card">
+      <h3 class="status-title">Credentials OAuth Google (BYO)</h3>
+      <p class="status-note">Saisissez votre Client ID / Client Secret. Ils sont stockes chiffres uniquement cote backend.</p>
+
+      <div class="token-error-box">
+        <label class="status-note" for="client-id-input">Client ID</label>
+        <input id="client-id-input" type="text" [(ngModel)]="clientId" class="form-input" placeholder="xxxxxxxx.apps.googleusercontent.com" />
+
+        <label class="status-note" for="client-secret-input">Client Secret</label>
+        <input id="client-secret-input" type="password" [(ngModel)]="clientSecret" class="form-input" placeholder="GOCSPX-..." />
+
+        <label class="status-note" for="redirect-uri-input">Redirect URI (optionnel)</label>
+        <input id="redirect-uri-input" type="text" [(ngModel)]="redirectUri" class="form-input" placeholder="http://localhost:5000/api/email-connections/google/callback" />
+
+        @if (credentials()?.hasCredentials) {
+          <p class="status-note">
+            Credentials sauvegardes:
+            <strong>{{ credentials()?.clientIdMasked }}</strong>
+            @if (credentials()?.usesCustomRedirectUri) {
+              <span> | Redirect: {{ credentials()?.redirectUri }}</span>
+            }
+          </p>
+        } @else {
+          <p class="status-note">Aucun credential personnalise enregistre. Le systeme utilisera la configuration serveur globale.</p>
+        }
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary btn-sm" (click)="saveCredentials()" [disabled]="savingCredentials()">
+          @if (savingCredentials()) {
+            <div class="btn-spinner"></div> Sauvegarde...
+          } @else {
+            Sauvegarder credentials
+          }
+        </button>
+        <button class="btn btn-secondary btn-sm" (click)="deleteCredentials()" [disabled]="deletingCredentials()">
+          @if (deletingCredentials()) {
+            <div class="btn-spinner"></div> Suppression...
+          } @else {
+            Supprimer credentials
+          }
+        </button>
+      </div>
+    </div>
+
     <div class="info-box card card-accent">
       <h4>Comment ça fonctionne ?</h4>
       <ol>

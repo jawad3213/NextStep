@@ -72,8 +72,26 @@
   border-radius: vars.$radius-md;
   border-left: 4px solid vars.$color-error;
   margin: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   .status-error-msg {
     font-size: 13px; color: vars.$color-error; font-weight: 500; margin: 0 0 8px;
+  }
+}
+
+.form-input {
+  width: 100%;
+  border: 1px solid vars.$color-border-default;
+  border-radius: vars.$radius-md;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: vars.$color-text-primary;
+  background: #fff;
+  &:focus {
+    outline: none;
+    border-color: vars.$color-primary;
+    box-shadow: 0 0 0 3px rgba(vars.$color-primary, 0.12);
   }
 }
 

@@ -7,6 +7,7 @@ public class EmailConnectionStatusDto
 {
     public bool IsConnected { get; set; }
     public bool IsTokenValid { get; set; } = true;
+    public bool HasCustomClientCredentials { get; set; }
     public string? ErrorMessage { get; set; }
 
     /// <summary>The Gmail address connected, if any.</summary>

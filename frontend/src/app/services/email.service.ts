@@ -61,9 +61,24 @@ export interface SendEmailResultDto {
 export interface EmailConnectionStatusDto {
   isConnected: boolean;
   isTokenValid: boolean;
+  hasCustomClientCredentials?: boolean;
   errorMessage: string | null;
   emailAddress: string | null;
   provider: string;
+}
+
+export interface SaveGoogleClientCredentialsPayload {
+  clientId: string;
+  clientSecret: string;
+  redirectUri?: string | null;
+}
+
+export interface GoogleClientCredentialsSummaryDto {
+  hasCredentials: boolean;
+  clientIdMasked: string | null;
+  usesCustomRedirectUri: boolean;
+  redirectUri: string | null;
+  updatedAtUtc: string | null;
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -121,5 +136,17 @@ export class EmailService {
 
   verifyGmailConnection(): Observable<EmailConnectionStatusDto> {
     return this.http.post<EmailConnectionStatusDto>(`${this.base}/email-connections/verify`, {});
+  }
+
+  saveGoogleClientCredentials(payload: SaveGoogleClientCredentialsPayload): Observable<void> {
+    return this.http.post<void>(`${this.base}/email-connections/google/credentials`, payload);
+  }
+
+  getGoogleClientCredentialsSummary(): Observable<GoogleClientCredentialsSummaryDto> {
+    return this.http.get<GoogleClientCredentialsSummaryDto>(`${this.base}/email-connections/google/credentials`);
+  }
+
+  deleteGoogleClientCredentials(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/email-connections/google/credentials`);
   }
 }

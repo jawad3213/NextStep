@@ -56,6 +56,10 @@
           <textarea rows="12" [(ngModel)]="emailBody"></textarea>
         </label>
 
+        @if (isGeneratingDraft) {
+          <div class="status-banner">Generation du brouillon email via backend...</div>
+        }
+
         <div class="composer-attachment">
           <div class="attachment-pill">
             <span class="attachment-icon">PDF</span>

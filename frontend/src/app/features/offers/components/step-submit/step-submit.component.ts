@@ -174,10 +174,47 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
       },
       error: (err) => {
         this.pipeline.setLoading(false);
-        this.pipeline.pipelineError.set(err.message || 'Erreur de soumission');
-        this.error = `Erreur : ${err.message || 'Service indisponible'}`;
+        const backendError = this.extractSubmitError(err);
+        this.pipeline.pipelineError.set(backendError);
+        this.error = `Erreur : ${backendError}`;
       }
     });
+  }
+
+  private extractSubmitError(err: any): string {
+    const payload = err?.error;
+
+    if (typeof payload === 'string' && payload.trim().length > 0) {
+      return payload;
+    }
+
+    if (payload?.errors && typeof payload.errors === 'object') {
+      const flattened = Object.entries(payload.errors)
+        .flatMap(([field, messages]) => {
+          if (!Array.isArray(messages)) return [];
+          return messages.map((message) => `${field || 'request'}: ${message}`);
+        })
+        .filter(Boolean);
+
+      if (flattened.length > 0) {
+        return flattened.join(' | ');
+      }
+    }
+
+    if (payload?.details && typeof payload.details === 'object') {
+      const flattened = Object.entries(payload.details)
+        .flatMap(([field, messages]) => {
+          if (!Array.isArray(messages)) return [];
+          return messages.map((message) => `${field || 'request'}: ${message}`);
+        })
+        .filter(Boolean);
+
+      if (flattened.length > 0) {
+        return flattened.join(' | ');
+      }
+    }
+
+    return payload?.error || err?.message || 'Service indisponible';
   }
 
   /**

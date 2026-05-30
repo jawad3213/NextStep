@@ -41,6 +41,9 @@ export class EmailWorkspaceComponent implements OnInit {
   savingDraft = signal(false);
   approvingDraft = signal(false);
   sendingDraft = signal(false);
+  connectingGmail = signal(false);
+  savingOauthCredentials = signal(false);
+  showOauthCredentialsForm = signal(false);
 
   // Editor fields
   recipientEmail = '';
@@ -49,6 +52,9 @@ export class EmailWorkspaceComponent implements OnInit {
   emailType = 'application';
   language = 'fr';
   userInstructions = ''; // for reply draft generation
+  oauthClientId = '';
+  oauthClientSecret = '';
+  oauthRedirectUri = '';
 
   // Messages
   successMessage = signal<string | null>(null);
@@ -266,12 +272,92 @@ export class EmailWorkspaceComponent implements OnInit {
   }
 
   connectGmail() {
+    this.clearMessages();
+
+    if (!this.gmailStatus()?.hasCustomClientCredentials) {
+      this.showOauthCredentialsForm.set(true);
+      return;
+    }
+
+    this.connectWithLoginUrl();
+  }
+
+  connectWithoutCustomCredentials() {
+    this.clearMessages();
+    this.connectWithLoginUrl();
+  }
+
+  saveOauthCredentialsAndConnect() {
+    const clientId = this.oauthClientId.trim();
+    const clientSecret = this.oauthClientSecret.trim();
+    const redirectUri = this.oauthRedirectUri.trim();
+
+    if (!clientId || !clientSecret) {
+      this.errorMessage.set('Client ID et Client Secret sont obligatoires.');
+      return;
+    }
+
+    this.savingOauthCredentials.set(true);
+    this.clearMessages();
+
+    this.emailService.saveGoogleClientCredentials({
+      clientId,
+      clientSecret,
+      redirectUri: redirectUri || null
+    }).subscribe({
+      next: () => {
+        this.savingOauthCredentials.set(false);
+        this.showOauthCredentialsForm.set(false);
+        this.oauthClientSecret = '';
+
+        const currentStatus = this.gmailStatus();
+        if (currentStatus) {
+          this.gmailStatus.set({
+            ...currentStatus,
+            hasCustomClientCredentials: true
+          });
+        }
+
+        this.connectWithLoginUrl();
+      },
+      error: (err) => {
+        const backendError = typeof err?.error === 'string'
+          ? err.error
+          : (err?.error?.error || err?.error?.message || err?.message);
+        this.errorMessage.set(backendError || 'Impossible d enregistrer les credentials OAuth.');
+        this.savingOauthCredentials.set(false);
+      }
+    });
+  }
+
+  cancelOauthCredentials() {
+    this.showOauthCredentialsForm.set(false);
+    this.oauthClientSecret = '';
+  }
+
+  private connectWithLoginUrl() {
+    if (this.connectingGmail()) return;
+
+    this.connectingGmail.set(true);
     this.emailService.getGmailLoginUrl().subscribe({
       next: (res) => {
-        if (res?.url) window.location.href = res.url;
+        if (res?.url) {
+          window.location.href = res.url;
+          return;
+        }
+
+        this.errorMessage.set('URL de connexion Gmail invalide.');
+        this.connectingGmail.set(false);
       },
-      error: () => {
-        this.errorMessage.set('Impossible d\'obtenir l\'URL de connexion Gmail.');
+      error: (err) => {
+        const backendError = err?.error?.error || err?.error?.message || '';
+        if (!this.gmailStatus()?.hasCustomClientCredentials) {
+          this.showOauthCredentialsForm.set(true);
+        }
+        this.errorMessage.set(
+          backendError || 'Impossible d obtenir l URL de connexion Gmail.'
+        );
+        this.connectingGmail.set(false);
       }
     });
   }

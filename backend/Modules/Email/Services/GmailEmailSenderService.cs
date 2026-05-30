@@ -11,33 +11,39 @@ using NextStep.Shared.Config;
 namespace NextStep.Modules.Email.Services;
 
 /// <summary>
-/// Sends emails through the Gmail API using the user's connected OAuth account.
-/// Handles token decryption, automatic token refresh, MIME building, and Gmail API calling.
+/// Sends emails through Gmail API for a connected user account.
+/// Tokens and optional BYO OAuth credentials are decrypted only on backend.
 /// </summary>
 public class GmailEmailSenderService : IEmailSenderService
 {
-    private const string DataProtectionPurpose = "GmailOAuthTokens";
-    private const string GmailSendUrl          = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
-    private const string TokenRefreshUrl       = "https://oauth2.googleapis.com/token";
+    private const string TokenProtectionPurpose = "GmailOAuthTokens";
+    private const string OAuthClientProtectionPurpose = "GmailOAuthClientCredentials";
+    private const string GmailSendUrl = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+    private const string TokenRefreshUrl = "https://oauth2.googleapis.com/token";
 
     private readonly IUserEmailConnectionRepository _connectionRepo;
+    private readonly IUserOAuthCredentialRepository _oauthCredentialRepo;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IDataProtector _protector;
+    private readonly IDataProtector _tokenProtector;
+    private readonly IDataProtector _oauthClientProtector;
     private readonly GoogleOAuthOptions _oauthOptions;
     private readonly ILogger<GmailEmailSenderService> _logger;
 
     public GmailEmailSenderService(
         IUserEmailConnectionRepository connectionRepo,
+        IUserOAuthCredentialRepository oauthCredentialRepo,
         IHttpClientFactory httpClientFactory,
         IDataProtectionProvider dataProtectionProvider,
         IOptions<GoogleOAuthOptions> oauthOptions,
         ILogger<GmailEmailSenderService> logger)
     {
-        _connectionRepo    = connectionRepo;
+        _connectionRepo = connectionRepo;
+        _oauthCredentialRepo = oauthCredentialRepo;
         _httpClientFactory = httpClientFactory;
-        _protector         = dataProtectionProvider.CreateProtector(DataProtectionPurpose);
-        _oauthOptions      = oauthOptions.Value;
-        _logger            = logger;
+        _tokenProtector = dataProtectionProvider.CreateProtector(TokenProtectionPurpose);
+        _oauthClientProtector = dataProtectionProvider.CreateProtector(OAuthClientProtectionPurpose);
+        _oauthOptions = oauthOptions.Value;
+        _logger = logger;
     }
 
     public async Task<SendEmailResult> SendAsync(
@@ -47,67 +53,58 @@ public class GmailEmailSenderService : IEmailSenderService
         string body,
         CancellationToken cancellationToken = default)
     {
-        // ── 1. Load Gmail connection ────────────────────────────────────────────
-        var connection = await _connectionRepo.GetByUserAndProviderAsync(
-            localUserId, "Gmail", cancellationToken);
-
+        var connection = await _connectionRepo.GetByUserAndProviderAsync(localUserId, "Gmail", cancellationToken);
         if (connection is null)
         {
             return new SendEmailResult
             {
-                Success      = false,
+                Success = false,
                 ErrorMessage = "Gmail account is not connected. Please connect your Gmail account before sending."
             };
         }
 
-        // ── 2. Decrypt tokens ───────────────────────────────────────────────────
         string accessToken;
         string refreshToken;
-
         try
         {
-            accessToken  = _protector.Unprotect(connection.AccessTokenEncrypted);
-            refreshToken = _protector.Unprotect(connection.RefreshTokenEncrypted);
+            accessToken = _tokenProtector.Unprotect(connection.AccessTokenEncrypted);
+            refreshToken = _tokenProtector.Unprotect(connection.RefreshTokenEncrypted);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GmailSender — failed to decrypt tokens for user {UserId}", localUserId);
+            _logger.LogError(ex, "GmailSender - failed to decrypt tokens for user {UserId}", localUserId);
             return new SendEmailResult
             {
-                Success      = false,
+                Success = false,
                 ErrorMessage = "Failed to decrypt Gmail tokens. Please reconnect your Gmail account."
             };
         }
 
-        // ── 3. Refresh access token if expired ─────────────────────────────────
         if (DateTime.UtcNow >= connection.AccessTokenExpiresAtUtc.AddSeconds(-30))
         {
-            var refreshResult = await RefreshAccessTokenAsync(
-                refreshToken, connection, cancellationToken);
-
+            var refreshResult = await RefreshAccessTokenAsync(refreshToken, connection, cancellationToken);
             if (!refreshResult.Success)
+            {
                 return new SendEmailResult
                 {
-                    Success      = false,
+                    Success = false,
                     ErrorMessage = refreshResult.ErrorMessage
                 };
+            }
 
             accessToken = refreshResult.NewAccessToken!;
         }
 
-        // ── 4. Build MIME email ─────────────────────────────────────────────────
         var mimeMessage = BuildMimeMessage(
             fromAddress: connection.EmailAddress,
-            toAddress:   recipientEmail,
-            subject:     subject,
-            body:        body);
+            toAddress: recipientEmail,
+            subject: subject,
+            body: body);
 
         var rawBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(mimeMessage));
 
-        // ── 5. Call Gmail API ────────────────────────────────────────────────────
         using var httpClient = _httpClientFactory.CreateClient();
-        httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", accessToken);
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var payload = JsonSerializer.Serialize(new { raw = rawBase64 });
         var content = new StringContent(payload, Encoding.UTF8, "application/json");
@@ -119,32 +116,30 @@ public class GmailEmailSenderService : IEmailSenderService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GmailSender — HTTP error calling Gmail API for user {UserId}", localUserId);
+            _logger.LogError(ex, "GmailSender - HTTP error calling Gmail API for user {UserId}", localUserId);
             return new SendEmailResult
             {
-                Success      = false,
+                Success = false,
                 ErrorMessage = $"Network error contacting Gmail API: {ex.Message}"
             };
         }
 
-        // ── 6. Parse response ───────────────────────────────────────────────────
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning(
-                "GmailSender — Gmail API returned {Status} for user {UserId}: {Body}",
+                "GmailSender - Gmail API returned {Status} for user {UserId}: {Body}",
                 response.StatusCode, localUserId, responseBody);
 
             return new SendEmailResult
             {
-                Success      = false,
+                Success = false,
                 ErrorMessage = $"Gmail API error {(int)response.StatusCode}: {responseBody}"
             };
         }
 
         string? gmailMessageId = null;
-        string? gmailThreadId  = null;
+        string? gmailThreadId = null;
         try
         {
             using var doc = JsonDocument.Parse(responseBody);
@@ -155,43 +150,37 @@ public class GmailEmailSenderService : IEmailSenderService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "GmailSender — could not parse Gmail response id/threadId");
+            _logger.LogWarning(ex, "GmailSender - could not parse Gmail response id/threadId");
         }
 
         _logger.LogInformation(
-            "GmailSender — email sent for user {UserId}, Gmail message id: {MessageId}, thread id: {ThreadId}",
+            "GmailSender - email sent for user {UserId}, Gmail message id: {MessageId}, thread id: {ThreadId}",
             localUserId, gmailMessageId, gmailThreadId);
 
         return new SendEmailResult
         {
-            Success           = true,
+            Success = true,
             ProviderMessageId = gmailMessageId,
-            ProviderThreadId  = gmailThreadId
+            ProviderThreadId = gmailThreadId
         };
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────
-
     private sealed record RefreshResult(bool Success, string? NewAccessToken, string? ErrorMessage);
+    private sealed record ResolvedOAuthConfig(string ClientId, string ClientSecret);
 
-    /// <summary>
-    /// Refreshes an expired access token and persists the updated encrypted token.
-    /// </summary>
     private async Task<RefreshResult> RefreshAccessTokenAsync(
         string refreshToken,
         UserEmailConnection connection,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
-            "GmailSender — refreshing access token for user {UserId}", connection.UserId);
-
+        var oauthConfig = await ResolveOAuthConfigAsync(connection.UserId, cancellationToken);
         using var httpClient = _httpClientFactory.CreateClient();
 
         var formData = new Dictionary<string, string>
         {
-            ["grant_type"]    = "refresh_token",
-            ["client_id"]     = _oauthOptions.ClientId,
-            ["client_secret"] = _oauthOptions.ClientSecret,
+            ["grant_type"] = "refresh_token",
+            ["client_id"] = oauthConfig.ClientId,
+            ["client_secret"] = oauthConfig.ClientSecret,
             ["refresh_token"] = refreshToken,
         };
 
@@ -205,19 +194,17 @@ public class GmailEmailSenderService : IEmailSenderService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GmailSender — network error refreshing token for user {UserId}", connection.UserId);
+            _logger.LogError(ex, "GmailSender - network error refreshing token for user {UserId}", connection.UserId);
             return new RefreshResult(false, null, $"Network error refreshing Gmail token: {ex.Message}");
         }
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning(
-                "GmailSender — token refresh failed {Status} for user {UserId}: {Body}",
+                "GmailSender - token refresh failed {Status} for user {UserId}: {Body}",
                 response.StatusCode, connection.UserId, body);
-            return new RefreshResult(false, null,
-                "Failed to refresh Gmail access token. Please reconnect your Gmail account.");
+            return new RefreshResult(false, null, "Failed to refresh Gmail access token. Please reconnect your Gmail account.");
         }
 
         TokenResponse tokenResponse;
@@ -228,17 +215,43 @@ public class GmailEmailSenderService : IEmailSenderService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GmailSender — could not parse refresh token response");
+            _logger.LogError(ex, "GmailSender - could not parse refresh token response");
             return new RefreshResult(false, null, "Could not parse Gmail token refresh response.");
         }
 
-        // Persist the refreshed access token (encrypted)
-        connection.AccessTokenEncrypted    = _protector.Protect(tokenResponse.AccessToken);
+        connection.AccessTokenEncrypted = _tokenProtector.Protect(tokenResponse.AccessToken);
         connection.AccessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn - 30);
-        connection.UpdatedAtUtc            = DateTime.UtcNow;
+        connection.UpdatedAtUtc = DateTime.UtcNow;
         await _connectionRepo.UpsertAsync(connection, cancellationToken);
 
         return new RefreshResult(true, tokenResponse.AccessToken, null);
+    }
+
+    private async Task<ResolvedOAuthConfig> ResolveOAuthConfigAsync(Guid localUserId, CancellationToken ct)
+    {
+        var customCredential = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
+        if (customCredential is not null)
+        {
+            try
+            {
+                var clientId = _oauthClientProtector.Unprotect(customCredential.ClientIdEncrypted);
+                var clientSecret = _oauthClientProtector.Unprotect(customCredential.ClientSecretEncrypted);
+                if (!string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret))
+                {
+                    return new ResolvedOAuthConfig(clientId, clientSecret);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "GmailSender - failed to decrypt custom OAuth credentials for user {UserId}. Falling back to global config.",
+                    localUserId);
+            }
+        }
+
+        _oauthOptions.Validate();
+        return new ResolvedOAuthConfig(_oauthOptions.ClientId, _oauthOptions.ClientSecret);
     }
 
     private static string BuildMimeMessage(
@@ -247,7 +260,6 @@ public class GmailEmailSenderService : IEmailSenderService
         string subject,
         string body)
     {
-        // RFC 2822 MIME format required by Gmail API
         var sb = new StringBuilder();
         sb.AppendLine($"From: {fromAddress}");
         sb.AppendLine($"To: {toAddress}");

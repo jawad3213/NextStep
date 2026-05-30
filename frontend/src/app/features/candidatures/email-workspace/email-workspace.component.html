@@ -45,13 +45,57 @@
           } @else if (gmailStatus()?.isConnected && !gmailStatus()?.isTokenValid) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <span>Session expirée</span>
-            <button class="connect-inline-btn" (click)="connectGmail()">Reconnecter</button>
+            <button class="connect-inline-btn" (click)="connectGmail()" [disabled]="connectingGmail() || savingOauthCredentials()">
+              @if (connectingGmail()) { Connexion... } @else { Reconnecter }
+            </button>
           } @else {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
             <span>Gmail non connecté</span>
-            <button class="connect-inline-btn" (click)="connectGmail()">Connecter</button>
+            <button class="connect-inline-btn" (click)="connectGmail()" [disabled]="connectingGmail() || savingOauthCredentials()">
+              @if (connectingGmail()) { Connexion... } @else { Connecter }
+            </button>
           }
         </div>
+
+        @if (showOauthCredentialsForm()) {
+          <div class="oauth-form-card card">
+            <div class="card-label">OAuth Google (personnel)</div>
+            <p class="oauth-form-hint">
+              Entrez votre Client ID et Client Secret Google pour connecter Gmail avec votre propre application OAuth.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Client ID *</label>
+              <input class="form-input" type="text" [(ngModel)]="oauthClientId" placeholder="xxxxxxxx.apps.googleusercontent.com" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Client Secret *</label>
+              <input class="form-input" type="password" [(ngModel)]="oauthClientSecret" placeholder="GOCSPX-..." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Redirect URI (optionnel)</label>
+              <input class="form-input" type="text" [(ngModel)]="oauthRedirectUri" placeholder="http://localhost:5000/api/email-connections/google/callback" />
+            </div>
+
+            <div class="oauth-form-actions">
+              <button class="btn btn-primary btn-sm" (click)="saveOauthCredentialsAndConnect()" [disabled]="savingOauthCredentials() || connectingGmail()">
+                @if (savingOauthCredentials()) {
+                  <div class="btn-spinner"></div> Sauvegarde...
+                } @else {
+                  Sauvegarder et connecter
+                }
+              </button>
+              <button class="btn btn-outline btn-sm" (click)="connectWithoutCustomCredentials()" [disabled]="savingOauthCredentials() || connectingGmail()">
+                Continuer sans credentials
+              </button>
+              <button class="btn btn-secondary btn-sm" (click)="cancelOauthCredentials()" [disabled]="savingOauthCredentials() || connectingGmail()">
+                Annuler
+              </button>
+            </div>
+          </div>
+        }
 
         <!-- Offer Summary Card -->
         @if (offer()) {

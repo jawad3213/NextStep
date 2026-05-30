@@ -18,6 +18,7 @@ using Amazon.S3;
 using System.Linq;
 using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
 using Hangfire;
@@ -33,6 +34,23 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 builder.Services.AddControllers();
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(kvp => kvp.Value?.Errors.Count > 0)
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray());
+
+        return new BadRequestObjectResult(new
+        {
+            error = "Validation failed",
+            details = errors
+        });
+    };
+});
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
@@ -95,6 +113,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailSenderService, GmailEmailSenderService>();
 builder.Services.AddScoped<IEmailConnectionService, EmailConnectionService>();
 builder.Services.AddScoped<IUserEmailConnectionRepository, UserEmailConnectionRepository>();
+builder.Services.AddScoped<IUserOAuthCredentialRepository, UserOAuthCredentialRepository>();
 builder.Services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -457,6 +476,21 @@ using (var scope = app.Services.CreateScope())
                 utilise BOOLEAN NOT NULL DEFAULT FALSE,
                 date_creation TIMESTAMP NOT NULL DEFAULT now(),
                 date_utilisation TIMESTAMP
+            );
+        ");
+
+        // 10b. user_oauth_credential — encrypted BYO OAuth client credentials (per user/provider)
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.user_oauth_credential (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_utilisateur UUID NOT NULL,
+                provider TEXT NOT NULL,
+                client_id_chiffre TEXT NOT NULL DEFAULT '',
+                client_secret_chiffre TEXT NOT NULL DEFAULT '',
+                redirect_uri_override TEXT,
+                date_creation TIMESTAMP NOT NULL DEFAULT now(),
+                date_modification TIMESTAMP,
+                UNIQUE (id_utilisateur, provider)
             );
         ");
 

@@ -18,7 +18,8 @@ namespace NextStep.Modules.Email.Services;
 /// </summary>
 public class EmailConnectionService : IEmailConnectionService
 {
-    private const string DataProtectionPurpose = "GmailOAuthTokens";
+    private const string TokenProtectionPurpose       = "GmailOAuthTokens";
+    private const string OAuthClientProtectionPurpose = "GmailOAuthClientCredentials";
     private const string GmailProfileUrl       = "https://gmail.googleapis.com/gmail/v1/users/me/profile";
     private const string TokenExchangeUrl      = "https://oauth2.googleapis.com/token";
     private const string GmailScope =
@@ -29,25 +30,102 @@ public class EmailConnectionService : IEmailConnectionService
 
     private readonly IOAuthStateRepository _stateRepo;
     private readonly IUserEmailConnectionRepository _connectionRepo;
+    private readonly IUserOAuthCredentialRepository _oauthCredentialRepo;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IDataProtector _protector;
+    private readonly IDataProtector _tokenProtector;
+    private readonly IDataProtector _oauthClientProtector;
     private readonly GoogleOAuthOptions _options;
     private readonly ILogger<EmailConnectionService> _logger;
 
     public EmailConnectionService(
         IOAuthStateRepository stateRepo,
         IUserEmailConnectionRepository connectionRepo,
+        IUserOAuthCredentialRepository oauthCredentialRepo,
         IHttpClientFactory httpClientFactory,
         IDataProtectionProvider dataProtectionProvider,
         IOptions<GoogleOAuthOptions> options,
         ILogger<EmailConnectionService> logger)
     {
-        _stateRepo       = stateRepo;
-        _connectionRepo  = connectionRepo;
-        _httpClientFactory = httpClientFactory;
-        _protector       = dataProtectionProvider.CreateProtector(DataProtectionPurpose);
-        _options         = options.Value;
-        _logger          = logger;
+        _stateRepo             = stateRepo;
+        _connectionRepo        = connectionRepo;
+        _oauthCredentialRepo   = oauthCredentialRepo;
+        _httpClientFactory     = httpClientFactory;
+        _tokenProtector        = dataProtectionProvider.CreateProtector(TokenProtectionPurpose);
+        _oauthClientProtector  = dataProtectionProvider.CreateProtector(OAuthClientProtectionPurpose);
+        _options               = options.Value;
+        _logger                = logger;
+    }
+
+    public async Task SaveGoogleClientCredentialsAsync(
+        Guid localUserId,
+        SaveGoogleClientCredentialsDto dto,
+        CancellationToken ct = default)
+    {
+        var clientId = dto.ClientId?.Trim() ?? string.Empty;
+        var clientSecret = dto.ClientSecret?.Trim() ?? string.Empty;
+        var redirectUri = string.IsNullOrWhiteSpace(dto.RedirectUri)
+            ? null
+            : dto.RedirectUri.Trim();
+
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new InvalidOperationException("Google Client ID is required.");
+        if (string.IsNullOrWhiteSpace(clientSecret))
+            throw new InvalidOperationException("Google Client Secret is required.");
+        if (redirectUri is not null && !Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
+            throw new InvalidOperationException("Redirect URI must be a valid absolute URL.");
+
+        var credential = new UserOAuthCredential
+        {
+            UserId = localUserId,
+            Provider = "Gmail",
+            ClientIdEncrypted = _oauthClientProtector.Protect(clientId),
+            ClientSecretEncrypted = _oauthClientProtector.Protect(clientSecret),
+            RedirectUriOverride = redirectUri,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        await _oauthCredentialRepo.UpsertAsync(credential, ct);
+    }
+
+    public async Task<GoogleClientCredentialsSummaryDto> GetGoogleClientCredentialsSummaryAsync(
+        Guid localUserId,
+        CancellationToken ct = default)
+    {
+        var credential = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
+        if (credential is null)
+        {
+            return new GoogleClientCredentialsSummaryDto
+            {
+                HasCredentials = false,
+                UsesCustomRedirectUri = false
+            };
+        }
+
+        string? decryptedClientId = null;
+        try
+        {
+            decryptedClientId = _oauthClientProtector.Unprotect(credential.ClientIdEncrypted);
+        }
+        catch
+        {
+            // Keep masked as null if decryption fails.
+        }
+
+        return new GoogleClientCredentialsSummaryDto
+        {
+            HasCredentials = true,
+            ClientIdMasked = MaskClientId(decryptedClientId),
+            UsesCustomRedirectUri = !string.IsNullOrWhiteSpace(credential.RedirectUriOverride),
+            RedirectUri = credential.RedirectUriOverride,
+            UpdatedAtUtc = credential.UpdatedAtUtc ?? credential.CreatedAtUtc
+        };
+    }
+
+    public async Task DeleteGoogleClientCredentialsAsync(
+        Guid localUserId,
+        CancellationToken ct = default)
+    {
+        await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
     }
 
     // ── GetGoogleLoginUrlAsync ────────────────────────────────────────────────────
@@ -56,7 +134,7 @@ public class EmailConnectionService : IEmailConnectionService
         Guid localUserId,
         CancellationToken ct = default)
     {
-        _options.Validate();
+        var oauthConfig = await ResolveOAuthConfigAsync(localUserId, ct);
 
         // 1. Generate cryptographically random raw state token (32 bytes → 43 chars base64url)
         var rawStateBytes = RandomNumberGenerator.GetBytes(32);
@@ -85,8 +163,8 @@ public class EmailConnectionService : IEmailConnectionService
         // 4. Build Google authorization URL
         var queryParams = new Dictionary<string, string>
         {
-            ["client_id"]     = _options.ClientId,
-            ["redirect_uri"]  = _options.RedirectUri,
+            ["client_id"]     = oauthConfig.ClientId,
+            ["redirect_uri"]  = oauthConfig.RedirectUri,
             ["response_type"] = "code",
             ["scope"]         = GmailScope,
             ["access_type"]   = "offline",
@@ -107,8 +185,6 @@ public class EmailConnectionService : IEmailConnectionService
         string state,
         CancellationToken ct = default)
     {
-        _options.Validate();
-
         // 1. Hash the returned state to look it up in DB
         var stateHash = ComputeSha256Hash(state);
 
@@ -129,6 +205,7 @@ public class EmailConnectionService : IEmailConnectionService
         await _stateRepo.SaveChangesAsync(ct);
 
         var localUserId = oauthState.UserId;
+        var oauthConfig = await ResolveOAuthConfigAsync(localUserId, ct);
 
         // 4. Exchange authorization code for tokens
         using var httpClient = _httpClientFactory.CreateClient();
@@ -136,9 +213,9 @@ public class EmailConnectionService : IEmailConnectionService
         var formData = new Dictionary<string, string>
         {
             ["code"]          = code,
-            ["client_id"]     = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
-            ["redirect_uri"]  = _options.RedirectUri,
+            ["client_id"]     = oauthConfig.ClientId,
+            ["client_secret"] = oauthConfig.ClientSecret,
+            ["redirect_uri"]  = oauthConfig.RedirectUri,
             ["grant_type"]    = "authorization_code",
         };
 
@@ -189,8 +266,8 @@ public class EmailConnectionService : IEmailConnectionService
             UserId                   = localUserId,
             Provider                 = "Gmail",
             EmailAddress             = emailAddress,
-            AccessTokenEncrypted     = _protector.Protect(tokens.AccessToken),
-            RefreshTokenEncrypted    = _protector.Protect(tokens.RefreshToken),
+            AccessTokenEncrypted     = _tokenProtector.Protect(tokens.AccessToken),
+            RefreshTokenEncrypted    = _tokenProtector.Protect(tokens.RefreshToken),
             AccessTokenExpiresAtUtc  = DateTime.UtcNow.AddSeconds(tokens.ExpiresIn - 30),
             CreatedAtUtc             = DateTime.UtcNow
         };
@@ -211,11 +288,18 @@ public class EmailConnectionService : IEmailConnectionService
         Guid localUserId,
         CancellationToken ct = default)
     {
+        var customCred = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
+        var hasCustomCred = customCred is not null;
         var connection = await _connectionRepo.GetByUserAndProviderAsync(
             localUserId, "Gmail", ct);
 
         if (connection is null)
-            return new EmailConnectionStatusDto { IsConnected = false, Provider = "Gmail" };
+            return new EmailConnectionStatusDto
+            {
+                IsConnected = false,
+                Provider = "Gmail",
+                HasCustomClientCredentials = hasCustomCred
+            };
 
         var isExpired = DateTime.UtcNow >= connection.AccessTokenExpiresAtUtc;
 
@@ -225,6 +309,7 @@ public class EmailConnectionService : IEmailConnectionService
             IsTokenValid = !isExpired, // Basic check: if not expired, we assume it's valid for now
             EmailAddress = connection.EmailAddress,
             Provider     = "Gmail",
+            HasCustomClientCredentials = hasCustomCred,
             ErrorMessage = isExpired ? "Access token expired. Verification required." : null
         };
     }
@@ -237,16 +322,22 @@ public class EmailConnectionService : IEmailConnectionService
 
     public async Task<EmailConnectionStatusDto> VerifyConnectionAsync(Guid localUserId, CancellationToken ct = default)
     {
+        var hasCustomCred = (await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct)) is not null;
         var connection = await _connectionRepo.GetByUserAndProviderAsync(
             localUserId, "Gmail", ct);
 
         if (connection is null)
-            return new EmailConnectionStatusDto { IsConnected = false, Provider = "Gmail" };
+            return new EmailConnectionStatusDto
+            {
+                IsConnected = false,
+                Provider = "Gmail",
+                HasCustomClientCredentials = hasCustomCred
+            };
 
         string? refreshToken;
         try
         {
-            refreshToken = _protector.Unprotect(connection.RefreshTokenEncrypted);
+            refreshToken = _tokenProtector.Unprotect(connection.RefreshTokenEncrypted);
         }
         catch (Exception ex)
         {
@@ -256,6 +347,7 @@ public class EmailConnectionService : IEmailConnectionService
                 IsConnected = true, 
                 IsTokenValid = false, 
                 EmailAddress = connection.EmailAddress,
+                HasCustomClientCredentials = hasCustomCred,
                 ErrorMessage = "Failed to decrypt tokens. Please reconnect."
             };
         }
@@ -269,6 +361,7 @@ public class EmailConnectionService : IEmailConnectionService
             IsTokenValid = refreshResult.Success,
             EmailAddress = connection.EmailAddress,
             Provider     = "Gmail",
+            HasCustomClientCredentials = hasCustomCred,
             ErrorMessage = refreshResult.ErrorMessage
         };
     }
@@ -278,13 +371,14 @@ public class EmailConnectionService : IEmailConnectionService
         UserEmailConnection connection,
         CancellationToken ct)
     {
+        var oauthConfig = await ResolveOAuthConfigAsync(connection.UserId, ct);
         using var httpClient = _httpClientFactory.CreateClient();
 
         var formData = new Dictionary<string, string>
         {
             ["grant_type"]    = "refresh_token",
-            ["client_id"]     = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
+            ["client_id"]     = oauthConfig.ClientId,
+            ["client_secret"] = oauthConfig.ClientSecret,
             ["refresh_token"] = refreshToken,
         };
 
@@ -303,7 +397,7 @@ public class EmailConnectionService : IEmailConnectionService
             if (tokens == null) return new RefreshResult(false, "Invalid response from Google.");
 
             // Update connection with new access token
-            connection.AccessTokenEncrypted    = _protector.Protect(tokens.AccessToken);
+            connection.AccessTokenEncrypted    = _tokenProtector.Protect(tokens.AccessToken);
             connection.AccessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokens.ExpiresIn - 30);
             connection.UpdatedAtUtc            = DateTime.UtcNow;
             
@@ -319,6 +413,54 @@ public class EmailConnectionService : IEmailConnectionService
     }
 
     private record RefreshResult(bool Success, string? ErrorMessage);
+
+    private async Task<ResolvedOAuthConfig> ResolveOAuthConfigAsync(Guid localUserId, CancellationToken ct)
+    {
+        var customCredential = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
+        if (customCredential is not null)
+        {
+            try
+            {
+                var clientId = _oauthClientProtector.Unprotect(customCredential.ClientIdEncrypted);
+                var clientSecret = _oauthClientProtector.Unprotect(customCredential.ClientSecretEncrypted);
+                var redirectUri = string.IsNullOrWhiteSpace(customCredential.RedirectUriOverride)
+                    ? _options.RedirectUri
+                    : customCredential.RedirectUriOverride!.Trim();
+
+                ValidateResolvedOAuthConfig(clientId, clientSecret, redirectUri);
+                return new ResolvedOAuthConfig(clientId, clientSecret, redirectUri);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "EmailConnectionService — failed to decrypt custom OAuth credentials for user {UserId}. Falling back to global OAuth config.",
+                    localUserId);
+            }
+        }
+
+        _options.Validate();
+        return new ResolvedOAuthConfig(_options.ClientId, _options.ClientSecret, _options.RedirectUri);
+    }
+
+    private static void ValidateResolvedOAuthConfig(string clientId, string clientSecret, string redirectUri)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new InvalidOperationException("Resolved Google OAuth Client ID is empty.");
+        if (string.IsNullOrWhiteSpace(clientSecret))
+            throw new InvalidOperationException("Resolved Google OAuth Client Secret is empty.");
+        if (string.IsNullOrWhiteSpace(redirectUri) || !Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
+            throw new InvalidOperationException("Resolved Google OAuth Redirect URI is invalid.");
+    }
+
+    private static string? MaskClientId(string? clientId)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            return null;
+        if (clientId.Length <= 8)
+            return "****";
+        return $"{clientId[..4]}...{clientId[^4..]}";
+    }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -369,6 +511,11 @@ public class EmailConnectionService : IEmailConnectionService
     }
 
     // ── Internal response DTOs ────────────────────────────────────────────────────
+
+    private sealed record ResolvedOAuthConfig(
+        string ClientId,
+        string ClientSecret,
+        string RedirectUri);
 
     private sealed class TokenExchangeResponse
     {

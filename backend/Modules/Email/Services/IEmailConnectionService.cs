@@ -35,4 +35,17 @@ public interface IEmailConnectionService
     /// Returns the updated status.
     /// </summary>
     Task<EmailConnectionStatusDto> VerifyConnectionAsync(Guid localUserId, CancellationToken ct = default);
+
+    Task SaveGoogleClientCredentialsAsync(
+        Guid localUserId,
+        SaveGoogleClientCredentialsDto dto,
+        CancellationToken ct = default);
+
+    Task<GoogleClientCredentialsSummaryDto> GetGoogleClientCredentialsSummaryAsync(
+        Guid localUserId,
+        CancellationToken ct = default);
+
+    Task DeleteGoogleClientCredentialsAsync(
+        Guid localUserId,
+        CancellationToken ct = default);
 }

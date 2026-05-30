@@ -1,15 +1,11 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
-import { onboardingGuard, alreadyOnboardedGuard } from './core/guards/onboarding.guard';
+import { onboardingGuard, alreadyOnboardedGuard }from './core/guards/onboarding.guard';
 import { MainLayoutComponent } from './core/layout/main-layout/main-layout.component';
 
 // Features (Shells)
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { OnboardingComponent } from './features/onboarding/onboarding.component';
-import { ApplicationsComponent } from './features/applications/applications.component';
-import { OffersComponent } from './features/offers/offers.component';
-import { EmailWorkspaceComponent } from './features/candidatures/email-workspace/email-workspace.component';
-import { GmailSettingsComponent } from './features/settings/gmail-settings/gmail-settings.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'offers', pathMatch: 'full' },
@@ -33,8 +29,25 @@ export const routes: Routes = [
         loadComponent: () => import('./features/profile/profile.component').then(m => m.UserProfileComponent)
       },
       { path: 'dashboard', component: DashboardComponent, canActivate: [onboardingGuard] },
+      {
+        path: 'offers/analyze',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offer-pipeline.component').then(m => m.OfferPipelineComponent)
+      },
+      {
+        path: 'offers/company-analysis',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent)
+      },
+      {
+        path: 'offers/:id',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/offers/offer-detail.component').then(m => m.OfferDetailComponent)
+      },
       { 
         path: 'offers', 
+        pathMatch: 'full',
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
       },
       { 
@@ -59,12 +72,18 @@ export const routes: Routes = [
       },
       { 
         path: 'applications', 
+        canActivate: [onboardingGuard],
         loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
       },
       {
         path: 'applications/:candidatureId/email',
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/candidatures/email-workspace/email-workspace.component').then(m => m.EmailWorkspaceComponent)
+      },
+      {
+        path: 'applications/:candidatureId/emails',
+        pathMatch: 'full',
+        redirectTo: '/applications/:candidatureId/email'
       },
       { 
         path: 'company-intel', 
@@ -91,15 +110,6 @@ export const routes: Routes = [
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
       },
-      {
-        path: 'email/settings',
-        component: GmailSettingsComponent
-      },
-      {
-        path: 'email-test',
-        loadComponent: () => import('./features/email-test/email-test.component').then(m => m.EmailTestComponent)
-      },
     ]
   },
-  { path: '**', redirectTo: 'dashboard' }
 ];

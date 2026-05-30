@@ -2,8 +2,10 @@ import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import { PipelineStateService } from '../../../../services/pipeline-state.service';
+import { CandidatureService } from '../../../../services/candidature.service';
+import { EmailService } from '../../../../services/email.service';
 import {
   CvHistoryItem,
   EmailDraftResponse,
@@ -21,6 +23,8 @@ import {
 export class StepResultsComponent implements OnInit, OnDestroy {
   readonly pipeline = inject(PipelineStateService);
   private readonly api = inject(OfferApiService);
+  private readonly candidatureService = inject(CandidatureService);
+  private readonly emailService = inject(EmailService);
   private readonly sanitizer = inject(DomSanitizer);
   private previewBlobUrl: string | null = null;
 
@@ -35,6 +39,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   sendError: string | null = null;
   sendSuccessMessage: string | null = null;
   lastSentDraft: EmailDraftResponse | null = null;
+  isGeneratingDraft = false;
 
   get result() {
     return this.pipeline.pipelineResult();
@@ -46,6 +51,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
 
   get canSend(): boolean {
     return !this.isSendingEmail
+      && !this.isGeneratingDraft
       && !!this.pipeline.currentOfferId()
       && !!this.recipientEmail.trim()
       && !!this.emailSubject.trim()
@@ -54,7 +60,10 @@ export class StepResultsComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     this.hydrateEmailFields();
-    await this.loadFinalCvPreview();
+    await Promise.all([
+      this.loadFinalCvPreview(),
+      this.hydrateEmailFromBackend()
+    ]);
   }
 
   ngOnDestroy(): void {
@@ -81,7 +90,9 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         throw new Error('Le CV final n a pas encore ete sauvegarde.');
       }
 
-      const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
+      const fileBlob = await firstValueFrom(
+        this.api.downloadCvHistoryFile(target.id).pipe(timeout(30000))
+      );
       this.downloadBlob(fileBlob, offerId);
     } catch (err: any) {
       this.previewError = err?.message || 'Telechargement indisponible pour le moment.';
@@ -158,6 +169,63 @@ export class StepResultsComponent implements OnInit, OnDestroy {
     return `${recruiter},\n\nJe vous contacte pour vous transmettre ma candidature pour ${role} chez ${company}. Vous trouverez mon CV en piece jointe.\n\nJe reste a votre disposition pour un echange.\n\nCordialement,`;
   }
 
+  private async hydrateEmailFromBackend(): Promise<void> {
+    const offerId = this.pipeline.currentOfferId();
+    if (!offerId) {
+      return;
+    }
+
+    this.isGeneratingDraft = true;
+    try {
+      const candidatures = await firstValueFrom(
+        this.candidatureService.getMyCandidatures().pipe(timeout(15000))
+      );
+      let linkedCandidature = candidatures.find(
+        (c) => c.idOffre?.toLowerCase() === offerId.toLowerCase()
+      );
+      if (!linkedCandidature) {
+        try {
+          linkedCandidature = await firstValueFrom(
+            this.candidatureService.create({ idOffre: offerId, inclureLettreMotivation: true }).pipe(timeout(10000))
+          );
+        } catch (createErr) {
+          console.warn('[CV-PIPELINE] Failed to create missing candidature', createErr);
+          return;
+        }
+      }
+
+      if (!linkedCandidature) {
+        return;
+      }
+
+      const generatedDraft = await firstValueFrom(
+        this.emailService.generateDraft({
+          candidatureId: linkedCandidature.idCandidature,
+          emailType: 'application',
+          language: 'fr',
+          tone: 'professionnel',
+        }).pipe(timeout(30000))
+      );
+
+      this.recipientEmail = (generatedDraft.recipientEmail ?? this.recipientEmail).trim();
+      this.emailSubject = generatedDraft.subject?.trim() || this.emailSubject;
+      this.emailBody = generatedDraft.body?.trim() || this.emailBody;
+
+      const result = this.result;
+      if (result) {
+        this.pipeline.setResult({
+          ...result,
+          emailSubject: this.emailSubject,
+          emailBody: this.emailBody,
+        });
+      }
+    } catch (err) {
+      console.warn('[CV-PIPELINE] Email generation from backend failed. Keeping local fallback.', err);
+    } finally {
+      this.isGeneratingDraft = false;
+    }
+  }
+
   private async loadFinalCvPreview(): Promise<void> {
     const offerId = this.pipeline.currentOfferId();
     if (!offerId) {
@@ -174,7 +242,9 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
+      const fileBlob = await firstValueFrom(
+        this.api.downloadCvHistoryFile(target.id).pipe(timeout(30000))
+      );
       if (this.previewBlobUrl) {
         window.URL.revokeObjectURL(this.previewBlobUrl);
       }
@@ -190,7 +260,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   }
 
   private async findLatestCvForOffer(offerId: string): Promise<CvHistoryItem | undefined> {
-    const history = await firstValueFrom(this.api.getCvHistory());
+    const history = await firstValueFrom(this.api.getCvHistory().pipe(timeout(15000)));
     const expectedTitle = this.pipeline.finalCvTitle() ?? `CV_${offerId}`;
     return history
       .filter((item) => item.title === expectedTitle)

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Email.DTOs;
@@ -11,21 +11,70 @@ namespace NextStep.Modules.Email.Controllers;
 [Route("api/email-connections")]
 public class EmailConnectionsController : ControllerBase
 {
+    private const string FrontendBaseUrlConfigKey = "App:FrontendBaseUrl";
+
     private readonly IEmailConnectionService _connectionService;
     private readonly IUserRepository _userRepository;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<EmailConnectionsController> _logger;
 
     public EmailConnectionsController(
         IEmailConnectionService connectionService,
         IUserRepository userRepository,
+        IConfiguration configuration,
         ILogger<EmailConnectionsController> logger)
     {
         _connectionService = connectionService;
         _userRepository    = userRepository;
+        _configuration     = configuration;
         _logger            = logger;
     }
+    [HttpPost("google/credentials")]
+    [Authorize]
+    public async Task<IActionResult> SaveGoogleCredentials(
+        [FromBody] SaveGoogleClientCredentialsDto dto,
+        CancellationToken cancellationToken)
+    {
+        var localUserId = await ResolveLocalUserIdAsync();
+        if (localUserId is null)
+            return StatusCode(403, "User not found in local database.");
 
-    // ── GET /api/email-connections/google/login ───────────────────────────────────
+        try
+        {
+            await _connectionService.SaveGoogleClientCredentialsAsync(localUserId.Value, dto, cancellationToken);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("google/credentials")]
+    [Authorize]
+    public async Task<ActionResult<GoogleClientCredentialsSummaryDto>> GetGoogleCredentialsSummary(
+        CancellationToken cancellationToken)
+    {
+        var localUserId = await ResolveLocalUserIdAsync();
+        if (localUserId is null)
+            return StatusCode(403, "User not found in local database.");
+
+        var summary = await _connectionService.GetGoogleClientCredentialsSummaryAsync(localUserId.Value, cancellationToken);
+        return Ok(summary);
+    }
+
+    [HttpDelete("google/credentials")]
+    [Authorize]
+    public async Task<IActionResult> DeleteGoogleCredentials(CancellationToken cancellationToken)
+    {
+        var localUserId = await ResolveLocalUserIdAsync();
+        if (localUserId is null)
+            return StatusCode(403, "User not found in local database.");
+
+        await _connectionService.DeleteGoogleClientCredentialsAsync(localUserId.Value, cancellationToken);
+        return NoContent();
+    }
+    // GET /api/email-connections/google/login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>
     /// Initiates the Gmail OAuth flow for the current authenticated user.
@@ -49,12 +98,11 @@ public class EmailConnectionsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "EmailConnections — failed to build Google login URL for user {UserId}", localUserId);
+            _logger.LogError(ex, "EmailConnections â€” failed to build Google login URL for user {UserId}", localUserId);
             return StatusCode(500, $"Configuration error: {ex.Message}");
         }
     }
-
-    // ── GET /api/email-connections/google/login-url ────────────────────────────────
+    // GET /api/email-connections/google/login-url â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>
     /// Initiates the Gmail OAuth flow for the current authenticated user.
@@ -77,12 +125,12 @@ public class EmailConnectionsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "EmailConnections — failed to build Google login URL for user {UserId}", localUserId);
+            _logger.LogError(ex, "EmailConnections â€” failed to build Google login URL for user {UserId}", localUserId);
             return StatusCode(500, $"Configuration error: {ex.Message}");
         }
     }
 
-    // ── GET /api/email-connections/google/callback ────────────────────────────────
+    // â”€â”€ GET /api/email-connections/google/callback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>
     /// Handles the Google OAuth redirect callback.
@@ -105,22 +153,23 @@ public class EmailConnectionsController : ControllerBase
         {
             await _connectionService.HandleGoogleCallbackAsync(code, state, cancellationToken);
 
-            // Redirect to the frontend test page after successful connection.
-            return Redirect("http://localhost:4200/email-test");
+            return Redirect(BuildFrontendOAuthRedirectUrl(success: true));
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "EmailConnections — OAuth callback failed");
-            return BadRequest(new { error = ex.Message });
+            _logger.LogWarning(ex, "EmailConnections â€” OAuth callback failed");
+            return Redirect(BuildFrontendOAuthRedirectUrl(success: false, error: ex.Message));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "EmailConnections — unexpected error in OAuth callback");
-            return StatusCode(500, "An unexpected error occurred during Gmail connection.");
+            _logger.LogError(ex, "EmailConnections â€” unexpected error in OAuth callback");
+            return Redirect(BuildFrontendOAuthRedirectUrl(
+                success: false,
+                error: "An unexpected error occurred during Gmail connection."));
         }
     }
 
-    // ── GET /api/email-connections/status ─────────────────────────────────────────
+    // â”€â”€ GET /api/email-connections/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>
     /// Returns the current Gmail connection status for the authenticated user.
@@ -138,7 +187,7 @@ public class EmailConnectionsController : ControllerBase
         return Ok(status);
     }
 
-    // ── DELETE /api/email-connections ─────────────────────────────────────────────
+    // â”€â”€ DELETE /api/email-connections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     
     /// <summary>
     /// Disconnects the Gmail account for the authenticated user.
@@ -155,7 +204,7 @@ public class EmailConnectionsController : ControllerBase
         return NoContent();
     }
 
-    // ── POST /api/email-connections/verify ────────────────────────────────────────
+    // â”€â”€ POST /api/email-connections/verify â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>
     /// Deep-verifies the Gmail connection by trying to refresh tokens.
@@ -172,7 +221,7 @@ public class EmailConnectionsController : ControllerBase
         return Ok(status);
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────────
+    // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private async Task<Guid?> ResolveLocalUserIdAsync()
     {
@@ -181,7 +230,7 @@ public class EmailConnectionsController : ControllerBase
         
         if (string.IsNullOrWhiteSpace(keycloakId))
         {
-            _logger.LogWarning("EmailConnections — No 'sub' or 'NameIdentifier' claim found in token.");
+            _logger.LogWarning("EmailConnections â€” No 'sub' or 'NameIdentifier' claim found in token.");
             return null;
         }
 
@@ -189,9 +238,27 @@ public class EmailConnectionsController : ControllerBase
         
         if (user == null)
         {
-            _logger.LogWarning("EmailConnections — User with Keycloak ID {KeycloakId} not found in local database.", keycloakId);
+            _logger.LogWarning("EmailConnections â€” User with Keycloak ID {KeycloakId} not found in local database.", keycloakId);
         }
 
         return user?.Id;
     }
+
+    private string BuildFrontendOAuthRedirectUrl(bool success, string? error = null)
+    {
+        var baseUrl = _configuration[FrontendBaseUrlConfigKey];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            baseUrl = "http://localhost:4200";
+        }
+
+        var normalizedBase = baseUrl.TrimEnd('/');
+        var status = success ? "success" : "error";
+        var encodedError = string.IsNullOrWhiteSpace(error)
+            ? string.Empty
+            : $"&gmailError={Uri.EscapeDataString(error)}";
+
+        return $"{normalizedBase}/settings?section=gmail&gmailOAuth={status}{encodedError}";
+    }
 }
+

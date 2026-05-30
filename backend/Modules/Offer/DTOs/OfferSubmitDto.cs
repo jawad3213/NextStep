@@ -17,5 +17,5 @@ public class OfferSubmitDto
     public string? Entreprise { get; set; }
 
     /// <summary>ID du template CV choisi.</summary>
-    public string TemplateId { get; set; } = "standard";
+    public int TemplateId { get; set; } = 1;
 }

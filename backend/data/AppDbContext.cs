@@ -24,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CvTemplate> CvTemplates => Set<CvTemplate>();
     public DbSet<CvHistory> CvHistories => Set<CvHistory>();
     public DbSet<UserEmailConnection> UserEmailConnections => Set<UserEmailConnection>();
+    public DbSet<UserOAuthCredential> UserOAuthCredentials => Set<UserOAuthCredential>();
     public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
     public DbSet<DocumentGenere> DocumentsGeneres => Set<DocumentGenere>();
     public DbSet<SourcedOffer> SourcedOffers => Set<SourcedOffer>();
@@ -256,6 +257,49 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.Property(e => e.AccessTokenExpiresAtUtc)
                 .HasColumnName("access_token_expire_utc");
+
+            entity.Property(e => e.CreatedAtUtc)
+                .HasColumnName("date_creation")
+                .HasDefaultValueSql("now()");
+
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasColumnName("date_modification");
+
+            entity.HasIndex(e => new { e.UserId, e.Provider })
+                .IsUnique();
+        });
+
+        // ─── UserOAuthCredential ───
+        modelBuilder.Entity<UserOAuthCredential>(entity =>
+        {
+            entity.ToTable("user_oauth_credential");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("id_utilisateur")
+                .IsRequired();
+
+            entity.Property(e => e.Provider)
+                .HasColumnName("provider")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.ClientIdEncrypted)
+                .HasColumnName("client_id_chiffre")
+                .IsRequired();
+
+            entity.Property(e => e.ClientSecretEncrypted)
+                .HasColumnName("client_secret_chiffre")
+                .IsRequired();
+
+            entity.Property(e => e.RedirectUriOverride)
+                .HasColumnName("redirect_uri_override")
+                .HasMaxLength(1000);
 
             entity.Property(e => e.CreatedAtUtc)
                 .HasColumnName("date_creation")

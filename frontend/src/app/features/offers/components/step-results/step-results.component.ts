@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +12,7 @@ import {
 } from '../../services/offer-api.service';
 import { CandidatureService } from '../../../../services/candidature.service';
 import { EmailService } from '../../../../services/email.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-step-results',
@@ -26,6 +27,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly candidatureService = inject(CandidatureService);
   private readonly emailService = inject(EmailService);
+  private readonly router = inject(Router);
   private previewBlobUrl: string | null = null;
 
   cvPreviewUrl: SafeResourceUrl | null = null;
@@ -275,4 +277,28 @@ export class StepResultsComponent implements OnInit, OnDestroy {
     document.body.removeChild(anchor);
     setTimeout(() => globalThis.URL.revokeObjectURL(blobUrl), 30000);
   }
+
+  startInterview(): void {
+    const offerId = this.pipeline.currentOfferId();
+    const result = this.result;
+    if (!offerId || !result) return;
+    const config = {
+      offer_id: offerId,
+      job_title: result.offerTitle || 'Offre',
+      company: result.companyName || 'Entreprise',
+      domain: 'software',
+      level: 'senior',
+      duration_minutes: 20,
+      language: 'fr',
+      focus_areas: result.requiredSkills || []
+    };
+    this.pipeline.closeFlow();
+    this.router.navigate(['/chatbot'], {
+      state: {
+        preselectedMode: 'offer',
+        offerConfig: config
+      }
+    });
+  }
 }
+

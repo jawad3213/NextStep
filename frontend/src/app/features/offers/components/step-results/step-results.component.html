@@ -1,4 +1,4 @@
-<div class="step-content">
+﻿<div class="step-content">
   <div class="success-banner">
     <div class="icon-circle">5</div>
     <div>
@@ -53,7 +53,7 @@
 
         <label class="composer-field composer-field-body">
           <span>Message</span>
-          <textarea rows="12" [(ngModel)]="emailBody" [disabled]="isLoadingEmailDraft" [placeholder]="isLoadingEmailDraft ? 'Génération de l\'email par l\'IA...' : ''"></textarea>
+          <textarea rows="12" [(ngModel)]="emailBody" [disabled]="isLoadingEmailDraft" [placeholder]="isLoadingEmailDraft ? 'GÃ©nÃ©ration de l\'email par l\'IA...' : ''"></textarea>
         </label>
 
         @if (isGeneratingDraft) {
@@ -95,6 +95,11 @@
   </div>
 
   <div class="step-actions">
-    <button class="btn-secondary" type="button" (click)="finish()">Close flow</button>
+    <button class="btn-secondary" type="button" (click)="startInterview()">
+      <span class="material-symbols-outlined" style="font-size: 16px;">rocket_launch</span>
+      S'entraÃ®ner pour l'entretien (IA Recruteur)
+    </button>
+    <button class="btn-primary" type="button" (click)="finish()">Terminer & Retour au Dashboard</button>
   </div>
 </div>
+

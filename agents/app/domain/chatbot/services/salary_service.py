@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.domain.chatbot.graph import interview_graph
 from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
 from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement, ChatMessage,
+    SessionCoaching, QuestionEntrainement,
 )
 from app.domain.chatbot.state import (
     InterviewPrepState, ArenaConfig, MessageTurn,
@@ -41,7 +41,7 @@ from app.domain.chatbot.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns
+from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
 
 # SERVICE 6 — SALARY COACH (Tab 3)
 async def get_salary_service(
@@ -72,26 +72,7 @@ async def get_salary_service(
     from app.domain.chatbot.state import SalaryResult
     salary: SalaryResult | None = result.get("salary")
 
-    # Sauvegarder dans chat_message (type = salary)
-    try:
-        summary = (
-            f"Salary analysis: {salary.range_min}–{salary.range_max} {salary.currency}"
-            if salary else "Salary analysis requested"
-        )
-        cand_id = await get_candidature_id(offer_id, user_id, db)
-        db.add(ChatMessage(
-            thread_id=thread_id,
-            id_utilisateur=uuid.UUID(user_id) if user_id else None,
-            id_candidature=cand_id,
-            chat_type="salary",
-            sender="ai",
-            content=summary,
-        ))
-        await db.commit()
 
-    except Exception as e:
-        logger.error(f"DB save salary error: {e}")
-        await db.rollback()
 
     if not salary:
         return SalaryResponse(

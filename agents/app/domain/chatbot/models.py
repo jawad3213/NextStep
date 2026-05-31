@@ -54,7 +54,6 @@ class SessionCoaching(Base):
 
     # Relations
     questions    = relationship("QuestionEntrainement", back_populates="session", cascade="all, delete-orphan")
-    chat_messages = relationship("ChatMessage", back_populates="session")
 
 
 class QuestionEntrainement(Base):
@@ -75,24 +74,6 @@ class QuestionEntrainement(Base):
 
     # Relation
     session = relationship("SessionCoaching", back_populates="questions")
-
-
-class ChatMessage(Base):
-    __tablename__ = "chat_message"
-
-    id             = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    thread_id      = Column(UUID(as_uuid=True), nullable=False)
-    id_utilisateur = Column(UUID(as_uuid=True), nullable=True)
-    id_session     = Column(UUID(as_uuid=True), ForeignKey("session_coaching.id_session", ondelete="CASCADE"), nullable=True)
-    id_candidature = Column(UUID(as_uuid=True), nullable=True)
-
-    chat_type  = Column(String(20), nullable=False)  # questions | salary | interview
-    sender     = Column(String(10), nullable=False)  # user | ai
-    content    = Column(Text,       nullable=False)
-    created_at = Column(DateTime,   default=datetime.utcnow)
-
-    # Relation
-    session = relationship("SessionCoaching", back_populates="chat_messages")
 
 
 

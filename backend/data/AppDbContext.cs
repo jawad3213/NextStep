@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using NextStep.Modules.Candidature.Models;
 using NextStep.Modules.Cv.Models;
 using NextStep.Modules.Email.Models;
@@ -6,6 +6,7 @@ using NextStep.Modules.Offer.Models;
 using NextStep.Modules.Identity.Models;
 using NextStep.Modules.Profile.Models;
 using NextStep.Modules.Sourcing.Models;
+using NextStep.Modules.Chatbot.Models;
 
 namespace NextStep.data;
 
@@ -29,6 +30,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DocumentGenere> DocumentsGeneres => Set<DocumentGenere>();
     public DbSet<SourcedOffer> SourcedOffers => Set<SourcedOffer>();
     public DbSet<ScrapeSession> ScrapeSessions => Set<ScrapeSession>();
+    
+    public DbSet<SessionCoaching> SessionCoachings { get; set; }
+    public DbSet<QuestionEntrainement> QuestionEntrainements { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,7 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.HasDefaultSchema("public");
 
-        // ─── OffreEmploi ───
+        // â”€â”€â”€ OffreEmploi â”€â”€â”€
         modelBuilder.Entity<OffreEmploi>(entity =>
         {
             entity.ToTable("offres_emploi");
@@ -62,7 +66,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasDefaultValueSql("now()");
         });
 
-        // ─── Candidature ───
+        // â”€â”€â”€ Candidature â”€â”€â”€
         modelBuilder.Entity<Candidature>(entity =>
         {
             entity.ToTable("candidature");
@@ -142,7 +146,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ─── EmailDraft ───
+        // â”€â”€â”€ EmailDraft â”€â”€â”€
         modelBuilder.Entity<EmailDraft>(entity =>
         {
             entity.ToTable("email_draft");
@@ -428,7 +432,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasColumnName("updated_at");
         });
 
-        // ─── CvHistory ───
+        // â”€â”€â”€ CvHistory â”€â”€â”€
         modelBuilder.Entity<CvHistory>(entity =>
         {
             entity.ToTable("cv_history");
@@ -733,3 +737,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         });
     }
 }
+
+
+

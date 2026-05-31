@@ -385,3 +385,25 @@
     transform: rotate(360deg);
   }
 }
+
+.btn-secondary {
+  padding: 10px 24px;
+  background: white;
+  color: vars.$color-text-primary;
+  border: 1px solid vars.$color-border-default;
+  border-radius: vars.$radius-md;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all vars.$duration-default;
+  margin-right: 12px; // spacing between the primary and secondary button!
+
+  &:hover {
+    background: vars.$color-bg-input;
+    border-color: vars.$color-border-strong;
+    color: vars.$color-info;
+  }
+}

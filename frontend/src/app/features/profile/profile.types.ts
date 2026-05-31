@@ -36,7 +36,7 @@ export interface Experience {
   startDate: string;
   endDate: string;
   current: boolean;
-  type: 'Internship' | 'Apprenticeship' | 'CDI' | 'CDD' | 'Freelance' | 'PFA' | 'PFE' | 'Extracurricular';
+  type: 'Stage' | 'Alternance' | 'CDI' | 'CDD' | 'Freelance' | 'PFA' | 'PFE' | 'Internship' | 'Extracurricular';
   description: string;
   taches: string[];
 }
@@ -88,8 +88,8 @@ export interface Profile {
     competences?: string;
     projets?: string;
     certifications?: string;
-    extraCurricular?: string;
     languages?: string;
+    extraCurricular?: string;
   };
 }
 
@@ -119,8 +119,7 @@ export const EXPERIENCE_TYPE_LABELS: Record<string, string> = {
   'CDD': 'Fixed-term (CDD)',
   'Freelance': 'Freelance',
   'PFA': 'Academic Project (PFA)',
-  'PFE': 'Graduation Project (PFE)',
-  'Extracurricular': 'Extracurricular'
+  'PFE': 'Graduation Project (PFE)'
 };
 
 export const DEGREE_LABELS: Record<string, string> = {

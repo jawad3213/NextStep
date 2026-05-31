@@ -32,6 +32,8 @@ class OfferData(BaseModel):
     tech_stack: list[str] = []
     experience_years: int = 0
     raw_text: str = ""
+    location: str = ""
+    contract_type: str = ""
  
  
 class CompanyData(BaseModel):
@@ -156,6 +158,7 @@ class InterviewPrepState(BaseModel):
     # ── Contexte selon le mode ────────────────────────────────
     offer_context: Optional[OfferContext] = None  # mode offer seulement
     arena_config: Optional[ArenaConfig] = None    # mode arena seulement
+    chat_type: Optional[str] = None
  
     # ── Messages — s'accumulent grâce à operator.add ─────────
     # NOTE: Pydantic + LangGraph → on gère l'accumulation manuellement

@@ -2,7 +2,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 import { ANALYSIS_STEPS, MOCK_OFFERS, OfferCard } from './offers-data';
 import { OfferApiService } from './services/offer-api.service';
@@ -29,6 +29,7 @@ import { OfferApiService } from './services/offer-api.service';
 export class OffersComponent implements OnInit {
   readonly steps = ANALYSIS_STEPS;
   private readonly offerApi = inject(OfferApiService);
+  private readonly router = inject(Router);
   readonly offers = signal<OfferCard[]>([]);
 
   readonly searchTerm = signal('');
@@ -192,6 +193,53 @@ export class OffersComponent implements OnInit {
     if (offer.expired) return null;
     if (offer.currentStep <= 4) return { label: 'Continuer', link: '/offers/analyze', queryParams: { offerId: offer.id } };
     return { label: 'Voir les résultats', link: '/offers/analyze', queryParams: { offerId: offer.id, step: 'results' } };
+  }
+
+  prepareInterview(event: Event, offer: OfferCard): void {
+    event.stopPropagation();
+    
+    // Smart dynamic detection based on job title
+    const t = offer.title.toLowerCase();
+    
+    let level: 'junior' | 'mid' | 'senior' = 'mid';
+    if (t.includes('stage') || t.includes('pfe') || t.includes('pfa') || t.includes('junior') || t.includes('alternance') || t.includes('intern') || t.includes('stagiaire')) {
+      level = 'junior';
+    } else if (t.includes('senior') || t.includes('lead') || t.includes('principal') || t.includes('architect') || t.includes('expert')) {
+      level = 'senior';
+    }
+
+    let domain = 'software';
+    if (t.includes('data') || t.includes('ai') || t.includes('ia') || t.includes('ml') || t.includes('intelligence') || t.includes('machine learning') || t.includes('automation') || t.includes('automatisation')) {
+      domain = 'data';
+    } else if (t.includes('design') || t.includes('ux') || t.includes('ui')) {
+      domain = 'design';
+    } else if (t.includes('product') || t.includes('produit')) {
+      domain = 'product';
+    } else if (t.includes('finance') || t.includes('financier')) {
+      domain = 'finance';
+    } else if (t.includes('sales') || t.includes('ventes') || t.includes('commercial')) {
+      domain = 'sales';
+    } else if (t.includes('consulting') || t.includes('consultant')) {
+      domain = 'consulting';
+    }
+
+    const config = {
+      offer_id: offer.id,
+      job_title: offer.title,
+      company: offer.company,
+      domain: domain,
+      level: level,
+      duration_minutes: 20,
+      language: 'fr',
+      focus_areas: ['Algorithms', 'Behavioral']
+    };
+
+    this.router.navigate(['/chatbot'], {
+      state: {
+        preselectedMode: 'offer',
+        offerConfig: config
+      }
+    });
   }
 
   getRecencyLabel(date: Date): string {

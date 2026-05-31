@@ -132,6 +132,11 @@ export const routes: Routes = [
         canActivate: [onboardingGuard],
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
       },
+      { 
+        path: 'email/settings', 
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/settings/gmail-settings/gmail-settings.component').then(m => m.GmailSettingsComponent) 
+      },
     ]
   },
 ];

@@ -76,7 +76,13 @@ public class CheckEmailRepliesJob
             }
 
             // ── 2a. Cooldown check ─────────────────────────────────────────────
-            if (candidature.LastCheckedAtUtc.HasValue &&
+            var needsReclassification =
+                candidature.HasResponse &&
+                string.Equals(candidature.ResponseStatus, "REPONSE_RECUE", StringComparison.OrdinalIgnoreCase) &&
+                (!candidature.ResponseConfidence.HasValue || candidature.ResponseConfidence.Value <= 0.01);
+
+            if (!needsReclassification &&
+                candidature.LastCheckedAtUtc.HasValue &&
                 DateTime.UtcNow - candidature.LastCheckedAtUtc.Value < CooldownPeriod)
             {
                 _logger.LogDebug(

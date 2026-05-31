@@ -13,6 +13,8 @@
 # ============================================================
 import os
 import logging
+import json
+import re
 from langchain_core.prompts import ChatPromptTemplate
 
 from .llm import get_email_llm
@@ -59,6 +61,31 @@ _SUBJECT_ALIASES = {"subject", "objet", "sujet", "object", "titre", "title"}
 _BODY_ALIASES    = {"body", "corps", "contenu", "message", "texte", "content", "email_body", "email"}
 _LANG_ALIASES    = {"language", "langue", "lang"}
 _TONE_ALIASES    = {"tone", "ton", "style"}
+_CLASSIFY_TYPE_ALIASES = {
+    "INTERVIEW_PROPOSED": "ENTRETIEN_PROPOSE",
+    "INTERVIEW_SCHEDULED": "ENTRETIEN_PROPOSE",
+    "ENTRETIEN": "ENTRETIEN_PROPOSE",
+    "INTERVIEW": "ENTRETIEN_PROPOSE",
+    "MORE_INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
+    "INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
+    "INFORMATION_DEMANDEE": "INFORMATIONS_DEMANDEES",
+    "INFORMATIONS_DEMANDEE": "INFORMATIONS_DEMANDEES",
+    "ACCEPTED": "ACCEPTE",
+    "REJECTED": "REFUSE",
+    "AUTO_REPLY": "REPONSE_AUTOMATIQUE",
+    "AUTOREPLY": "REPONSE_AUTOMATIQUE",
+    "GENERAL_REPLY": "REPONSE_GENERALE",
+    "UNKNOWN": "INCONNU",
+}
+_VALID_CLASSIFY_TYPES = {
+    "ENTRETIEN_PROPOSE",
+    "INFORMATIONS_DEMANDEES",
+    "ACCEPTE",
+    "REFUSE",
+    "REPONSE_AUTOMATIQUE",
+    "REPONSE_GENERALE",
+    "INCONNU",
+}
 
 
 def _coerce_email_response(raw, options_language: str = "fr", options_tone: str = "professionnel") -> GenerateEmailResponse:
@@ -122,6 +149,124 @@ def _truncate(text: str | None, max_chars: int = 2000) -> str:
 
 def _safe(value: str | None) -> str:
     return value or "Non spécifié"
+
+
+def _normalize_classify_type(value: str | None) -> str:
+    raw = (value or "").strip().upper().replace("-", "_").replace(" ", "_")
+    normalized = _CLASSIFY_TYPE_ALIASES.get(raw, raw)
+    return normalized if normalized in _VALID_CLASSIFY_TYPES else "INCONNU"
+
+
+def _strip_quoted_sections(text: str | None) -> str:
+    if not text:
+        return ""
+    normalized = text.replace("\r\n", "\n").strip()
+    markers = [
+        r"\nLe .{0,80} a écrit\s*:",
+        r"\nOn .{0,80} wrote\s*:",
+        r"\n-----Original Message-----",
+        r"\nDe\s*:",
+        r"\nFrom\s*:",
+        r"\n>{1,}",
+    ]
+    cut = len(normalized)
+    for marker in markers:
+        match = re.search(marker, normalized, flags=re.IGNORECASE)
+        if match:
+            cut = min(cut, match.start())
+    cleaned = normalized[:cut].strip()
+    return cleaned or normalized[:800]
+
+
+def _extract_first_json_object(text: str) -> dict | None:
+    start = text.find("{")
+    if start < 0:
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == "\"":
+                in_string = False
+            continue
+        if ch == "\"":
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                candidate = text[start : i + 1]
+                try:
+                    parsed = json.loads(candidate)
+                    return parsed if isinstance(parsed, dict) else None
+                except Exception:
+                    return None
+    return None
+
+
+def _coerce_classify_response(raw, language: str = "fr") -> ClassifyResponseResult:
+    if isinstance(raw, ClassifyResponseResult):
+        return raw
+
+    data: dict | None = None
+    if isinstance(raw, dict):
+        data = raw
+    elif hasattr(raw, "model_dump"):
+        dumped = raw.model_dump()
+        data = dumped if isinstance(dumped, dict) else None
+    else:
+        content = getattr(raw, "content", str(raw)) or ""
+        content = str(content).strip()
+        if content.startswith("```"):
+            content = re.sub(r"^```(?:json)?\s*", "", content, flags=re.IGNORECASE)
+            content = re.sub(r"\s*```$", "", content)
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                data = parsed
+        except Exception:
+            data = _extract_first_json_object(content)
+
+    if not data:
+        raise ValueError("Unable to parse classification JSON output from LLM.")
+
+    response_type = _normalize_classify_type(
+        data.get("response_type") or data.get("category") or data.get("type") or data.get("label")
+    )
+
+    confidence_raw = data.get("confidence", 0.55)
+    try:
+        confidence = float(confidence_raw)
+    except Exception:
+        confidence = 0.55
+    if confidence > 1 and confidence <= 100:
+        confidence /= 100.0
+    confidence = max(0.0, min(1.0, confidence))
+
+    summary = str(data.get("summary") or "Réponse analysée automatiquement.")
+    recommended_action = str(data.get("recommended_action") or "Vérifiez la réponse et adaptez votre prochaine action.")
+
+    should_generate = data.get("should_generate_reply_draft")
+    if isinstance(should_generate, str):
+        should_generate = should_generate.strip().lower() in {"true", "1", "yes", "oui"}
+    if not isinstance(should_generate, bool):
+        should_generate = response_type in {"ENTRETIEN_PROPOSE", "INFORMATIONS_DEMANDEES", "REPONSE_GENERALE"}
+
+    return ClassifyResponseResult(
+        response_type=response_type,
+        confidence=confidence,
+        summary=summary,
+        recommended_action=recommended_action,
+        should_generate_reply_draft=should_generate,
+    )
 
 
 # ─── Direct mode: Application email ─────────────────────────────────────────
@@ -416,24 +561,51 @@ async def classify_recruiter_response_with_llm(
         request.language,
     )
     llm = get_email_llm()
-    structured_llm = _with_structured_output(llm, ClassifyResponseResult)
+    reply_snippet = _strip_quoted_sections(request.reply_snippet)
+    payload = {
+        "job_title":              _safe(request.job_title),
+        "company_name":           _safe(request.company_name),
+        "previous_email_subject": _safe(request.previous_email_subject),
+        "previous_email_body":    _truncate(request.previous_email_body, 500),
+        "reply_from":             _safe(request.reply_from),
+        "reply_date_utc":         _safe(request.reply_date_utc),
+        "reply_subject":          _safe(request.reply_subject),
+        "reply_snippet":          _truncate(reply_snippet, 1000),
+        "language":               request.language,
+    }
+
     prompt = ChatPromptTemplate.from_messages(
         [("system", CLASSIFY_SYSTEM), ("human", CLASSIFY_HUMAN)]
     )
-    chain = prompt | structured_llm
 
-    result: ClassifyResponseResult = await chain.ainvoke(
-        {
-            "job_title":              _safe(request.job_title),
-            "company_name":           _safe(request.company_name),
-            "previous_email_subject": _safe(request.previous_email_subject),
-            "reply_from":             _safe(request.reply_from),
-            "reply_date_utc":         _safe(request.reply_date_utc),
-            "reply_subject":          _safe(request.reply_subject),
-            "reply_snippet":          _truncate(request.reply_snippet, 800),
-            "language":               request.language,
-        }
-    )
+    try:
+        structured_llm = _with_structured_output(llm, ClassifyResponseResult)
+        chain = prompt | structured_llm
+        raw = await chain.ainvoke(payload)
+        result = _coerce_classify_response(raw, request.language)
+    except Exception as ex:
+        logger.warning(
+            "EmailComposer — classify structured parsing failed for candidature_id=%s. Retrying semantic pass. Error=%s",
+            request.candidature_id,
+            ex,
+        )
+
+        fallback_system = (
+            "Tu es un classificateur sémantique de réponses RH. "
+            "Retourne UNIQUEMENT un JSON avec clés: response_type, confidence, summary, recommended_action, should_generate_reply_draft. "
+            "response_type doit être l'un de: ENTRETIEN_PROPOSE, INFORMATIONS_DEMANDEES, ACCEPTE, REFUSE, REPONSE_AUTOMATIQUE, REPONSE_GENERALE, INCONNU. "
+            "Analyse le sens global, pas seulement des mots-clés."
+        )
+        fallback_prompt = ChatPromptTemplate.from_messages(
+            [("system", fallback_system), ("human", CLASSIFY_HUMAN)]
+        )
+        fallback_chain = fallback_prompt | llm
+        raw_fallback = await fallback_chain.ainvoke(payload)
+        result = _coerce_classify_response(raw_fallback, request.language)
+
+    if result.response_type not in _VALID_CLASSIFY_TYPES:
+        result.response_type = "INCONNU"
+
     logger.info(
         "EmailComposer — classify result: %s (confidence=%s) candidature_id=%s",
         result.response_type, result.confidence, request.candidature_id,

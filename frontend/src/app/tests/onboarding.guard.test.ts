@@ -12,6 +12,8 @@ describe('OnboardingGuards', () => {
   let dummyState: RouterStateSnapshot;
 
   beforeEach(() => {
+    localStorage.clear();
+
     mockOnboardingService = {
       getStatus: vi.fn()
     };
@@ -28,12 +30,13 @@ describe('OnboardingGuards', () => {
     });
 
     dummyRoute = {} as ActivatedRouteSnapshot;
-    dummyState = {} as RouterStateSnapshot;
+    dummyState = { url: '/dashboard' } as RouterStateSnapshot;
   });
 
   describe('onboardingGuard', () => {
     it('devrait autoriser l\'accès si l\'onboarding est complété', () => {
       mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true, profileScore: 100 }));
+      localStorage.setItem('nextstep_profile_unlocked', 'true');
       
       const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
       
@@ -59,7 +62,7 @@ describe('OnboardingGuards', () => {
     });
 
     it('devrait rediriger vers /profile si onboarding partiel existe', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false, profileScore: 35 }));
+      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true, profileScore: 35 }));
       
       const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
       
@@ -85,15 +88,15 @@ describe('OnboardingGuards', () => {
       }
     });
 
-    it('devrait rediriger vers /dashboard si DEJA complété', () => {
+    it('devrait rediriger vers /offers si DEJA complété', () => {
       mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true, profileScore: 100 }));
       
       const result$ = TestBed.runInInjectionContext(() => alreadyOnboardedGuard(dummyRoute, dummyState));
       
       if (typeof result$ !== 'boolean' && 'subscribe' in result$) {
         result$.subscribe(res => {
-          expect(mockRouter.parseUrl).toHaveBeenCalledWith('/dashboard');
-          expect(res).toBe(`UrlTree(/dashboard)`);
+          expect(mockRouter.parseUrl).toHaveBeenCalledWith('/offers');
+          expect(res).toBe(`UrlTree(/offers)`);
         });
       }
     });

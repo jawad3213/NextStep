@@ -1,0 +1,94 @@
+<div class="letters-shell">
+  <header class="page-header">
+    <h1 class="title">Email & Letter</h1>
+    <p class="subtitle">
+      Tous les brouillons sont geres par candidature. Ouvre un workspace pour generer, modifier et envoyer.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <div class="state-card">Chargement des drafts...</div>
+  } @else if (error()) {
+    <div class="state-card error">{{ error() }}</div>
+  } @else {
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Mes candidatures email</h2>
+        <span class="badge">{{ rows().length }}</span>
+      </div>
+
+      @if (rows().length === 0) {
+        <div class="state-card">
+          Aucune candidature trouvee. Cree une candidature depuis Applications pour activer les drafts.
+        </div>
+      } @else {
+        <div class="cards-grid candidature-grid">
+          @for (row of rows(); track row.candidatureId) {
+            <article class="mail-card" [class]="getRowCardClass(row)">
+              <div class="card-head">
+                <span class="card-type">Candidature</span>
+                <span class="card-status-pill" [class]="getRowStatusClass(row)">
+                  {{ getRowStatusLabel(row) }}
+                </span>
+              </div>
+              <div class="row-main">
+                <div class="row-title">{{ row.role }}</div>
+                <div class="row-sub">{{ row.company }}</div>
+                <div class="chips">
+                  <span class="chip chip-blue">{{ row.draftCount }} draft(s)</span>
+                  <span class="chip chip-green">{{ row.sentCount }} envoye(s)</span>
+                  <span class="chip chip-gray">Dernier: {{ formatDate(row.lastDraftAt) }}</span>
+                </div>
+              </div>
+              <button class="open-btn" (click)="openWorkspace(row.candidatureId)">
+                Ouvrir workspace
+              </button>
+            </article>
+          }
+        </div>
+        @if (hasMoreCandidatures()) {
+          <div class="load-more-wrap">
+            <button class="load-more-btn" (click)="loadMore()" [disabled]="loadingMore()">
+              @if (loadingMore()) { Chargement... } @else { Voir plus }
+            </button>
+          </div>
+        }
+      }
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Derniers drafts</h2>
+        <span class="badge">{{ allDrafts().length }}</span>
+      </div>
+
+      @if (allDrafts().length === 0) {
+        <div class="state-card">Aucun draft detecte pour le moment.</div>
+      } @else {
+        <div class="cards-grid drafts-grid">
+          @for (d of recentDrafts(); track d.id) {
+            <article class="mail-card compact" [class]="getDraftCardClass(d)">
+              <div class="card-head">
+                <span class="card-type">{{ d.emailType }}</span>
+                <span class="card-status-pill" [class]="getDraftStatusClass(d)">
+                  {{ d.isSent ? 'Envoye' : d.isApproved ? 'Approuve' : 'Brouillon' }}
+                </span>
+              </div>
+              <div class="row-main">
+                <div class="row-title">{{ d.subject || '(sans sujet)' }}</div>
+                <div class="row-sub">{{ d.company }} - {{ d.role }}</div>
+                <div class="chips">
+                  <span class="chip chip-indigo">{{ d.language.toUpperCase() }}</span>
+                  <span class="chip chip-gray">{{ formatDate(d.createdAtUtc) }}</span>
+                </div>
+              </div>
+              <button class="open-btn" (click)="openWorkspace(d.candidatureId)">
+                Ouvrir
+              </button>
+            </article>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>

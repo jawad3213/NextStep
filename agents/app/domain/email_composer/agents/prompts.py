@@ -217,6 +217,10 @@ Règles de prudence :
 - Utilise ENTRETIEN_PROPOSE UNIQUEMENT si une invitation à un entretien, appel ou réunion
   est clairement formulée.
 - En cas de doute, préfère REPONSE_GENERALE ou INCONNU.
+- Analyse le SENS de la réponse (intention), pas uniquement des mots-clés isolés.
+- Si l'extrait contient un bloc cité (ancien email, "On ... wrote", "Le ... a écrit", lignes commençant par ">"),
+  ignore ce bloc cité et classe seulement la partie nouvelle du recruteur.
+- Ne classe pas comme erreur technique simplement parce qu'il y a du texte cité.
 - N'invente aucun fait non présent dans l'extrait.
 - Ne mentionne PAS que l'analyse est faite par une IA.
 - Retourne UNIQUEMENT la structure demandée, sans explication supplémentaire.
@@ -232,6 +236,7 @@ Analyse la réponse suivante d'un recruteur à une candidature :
 Poste visé  : {job_title}
 Entreprise  : {company_name}
 Objet email précédent : {previous_email_subject}
+Corps email précédent (résumé) : {previous_email_body}
 
 === RÉPONSE REÇUE ===
 De      : {reply_from}

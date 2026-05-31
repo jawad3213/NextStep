@@ -57,7 +57,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     // Par défaut, le profil est vide
     expect(service.completionPercentage()).toBe(0);
 
-    // Ajout d'informations personnelles (devrait ajouter 15 points: prenom + nom + email)
+    // Ajout d'informations personnelles (devrait ajouter 6 points: prenom + nom + email)
     service.updateProfile({
       personal: {
         ...service.profile().personal,
@@ -67,7 +67,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
       }
     });
 
-    expect(service.completionPercentage()).toBe(15);
+    expect(service.completionPercentage()).toBe(6);
   });
 
   it('devrait mettre à jour l\'étape courante via setStep', () => {

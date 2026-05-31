@@ -52,7 +52,14 @@ public class EmailDraftRepository : IEmailDraftRepository
                 d.ProviderThreadId != null &&
                 d.SentAtUtc != null &&
                 d.Candidature != null &&
-                !d.Candidature.HasResponse)
+                (
+                    !d.Candidature.HasResponse ||
+                    (
+                        d.Candidature.HasResponse &&
+                        d.Candidature.ResponseStatus == "REPONSE_RECUE" &&
+                        (d.Candidature.ResponseConfidence == null || d.Candidature.ResponseConfidence <= 0.01)
+                    )
+                ))
             .ToListAsync(cancellationToken);
     }
 

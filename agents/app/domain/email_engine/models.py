@@ -2,7 +2,7 @@
 # email_engine/models.py — Pydantic schemas for the Email Agent
 # ============================================================
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices, ConfigDict, field_validator
 
 
 class CandidateInput(BaseModel):
@@ -99,11 +99,59 @@ class ClassifyResponseResult(BaseModel):
       ENTRETIEN_PROPOSE | INFORMATIONS_DEMANDEES | ACCEPTE | REFUSE |
       REPONSE_AUTOMATIQUE | REPONSE_GENERALE | INCONNU
     """
-    response_type: str
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    response_type: str = Field(
+        default="INCONNU",
+        validation_alias=AliasChoices("response_type", "category", "type", "label")
+    )
     confidence: float
     summary: str
     recommended_action: str
     should_generate_reply_draft: bool = False
+
+    @field_validator("response_type", mode="before")
+    @classmethod
+    def normalize_response_type(cls, value: object) -> str:
+        if value is None:
+            return "INCONNU"
+
+        raw = str(value).strip().upper()
+        raw = (
+            raw.replace("É", "E")
+               .replace("È", "E")
+               .replace("Ê", "E")
+               .replace("Ë", "E")
+               .replace("À", "A")
+               .replace("Â", "A")
+               .replace("Ù", "U")
+               .replace("Û", "U")
+               .replace("Î", "I")
+               .replace("Ï", "I")
+               .replace("Ô", "O")
+               .replace("Ö", "O")
+               .replace("Ç", "C")
+               .replace("-", "_")
+               .replace(" ", "_")
+        )
+
+        aliases = {
+            "INTERVIEW_PROPOSED": "ENTRETIEN_PROPOSE",
+            "INTERVIEW_SCHEDULED": "ENTRETIEN_PROPOSE",
+            "ENTRETIEN": "ENTRETIEN_PROPOSE",
+            "INTERVIEW": "ENTRETIEN_PROPOSE",
+            "MORE_INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
+            "INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
+            "INFORMATION_DEMANDEE": "INFORMATIONS_DEMANDEES",
+            "INFORMATIONS_DEMANDEE": "INFORMATIONS_DEMANDEES",
+            "ACCEPTED": "ACCEPTE",
+            "REJECTED": "REFUSE",
+            "AUTO_REPLY": "REPONSE_AUTOMATIQUE",
+            "AUTOREPLY": "REPONSE_AUTOMATIQUE",
+            "GENERAL_REPLY": "REPONSE_GENERALE",
+            "UNKNOWN": "INCONNU",
+        }
+        return aliases.get(raw, raw)
 
 
 # ── Reply generation models ───────────────────────────────────────────────────

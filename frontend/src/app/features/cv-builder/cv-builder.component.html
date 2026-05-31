@@ -1,0 +1,86 @@
+<div class="cv-shell">
+  <header class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Mes CV Generes</h1>
+      <p class="page-subtitle">Consultez et telechargez vos CV cibles pour vos candidatures.</p>
+    </div>
+    <button class="btn-refresh" (click)="loadHistory()" [class.spinning]="loadingHistory()" title="Rafraichir">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    </button>
+  </header>
+
+  <section class="history-section">
+    @if (loadingHistory()) {
+      <div class="loading-center">
+        <div class="spinner-lg"></div>
+        <p>Chargement des CV...</p>
+      </div>
+    } @else if (historyItems().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <h3>Aucun CV genere</h3>
+        <p>Generez un CV depuis une offre pour le voir ici.</p>
+      </div>
+    } @else {
+      <div class="history-grid">
+        @for (item of historyItems(); track item.id) {
+          <article class="history-card">
+            <div class="card-header">
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <button class="action-btn danger" title="Supprimer" (click)="deleteCv(item.id)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+
+            <div class="card-body">
+              <h4 class="cv-title" [title]="getDisplayTitle(item)">{{ getDisplayTitle(item) }}</h4>
+
+              <div class="target-offer">
+                <span class="offer-label">Offre ciblee</span>
+                @if (item.targetedOfferTitle) {
+                  <p class="offer-title">{{ item.targetedOfferTitle }}</p>
+                  <p class="offer-company">{{ item.targetedOfferCompany || 'Entreprise non precisee' }}</p>
+                } @else {
+                  <p class="offer-title muted">Offre ciblee indisponible</p>
+                }
+              </div>
+
+              <div class="cv-mini-preview" aria-hidden="true">
+                <div class="mini-header"></div>
+                <div class="mini-line w-80"></div>
+                <div class="mini-line w-60"></div>
+                <div class="mini-line w-90"></div>
+                <div class="mini-line w-75"></div>
+                <div class="mini-line w-55"></div>
+              </div>
+
+              <div class="meta-tags">
+                <span class="tag tag-blue">{{ item.templateName || item.templateSlug }}</span>
+                <span class="tag tag-gray">{{ item.createdAt | date:'dd MMM yyyy' }}</span>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <span class="file-size">{{ (item.fileSizeBytes / 1024).toFixed(0) }} KB PDF</span>
+              <button class="btn-primary" (click)="downloadCv(item.id)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Ouvrir PDF
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+      @if (hasMoreHistory()) {
+        <div class="load-more-wrap">
+          <button class="btn-load-more" (click)="loadMoreHistory()" [disabled]="loadingMoreHistory()">
+            @if (loadingMoreHistory()) { Chargement... } @else { Voir plus }
+          </button>
+        </div>
+      }
+    }
+  </section>
+</div>

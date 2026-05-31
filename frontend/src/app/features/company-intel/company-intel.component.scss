@@ -1,0 +1,50 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+  background: #f8fafc;
+  font-family: 'Lato', sans-serif;
+}
+
+.analysis-shell {
+  padding: 32px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stroke-emerald-500 {
+  stroke: #10b981;
+}
+
+.stroke-amber-500 {
+  stroke: #f59e0b;
+}
+
+.stroke-red-500 {
+  stroke: #ef4444;
+}
+
+@media (max-width: 1024px) {
+  .analysis-shell {
+    padding: 20px;
+  }
+}

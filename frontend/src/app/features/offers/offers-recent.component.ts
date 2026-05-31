@@ -272,15 +272,11 @@ export class OffersRecentComponent implements OnInit {
 
     this.offerApi.promoteSourcedOffer(offer.id).subscribe({
       next: (promotion) => {
-        this.offerApi.analyzeSync(promotion.offerId).subscribe({
-          next: () => {
-            this.actionOfferId.set(null);
-            this.router.navigate(['/offers', promotion.offerId]);
-          },
-          error: (err) => {
-            this.actionOfferId.set(null);
-            this.errorMessage.set(err?.error?.error || err?.message || 'Promotion succeeded but analysis failed.');
-            this.router.navigate(['/offers', promotion.offerId]);
+        this.actionOfferId.set(null);
+        this.router.navigate(['/offers/analyze'], {
+          queryParams: {
+            offerId: promotion.offerId,
+            autoAnalyze: 1,
           },
         });
       },

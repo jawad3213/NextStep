@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, AliasChoices, ConfigDict, field_validator
 
 # ── Candidate & Offer inputs ──────────────────────────────────────────────────
 
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Literal
 
 class CandidateInput(BaseModel):
     full_name: str
@@ -147,9 +147,18 @@ class ClassifyResponseResult(BaseModel):
     """
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    response_type: str = Field(
+    response_type: Literal[
+        "ENTRETIEN_PROPOSE",
+        "INFORMATIONS_DEMANDEES",
+        "ACCEPTE",
+        "REFUSE",
+        "REPONSE_AUTOMATIQUE",
+        "REPONSE_GENERALE",
+        "INCONNU"
+    ] = Field(
         default="INCONNU",
-        validation_alias=AliasChoices("response_type", "category", "type", "label")
+        description="Type de réponse du recruteur. Doit être strictement l'un de : ENTRETIEN_PROPOSE, INFORMATIONS_DEMANDEES, ACCEPTE, REFUSE, REPONSE_AUTOMATIQUE, REPONSE_GENERALE, INCONNU",
+        validation_alias=AliasChoices("response_type", "category", "categorie", "type", "label")
     )
     confidence: float
     summary: str
@@ -186,15 +195,29 @@ class ClassifyResponseResult(BaseModel):
             "INTERVIEW_SCHEDULED": "ENTRETIEN_PROPOSE",
             "ENTRETIEN": "ENTRETIEN_PROPOSE",
             "INTERVIEW": "ENTRETIEN_PROPOSE",
+            "INVITATION_A_UN_ENTRETIEN": "ENTRETIEN_PROPOSE",
+            "INVITATION_ENTRETIEN": "ENTRETIEN_PROPOSE",
+            "PROPOSITION_D_ENTRETIEN": "ENTRETIEN_PROPOSE",
+            "PROPOSITION_ENTRETIEN": "ENTRETIEN_PROPOSE",
+            "DEMANDE_DISPONIBILITES": "ENTRETIEN_PROPOSE",
+            "DISPONIBILITES": "ENTRETIEN_PROPOSE",
             "MORE_INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
             "INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
             "INFORMATION_DEMANDEE": "INFORMATIONS_DEMANDEES",
             "INFORMATIONS_DEMANDEE": "INFORMATIONS_DEMANDEES",
+            "DEMANDE_D_INFORMATIONS": "INFORMATIONS_DEMANDEES",
+            "DEMANDE_INFO": "INFORMATIONS_DEMANDEES",
             "ACCEPTED": "ACCEPTE",
+            "ACCEPTE": "ACCEPTE",
             "REJECTED": "REFUSE",
+            "REFUSE": "REFUSE",
+            "DECLINED": "REFUSE",
+            "REFUSED": "REFUSE",
             "AUTO_REPLY": "REPONSE_AUTOMATIQUE",
             "AUTOREPLY": "REPONSE_AUTOMATIQUE",
+            "AUTOMATIC_REPLY": "REPONSE_AUTOMATIQUE",
             "GENERAL_REPLY": "REPONSE_GENERALE",
+            "GENERAL": "REPONSE_GENERALE",
             "UNKNOWN": "INCONNU",
         }
         return aliases.get(raw, raw)

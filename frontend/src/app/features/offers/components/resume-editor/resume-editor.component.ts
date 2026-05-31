@@ -1294,12 +1294,6 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   ngOnInit(): void {
     this.activeTemplate.set(this.normalizeTemplateId(this.templateId));
     this.hydrateDesignConfig(this.designConfig);
-    console.log('[CV-PIPELINE] ResumeEditor init', {
-      templateId: this.templateId,
-      offerId: this.offerId,
-      hasInitialData: !!this.initialData,
-      initialDataKeys: this.initialData && typeof this.initialData === 'object' ? Object.keys(this.initialData) : [],
-    });
     if (this.initialData) {
       this.hydrateFromGenerated(this.initialData);
     } else {
@@ -1318,16 +1312,6 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       } catch {}
     }
 
-    const data = this.cvData();
-    console.log('[CV-PIPELINE] ResumeEditor ready for preview', {
-      candidateName: data?.candidate?.name,
-      hasSummary: !!data?.summary,
-      experienceCount: Array.isArray(data?.experience) ? data.experience.length : 0,
-      skillsCount: Array.isArray(data?.skills) ? data.skills.length : 0,
-      languagesCount: Array.isArray(data?.languages) ? data.languages.length : 0,
-      atsScore: data?.atsScore,
-      matchingScore: data?.matchingScore,
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -1409,18 +1393,6 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
         .map((skill: any) => this.cleanText(typeof skill === 'string' ? skill : skill?.name ?? skill?.nom ?? skill?.label).toLowerCase())
         .filter(Boolean)
     );
-
-    console.log('[CV-PIPELINE] ResumeEditor hydrating generated CV', {
-      hasCandidate: !!candidate,
-      candidateName: this.extractCandidateName(candidate),
-      profileName: this.extractCandidateName(profilePersonal),
-      hasPhoto: !!this.extractCandidatePhotoUrl(candidate, profilePersonal, profileSource, generated),
-      experienceCount: experience.length,
-      skillsCount: skills.length,
-      languagesCount: languages.length,
-      hasSummary: !!(normalized?.summary ?? normalized?.resume ?? normalized?.resumeProfessionnel),
-      keys: Object.keys(normalized),
-    });
 
     this.cvData.update(current => ({
       ...current,
@@ -1521,15 +1493,6 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
 
     this.hydrateSectionState(normalized?.sections);
 
-    const hydrated = this.cvData();
-    console.log('[CV-PIPELINE] ResumeEditor hydration applied', {
-      candidateName: hydrated?.candidate?.name,
-      experienceCount: Array.isArray(hydrated?.experience) ? hydrated.experience.length : 0,
-      skillsCount: Array.isArray(hydrated?.skills) ? hydrated.skills.length : 0,
-      languagesCount: Array.isArray(hydrated?.languages) ? hydrated.languages.length : 0,
-      atsScore: hydrated?.atsScore,
-      matchingScore: hydrated?.matchingScore,
-    });
   }
 
   private toMonthValue(value: any): string {

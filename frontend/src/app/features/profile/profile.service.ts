@@ -82,7 +82,6 @@ export class ProfileService {
     effect(() => {
       const user = this.authService.user();
       if (user) {
-        console.log('Utilisateur authentifié détecté, rechargement du profil...');
         this.refreshProfile();
       }
     });
@@ -114,9 +113,7 @@ export class ProfileService {
 
   async loadProfile() {
     try {
-      console.log('Chargement du profil depuis:', this.apiUrl);
       const data: any = await firstValueFrom(this.http.get<any>(this.apiUrl));
-      console.log('--- REFRESH PROFILE RAW DATA ---', data);
       
       if (!data || !data.personalInfo) {
         console.warn('Données de profil incomplètes reçues du serveur');

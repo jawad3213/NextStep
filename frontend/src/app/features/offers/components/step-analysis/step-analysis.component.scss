@@ -20,3 +20,114 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.generation-waiting {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(70, 95, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.generation-waiting-card {
+  width: min(100%, 560px);
+  padding: 28px 26px;
+  border: 1px solid #dbe5f2;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 24px 60px rgba(45, 62, 86, 0.12);
+}
+
+.waiting-eyebrow {
+  margin: 0 0 10px;
+  color: #465fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.generation-waiting-card h3 {
+  margin: 0 0 18px;
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.waiting-progress-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbe7fb;
+}
+
+.waiting-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f6fed 0%, #60a5fa 100%);
+  transition: width 0.35s ease;
+}
+
+.waiting-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.waiting-stage-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.waiting-stage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #dbe5f2;
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 800;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.waiting-stage .stage-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.waiting-stage.running {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.waiting-stage.running .stage-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.14);
+}
+
+.waiting-stage.done {
+  border-color: #bbf7d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.waiting-stage.done .stage-dot {
+  background: #10b981;
+}

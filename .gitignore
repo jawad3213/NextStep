@@ -97,6 +97,11 @@ Guide_Migration_Scripts_NextStep.md
 logs/
 *.bak
 *.tmp
+*.lscache
+*.patch
+frontend/vitest-output.txt
+scratch_*.sql
+reset_candidatures.sql
 
 # --- Fichiers de test locaux (Brouillons) ---
 offer.txt
@@ -105,4 +110,4 @@ offer copy.txt
 
 # --- Configurations Locales ---
 appsettings.local.json
-secrets.json
+secrets.json

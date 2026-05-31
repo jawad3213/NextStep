@@ -72,14 +72,11 @@ export class SourcedOfferDetailComponent implements OnInit {
     this.actionBusy.set(true);
     this.offerApi.promoteSourcedOffer(offer.id).subscribe({
       next: (promotion) => {
-        this.offerApi.analyzeSync(promotion.offerId).subscribe({
-          next: () => {
-            this.actionBusy.set(false);
-            this.router.navigate(['/offers', promotion.offerId]);
-          },
-          error: () => {
-            this.actionBusy.set(false);
-            this.router.navigate(['/offers', promotion.offerId]);
+        this.actionBusy.set(false);
+        this.router.navigate(['/offers/analyze'], {
+          queryParams: {
+            offerId: promotion.offerId,
+            autoAnalyze: 1,
           },
         });
       },

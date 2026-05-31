@@ -169,7 +169,6 @@ export class SignalRService {
 
     if (data.result) {
       const r: any = data.result;
-      console.log('[SignalR] PipelineCompleted result:', JSON.stringify(r, null, 2));
       this.pipeline.setResult({
         offerTitle: r.titre ?? r.offerTitle ?? '',
         companyName: r.entreprise ?? r.companyName ?? '',

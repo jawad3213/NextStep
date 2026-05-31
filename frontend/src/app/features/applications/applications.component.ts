@@ -8,6 +8,7 @@ import { OfferService } from '../../services/offer.service';
 
 interface CandidatureCard {
   id: string;
+  idOffre: string;
   entreprise: string;
   role: string;
   type: string;
@@ -85,6 +86,7 @@ export class ApplicationsComponent implements OnInit {
           next: (offers) => {
             const mappedCards: CandidatureCard[] = candidatures.map((c, i) => ({
               id: c.idCandidature,
+              idOffre: c.idOffre,
               entreprise: offers[i]?.entreprise || 'Entreprise Inconnue',
               role: offers[i]?.titre || 'Poste Inconnu',
               type: 'CDI',
@@ -183,6 +185,23 @@ export class ApplicationsComponent implements OnInit {
     this.router.navigate(['/letters', candidatureId], { queryParams: { source: 'applications' } });
   }
 
+  prepareForInterview(card: CandidatureCard): void {
+    const sessionConfig = {
+      mode: 'offer',
+      domain: 'software',
+      level: 'mid',
+      duration_minutes: 15,
+      language: 'fr',
+      focus_areas: ['Technique', 'Motivation'],
+      offer_id: card.idOffre,
+      job_title: card.role,
+      company: card.entreprise,
+      display_title: `Entretien ${card.role} @ ${card.entreprise}`,
+      display_emoji: '🎯'
+    };
+    this.router.navigate(['/chatbot/interview'], { state: { sessionConfig } });
+  }
+
   onDragStart(c: CandidatureCard): void { this.draggedCard.set(c); }
   onDragOver(e: DragEvent, col: string): void { e.preventDefault(); this.dragOverCol.set(col); }
   onDragLeave(): void { this.dragOverCol.set(null); }
@@ -202,6 +221,7 @@ export class ApplicationsComponent implements OnInit {
     this.cards.update((list) => [
       {
         id: crypto.randomUUID(),
+        idOffre: '',
         entreprise: f.entreprise,
         role: f.role,
         type: f.type,

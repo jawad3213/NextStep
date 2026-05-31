@@ -15,8 +15,6 @@ namespace NextStep.Jobs;
 /// </summary>
 public class CheckEmailRepliesJob
 {
-    private static readonly TimeSpan CooldownPeriod = TimeSpan.FromHours(6);
-
     // LLM-returned types that can override ResponseStatus/Statut.
     // "REPONSE_RECUE" is the fallback — it is never returned by the LLM directly.
     private static readonly HashSet<string> ClassifiableTypes =
@@ -81,15 +79,8 @@ public class CheckEmailRepliesJob
                 string.Equals(candidature.ResponseStatus, "REPONSE_RECUE", StringComparison.OrdinalIgnoreCase) &&
                 (!candidature.ResponseConfidence.HasValue || candidature.ResponseConfidence.Value <= 0.01);
 
-            if (!needsReclassification &&
-                candidature.LastCheckedAtUtc.HasValue &&
-                DateTime.UtcNow - candidature.LastCheckedAtUtc.Value < CooldownPeriod)
-            {
-                _logger.LogDebug(
-                    "CheckEmailRepliesJob — candidature {CandidatureId} checked recently, skipping",
-                    candidature.IdCandidature);
-                continue;
-            }
+            // We no longer skip based on CooldownPeriod so that manual "Trigger Now"
+            // always works. The automated frequency is controlled by the Hangfire cron schedule.
 
             _logger.LogInformation(
                 "CheckEmailRepliesJob — checking thread {ThreadId} for candidature {CandidatureId}",

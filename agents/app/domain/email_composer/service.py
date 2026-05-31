@@ -66,15 +66,29 @@ _CLASSIFY_TYPE_ALIASES = {
     "INTERVIEW_SCHEDULED": "ENTRETIEN_PROPOSE",
     "ENTRETIEN": "ENTRETIEN_PROPOSE",
     "INTERVIEW": "ENTRETIEN_PROPOSE",
+    "INVITATION_A_UN_ENTRETIEN": "ENTRETIEN_PROPOSE",
+    "INVITATION_ENTRETIEN": "ENTRETIEN_PROPOSE",
+    "PROPOSITION_D_ENTRETIEN": "ENTRETIEN_PROPOSE",
+    "PROPOSITION_ENTRETIEN": "ENTRETIEN_PROPOSE",
+    "DEMANDE_DISPONIBILITES": "ENTRETIEN_PROPOSE",
+    "DISPONIBILITES": "ENTRETIEN_PROPOSE",
     "MORE_INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
     "INFO_REQUESTED": "INFORMATIONS_DEMANDEES",
     "INFORMATION_DEMANDEE": "INFORMATIONS_DEMANDEES",
     "INFORMATIONS_DEMANDEE": "INFORMATIONS_DEMANDEES",
+    "DEMANDE_D_INFORMATIONS": "INFORMATIONS_DEMANDEES",
+    "DEMANDE_INFO": "INFORMATIONS_DEMANDEES",
     "ACCEPTED": "ACCEPTE",
+    "ACCEPTE": "ACCEPTE",
     "REJECTED": "REFUSE",
+    "REFUSE": "REFUSE",
+    "DECLINED": "REFUSE",
+    "REFUSED": "REFUSE",
     "AUTO_REPLY": "REPONSE_AUTOMATIQUE",
     "AUTOREPLY": "REPONSE_AUTOMATIQUE",
+    "AUTOMATIC_REPLY": "REPONSE_AUTOMATIQUE",
     "GENERAL_REPLY": "REPONSE_GENERALE",
+    "GENERAL": "REPONSE_GENERALE",
     "UNKNOWN": "INCONNU",
 }
 _VALID_CLASSIFY_TYPES = {
@@ -155,6 +169,121 @@ def _normalize_classify_type(value: str | None) -> str:
     raw = (value or "").strip().upper().replace("-", "_").replace(" ", "_")
     normalized = _CLASSIFY_TYPE_ALIASES.get(raw, raw)
     return normalized if normalized in _VALID_CLASSIFY_TYPES else "INCONNU"
+
+
+def _normalize_semantic_text(value: str | None) -> str:
+    text = (value or "").lower()
+    text = text.replace("é", "e").replace("è", "e").replace("ê", "e").replace("ë", "e")
+    text = text.replace("à", "a").replace("â", "a").replace("î", "i").replace("ï", "i")
+    text = text.replace("ô", "o").replace("ù", "u").replace("û", "u").replace("ç", "c")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _contains_any(text: str, patterns: list[str]) -> bool:
+    return any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in patterns)
+
+
+def _semantic_type_from_reply(reply_text: str) -> str | None:
+    text = _normalize_semantic_text(reply_text)
+    if not text:
+        return None
+
+    refusal_patterns = [
+        r"\b(nous ne donnons pas suite|ne sera pas retenu|n'est pas retenu|candidature non retenue)\b",
+        r"\b(nous avons decide de ne pas|nous avons choisi un autre candidat)\b",
+        r"\b(malheureusement|regrettons de vous informer).{0,80}\b(refus|non retenu|pas retenu)\b",
+        r"\b(rejetee|rejetee|refusee|refuse)\b",
+    ]
+    if _contains_any(text, refusal_patterns):
+        return "REFUSE"
+
+    # Formal acceptance / hiring offer
+    formal_accept_patterns = [
+        r"\b(nous vous proposons le poste|nous souhaitons vous embaucher|offre d'emploi)\b",
+        r"\b(proposition contractuelle|contrat de travail|prise de poste)\b",
+        r"\b(votre candidature est acceptee|vous etes recrute)\b",
+    ]
+    if _contains_any(text, formal_accept_patterns):
+        return "ACCEPTE"
+
+    interview_signal = _contains_any(text, [
+        r"\b(entretien|interview|rendez[- ]?vous|visioconference|visio|teams|zoom|google meet|appel telephonique)\b",
+    ])
+    interview_action = _contains_any(text, [
+        r"\b(inviter|proposer|planifier|organiser|convenir|fixer|programmer)\b",
+        r"\b(disponibilite|disponibilites|horaire|creneau|date|heure)\b",
+    ])
+    if interview_signal and interview_action:
+        return "ENTRETIEN_PROPOSE"
+
+    # Shortlisted / retained for next step (without explicit interview scheduling)
+    retained_patterns = [
+        r"\b(candidature (a ete )?retenue|profil retenu|vous etes retenu|vous etes selectionne)\b",
+        r"\b(prochaine etape du processus|suite du processus de recrutement)\b",
+        r"\b(heureux de vous informer que votre candidature)\b",
+    ]
+    if _contains_any(text, retained_patterns):
+        return "ACCEPTE"
+
+    info_request_patterns = [
+        r"\b(pouvez[- ]vous|merci de nous communiquer|merci de transmettre|merci d'envoyer)\b",
+        r"\b(cv|portfolio|pretentions salariales|documents|disponibilites|informations complementaires)\b",
+    ]
+    if _contains_any(text, info_request_patterns):
+        return "INFORMATIONS_DEMANDEES"
+
+    auto_reply_patterns = [
+        r"\b(absent du bureau|out of office|reponse automatique|auto[- ]reply)\b",
+    ]
+    if _contains_any(text, auto_reply_patterns):
+        return "REPONSE_AUTOMATIQUE"
+
+    return None
+
+
+def _apply_semantic_override(result: ClassifyResponseResult, reply_text: str, language: str) -> ClassifyResponseResult:
+    semantic_type = _semantic_type_from_reply(reply_text)
+    if not semantic_type or semantic_type not in _VALID_CLASSIFY_TYPES:
+        return result
+
+    if semantic_type == result.response_type:
+        return result
+
+    # Only override when semantic rule is stronger than LLM uncertainty/mix.
+    stronger = {
+        "REFUSE",
+        "ACCEPTE",
+        "ENTRETIEN_PROPOSE",
+        "INFORMATIONS_DEMANDEES",
+        "REPONSE_AUTOMATIQUE",
+    }
+    if semantic_type not in stronger:
+        return result
+
+    result.response_type = semantic_type
+    result.confidence = max(result.confidence, 0.82)
+    if language.lower().startswith("fr"):
+        summaries = {
+            "REFUSE": "Le recruteur indique un refus explicite de la candidature.",
+            "ACCEPTE": "Le recruteur confirme que la candidature est retenue pour la suite.",
+            "ENTRETIEN_PROPOSE": "Le recruteur propose clairement un entretien ou un rendez-vous.",
+            "INFORMATIONS_DEMANDEES": "Le recruteur demande des informations ou documents complémentaires.",
+            "REPONSE_AUTOMATIQUE": "La réponse semble être un message automatique.",
+        }
+        actions = {
+            "REFUSE": "Archiver cette candidature et poursuivre d'autres opportunités.",
+            "ACCEPTE": "Répondre positivement et confirmer votre intérêt pour la prochaine étape.",
+            "ENTRETIEN_PROPOSE": "Répondre avec vos disponibilités et confirmer votre participation à l'entretien.",
+            "INFORMATIONS_DEMANDEES": "Envoyer rapidement les informations demandées pour maintenir l'avancement.",
+            "REPONSE_AUTOMATIQUE": "Attendre une réponse humaine et relancer si nécessaire.",
+        }
+        result.summary = summaries.get(semantic_type, result.summary)
+        result.recommended_action = actions.get(semantic_type, result.recommended_action)
+
+    if result.should_generate_reply_draft is False and semantic_type in {"ACCEPTE", "ENTRETIEN_PROPOSE", "INFORMATIONS_DEMANDEES"}:
+        result.should_generate_reply_draft = True
+
+    return result
 
 
 def _strip_quoted_sections(text: str | None) -> str:
@@ -239,7 +368,7 @@ def _coerce_classify_response(raw, language: str = "fr") -> ClassifyResponseResu
         raise ValueError("Unable to parse classification JSON output from LLM.")
 
     response_type = _normalize_classify_type(
-        data.get("response_type") or data.get("category") or data.get("type") or data.get("label")
+        data.get("response_type") or data.get("category") or data.get("categorie") or data.get("type") or data.get("label")
     )
 
     confidence_raw = data.get("confidence", 0.55)
@@ -561,6 +690,8 @@ async def classify_recruiter_response_with_llm(
         request.language,
     )
     llm = get_email_llm()
+    if hasattr(llm, "temperature"):
+        llm.temperature = 0.0
     reply_snippet = _strip_quoted_sections(request.reply_snippet)
     payload = {
         "job_title":              _safe(request.job_title),
@@ -605,6 +736,8 @@ async def classify_recruiter_response_with_llm(
 
     if result.response_type not in _VALID_CLASSIFY_TYPES:
         result.response_type = "INCONNU"
+
+    result = _apply_semantic_override(result, reply_snippet, request.language)
 
     logger.info(
         "EmailComposer — classify result: %s (confidence=%s) candidature_id=%s",

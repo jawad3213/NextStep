@@ -511,7 +511,6 @@ export class OfferApiService {
     });
   }
   resumePipeline(offerId: string, templateId: number): Observable<any> {
-    console.log('[CV-PIPELINE] API resumePipeline request', { offerId, templateId, endpoint: `${this.base}/offers/${offerId}/resume` });
     return new Observable(observer => {
       let cancelled = false;
       let timerId: number | undefined;
@@ -524,11 +523,6 @@ export class OfferApiService {
         ).subscribe({
           next: (analysis: any) => {
             const cvData = analysis?.cvGeneratedContent ?? analysis?.cv_data ?? analysis?.cvData;
-            console.log('[CV-PIPELINE] API resumePipeline poll', {
-              attempt,
-              hasCvData: !!cvData,
-              keys: analysis && typeof analysis === 'object' ? Object.keys(analysis) : [],
-            });
 
             if (cvData) {
               observer.next(analysis);
@@ -564,10 +558,6 @@ export class OfferApiService {
         timeout(12000)
       ).subscribe({
         next: (res: any) => {
-          console.log('[CV-PIPELINE] API resumePipeline accepted', {
-            status: res?.status,
-            keys: res && typeof res === 'object' ? Object.keys(res) : [],
-          });
           poll();
         },
         error: (err) => observer.error(err)

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ResumeStateService } from './resume-state.service';
 import { TemplateChronoComponent } from './template-chrono.component';
@@ -147,13 +147,6 @@ export class CvPreviewComponent {
     if (z <= 125) return 'scale-125';
     return 'scale-150';
   });
-
-  constructor() {
-    effect(() => {
-      const template = this.resumeState.selectedTemplate();
-      console.log('[CvPreview] Template changed to:', template);
-    });
-  }
 
   protected zoomIn(): void {
     this.zoom.update(z => Math.min(z + 10, 150));

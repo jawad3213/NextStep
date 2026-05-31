@@ -265,7 +265,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     const currentData = JSON.stringify(snapshot);
     
     if (currentData === this.lastSavedSnapshot) {
-      console.log('No changes detected, skipping save.');
       return;
     }
 

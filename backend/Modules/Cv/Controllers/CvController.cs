@@ -158,6 +158,18 @@ public class CvController : ControllerBase
         return Ok(history);
     }
 
+    [HttpGet("history/paged")]
+    public async Task<IActionResult> GetHistoryPaged([FromQuery] int offset = 0, [FromQuery] int limit = 10)
+    {
+        var user = await _userService.EnsureUserCreatedAsync(User);
+        var page = await _cvService.GetHistoryPagedAsync(user.Id, offset, limit);
+        foreach (var item in page.Items)
+        {
+            item.FileUrl = BuildCvDownloadFileUrl(item.Id);
+        }
+        return Ok(page);
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> Load(Guid id)
     {

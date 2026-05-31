@@ -73,6 +73,13 @@ type FlatDraft = EmailDraftDto & {
                 </article>
               }
             </div>
+            @if (hasMoreCandidatures()) {
+              <div class="load-more-wrap">
+                <button class="load-more-btn" (click)="loadMore()" [disabled]="loadingMore()">
+                  @if (loadingMore()) { Chargement... } @else { Voir plus }
+                </button>
+              </div>
+            }
           }
         </section>
 
@@ -176,6 +183,17 @@ type FlatDraft = EmailDraftDto & {
       cursor: pointer;
     }
     .open-btn:hover { background: #dfe7ff; }
+    .load-more-wrap { display: flex; justify-content: center; margin-top: 2px; }
+    .load-more-btn {
+      border: 1px solid #dbe3ff;
+      background: #edf2ff;
+      color: #3347cc;
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .load-more-btn:disabled { opacity: .65; cursor: not-allowed; }
 
     @media (max-width: 900px) {
       :host { padding: 16px; }
@@ -190,25 +208,37 @@ export class LettersComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly loading = signal<boolean>(true);
+  readonly loadingMore = signal<boolean>(false);
+  readonly hasMoreCandidatures = signal<boolean>(false);
   readonly error = signal<string | null>(null);
   readonly rows = signal<DraftRow[]>([]);
   readonly allDrafts = signal<FlatDraft[]>([]);
   readonly recentDrafts = computed(() => this.allDrafts().slice(0, 8));
+  private offset = 0;
+  private readonly pageSize = 10;
 
   ngOnInit(): void {
-    this.load();
+    this.load(true);
   }
 
-  load(): void {
-    this.loading.set(true);
+  load(reset = false): void {
+    if (reset) {
+      this.offset = 0;
+      this.rows.set([]);
+      this.allDrafts.set([]);
+      this.loading.set(true);
+    } else {
+      this.loadingMore.set(true);
+    }
     this.error.set(null);
 
-    this.candidatureService.getMyCandidatures().subscribe({
-      next: (candidatures) => {
-        if (candidatures.length === 0) {
-          this.rows.set([]);
-          this.allDrafts.set([]);
+    this.candidatureService.getMyCandidaturesPaged(this.offset, this.pageSize).subscribe({
+      next: (page) => {
+        const candidatures = page.items;
+        if (candidatures.length === 0 && reset) {
           this.loading.set(false);
+          this.loadingMore.set(false);
+          this.hasMoreCandidatures.set(false);
           return;
         }
 
@@ -263,21 +293,36 @@ export class LettersComponent implements OnInit {
               (a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime()
             );
 
-            this.rows.set(nextRows);
-            this.allDrafts.set(nextDrafts);
+            this.rows.update((rows) => reset ? nextRows : [...rows, ...nextRows]);
+            this.allDrafts.update((drafts) => {
+              const merged = reset ? [...nextDrafts] : [...drafts, ...nextDrafts];
+              return merged.sort(
+                (a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime()
+              );
+            });
+            this.offset += nextRows.length;
+            this.hasMoreCandidatures.set(page.hasMore);
             this.loading.set(false);
+            this.loadingMore.set(false);
           },
           error: () => {
             this.error.set('Impossible de charger les drafts email.');
             this.loading.set(false);
+            this.loadingMore.set(false);
           },
         });
       },
       error: () => {
         this.error.set('Impossible de charger les candidatures.');
         this.loading.set(false);
+        this.loadingMore.set(false);
       },
     });
+  }
+
+  loadMore(): void {
+    if (this.loadingMore() || !this.hasMoreCandidatures()) return;
+    this.load(false);
   }
 
   openWorkspace(candidatureId: string): void {

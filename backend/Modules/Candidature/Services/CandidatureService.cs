@@ -1,5 +1,6 @@
 using NextStep.Modules.Candidature.DTOs;
 using NextStep.Modules.Candidature.Repositories;
+using NextStep.Shared.Pagination;
 using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
 
 namespace NextStep.Modules.Candidature.Services;
@@ -59,6 +60,35 @@ public class CandidatureService : ICandidatureService
     {
         var entities = await _candidatureRepository.GetByUserIdAsync(userId, cancellationToken);
         return entities.Select(MapToDto).ToList();
+    }
+
+    public async Task<PagedResponse<CandidatureDto>> GetByUserIdPagedAsync(
+        Guid userId,
+        int offset,
+        int limit,
+        bool interviewOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        var safeOffset = Math.Max(0, offset);
+        var safeLimit = Math.Clamp(limit, 1, 100);
+
+        var (items, total) = await _candidatureRepository.GetByUserIdPagedAsync(
+            userId,
+            safeOffset,
+            safeLimit,
+            interviewOnly,
+            cancellationToken);
+
+        var mapped = items.Select(MapToDto).ToList();
+
+        return new PagedResponse<CandidatureDto>
+        {
+            Offset = safeOffset,
+            Limit = safeLimit,
+            Total = total,
+            HasMore = safeOffset + mapped.Count < total,
+            Items = mapped
+        };
     }
 
     private static CandidatureDto MapToDto(CandidatureEntity entity)

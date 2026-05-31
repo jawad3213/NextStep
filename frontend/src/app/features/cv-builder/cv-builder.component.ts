@@ -20,6 +20,14 @@ interface CvHistoryItem {
   targetedOfferCompany?: string | null;
 }
 
+interface PagedResponse<T> {
+  offset: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+  items: T[];
+}
+
 @Component({
   selector: 'app-cv-builder',
   standalone: true,
@@ -101,6 +109,13 @@ interface CvHistoryItem {
               </article>
             }
           </div>
+          @if (hasMoreHistory()) {
+            <div class="load-more-wrap">
+              <button class="btn-load-more" (click)="loadMoreHistory()" [disabled]="loadingMoreHistory()">
+                @if (loadingMoreHistory()) { Chargement... } @else { Voir plus }
+              </button>
+            </div>
+          }
         }
       </section>
     </div>
@@ -182,6 +197,29 @@ interface CvHistoryItem {
       grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
       gap: 18px;
       padding-bottom: 26px;
+    }
+    .load-more-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .btn-load-more {
+      border: 1px solid #dbe3ff;
+      background: #edf2ff;
+      color: #3347cc;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-load-more:hover {
+      background: #dfe7ff;
+    }
+    .btn-load-more:disabled {
+      opacity: .65;
+      cursor: not-allowed;
     }
     .history-card {
       background: #fff;
@@ -450,21 +488,83 @@ export class CvBuilderComponent implements OnInit {
 
   readonly historyItems = signal<CvHistoryItem[]>([]);
   readonly loadingHistory = signal(false);
+  readonly loadingMoreHistory = signal(false);
+  readonly historyOffset = signal(0);
+  readonly historyLimit = 10;
+  readonly hasMoreHistory = signal(false);
+  private useLegacyHistoryEndpoint = false;
+  private legacyHistoryCache: CvHistoryItem[] = [];
 
   ngOnInit(): void {
     this.loadHistory();
   }
 
   async loadHistory(): Promise<void> {
+    this.historyOffset.set(0);
     this.loadingHistory.set(true);
+    this.useLegacyHistoryEndpoint = false;
+    this.legacyHistoryCache = [];
     try {
-      const data = await firstValueFrom(this.http.get<CvHistoryItem[]>(`${this.baseUrl}/cv/history`));
-      this.historyItems.set(await this.enrichTargetOfferData(data));
+      const page = await firstValueFrom(
+        this.http.get<PagedResponse<CvHistoryItem>>(
+          `${this.baseUrl}/cv/history/paged?offset=0&limit=${this.historyLimit}`
+        )
+      );
+      const enriched = await this.enrichTargetOfferData(page.items);
+      this.historyItems.set(enriched);
+      this.historyOffset.set(enriched.length);
+      this.hasMoreHistory.set(page.hasMore);
     } catch {
-      this.historyItems.set([]);
+      await this.loadHistoryLegacyFallback();
     } finally {
       this.loadingHistory.set(false);
     }
+  }
+
+  async loadMoreHistory(): Promise<void> {
+    if (this.loadingMoreHistory() || !this.hasMoreHistory()) return;
+    this.loadingMoreHistory.set(true);
+    try {
+      if (this.useLegacyHistoryEndpoint) {
+        const offset = this.historyOffset();
+        const nextSlice = this.legacyHistoryCache.slice(offset, offset + this.historyLimit);
+        this.historyItems.update((items) => [...items, ...nextSlice]);
+        this.historyOffset.update((v) => v + nextSlice.length);
+        this.hasMoreHistory.set(this.historyOffset() < this.legacyHistoryCache.length);
+        return;
+      }
+
+      const offset = this.historyOffset();
+      const page = await firstValueFrom(
+        this.http.get<PagedResponse<CvHistoryItem>>(
+          `${this.baseUrl}/cv/history/paged?offset=${offset}&limit=${this.historyLimit}`
+        )
+      );
+      const enriched = await this.enrichTargetOfferData(page.items);
+      this.historyItems.update((items) => [...items, ...enriched]);
+      this.historyOffset.update((v) => v + enriched.length);
+      this.hasMoreHistory.set(page.hasMore);
+    } catch {
+      if (!this.useLegacyHistoryEndpoint) {
+        await this.loadHistoryLegacyFallback();
+      }
+    } finally {
+      this.loadingMoreHistory.set(false);
+    }
+  }
+
+  private async loadHistoryLegacyFallback(): Promise<void> {
+    const all = await firstValueFrom(
+      this.http.get<CvHistoryItem[]>(`${this.baseUrl}/cv/history`)
+    );
+    const enrichedAll = await this.enrichTargetOfferData(all);
+    this.useLegacyHistoryEndpoint = true;
+    this.legacyHistoryCache = enrichedAll;
+
+    const initial = enrichedAll.slice(0, this.historyLimit);
+    this.historyItems.set(initial);
+    this.historyOffset.set(initial.length);
+    this.hasMoreHistory.set(initial.length < enrichedAll.length);
   }
 
   async downloadCv(id: string): Promise<void> {

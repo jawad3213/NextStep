@@ -29,6 +29,7 @@ interface Activity {
 }
 
 interface Interview {
+  candidatureId: string;
   dayLabel: string;
   date: string;
   title: string;
@@ -98,10 +99,15 @@ export class DashboardComponent {
 
   private readonly candidaturesData = signal<CandidatureDto[]>([]);
   private readonly offerHistoryData = signal<OfferHistoryItemDto[]>([]);
+  private readonly offerMapSignal = signal<Map<string, OfferHistoryItemDto>>(new Map());
 
   readonly recentApplications = signal<Application[]>([]);
   readonly activities = signal<Activity[]>([]);
   readonly interviews = signal<Interview[]>([]);
+  readonly loadingMoreInterviews = signal(false);
+  readonly hasMoreInterviews = signal(false);
+  private interviewOffset = 0;
+  private readonly interviewPageSize = 10;
   readonly applications = signal<Application[]>([]);
   readonly offers = signal<OfferOverview[]>([]);
 
@@ -233,6 +239,7 @@ export class DashboardComponent {
         this.sourcedOffers.set(scrapedOffers);
 
         const offerMap = new Map(history.map(h => [h.offerId, h]));
+        this.offerMapSignal.set(offerMap);
         const sortedCandidatures = [...candidatures].sort((a, b) =>
           this.toTimestamp(b.dateCreation) - this.toTimestamp(a.dateCreation)
         );
@@ -241,6 +248,7 @@ export class DashboardComponent {
         this.recentApplications.set(recent);
         this.applications.set(recent.slice(0, 3));
         this.interviews.set(this.buildInterviews(sortedCandidatures, offerMap));
+        this.loadMoreInterviews(true);
         this.activities.set(this.buildActivities(sortedCandidatures, history, offerMap));
 
         const topOffers = [...history]
@@ -318,6 +326,7 @@ export class DashboardComponent {
         const baseDate = new Date(c.lastResponseAtUtc ?? c.dateCreation);
         const offer = offerMap.get(c.idOffre);
         return {
+          candidatureId: c.idCandidature,
           dayLabel: new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(baseDate).replace('.', '').toUpperCase(),
           date: new Intl.DateTimeFormat('fr-FR', { day: '2-digit' }).format(baseDate),
           title: `Entretien - ${offer?.entreprise || 'Entreprise'}`,
@@ -325,6 +334,50 @@ export class DashboardComponent {
           location: 'A confirmer',
           isToday: this.isSameDay(baseDate, new Date()),
         };
+      });
+  }
+
+  loadMoreInterviews(reset = false): void {
+    if (!reset && (this.loadingMoreInterviews() || !this.hasMoreInterviews())) return;
+    if (reset) {
+      this.interviewOffset = 0;
+      this.interviews.set([]);
+    }
+
+    this.loadingMoreInterviews.set(true);
+    this.candidatureService
+      .getMyCandidaturesPaged(this.interviewOffset, this.interviewPageSize, true)
+      .subscribe({
+        next: (page) => {
+          const offerMap = this.offerMapSignal();
+          const mapped = page.items.map((c) => {
+            const baseDate = new Date(c.lastResponseAtUtc ?? c.dateCreation);
+            const offer = offerMap.get(c.idOffre);
+            return {
+              candidatureId: c.idCandidature,
+              dayLabel: new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(baseDate).replace('.', '').toUpperCase(),
+              date: new Intl.DateTimeFormat('fr-FR', { day: '2-digit' }).format(baseDate),
+              title: `Entretien - ${offer?.entreprise || 'Entreprise'}`,
+              time: new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(baseDate),
+              location: 'A confirmer',
+              isToday: this.isSameDay(baseDate, new Date()),
+            } as Interview;
+          });
+
+          this.interviews.update((existing) => {
+            const map = new Map(existing.map((i) => [i.candidatureId, i]));
+            for (const m of mapped) map.set(m.candidatureId, m);
+            return Array.from(map.values());
+          });
+
+          this.interviewOffset += mapped.length;
+          this.hasMoreInterviews.set(page.hasMore);
+          this.loadingMoreInterviews.set(false);
+        },
+        error: () => {
+          this.loadingMoreInterviews.set(false);
+          this.hasMoreInterviews.set(false);
+        }
       });
   }
 

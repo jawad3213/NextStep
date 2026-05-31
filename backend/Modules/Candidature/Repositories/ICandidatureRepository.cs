@@ -16,6 +16,13 @@ public interface ICandidatureRepository
         Guid userId,
         CancellationToken cancellationToken = default);
 
+    Task<(List<CandidatureEntity> Items, int Total)> GetByUserIdPagedAsync(
+        Guid userId,
+        int offset,
+        int limit,
+        bool interviewOnly = false,
+        CancellationToken cancellationToken = default);
+
     Task<CandidatureEntity?> GetByUserAndOfferAsync(
         Guid userId,
         Guid offerId,

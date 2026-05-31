@@ -10,6 +10,7 @@ using NextStep.Modules.Cv.Models;
 using NextStep.Modules.Cv.Templates;
 using NextStep.Modules.Offer.Services;
 using NextStep.Modules.Profile.Services;
+using NextStep.Shared.Pagination;
 using NextStep.Shared.Http;
 using NextStep.Shared.Storage;
 using QuestPDF.Fluent;
@@ -25,6 +26,7 @@ public interface ICvService
     Task<CvSaveResult> SaveCvAsync(Guid userId, CvSaveRequest request);
     Task<CvSaveResult> UpdateCvAsync(Guid userId, Guid historyId, CvSaveRequest request);
     Task<List<CvHistoryDto>> GetHistoryAsync(Guid userId);
+    Task<PagedResponse<CvHistoryDto>> GetHistoryPagedAsync(Guid userId, int offset, int limit);
     Task<CvLoadResult> LoadCvAsync(Guid userId, Guid historyId);
     Task<string> GetDownloadUrlAsync(Guid userId, Guid historyId);
     Task<byte[]> GetDownloadBytesAsync(Guid userId, Guid historyId);
@@ -387,6 +389,66 @@ public class CvService : ICvService
             CreatedAt = h.CreatedAt,
             UpdatedAt = h.UpdatedAt,
         }).ToList();
+    }
+
+    public async Task<PagedResponse<CvHistoryDto>> GetHistoryPagedAsync(Guid userId, int offset, int limit)
+    {
+        var safeOffset = Math.Max(0, offset);
+        var safeLimit = Math.Clamp(limit, 1, 100);
+
+        var baseQuery = _db.CvHistories
+            .Where(h => h.UserId == userId)
+            .OrderByDescending(h => h.CreatedAt);
+
+        var total = await baseQuery.CountAsync();
+        var histories = await baseQuery
+            .Skip(safeOffset)
+            .Take(safeLimit)
+            .ToListAsync();
+
+        bool hasUpdates = false;
+        foreach (var h in histories)
+        {
+            if (h.Title != null && h.Title.StartsWith("CV_") && h.Title.Length > 30)
+            {
+                var offerIdString = h.Title.Substring(3);
+                if (Guid.TryParse(offerIdString, out var offerId))
+                {
+                    var analysis = await _offerService.GetAnalysisAsync(userId, offerId);
+                    if (analysis != null)
+                    {
+                        h.Title = $"CV - {analysis.Titre} - {analysis.Entreprise}";
+                        hasUpdates = true;
+                    }
+                }
+            }
+        }
+
+        if (hasUpdates)
+        {
+            await _db.SaveChangesAsync();
+        }
+
+        var items = histories.Select(h => new CvHistoryDto
+        {
+            Id = h.Id,
+            Title = h.Title,
+            TemplateSlug = h.TemplateSlug,
+            TemplateName = h.TemplateName,
+            FileUrl = h.FileUrl,
+            FileSizeBytes = h.FileSizeBytes,
+            CreatedAt = h.CreatedAt,
+            UpdatedAt = h.UpdatedAt,
+        }).ToList();
+
+        return new PagedResponse<CvHistoryDto>
+        {
+            Offset = safeOffset,
+            Limit = safeLimit,
+            Total = total,
+            HasMore = safeOffset + items.Count < total,
+            Items = items
+        };
     }
 
     public async Task<CvLoadResult> LoadCvAsync(Guid userId, Guid historyId)

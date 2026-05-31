@@ -42,6 +42,35 @@ public class CandidatureRepository : ICandidatureRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<(List<CandidatureEntity> Items, int Total)> GetByUserIdPagedAsync(
+        Guid userId,
+        int offset,
+        int limit,
+        bool interviewOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.Candidatures
+            .AsNoTracking()
+            .Where(x => x.IdUtilisateur == userId);
+
+        if (interviewOnly)
+        {
+            query = query.Where(x =>
+                (x.Statut != null && EF.Functions.Like(x.Statut, "%ENTRETIEN%")) ||
+                (x.ResponseStatus != null && EF.Functions.Like(x.ResponseStatus, "%ENTRETIEN%")));
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(x => x.LastResponseAtUtc ?? x.DateCreation)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
+
     public async Task<CandidatureEntity?> GetByUserAndOfferAsync(
         Guid userId,
         Guid offerId,

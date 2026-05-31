@@ -208,7 +208,7 @@
               <span class="h-2 w-2 animate-pulse rounded-full bg-red-500"></span>
             </div>
             <div class="divide-y divide-gray-100">
-              @for (interview of interviews(); track interview.title) {
+              @for (interview of interviews(); track interview.candidatureId) {
                 <div class="p-3.5 transition-colors hover:bg-gray-50">
                   <div class="flex gap-3">
                     <div class="flex h-fit min-w-[44px] flex-col items-center justify-center rounded-lg px-2.5 py-1" [class]="interview.isToday ? 'bg-brand-50' : 'bg-gray-100'">
@@ -228,6 +228,16 @@
                 <div class="p-4 text-sm text-gray-500">Aucun entretien detecte.</div>
               }
             </div>
+            @if (hasMoreInterviews()) {
+              <div class="border-t border-gray-100 p-3">
+                <button
+                  class="w-full rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-bold text-brand-600 transition-all hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  (click)="loadMoreInterviews()"
+                  [disabled]="loadingMoreInterviews()">
+                  @if (loadingMoreInterviews()) { Chargement... } @else { Voir plus entretiens }
+                </button>
+              </div>
+            }
           </div>
         </section>
 

@@ -1,4 +1,5 @@
 using NextStep.Modules.Candidature.DTOs;
+using NextStep.Shared.Pagination;
 
 namespace NextStep.Modules.Candidature.Services;
 
@@ -15,5 +16,12 @@ public interface ICandidatureService
 
     Task<List<CandidatureDto>> GetByUserIdAsync(
         Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResponse<CandidatureDto>> GetByUserIdPagedAsync(
+        Guid userId,
+        int offset,
+        int limit,
+        bool interviewOnly = false,
         CancellationToken cancellationToken = default);
 }

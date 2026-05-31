@@ -14,44 +14,85 @@
   }
 
   @if (pipeline.isLoading() && !error) {
-  <div class="flex flex-col items-center justify-center w-full h-full flex-1 gap-8 animate-fade-in py-10">
-    <div class="flex flex-col items-center text-center p-10 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm w-full max-w-[480px]">
-      <span class="w-16 h-16 border-4 border-slate-100 border-t-brand-500 rounded-full animate-spin mb-6"></span>
-      <div class="text-[11px] font-bold text-brand-500 uppercase tracking-wider mb-2">Analyse IA en cours</div>
-      <h3 class="text-xl font-extrabold text-slate-900 mb-2">Traitement de l'offre</h3>
-      <p class="text-sm text-slate-500 mb-4">{{ progress?.label ?? 'Analyse en cours...' }}</p>
-      <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
-        <div class="h-full bg-brand-500 rounded-full transition-all duration-500" [style.width.%]="progress?.progressPercent ?? 5"></div>
-      </div>
-      <div class="text-xs font-bold text-slate-400">{{ progress?.progressPercent ?? 5 }}%</div>
-    </div>
-    <div class="w-full max-w-[480px] flex flex-col gap-3">
-      @for (agent of agentStages; track agent.key) {
-      <div class="flex items-center gap-4 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 transition-all"
-        [class.border-brand-500]="getAgentStatus(agent.key) === 'running'"
-        [class.border-green-500]="getAgentStatus(agent.key) === 'done'"
-        [ngClass]="{'bg-green-50/80': getAgentStatus(agent.key) === 'done'}"
-      >
-        <div class="w-8 h-8 flex items-center justify-center"
-          [class.text-green-600]="getAgentStatus(agent.key) === 'done'"
-          [class.text-brand-500]="getAgentStatus(agent.key) === 'running'"
-          [class.text-slate-300]="getAgentStatus(agent.key) === 'todo'">
-          @if (getAgentStatus(agent.key) === 'done') {
-            <span class="material-symbols-outlined text-lg">check_circle</span>
-          } @else if (getAgentStatus(agent.key) === 'running') {
-            <span class="w-4 h-4 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin block"></span>
-          } @else {
-            <span class="material-symbols-outlined text-lg">radio_button_unchecked</span>
+    @if (companyIntelLoading) {
+      <div class="flex flex-col items-center justify-center w-full h-full flex-1 gap-8 animate-fade-in py-10">
+        <div class="flex flex-col items-center text-center p-10 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm w-full max-w-[480px]">
+          <span class="w-16 h-16 border-4 border-slate-100 border-t-brand-500 rounded-full animate-spin mb-6"></span>
+          <div class="text-[11px] font-bold text-brand-500 uppercase tracking-wider mb-2">Recherche IA en cours</div>
+          <h3 class="text-xl font-extrabold text-slate-900 mb-2">Intelligence Entreprise</h3>
+          <p class="text-sm text-slate-500 mb-4">{{ companyIntelProgressLabel }}</p>
+          <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+            <div class="h-full bg-brand-500 rounded-full transition-all duration-500" [style.width.%]="companyIntelProgressPercent"></div>
+          </div>
+          <div class="text-xs font-bold text-slate-400">{{ companyIntelProgressPercent }}%</div>
+        </div>
+        <div class="w-full max-w-[480px] flex flex-col gap-3">
+          @for (agent of companyIntelStages; track agent.key) {
+          <div class="flex items-center gap-4 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 transition-all"
+            [class.border-brand-500]="getCompanyIntelStageStatus(agent.key) === 'running'"
+            [class.border-green-500]="getCompanyIntelStageStatus(agent.key) === 'done'"
+            [ngClass]="{'bg-green-50/80': getCompanyIntelStageStatus(agent.key) === 'done'}"
+          >
+            <div class="w-8 h-8 flex items-center justify-center"
+              [class.text-green-600]="getCompanyIntelStageStatus(agent.key) === 'done'"
+              [class.text-brand-500]="getCompanyIntelStageStatus(agent.key) === 'running'"
+              [class.text-slate-300]="getCompanyIntelStageStatus(agent.key) === 'todo'">
+              @if (getCompanyIntelStageStatus(agent.key) === 'done') {
+                <span class="material-symbols-outlined text-lg">check_circle</span>
+              } @else if (getCompanyIntelStageStatus(agent.key) === 'running') {
+                <span class="w-4 h-4 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin block"></span>
+              } @else {
+                <span class="material-symbols-outlined text-lg">radio_button_unchecked</span>
+              }
+            </div>
+            <div>
+              <div class="text-sm font-bold text-slate-900">{{ agent.title }}</div>
+              <div class="text-xs text-slate-500">{{ agent.detail }}</div>
+            </div>
+          </div>
           }
         </div>
-        <div>
-          <div class="text-sm font-bold text-slate-900">{{ agent.title }}</div>
-          <div class="text-xs text-slate-500">{{ agent.detail }}</div>
+      </div>
+    } @else {
+      <div class="flex flex-col items-center justify-center w-full h-full flex-1 gap-8 animate-fade-in py-10">
+        <div class="flex flex-col items-center text-center p-10 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm w-full max-w-[480px]">
+          <span class="w-16 h-16 border-4 border-slate-100 border-t-brand-500 rounded-full animate-spin mb-6"></span>
+          <div class="text-[11px] font-bold text-brand-500 uppercase tracking-wider mb-2">Analyse IA en cours</div>
+          <h3 class="text-xl font-extrabold text-slate-900 mb-2">Traitement de l'offre</h3>
+          <p class="text-sm text-slate-500 mb-4">{{ progress?.label ?? 'Analyse en cours...' }}</p>
+          <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+            <div class="h-full bg-brand-500 rounded-full transition-all duration-500" [style.width.%]="progress?.progressPercent ?? 5"></div>
+          </div>
+          <div class="text-xs font-bold text-slate-400">{{ progress?.progressPercent ?? 5 }}%</div>
+        </div>
+        <div class="w-full max-w-[480px] flex flex-col gap-3">
+          @for (agent of agentStages; track agent.key) {
+          <div class="flex items-center gap-4 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 transition-all"
+            [class.border-brand-500]="getAgentStatus(agent.key) === 'running'"
+            [class.border-green-500]="getAgentStatus(agent.key) === 'done'"
+            [ngClass]="{'bg-green-50/80': getAgentStatus(agent.key) === 'done'}"
+          >
+            <div class="w-8 h-8 flex items-center justify-center"
+              [class.text-green-600]="getAgentStatus(agent.key) === 'done'"
+              [class.text-brand-500]="getAgentStatus(agent.key) === 'running'"
+              [class.text-slate-300]="getAgentStatus(agent.key) === 'todo'">
+              @if (getAgentStatus(agent.key) === 'done') {
+                <span class="material-symbols-outlined text-lg">check_circle</span>
+              } @else if (getAgentStatus(agent.key) === 'running') {
+                <span class="w-4 h-4 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin block"></span>
+              } @else {
+                <span class="material-symbols-outlined text-lg">radio_button_unchecked</span>
+              }
+            </div>
+            <div>
+              <div class="text-sm font-bold text-slate-900">{{ agent.title }}</div>
+              <div class="text-xs text-slate-500">{{ agent.detail }}</div>
+            </div>
+          </div>
+          }
         </div>
       </div>
-      }
-    </div>
-  </div>
+    }
   }
 
   @if (!pipeline.isLoading() && !error && result) {

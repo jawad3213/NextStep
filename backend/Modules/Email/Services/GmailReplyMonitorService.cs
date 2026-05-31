@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using NextStep.Modules.Email.Models;
@@ -85,7 +87,7 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
             accessToken = refreshed.NewAccessToken!;
         }
 
-        var threadUrl = $"https://gmail.googleapis.com/gmail/v1/users/me/threads/{threadId}?format=metadata";
+        var threadUrl = $"https://gmail.googleapis.com/gmail/v1/users/me/threads/{threadId}?format=full";
         using var httpClient = _httpClientFactory.CreateClient();
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
@@ -130,6 +132,12 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
                 return new ReplyCheckResult { HasReply = false };
 
             var connectedEmail = connection.EmailAddress.ToLowerInvariant();
+            DateTime? latestReplyDate = null;
+            string? latestReplyFrom = null;
+            string? latestReplySubject = null;
+            string? latestReplySnippet = null;
+            string? latestGmailMessageId = null;
+
             foreach (var msg in messagesEl.EnumerateArray())
             {
                 DateTime? msgDate = null;
@@ -146,6 +154,7 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
                 string? subjectHeader = null;
                 string? snippet = null;
                 string? gmailMsgId = null;
+                string? messageText = null;
 
                 if (msg.TryGetProperty("id", out var msgIdProp))
                     gmailMsgId = msgIdProp.GetString();
@@ -156,6 +165,8 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
                     payloadEl.TryGetProperty("headers", out var headersEl) &&
                     headersEl.ValueKind == JsonValueKind.Array)
                 {
+                    messageText = ExtractReadableMessageText(payloadEl);
+
                     foreach (var header in headersEl.EnumerateArray())
                     {
                         if (!header.TryGetProperty("name", out var nameProp) ||
@@ -177,18 +188,30 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
                     fromHeader.Contains(connectedEmail, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                return new ReplyCheckResult
+                if (latestReplyDate is null || msgDate > latestReplyDate)
                 {
-                    HasReply = true,
-                    ReplyDateUtc = msgDate,
-                    ReplyFrom = fromHeader,
-                    Snippet = snippet,
-                    ReplySubject = subjectHeader,
-                    GmailMessageId = gmailMsgId,
-                };
+                    latestReplyDate = msgDate;
+                    latestReplyFrom = fromHeader;
+                    latestReplySubject = subjectHeader;
+                    latestReplySnippet = BuildClassificationText(snippet, messageText);
+                    latestGmailMessageId = gmailMsgId;
+                }
             }
 
-            return new ReplyCheckResult { HasReply = false };
+            if (latestReplyDate is null)
+            {
+                return new ReplyCheckResult { HasReply = false };
+            }
+
+            return new ReplyCheckResult
+            {
+                HasReply = true,
+                ReplyDateUtc = latestReplyDate,
+                ReplyFrom = latestReplyFrom,
+                Snippet = latestReplySnippet,
+                ReplySubject = latestReplySubject,
+                GmailMessageId = latestGmailMessageId,
+            };
         }
         catch (Exception ex)
         {
@@ -290,5 +313,126 @@ public class GmailReplyMonitorService : IGmailReplyMonitorService
 
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; } = 3600;
+    }
+
+    private static string BuildClassificationText(string? snippet, string? fullText)
+    {
+        var cleanedFullText = string.IsNullOrWhiteSpace(fullText) ? null : NormalizeWhitespace(fullText);
+        if (!string.IsNullOrWhiteSpace(cleanedFullText))
+        {
+            return TruncateForClassification(cleanedFullText!, 4000);
+        }
+
+        var cleanedSnippet = string.IsNullOrWhiteSpace(snippet) ? string.Empty : NormalizeWhitespace(snippet);
+        return TruncateForClassification(cleanedSnippet, 1000);
+    }
+
+    private static string TruncateForClassification(string value, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Length <= maxChars ? value : value[..maxChars];
+    }
+
+    private static string ExtractReadableMessageText(JsonElement payload)
+    {
+        var plainBuilder = new StringBuilder();
+        var htmlBuilder = new StringBuilder();
+        CollectMimeBody(payload, plainBuilder, htmlBuilder);
+
+        var plainText = NormalizeWhitespace(plainBuilder.ToString());
+        if (!string.IsNullOrWhiteSpace(plainText))
+        {
+            return plainText;
+        }
+
+        var htmlText = HtmlToPlainText(htmlBuilder.ToString());
+        return NormalizeWhitespace(htmlText);
+    }
+
+    private static void CollectMimeBody(JsonElement part, StringBuilder plainBuilder, StringBuilder htmlBuilder)
+    {
+        var mimeType = part.TryGetProperty("mimeType", out var mimeEl)
+            ? mimeEl.GetString()
+            : null;
+
+        if (part.TryGetProperty("body", out var bodyEl) &&
+            bodyEl.TryGetProperty("data", out var dataEl))
+        {
+            var decoded = DecodeBase64Url(dataEl.GetString());
+            if (!string.IsNullOrWhiteSpace(decoded))
+            {
+                if (string.Equals(mimeType, "text/plain", StringComparison.OrdinalIgnoreCase))
+                {
+                    plainBuilder.AppendLine(decoded);
+                }
+                else if (string.Equals(mimeType, "text/html", StringComparison.OrdinalIgnoreCase))
+                {
+                    htmlBuilder.AppendLine(decoded);
+                }
+            }
+        }
+
+        if (part.TryGetProperty("parts", out var partsEl) && partsEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in partsEl.EnumerateArray())
+            {
+                CollectMimeBody(child, plainBuilder, htmlBuilder);
+            }
+        }
+    }
+
+    private static string DecodeBase64Url(string? encoded)
+    {
+        if (string.IsNullOrWhiteSpace(encoded))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var normalized = encoded.Replace('-', '+').Replace('_', '/');
+            var padLength = 4 - (normalized.Length % 4);
+            if (padLength is > 0 and < 4)
+            {
+                normalized = normalized.PadRight(normalized.Length + padLength, '=');
+            }
+
+            var bytes = Convert.FromBase64String(normalized);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string HtmlToPlainText(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return string.Empty;
+        }
+
+        var noScripts = Regex.Replace(html, "<(script|style)[^>]*>.*?</\\1>", " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var withBreaks = Regex.Replace(noScripts, "<br\\s*/?>", "\n", RegexOptions.IgnoreCase);
+        var stripped = Regex.Replace(withBreaks, "<[^>]+>", " ");
+        return System.Net.WebUtility.HtmlDecode(stripped);
+    }
+
+    private static string NormalizeWhitespace(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Replace("\r\n", "\n").Replace('\r', '\n');
+        normalized = Regex.Replace(normalized, "[\\t\\f\\v ]+", " ");
+        normalized = Regex.Replace(normalized, "\\n{3,}", "\n\n");
+        return normalized.Trim();
     }
 }

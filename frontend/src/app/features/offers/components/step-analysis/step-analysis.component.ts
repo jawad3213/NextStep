@@ -1,4 +1,4 @@
-﻿import { Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -59,6 +59,50 @@ export class StepAnalysisComponent {
   customCompanyName = '';
   companyIntelLoading = false;
   companyIntelError: string | null = null;
+  companyIntelProgressPercent = 5;
+  private companyIntelProgressInterval: any = null;
+
+  readonly companyIntelStages = [
+    {
+      key: 'collect',
+      title: 'C1 - Collecte de données',
+      detail: 'Recherche web, actualités récentes, données publiques de l\'entreprise.'
+    },
+    {
+      key: 'culture',
+      title: 'C2 - Analyse culturelle & RH',
+      detail: 'Évaluation des valeurs de l\'entreprise, environnement de travail et salaires.'
+    },
+    {
+      key: 'prep',
+      title: 'C3 - Préparation d\'entretien',
+      detail: 'Génération des questions types (techniques et RH) pour le poste.'
+    }
+  ];
+
+  getCompanyIntelStageStatus(stageKey: string): 'done' | 'running' | 'todo' {
+    if (!this.companyIntelLoading) return 'todo';
+    const percent = this.companyIntelProgressPercent;
+    if (stageKey === 'collect') {
+      return percent >= 35 ? 'done' : 'running';
+    }
+    if (stageKey === 'culture') {
+      if (percent < 35) return 'todo';
+      return percent >= 70 ? 'done' : 'running';
+    }
+    if (stageKey === 'prep') {
+      if (percent < 70) return 'todo';
+      return percent >= 100 ? 'done' : 'running';
+    }
+    return 'todo';
+  }
+
+  get companyIntelProgressLabel(): string {
+    const percent = this.companyIntelProgressPercent;
+    if (percent < 35) return "Recherche d'informations publiques sur l'entreprise...";
+    if (percent < 70) return "Analyse de la culture d'entreprise et des salaires...";
+    return "Génération des questions d'entretien...";
+  }
 
   readonly agentStages: AgentStage[] = [
     {
@@ -494,6 +538,20 @@ export class StepAnalysisComponent {
 
     this.companyIntelLoading = true;
     this.companyIntelError = null;
+    this.companyIntelProgressPercent = 5;
+
+    if (this.companyIntelProgressInterval) {
+      clearInterval(this.companyIntelProgressInterval);
+    }
+    this.companyIntelProgressInterval = setInterval(() => {
+      if (this.companyIntelProgressPercent < 95) {
+        this.companyIntelProgressPercent += Math.floor(Math.random() * 3) + 1;
+        if (this.companyIntelProgressPercent > 95) {
+          this.companyIntelProgressPercent = 95;
+        }
+      }
+    }, 200);
+
     this.pipeline.setLoading(true, "Recherche detaillee de l'entreprise en cours...");
 
     try {
@@ -524,6 +582,9 @@ export class StepAnalysisComponent {
         this.http.post<any>(`${this.agentsBaseUrl}/company/analyze-company`, payload)
       );
 
+      this.companyIntelProgressPercent = 100;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       const interviewQuestions = apiRes?.intelligence?.interview_questions
         ?? apiRes?.intelligence?.interviewQuestions
         ?? [];
@@ -545,6 +606,10 @@ export class StepAnalysisComponent {
     } catch (e: any) {
       this.companyIntelError = e?.error?.detail || "Echec de l'analyse entreprise.";
     } finally {
+      if (this.companyIntelProgressInterval) {
+        clearInterval(this.companyIntelProgressInterval);
+        this.companyIntelProgressInterval = null;
+      }
       this.companyIntelLoading = false;
       this.pipeline.setLoading(false);
     }
@@ -558,6 +623,16 @@ export class StepAnalysisComponent {
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed?.companyIntelPayload) return null;
+
+      // Ensure the snapshot belongs to the company currently displayed
+      const targetCompany = (this.result?.companyName && this.result?.companyName !== 'Non spécifié')
+        ? this.result.companyName
+        : this.customCompanyName;
+
+      if (targetCompany && targetCompany.trim().toLowerCase() !== parsed.companyName?.trim().toLowerCase()) {
+        return null;
+      }
+
       return parsed;
     } catch {
       return null;

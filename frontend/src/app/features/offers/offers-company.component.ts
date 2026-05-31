@@ -57,13 +57,13 @@ interface CompanyHistoryItem {
                 <div class="card-details">
                   <p class="summary-text">{{ item.data.summary || 'Aucun résumé disponible.' }}</p>
                   
-                  <div class="footer-meta">
+                  <div class="card-footer">
                     <div class="date-info">
                       <span class="material-symbols-outlined text-[14px]">calendar_today</span>
                       Analysé le {{ item.analyzedAt | date:'d MMMM yyyy, HH:mm' }}
                     </div>
                     
-                    <div class="actions">
+                    <div class="footer-actions">
                       <div class="score-pill" [class.high]="item.data.compatibilityScore >= 70">
                         <span class="score-dot"></span>
                         {{ item.data.compatibilityScore }}% Match
@@ -85,7 +85,7 @@ interface CompanyHistoryItem {
   styles: [`
     .history-container {
       padding: 32px 40px;
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -96,7 +96,7 @@ interface CompanyHistoryItem {
     .history-title {
       font-size: 24px;
       font-weight: 800;
-      color: #1e293b;
+      color: #0f172a;
       margin: 0 0 4px 0;
       font-family: 'Lato', sans-serif;
     }
@@ -108,113 +108,146 @@ interface CompanyHistoryItem {
     }
 
     .history-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 24px;
     }
 
     .history-card {
       background: white;
       border: 1px solid #e2e8f0;
       border-radius: 16px;
-      transition: all 0.2s ease;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
       overflow: hidden;
     }
 
     .history-card:hover {
-      border-color: #cbd5e1;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-      transform: translateY(-2px);
+      border-color: #c2d6ff;
+      box-shadow: 0 8px 24px rgba(70, 95, 255, 0.08);
+      transform: translateY(-3px);
     }
 
     .card-body {
       padding: 24px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      height: 100%;
     }
 
     .company-brand {
       display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 20px;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
     }
 
     .company-logo {
-      width: 48px;
-      height: 48px;
-      background: #f1f5f9;
-      color: #475569;
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #ecf3ff 0%, #dde9ff 100%);
+      color: #465fff;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 12px;
       font-weight: 800;
-      font-size: 16px;
-      border: 1px solid #e2e8f0;
+      font-size: 15px;
+      border: 1px solid #c2d6ff;
       flex-shrink: 0;
     }
 
+    .company-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex-grow: 1;
+    }
+
     .company-name {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       color: #0f172a;
-      margin: 0 0 6px 0;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .job-badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      background: #eff6ff;
-      color: #2563eb;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
+      gap: 4px;
+      padding: 2px 8px;
+      background: #ecf3ff;
+      color: #465fff;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .card-details {
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      justify-content: space-between;
     }
 
     .summary-text {
-      font-size: 13.5px;
+      font-size: 13px;
       color: #475569;
-      line-height: 1.6;
+      line-height: 1.5;
       margin: 0 0 20px 0;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      flex-grow: 1;
     }
 
-    .footer-meta {
+    .card-footer {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 12px;
       padding-top: 16px;
       border-top: 1px solid #f1f5f9;
+      margin-top: auto;
     }
 
     .date-info {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 12px;
+      font-size: 11px;
       color: #94a3b8;
       font-weight: 500;
     }
 
-    .actions {
+    .footer-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
+      gap: 8px;
     }
 
     .score-pill {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
+      gap: 6px;
+      padding: 4px 10px;
       background: #fef2f2;
       color: #dc2626;
       border-radius: 100px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
     }
 
@@ -224,8 +257,8 @@ interface CompanyHistoryItem {
     }
 
     .score-dot {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       background: currentColor;
       border-radius: 50%;
     }
@@ -233,21 +266,21 @@ interface CompanyHistoryItem {
     .btn-details {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
-      background: #1a91f0;
+      gap: 4px;
+      padding: 6px 14px;
+      background: #465fff;
       color: white;
       border: none;
-      border-radius: 10px;
-      font-size: 12px;
+      border-radius: 8px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .btn-details:hover {
-      background: #0c1986;
-      box-shadow: 0 4px 12px rgba(26, 145, 240, 0.3);
+      background: #3641f5;
+      box-shadow: 0 4px 12px rgba(70, 95, 255, 0.3);
     }
 
     .empty-state {

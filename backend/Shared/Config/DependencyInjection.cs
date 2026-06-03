@@ -49,12 +49,23 @@ public static class DependencyInjection
         return services;
     }
 
-    public static IServiceCollection AddCorsPolicy(this IServiceCollection services)
+    public static IServiceCollection AddCorsPolicy(this IServiceCollection services, IConfiguration configuration)
     {
+        var allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "http://localhost:4200"
+        };
+
+        var configuredFrontendBaseUrl = configuration["App:FrontendBaseUrl"];
+        if (Uri.TryCreate(configuredFrontendBaseUrl, UriKind.Absolute, out var frontendBaseUri))
+        {
+            allowedOrigins.Add(frontendBaseUri.GetLeftPart(UriPartial.Authority));
+        }
+
         services.AddCors(options =>
         {
             options.AddPolicy("Angular", policy =>
-                policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials()
+                policy.WithOrigins(allowedOrigins.ToArray()).AllowAnyHeader().AllowAnyMethod().AllowCredentials()
             );
         });
         return services;

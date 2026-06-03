@@ -14,21 +14,26 @@ public interface IPdfGenerationService
 
 public class PdfGenerationService : IPdfGenerationService
 {
+    private const string FrontendBaseUrlConfigKey = "App:FrontendBaseUrl";
+
     private readonly ICvService _cvService;
     private readonly IHubContext<PipelineHub> _hubContext;
     private readonly ILogger<PdfGenerationService> _logger;
     private readonly IOfferService _offerService;
+    private readonly IConfiguration _configuration;
 
     public PdfGenerationService(
         ICvService cvService,
         IHubContext<PipelineHub> hubContext,
         ILogger<PdfGenerationService> logger,
-        IOfferService offerService)
+        IOfferService offerService,
+        IConfiguration configuration)
     {
         _cvService = cvService;
         _hubContext = hubContext;
         _logger = logger;
         _offerService = offerService;
+        _configuration = configuration;
     }
 
     public async Task<PdfGenerateResultDto> GeneratePdfAsync(
@@ -60,10 +65,18 @@ public class PdfGenerationService : IPdfGenerationService
 
             await SendProgress(offerId, 100, "PDF genere avec succes !");
 
+            var frontendBaseUrl = _configuration[FrontendBaseUrlConfigKey];
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            {
+                frontendBaseUrl = "http://localhost:4200";
+            }
+
+            var normalizedFrontendBaseUrl = frontendBaseUrl.TrimEnd('/');
+
             var result = new PdfGenerateResultDto
             {
                 OfferId = offerId,
-                DownloadUrl = $"http://localhost:5000/api/cv/{saveResult.HistoryId}/download-file",
+                DownloadUrl = $"{normalizedFrontendBaseUrl}/api/cv/{saveResult.HistoryId}/download-file",
                 Status = "completed"
             };
 

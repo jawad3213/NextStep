@@ -18,7 +18,7 @@ builder.Services.AddControllers();
 builder.Services.ConfigureApiBehavior();
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
-builder.Services.AddCorsPolicy();
+builder.Services.AddCorsPolicy(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -45,6 +45,9 @@ app.UseCors("Angular");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health/live", () => Results.Ok(new { status = "ok" }));
+
 // Global Exception Handler
 app.Use(async (ctx, next) =>
 {
@@ -70,12 +73,14 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-RecurringJob.AddOrUpdate<CheckEmailRepliesJob>(
+var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+
+recurringJobManager.AddOrUpdate<CheckEmailRepliesJob>(
     "check-email-replies",
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
 
-RecurringJob.AddOrUpdate<DetectFollowUpNeededJob>(
+recurringJobManager.AddOrUpdate<DetectFollowUpNeededJob>(
     "detect-follow-up-needed",
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Daily);

@@ -29,12 +29,14 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptors([includeBearerTokenInterceptor])), 
     provideKeycloak({ 
       config: { 
-        url: 'http://localhost:8080',       
+        url: environment.keycloakUrl,       
         realm: 'Next-Step',                  
         clientId: 'nextstep-frontend',       
       }, 
       initOptions: { 
         onLoad: 'login-required', 
+        checkLoginIframe: false,
+        pkceMethod: false,
         silentCheckSsoRedirectUri: globalThis.location.origin + '/silent-check-sso.html', 
       }, 
       features: [ 

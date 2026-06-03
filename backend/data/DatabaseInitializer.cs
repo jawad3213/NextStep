@@ -49,9 +49,54 @@ public static class DatabaseInitializer
                     CREATE TABLE IF NOT EXISTS public.competence (id_competence UUID PRIMARY KEY);
                     CREATE TABLE IF NOT EXISTS public.certification (id_certification UUID PRIMARY KEY);
                     CREATE TABLE IF NOT EXISTS public.skill_keyword (id_skill_keyword UUID PRIMARY KEY DEFAULT gen_random_uuid(), mot TEXT NOT NULL);
+
+                    CREATE TABLE IF NOT EXISTS public.offres_emploi (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        texte_brut TEXT,
+                        analyse_json JSONB DEFAULT '{}',
+                        date_creation TIMESTAMP DEFAULT now(),
+                        utilisateur_id UUID
+                    );
+
+                    CREATE TABLE IF NOT EXISTS public.candidature (
+                        id_candidature UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        id_utilisateur UUID,
+                        id_offre UUID REFERENCES public.offres_emploi(id) ON DELETE CASCADE,
+                        date_creation TIMESTAMP DEFAULT now(),
+                        inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
+                        statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
+                    );
+
+                    CREATE TABLE IF NOT EXISTS public.document_genere (
+                        id_document UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        id_candidature UUID UNIQUE REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                        cv_contenu_ia_json JSONB DEFAULT '{}',
+                        lettre_motiv_contenu_ia TEXT,
+                        chemin_pdf_cv VARCHAR(255),
+                        chemin_pdf_lettre VARCHAR(255),
+                        version INTEGER DEFAULT 1,
+                        date_generation TIMESTAMP DEFAULT now()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS public.email_draft (
+                        id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        id_candidature UUID REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                        type_email VARCHAR(50) DEFAULT 'application',
+                        recipient_email VARCHAR(255),
+                        objet VARCHAR(255),
+                        corps TEXT,
+                        langue VARCHAR(10) DEFAULT 'fr',
+                        est_approuve BOOLEAN DEFAULT FALSE,
+                        est_envoye BOOLEAN DEFAULT FALSE,
+                        date_creation TIMESTAMP DEFAULT now(),
+                        date_modification TIMESTAMP,
+                        date_envoi TIMESTAMP,
+                        error_message TEXT
+                    );
                 ");
 
                 // 2. Force Add Columns (Utilisateur)
+
                 string[] uCols = { "keycloak_id TEXT", "email TEXT", "nom TEXT", "prenom TEXT", "date_inscription TIMESTAMP", "titres_sections JSONB", "objectif TEXT", "niveau TEXT", "secteur TEXT", "onboarding_completed BOOLEAN DEFAULT FALSE", "onboarding_step INTEGER DEFAULT 0", "onboarding_data JSONB", "profile_score INTEGER DEFAULT 0", "ville TEXT", "pays TEXT", "titre_poste TEXT", "photo_url TEXT", "telephone TEXT", "resume_professionnel TEXT", "lien_linkedin TEXT", "lien_github TEXT", "lien_portfolio TEXT", "coordonnees TEXT" };
                 foreach (var c in uCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.utilisateur ADD COLUMN IF NOT EXISTS {c};");
 

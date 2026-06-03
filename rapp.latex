@@ -1,0 +1,2194 @@
+\documentclass[12pt,a4paper]{report}
+
+% ─── PACKAGES ───────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{mdframed}
+\usepackage{tcolorbox}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fontawesome5}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{shapes,arrows,positioning,fit,calc}
+\usepackage{etoolbox}
+
+% ─── MISE EN PAGE ────────────────────────────────────────────────────────────
+\geometry{top=2.5cm, bottom=2.5cm, left=2.8cm, right=2.5cm, headheight=25pt}
+\raggedbottom
+\setlength{\floatsep}{5pt}
+\setlength{\textfloatsep}{8pt}
+\setlength{\intextsep}{5pt}
+\setlength{\dbltextfloatsep}{8pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlist[itemize]{itemsep=2pt, topsep=4pt}
+\setlist[enumerate]{itemsep=2pt, topsep=4pt}
+
+% ─── COULEURS ────────────────────────────────────────────────────────────────
+\definecolor{primaryBlue}{HTML}{3162F5} % Bleu vif de la couverture
+\definecolor{accentGold}{HTML}{C5902B}  % Doré de la couverture
+\definecolor{accentBlue}{HTML}{2563EB}
+\definecolor{lightBlue}{HTML}{DBEAFE}
+\definecolor{darkGray}{HTML}{374151}
+\definecolor{lightGray}{HTML}{F3F4F6}
+\definecolor{successGreen}{HTML}{065F46}
+\definecolor{warningOrange}{HTML}{92400E}
+\definecolor{codeBackground}{HTML}{1E1E2E}
+\definecolor{codeForeground}{HTML}{CDD6F4}
+\definecolor{keywordColor}{HTML}{89B4FA}
+\definecolor{stringColor}{HTML}{A6E3A1}
+\definecolor{commentColor}{HTML}{6C7086}
+\definecolor{numberColor}{HTML}{FAB387}
+
+% ─── HYPERREF ────────────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accentBlue,
+  urlcolor=accentBlue,
+  citecolor=accentBlue,
+  pdftitle={Rapport Technique - Projet NextStep},
+  pdfauthor={Nichan Said},
+  pdfsubject={Rapport de stage - Développement Full Stack}
+}
+
+% ─── EN-TÊTE / PIED DE PAGE ──────────────────────────────────────────────────
+\pagestyle{fancy}
+\setlength{\headheight}{25pt}
+\fancyhf{}
+\fancyhead[L]{\small\color{darkGray}\textit{Projet NextStep — Rapport Technique}}
+\fancyhead[R]{\small\color{darkGray}\textit{2025/2026}}
+\fancyfoot[C]{\small\color{darkGray}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{accentBlue}\leaders\hrule height \headrulewidth\hfill}}
+
+% ─── STYLE DES TITRES ────────────────────────────────────────────────────────
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{primaryBlue}}
+  {\textcolor{accentGold}{\chaptertitlename\ \thechapter}}{15pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{10pt}{15pt}
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{primaryBlue}}
+  {\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{accentBlue}}
+  {\thesubsection}{1em}{}
+\titlespacing*{\subsection}{0pt}{8pt}{4pt}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{darkGray}}
+  {\thesubsubsection}{1em}{}
+
+% ─── STYLE DES LISTINGS ──────────────────────────────────────────────────────
+\lstdefinestyle{codeStyle}{
+  backgroundcolor=\color{codeBackground},
+  basicstyle=\ttfamily\small\color{codeForeground},
+  keywordstyle=\color{keywordColor}\bfseries,
+  stringstyle=\color{stringColor},
+  commentstyle=\color{commentColor}\itshape,
+  numberstyle=\tiny\color{numberColor},
+  numbers=left,
+  numbersep=8pt,
+  stepnumber=1,
+  frame=single,
+  framerule=0pt,
+  rulecolor=\color{accentBlue},
+  breaklines=true,
+  breakatwhitespace=false,
+  tabsize=2,
+  showstringspaces=false,
+  captionpos=b,
+  xleftmargin=15pt,
+  xrightmargin=5pt,
+  aboveskip=8pt,
+  belowskip=8pt,
+  columns=fullflexible,
+  keepspaces=true,
+  literate={é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {à}{{\`a}}1
+           {â}{{\^a}}1 {ù}{{\`u}}1 {ô}{{\^o}}1 {î}{{\^i}}1 {ç}{{\c{c}}}1
+}
+
+\lstdefinestyle{jsonStyle}{
+  style=codeStyle,
+  language=,
+  morestring=[b]",
+  stringstyle=\color{stringColor},
+  literate={é}{{\'e}}1 {è}{{\`e}}1 {à}{{\`a}}1 {ç}{{\c{c}}}1
+}
+
+\lstdefinestyle{bashStyle}{
+  style=codeStyle,
+  language=bash,
+  morekeywords={docker,docker-compose,terraform,vagrant,ansible,ansible-playbook,apply,init,up}
+}
+
+\lstdefinestyle{rubyStyle}{
+  style=codeStyle,
+  language=Ruby,
+  morekeywords={configure,define,vm,hostname,network,provider,vmx}
+}
+
+\lstset{style=codeStyle}
+
+% ─── BOÎTES COLORÉES ─────────────────────────────────────────────────────────
+\tcbuselibrary{skins,breakable}
+
+\newtcolorbox{infobox}[1][]{
+  enhanced, colback=lightBlue, colframe=accentBlue,
+  fonttitle=\bfseries, title={\faInfoCircle\ Information}, #1
+}
+
+\newtcolorbox{warningbox}[1][]{
+  enhanced, colback=yellow!10, colframe=warningOrange,
+  fonttitle=\bfseries\color{warningOrange},
+  title={\faExclamationTriangle\ Important}, #1
+}
+
+\newtcolorbox{successbox}[1][]{
+  enhanced, colback=green!8, colframe=successGreen,
+  fonttitle=\bfseries\color{successGreen},
+  title={\faCheckCircle\ Résultat}, #1
+}
+
+% ─── ESPACEMENT ──────────────────────────────────────────────────────────────
+\onehalfspacing
+\renewcommand{\arraystretch}{1.3}
+
+% ─── COMMANDE IMAGE SÉCURISÉE ────────────────────────────────────────────────
+% Vérifie si le fichier image existe ; sinon affiche un placeholder gris.
+\newcommand{\safeimg}[2][]{%
+  \def\tmp{#2}%
+  \ifx\tmp\empty
+    \includegraphics[#1]{example-image}%
+  \else
+    \IfFileExists{#2}{%
+      \includegraphics[#1]{#2}%
+    }{%
+      \includegraphics[#1]{example-image}%
+    }%
+  \fi
+}
+
+% ─── COMMANDE FIGURE ─────────────────────────────────────────────────────────
+\newcommand{\screenshotfig}[3]{%
+  \begin{figure}[H]
+    \centering
+    \safeimg[width=0.85\textwidth, height=8cm, keepaspectratio]{#1}
+    \caption{#2}
+    \label{fig:#3}
+  \end{figure}
+}
+
+% Chapitres commencent sur nouvelle page (comportement LaTeX par défaut)
+
+% ════════════════════════════════════════════════════════════════════════════
+%  DOCUMENT
+% ════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+% ─── PAGE DE GARDE ───────────────────────────────────────────────────────────
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture, overlay]
+  \node[inner sep=0pt] at (current page.center) {\safeimg[width=\paperwidth,height=\paperheight]{covert-page.png}};
+\end{tikzpicture}
+\mbox{} % Garantit que la page n'est pas considérée comme vide par LaTeX
+\clearpage
+
+% ─── REMERCIEMENTS ───────────────────────────────────────────────────────────
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+\thispagestyle{fancy}
+
+Au terme de ce travail, il m'est particulièrement agréable d'exprimer ma gratitude
+et mes sincères remerciements à toutes les personnes qui ont contribué, de près ou de
+loin, à l'aboutissement de ce projet.
+
+Je tiens, en premier lieu, à adresser mes plus vifs et profonds remerciements à
+\textbf{Monsieur Mohamed GHAILANI}, professeur encadrant à l'École Nationale des
+Sciences Appliquées, pour la confiance qu'il m'a accordée en me confiant ce projet
+ambitieux. Sa disponibilité constante, ses conseils avisés, ses orientations
+pertinentes ainsi que son suivi rigoureux tout au long de la réalisation de ce travail
+ont été déterminants.
+
+Je souhaite également exprimer ma gratitude à l'ensemble de l'équipe du projet
+\textbf{NextStep} pour leur esprit de collaboration, leur sérieux et leur
+implication quotidienne.
+
+Enfin, mes remerciements les plus chaleureux vont à ma famille pour leur soutien moral
+indéfectible.
+
+\begin{flushright}
+  \textit{Nichan Said}\\
+  \textit{Chef de projet}\\
+  \textit{ENSA, 2025/2026}
+\end{flushright}
+
+% ─── TABLES ──────────────────────────────────────────────────────────────────
+\tableofcontents
+\listoffigures
+\addcontentsline{toc}{chapter}{Liste des figures}
+\listoftables
+\addcontentsline{toc}{chapter}{Liste des tableaux}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 1 — INTRODUCTION GÉNÉRALE
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Introduction Générale}
+
+\section{Contexte du projet}
+
+Dans le cadre de la formation d'ingénieur en Génie Informatique à l'École Nationale
+des Sciences Appliquées (ENSA), les étudiants de quatrième année (2ème année du
+cycle d'ingénieur) sont amenés à réaliser un projet de développement logiciel
+complet. Ce projet, encadré avec rigueur et bienveillance par notre professeur
+\textbf{Monsieur Mohamed GHAILANI}, intègre les dimensions techniques,
+organisationnelles et méthodologiques propres au développement Full Stack moderne.
+
+Le marché de l'emploi connaît aujourd'hui une transformation profonde, portée par la
+digitalisation massive des processus de recrutement. Les plateformes d'emploi se
+multiplient, les offres se fragmentent entre dizaines de sites différents, et les
+candidats --- qu'ils soient jeunes diplômés ou professionnels en reconversion --- se
+retrouvent confrontés à un écosystème de plus en plus complexe et chronophage.
+
+\section{Problématique}
+
+La recherche d'emploi moderne présente plusieurs défis majeurs auxquels les candidats
+et particulièrement les étudiants diplômés font face quotidiennement :
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Personnalisation fastidieuse des CV} : chaque offre d'emploi possède
+    ses propres mots-clés et exigences (ATS). Lorsqu'un candidat trouve une offre, il
+    doit manuellement adapter et personnaliser son CV pour maximiser ses chances, une
+    tâche extrêmement chronophage lorsqu'elle est répétée pour chaque candidature.
+  \item \textbf{Suivi chaotique des candidatures} : le suivi des candidatures envoyées
+    est souvent dispersé dans la boîte e-mail du candidat. Sans outil centralisé,
+    il est difficile de se rappeler quelles offres ont reçu une réponse, quelles
+    relances doivent être effectuées, et à quelle étape du processus de recrutement
+    le candidat se trouve.
+  \item \textbf{Fragmentation des sources} : les offres d'emploi sont dispersées sur
+    de multiples plateformes (LinkedIn, Indeed, Rekrute, Glassdoor, sites
+    d'entreprises), obligeant le candidat à consulter manuellement chaque source.
+  \item \textbf{Manque de visibilité sur les entreprises} : avant un entretien, le
+    candidat doit effectuer des recherches approfondies sur la culture d'entreprise,
+    les fourchettes salariales, les questions d'entretien et les avis des employés
+    --- des informations souvent éparpillées et difficilement accessibles.
+  \item \textbf{Absence d'aide à la décision} : les candidats ne disposent d'aucun
+    outil pour évaluer objectivement leur compatibilité avec une offre ou une
+    entreprise, ni pour identifier les lacunes de leur profil par rapport aux
+    exigences du marché.
+\end{itemize}
+
+Ces constats soulèvent une question centrale : \textit{comment offrir au candidat
+une plateforme unifiée, intelligente et proactive qui centralise l'ensemble de son
+parcours professionnel, automatise l'adaptation de son profil, et l'accompagne à
+chaque étape de sa recherche d'emploi ?}
+
+\section{Solution proposée : NextStep}
+
+Le projet \textbf{NextStep} apporte une réponse complète à cette problématique en
+proposant une \textbf{plateforme de gestion de carrière intelligente} qui combine
+développement Full Stack moderne et intelligence artificielle. NextStep se distingue
+des plateformes classiques par l'intégration de \textbf{quatre agents IA spécialisés}
+qui automatisent les tâches les plus chronophages du candidat.
+
+\subsection{Pile technologique}
+
+La réalisation de NextStep s'appuie sur une pile technologique moderne, diversifiée et éprouvée. Pour assurer une scalabilité optimale et faciliter la maintenance, les technologies ont été choisies et réparties par couche applicative :
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Backend (Microservices \& APIs)}
+  \begin{itemize}
+    \item \textbf{.NET 10 (Minimal API)} : Endpoints REST sécurisés, logique métier et gestion de profil.
+    \item \textbf{Entity Framework Core} : Mapping objet-relationnel (ORM) et migrations de base de données.
+    \item \textbf{PostgreSQL} : Stockage relationnel des données applicatives (schémas isolés).
+    \item \textbf{MinIO (compatible S3)} : Stockage distribué des photos de profil et fichiers CV.
+  \end{itemize}
+
+  \item \textbf{Frontend (Interface Utilisateur)}
+  \begin{itemize}
+    \item \textbf{Angular 19} : Application Single Page (SPA) réactive avec composants standalone.
+    \item \textbf{TypeScript} : Typage statique garantissant la robustesse et la maintenabilité du code côté client.
+    \item \textbf{Vitest} : Framework de tests unitaires ultra-rapide utilisé pour valider la logique métier du frontend.
+  \end{itemize}
+
+  \item \textbf{Intelligence Artificielle (Python)}
+  \begin{itemize}
+    \item \textbf{LangGraph (LangChain)} : Orchestration de graphes d'état complexes pour les agents IA.
+    \item \textbf{FastAPI} : Microservice asynchrone ultra-rapide exposant les agents IA au réseau.
+    \item \textbf{LLM Providers (Groq, Gemini, OpenAI)} : Modèles de langage avec système de fallback automatique multi-provider.
+    \item \textbf{PyMuPDF} : Extraction haute précision du texte brut des CVs au format PDF.
+    \item \textbf{Scrapling} : Collecte anti-bot robuste des offres d'emploi (ex. LinkedIn Jobs).
+    \item \textbf{httpx + BeautifulSoup} : Scraping léger d'informations (Glassdoor, Indeed, DuckDuckGo).
+  \end{itemize}
+
+  \item \textbf{Sécurité, Authentification \& Événementiel}
+  \begin{itemize}
+    \item \textbf{Keycloak 24} : Gestion centralisée des identités, Single Sign-On (SSO) et OAuth 2.0 / OIDC.
+    \item \textbf{Google OAuth} : Social login permettant l'authentification via un compte Google.
+    \item \textbf{Apache Kafka} : Message Broker assurant la communication asynchrone (Event-Driven) entre les microservices.
+  \end{itemize}
+
+  \item \textbf{DevOps, Infrastructure \& Qualité}
+  \begin{itemize}
+    \item \textbf{Docker \& Docker Compose} : Conteneurisation, isolation et portabilité de tous les services.
+    \item \textbf{Terraform + Vagrant} : Provisionnement automatisé de l'infrastructure locale (IaC).
+    \item \textbf{Ansible} : Déploiement et configuration automatisée des machines virtuelles.
+    \item \textbf{SonarQube} : Analyse statique en continu et mesure de la couverture de code.
+    \item \textbf{Prometheus + Grafana} : Supervision, monitoring et tableaux de bord de métriques.
+  \end{itemize}
+
+  \item \textbf{Gestion de projet}
+  \begin{itemize}
+    \item \textbf{Scrum (Agile)} : Organisation itérative en sprints avec backlog priorisé.
+    \item \textbf{Jira (Atlassian)} : Board Kanban pour le suivi des tâches et des sprints.
+    \item \textbf{Git + GitHub} : Versioning du code source et collaboration en équipe.
+  \end{itemize}
+\end{itemize}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 2 — GESTION DE PROJET VIA JIRA
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Gestion de Projet via Jira}
+
+\section{Méthodologie Agile et suivi du Sprint~2}
+
+La gestion et le suivi du projet s'appuient sur la méthodologie \textbf{Scrum},
+orchestrée via l'outil \textbf{Jira} d'Atlassian. Ce choix technologique permet une
+traçabilité précise des tâches et offre une visibilité en temps réel sur le flux de
+travail et l'avancement global de l'équipe.
+
+Pour illustrer notre démarche, nous prenons l'exemple concret du \textbf{Sprint~2},
+qui constitue le cœur fonctionnel des travaux présentés dans ce document.
+L'interface Jira nous a permis de structurer ce cycle à travers une séparation claire
+entre le \textit{Backlog} (planification initiale des tâches) et l'\textit{Active
+Board} (tableau Kanban dynamique), dont les états sont : \textit{To Do},
+\textit{In Progress}, \textit{In Review} et \textit{Done}.
+
+Les captures d'écran suivantes présentent l'état de notre environnement Jira pour
+ce sprint :
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \safeimg[width=\linewidth, height=6cm, keepaspectratio]{Screenshot 2026-05-29 165832.png}
+    \caption{Vue du Backlog Sprint~2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \safeimg[width=\linewidth, height=6cm, keepaspectratio]{screens/jira_board_sprint2.png}
+    \caption{Vue du Board Sprint~2}
+  \end{subfigure}
+  \caption{Interface Jira — Sprint~2}
+\end{figure}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 3 — INFRASTRUCTURE CLOUD LOCALE
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Architecture de l'Infrastructure Cloud Locale}
+
+\section{Approche de déploiement et philosophie IaC}
+
+Pour s'affranchir des contraintes liées aux environnements locaux hétérogènes et
+simuler un environnement de production hautement disponible, nous avons conçu une
+infrastructure de type \textbf{Cloud Local}. L'implémentation repose entièrement
+sur le paradigme de l'\textit{Infrastructure as Code} (IaC), garantissant la
+reproductibilité, l'isolation et l'automatisation complète de la stack technique.
+
+Cette architecture est orchestrée par trois outils leaders du marché DevOps :
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Terraform} : Orchestrateur de haut niveau pour initialiser
+    l'infrastructure, gérer le cycle de vie général et stocker l'état du système
+    (\texttt{terraform.tfstate}).
+  \item \textbf{Vagrant} : Responsable de la création, du provisionnement et de
+    l'abstraction des machines virtuelles (VM), supportant VirtualBox et VMware.
+  \item \textbf{Ansible} : Chargé de la configuration logicielle interne et du
+    déploiement automatisé des conteneurs de services au sein de chaque VM.
+\end{itemize}
+
+\section{Arborescence et structure du répertoire technique}
+
+La structure du répertoire \texttt{local/} reflète une séparation claire des
+responsabilités entre l'orchestration des ressources matérielles et la configuration
+logicielle.
+
+\screenshotfig{}{Structure du répertoire de l'infrastructure locale}{workspace_infra}
+
+\begin{table}[H]
+  \centering
+  \caption{Description des fichiers clés du Cloud Local}
+  \label{tab:fichiers_infra}
+  \begin{tabularx}{\textwidth}{>{\ttfamily}llX}
+    \toprule
+    \textbf{Fichier / Dossier} & \textbf{Outil} & \textbf{Rôle et Description} \\
+    \midrule
+    ansible/    & Ansible   & Playbooks de configuration interne des VM \\
+    docker/     & Docker    & Orchestration de conteneurs pour les services \\
+    main.tf     & Terraform & Définition principale des ressources et cycles IaC \\
+    providers.tf & Terraform & Configuration des connecteurs d'infrastructure \\
+    Vagrantfile & Vagrant   & Script Ruby d'approvisionnement des machines virtuelles \\
+    .env.prod   & Système   & Variables d'environnement de production \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Provisionnement matériel : le Vagrantfile}
+
+L'infrastructure locale est subdivisée en deux nœuds distincts possédant des
+adresses IP statiques au sein d'un réseau privé interne. Cette approche isole
+la couche applicative de la couche stockage et métrologie.
+
+\begin{lstlisting}[style=rubyStyle,
+  caption={Vagrantfile -- Definition multi-fournisseurs des VMs}]
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-22.04"
+
+  # VM 1 : Couche Application & Authentification
+  config.vm.define "vm1" do |vm1|
+    vm1.vm.hostname = "nextstep-app"
+    vm1.vm.network "private_network", ip: "192.168.77.10"
+
+    vm1.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus   = 2
+      vb.gui    = true
+      vb.name   = "nextstep-vm1"
+    end
+
+    vm1.vm.provider "vmware_desktop" do |v|
+      v.gui              = true
+      v.ssh_info_public  = true
+      v.vmx["memsize"]   = "2048"
+      v.vmx["numvcpus"]  = "2"
+    end
+  end
+
+  # VM 2 : Couche Stockage, Monitoring & SonarQube
+  config.vm.define "vm2" do |vm2|
+    vm2.vm.hostname = "nextstep-data"
+    vm2.vm.network "private_network", ip: "192.168.77.11"
+
+    vm2.vm.provider "virtualbox" do |vb|
+      vb.memory = "4096"
+      vb.cpus   = 2
+      vb.gui    = true
+      vb.name   = "nextstep-vm2"
+    end
+
+    vm2.vm.provider "vmware_desktop" do |v|
+      v.gui              = true
+      v.ssh_info_public  = true
+      v.vmx["memsize"]   = "4096"
+      v.vmx["numvcpus"]  = "2"
+    end
+  end
+end
+\end{lstlisting}
+
+\section{Configuration logicielle et déploiement : Ansible}
+
+Une fois les machines virtuelles démarrées et accessibles via SSH, Ansible prend
+le relais pour exécuter les tâches de configuration de bas niveau et déployer notre
+architecture conteneurisée. L'automatisation suit le flux logique suivant :
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Préparation du système} : mise à jour des paquets APT et installation
+    des dépendances réseau.
+  \item \textbf{Installation de Docker} : ajout des clés GPG et du dépôt officiel,
+    installation de \texttt{docker-ce} et du plugin \texttt{docker-compose-plugin}.
+  \item \textbf{Configuration réseau et sécurité} : création du réseau Docker partagé
+    et ajustement des droits utilisateurs.
+  \item \textbf{Déploiement ciblé des services} :
+    \begin{itemize}
+      \item \textbf{VM~1 (192.168.77.10)} : Keycloak, backend API .NET, frontend Angular.
+      \item \textbf{VM~2 (192.168.77.11)} : PostgreSQL, SonarQube, Prometheus/Grafana.
+    \end{itemize}
+\end{enumerate}
+
+\section{Pipeline d'exécution de l'infrastructure}
+
+\begin{lstlisting}[style=bashStyle,
+  caption={Initialisation du Cloud Local via Terraform et Vagrant}]
+# Initialisation des plugins Terraform
+terraform init
+
+# Planification et validation de la topologie
+terraform plan
+
+# Creation des ressources virtuelles via Vagrant
+terraform apply -auto-approve
+
+# Execution manuelle du playbook Ansible (si besoin)
+ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+\end{lstlisting}
+
+Grâce à cette approche couplée IaC (Terraform, Vagrant) et gestion de configuration
+(Ansible), l'équipe dispose d'un jumeau local fidèle d'une architecture Cloud de
+production.
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 4 — CONFIGURATION DE KEYCLOAK
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Configuration et Intégration de Keycloak}
+
+\section{Introduction à Keycloak}
+
+\subsection{Qu'est-ce que Keycloak ?}
+
+Keycloak est un serveur d'identité open-source développé par Red Hat. Il implémente
+les standards \textbf{OAuth~2.0} et \textbf{OpenID Connect (OIDC)}, protocoles de
+référence pour l'authentification et l'autorisation dans les applications web modernes.
+
+L'adoption de Keycloak dans le projet NextStep répond à plusieurs exigences :
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Centralisation} : gestion centralisée des utilisateurs, mots de passe,
+    sessions et jetons JWT, sans logique d'authentification dispersée dans le code.
+  \item \textbf{Sécurité} : les mots de passe ne transitent jamais par Angular ou
+    l'API .NET ; Keycloak gère entièrement le flux d'authentification.
+  \item \textbf{Extensibilité} : support natif du SSO, du MFA et des connexions sociales
+    (Google, GitHub).
+  \item \textbf{Standards ouverts} : interopérabilité garantie avec tout écosystème
+    technologique via OAuth~2.0 et OIDC.
+\end{itemize}
+
+\subsection{Architecture générale du système d'authentification}
+
+\begin{table}[H]
+  \centering
+  \caption{Composants de l'architecture NextStep}
+  \label{tab:composants}
+  \begin{tabularx}{\textwidth}{llXl}
+    \toprule
+    \textbf{Composant} & \textbf{Technologie} & \textbf{Rôle} & \textbf{Port} \\
+    \midrule
+    Serveur d'identité & Keycloak (Docker) & Gestion des utilisateurs et émission des jetons JWT & 8080 \\
+    Backend API        & .NET~10 Minimal API & Endpoints REST sécurisés & 5000 \\
+    Frontend SPA       & Angular~19          & Interface utilisateur & 4200 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Flux d'authentification OAuth~2.0 / OIDC}
+
+Le flux d'authentification suit le protocole \textit{Authorization Code Flow}, le
+plus sécurisé pour les applications web. Il se déroule en six étapes :
+
+\begin{enumerate}[leftmargin=2em]
+  \item L'utilisateur clique sur \textit{Se connecter} dans Angular.
+  \item Angular redirige le navigateur vers la page de login hébergée par Keycloak.
+  \item L'utilisateur saisit ses identifiants directement sur Keycloak (Angular ne
+    voit jamais le mot de passe).
+  \item Keycloak valide les identifiants et redirige vers Angular avec un
+    \textit{code d'autorisation} temporaire.
+  \item Angular échange ce code contre trois jetons : l'Access Token (JWT), le
+    Refresh Token et l'ID Token.
+  \item Angular envoie l'Access Token dans le header \texttt{Authorization} de
+    chaque requête vers l'API .NET.
+\end{enumerate}
+
+\begin{infobox}
+  Le navigateur ne connaît jamais le mot de passe de l'application : seul Keycloak
+  le gère. Cette séparation des responsabilités est l'un des principes fondamentaux
+  de la sécurité OAuth~2.0.
+\end{infobox}
+
+\section{Mise en place de Keycloak avec Docker Compose}
+
+\subsection{Configuration du Docker Compose}
+
+\begin{lstlisting}[style=codeStyle,
+  caption={docker-compose.yml — Service Keycloak}]
+version: '3.8'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: nextstep-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    command: start-dev
+\end{lstlisting}
+
+\begin{table}[H]
+  \centering
+  \caption{Paramètres du service Keycloak dans Docker Compose}
+  \label{tab:docker_compose_params}
+  \begin{tabularx}{\textwidth}{lX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Signification} \\
+    \midrule
+    \texttt{image}       & Image Docker officielle Keycloak 24.0 \\
+    \texttt{ports}       & Mapping port 8080 conteneur → hôte \\
+    \texttt{environment} & Administrateur par défaut (admin / admin) \\
+    \texttt{command}     & Mode développement (HTTP, sans SSL) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \safeimg[width=\linewidth, height=6cm, keepaspectratio]{Screenshot 2026-05-30 003926.png}
+    \caption{Code docker-compose.yml}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \safeimg[width=\linewidth, height=6cm, keepaspectratio]{Screenshot 2026-05-30 004226.png}
+    \caption{Terminal — docker-compose up}
+  \end{subfigure}
+  \vspace{0.3cm}
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \safeimg[width=\linewidth, height=5cm, keepaspectratio]{Screenshot 2026-05-29 170135.png}
+    \caption{Console d'administration Keycloak}
+  \end{subfigure}
+  \caption{Déploiement de Keycloak via Docker Compose}
+\end{figure}
+
+\subsection{Création du Realm Next-Step}
+
+Un \textbf{Realm} est un espace d'isolation dans Keycloak qui regroupe ses propres
+utilisateurs, clients, rôles et configurations. Le realm \texttt{master} est réservé
+à l'administration ; chaque application doit disposer de son propre realm.
+
+Procédure de création du realm \texttt{Next-Step} :
+
+\begin{enumerate}[leftmargin=2em]
+  \item Ouvrir \url{http://localhost:8080/admin}.
+  \item Cliquer sur le menu déroulant \textit{master} en haut à gauche.
+  \item Sélectionner \textit{Create realm}.
+  \item Renseigner \textit{Realm name} avec la valeur \texttt{Next-Step}.
+  \item Valider en cliquant sur \textit{Create}.
+\end{enumerate}
+
+\screenshotfig{Screenshot 2026-05-29 170218.png}%
+  {Création du realm Next-Step dans Keycloak}{create_realm}
+
+\subsection{Activation de l'inscription utilisateur}
+
+Par défaut, seul l'administrateur peut créer des utilisateurs. Pour permettre
+l'auto-inscription, les paramètres suivants doivent être activés dans
+\textit{Realm Settings} $\rightarrow$ onglet \textit{Login} :
+
+\begin{table}[H]
+  \centering
+  \caption{Options d'inscription activées dans le Realm Next-Step}
+  \label{tab:inscription}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Option} & \textbf{Valeur} & \textbf{Justification} \\
+    \midrule
+    User registration & ON & Ajoute un lien \textit{Register} sur la page de login \\
+    Forgot password   & ON & Permet la réinitialisation du mot de passe \\
+    Remember me       & ON & Ajoute une case \textit{Se souvenir de moi} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\screenshotfig{Screenshot 2026-05-29 173717.png}%
+  {Configuration des options de login dans Realm Settings}{realm_login}
+
+\section{Configuration des clients Keycloak}
+
+\subsection{Client Frontend : \texttt{nextstep-frontend}}
+
+Un \textbf{Client} dans Keycloak représente une application qui délègue l'authentification
+au serveur. Le client \texttt{nextstep-frontend} doit être configuré comme un client
+\textit{public}, car une SPA s'exécute dans le navigateur et ne peut pas stocker de
+secret de manière sécurisée.
+
+\textbf{Étape 1 — General Settings :}
+
+\begin{table}[H]
+  \centering
+  \caption{Configuration générale du client nextstep-frontend}
+  \label{tab:client_frontend}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    Client type & OpenID Connect    & Protocole standard pour l'authentification moderne \\
+    Client ID   & nextstep-frontend & Identifiant unique utilisé par Angular \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Étape 2 — Capability Config :}
+
+\begin{table}[H]
+  \centering
+  \caption{Capacités du client nextstep-frontend}
+  \label{tab:client_frontend_cap}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    Client authentication & OFF & Une SPA ne peut pas stocker de secret \\
+    Standard flow         & ON  & Active le flux \textit{Authorization Code} \\
+    Direct access grants  & OFF & Désactive l'envoi direct du mot de passe via API \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Étape 3 — Login Settings :}
+
+\begin{table}[H]
+  \centering
+  \caption{Paramètres de redirection du client nextstep-frontend}
+  \label{tab:client_frontend_login}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    Valid Redirect URIs              & \texttt{http://localhost:4200/*} & URL de redirection autorisée après login \\
+    Valid Post Logout Redirect URIs  & \texttt{http://localhost:4200/*} & URL de redirection après logout \\
+    Web Origins                      & \texttt{http://localhost:4200}   & Autorise les requêtes CORS depuis Angular \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\screenshotfig{Screenshot 2026-05-29 172928.png}%
+  {Configuration du client nextstep-frontend dans Keycloak}{client_frontend}
+
+\subsection{Client Backend : \texttt{nextstep-api}}
+
+Le client \texttt{nextstep-api} représente notre API .NET~10 et sert d'identifiant
+d'audience dans les jetons JWT, permettant à l'API de valider qu'ils lui sont destinés.
+
+\begin{table}[H]
+  \centering
+  \caption{Configuration du client nextstep-api}
+  \label{tab:client_api}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    Client type           & OpenID Connect & Protocole standard \\
+    Client ID             & nextstep-api   & Ce nom sera l'audience (\texttt{aud}) dans le JWT \\
+    Client authentication & ON             & Client confidentiel (côté serveur) \\
+    Standard flow         & OFF            & L'API valide les jetons, elle ne fait pas de login \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\screenshotfig{Screenshot 2026-05-29 170514.png}%
+  {Configuration du client nextstep-api dans Keycloak}{client_api}
+
+\subsection{Configuration de l'Audience Mapper (étape critique)}
+
+\begin{warningbox}
+  \textbf{Sans cette configuration, toutes les requêtes vers l'API retourneront
+  une erreur 401 Unauthorized.}
+\end{warningbox}
+
+Par défaut, le jeton JWT contient uniquement \texttt{account} comme audience dans
+le champ \texttt{aud}. Or, notre API .NET n'accepte que les jetons dont l'audience
+est \texttt{nextstep-api}. L'Audience Mapper instruit Keycloak pour qu'il ajoute
+automatiquement \texttt{nextstep-api} dans le champ \texttt{aud} de chaque Access
+Token.
+
+Procédure de configuration :
+
+\begin{enumerate}[leftmargin=2em]
+  \item Aller dans \textit{Clients} $\rightarrow$ cliquer sur \texttt{nextstep-frontend}.
+  \item Cliquer sur l'onglet \textit{Client scopes}.
+  \item Cliquer sur le lien \texttt{nextstep-frontend-dedicated}.
+  \item Cliquer sur \textit{Add mapper} $\rightarrow$ \textit{By configuration}.
+  \item Choisir \textit{Audience} dans la liste.
+  \item Remplir le formulaire selon le tableau~\ref{tab:audience_mapper}.
+\end{enumerate}
+
+\begin{table}[H]
+  \centering
+  \caption{Configuration de l'Audience Mapper}
+  \label{tab:audience_mapper}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    Name                      & nextstep-api-audience & Nom libre pour identifier ce mapper \\
+    Included Client Audience  & nextstep-api          & Le Client ID de notre API .NET \\
+    Add to ID token           & OFF & L'ID token est pour le frontend \\
+    Add to access token       & ON  & L'Access Token est envoyé à l'API \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{successbox}
+  Après cette configuration, chaque jeton JWT contient :
+  \begin{lstlisting}[style=jsonStyle, numbers=none]
+{
+  "aud": ["nextstep-api", "account"],
+  "iss": "http://localhost:8080/realms/Next-Step",
+  "preferred_username": "said"
+}
+  \end{lstlisting}
+\end{successbox}
+
+\screenshotfig{Screenshot 2026-05-29 173630.png}%
+  {Configuration de l'Audience Mapper dans les Client Scopes}{audience_mapper}
+
+\section{Création d'un utilisateur de test}
+
+\begin{table}[H]
+  \centering
+  \caption{Paramètres de l'utilisateur de test}
+  \label{tab:user_test}
+  \begin{tabularx}{\textwidth}{lX}
+    \toprule
+    \textbf{Champ} & \textbf{Valeur} \\
+    \midrule
+    Username        & said \\
+    Email           & saidnichan6@gmail.com \\
+    Email verified  & ON \\
+    First name      & Said \\
+    Last name       & Nichan \\
+    Password        & Défini dans l'onglet Credentials, option Temporary désactivée \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Réinitialisation du mot de passe (Forgot Password)}
+
+\subsection{Objectif}
+
+La fonctionnalité \textit{Forgot Password} permet aux utilisateurs de réinitialiser
+leur mot de passe de manière autonome via un lien envoyé par e-mail. Cette
+fonctionnalité est indispensable pour réduire la charge de support et offrir une
+expérience utilisateur fluide.
+
+\subsection{Activation dans Keycloak}
+
+La réinitialisation du mot de passe nécessite deux configurations : l'activation de
+l'option dans le realm et la configuration d'un serveur SMTP pour l'envoi des e-mails.
+
+\textbf{Étape 1 — Activer l'option Forgot Password :}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Aller dans \textit{Realm Settings} $\rightarrow$ onglet \textit{Login}.
+  \item Activer l'option \textit{Forgot password} (basculer sur \textbf{ON}).
+  \item Cliquer sur \textit{Save}.
+\end{enumerate}
+
+\screenshotfig{screens/keycloak-forgot-password-login.png}%
+  {Activation de l'option Forgot Password dans Realm Settings}{forgot_pwd_login}
+
+\textbf{Étape 2 — Configurer le serveur SMTP :}
+
+Pour que Keycloak puisse envoyer les e-mails de réinitialisation, un serveur SMTP
+doit être configuré dans \textit{Realm Settings} $\rightarrow$ onglet \textit{Email}.
+
+\begin{table}[H]
+  \centering
+  \caption{Configuration SMTP pour l'envoi d'e-mails}
+  \label{tab:smtp_config}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    From            & \texttt{noreply@nextstep.com}  & Adresse e-mail de l'expéditeur \\
+    Host            & \texttt{smtp.gmail.com}        & Serveur SMTP de Google \\
+    Port            & 587                            & Port TLS standard \\
+    Enable StartTLS & ON                             & Chiffrement TLS obligatoire \\
+    Authentication  & ON                             & Authentification requise \\
+    Username        & \texttt{saidnichan6@gmail.com} & Compte Gmail utilisé \\
+    Password        & \texttt{****}                  & Mot de passe d'application Google \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\screenshotfig{screens/keycloak-smtp-config.png}%
+  {Configuration du serveur SMTP dans Realm Settings}{smtp_config}
+
+\begin{infobox}
+  Pour utiliser Gmail comme serveur SMTP, il est nécessaire de générer un
+  \textit{mot de passe d'application} depuis les paramètres de sécurité du compte
+  Google (\url{https://myaccount.google.com/apppasswords}). Le mot de passe
+  classique du compte ne fonctionne pas si la vérification en deux étapes est activée.
+\end{infobox}
+
+\subsection{Flux de réinitialisation}
+
+Le flux complet de réinitialisation se déroule en cinq étapes :
+
+\begin{enumerate}[leftmargin=2em]
+  \item L'utilisateur clique sur \textit{Mot de passe oublié ?} sur la page de login
+    Keycloak.
+  \item Keycloak affiche un formulaire demandant l'adresse e-mail ou le nom
+    d'utilisateur.
+  \item Un e-mail contenant un lien de réinitialisation (avec un token temporaire)
+    est envoyé à l'utilisateur.
+  \item L'utilisateur clique sur le lien et définit un nouveau mot de passe.
+  \item Keycloak confirme la modification et redirige vers la page de login.
+\end{enumerate}
+
+\screenshotfig{screens/keycloak-forgot-password-form.png}%
+  {Formulaire de réinitialisation du mot de passe}{forgot_pwd_form}
+
+\screenshotfig{screens/keycloak-forgot-password-email.png}%
+  {E-mail de réinitialisation envoyé à l'utilisateur}{forgot_pwd_email}
+
+\section{Authentification sociale via Google}
+
+\subsection{Objectif}
+
+L'authentification sociale permet aux utilisateurs de se connecter à NextStep
+en utilisant leur compte Google existant, sans avoir à créer un nouveau mot de passe.
+Cette fonctionnalité améliore significativement le taux de conversion à l'inscription
+et simplifie l'expérience utilisateur.
+
+\subsection{Création du projet Google Cloud}
+
+Avant de configurer Keycloak, il est nécessaire de créer un projet et des
+identifiants OAuth~2.0 dans la \textbf{Google Cloud Console} :
+
+\begin{enumerate}[leftmargin=2em]
+  \item Accéder à \url{https://console.cloud.google.com}.
+  \item Créer un nouveau projet (ex. : \texttt{NextStep}).
+  \item Aller dans \textit{APIs \& Services} $\rightarrow$ \textit{OAuth consent screen}.
+  \item Configurer l'écran de consentement (type \textit{External}, nom de
+    l'application, e-mail de support).
+  \item Aller dans \textit{Credentials} $\rightarrow$ \textit{Create Credentials}
+    $\rightarrow$ \textit{OAuth 2.0 Client ID}.
+  \item Sélectionner le type \textit{Web application}.
+  \item Ajouter l'URI de redirection autorisée :
+    \texttt{http://localhost:8080/realms/Next-Step/broker/google/endpoint}.
+  \item Noter le \textbf{Client ID} et le \textbf{Client Secret} générés.
+\end{enumerate}
+
+\screenshotfig{screens/google-cloud-oauth-consent.png}%
+  {Configuration de l'écran de consentement OAuth dans Google Cloud}{google_consent}
+
+\screenshotfig{screens/google-cloud-credentials.png}%
+  {Création des identifiants OAuth 2.0 dans Google Cloud}{google_credentials}
+
+\subsection{Configuration dans Keycloak}
+
+\textbf{Étape 1 — Ajouter le provider Google :}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Dans le realm \texttt{Next-Step}, aller dans \textit{Identity Providers}.
+  \item Cliquer sur \textit{Add provider} $\rightarrow$ sélectionner \textit{Google}.
+  \item Remplir les champs selon le tableau~\ref{tab:google_idp}.
+  \item Cliquer sur \textit{Save}.
+\end{enumerate}
+
+\begin{table}[H]
+  \centering
+  \caption{Configuration du provider Google dans Keycloak}
+  \label{tab:google_idp}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    Alias                & google                     & Identifiant interne du provider \\
+    Display Name         & Google                     & Nom affiché sur la page de login \\
+    Client ID            & \texttt{<Google Client ID>} & Copié depuis Google Cloud Console \\
+    Client Secret        & \texttt{<Google Secret>}    & Copié depuis Google Cloud Console \\
+    Default Scopes       & \texttt{openid email profile} & Informations demandées au compte Google \\
+    Trust Email          & ON                         & L'e-mail Google est considéré comme vérifié \\
+    First Login Flow     & first broker login         & Flux par défaut pour les nouveaux utilisateurs \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\screenshotfig{screens/keycloak-google-idp-config.png}%
+  {Configuration du provider Google dans Keycloak}{google_idp_config}
+
+\textbf{Étape 2 — Vérifier l'URI de redirection :}
+
+Keycloak génère automatiquement l'URI de redirection à fournir dans Google Cloud :
+
+\begin{verbatim}
+http://localhost:8080/realms/Next-Step/broker/google/endpoint
+\end{verbatim}
+
+Cette URI doit correspondre exactement à celle configurée dans les
+\textit{Authorized redirect URIs} du projet Google Cloud.
+
+\subsection{Flux d'authentification Google}
+
+\begin{enumerate}[leftmargin=2em]
+  \item L'utilisateur clique sur le bouton \textit{Se connecter avec Google} sur la
+    page de login Keycloak.
+  \item Keycloak redirige vers la page de consentement Google.
+  \item L'utilisateur autorise l'accès à son profil (nom, e-mail, photo).
+  \item Google redirige vers Keycloak avec un code d'autorisation.
+  \item Keycloak échange le code contre les informations du profil Google.
+  \item Si l'utilisateur n'existe pas encore dans le realm, Keycloak applique le
+    \textit{First Broker Login} flow (création automatique ou liaison de compte).
+  \item L'utilisateur est authentifié et redirigé vers Angular avec les jetons JWT.
+\end{enumerate}
+
+\screenshotfig{screens/keycloak-login-with-google.png}%
+  {Page de login Keycloak avec le bouton Google}{login_google_button}
+
+\screenshotfig{screens/google-consent-screen.png}%
+  {Écran de consentement Google lors de la connexion}{google_consent_user}
+
+\begin{successbox}
+  Après configuration, la page de login Keycloak affiche automatiquement le bouton
+  \textit{Se connecter avec Google} en dessous du formulaire de login classique.
+  L'utilisateur peut choisir librement entre les deux méthodes d'authentification.
+\end{successbox}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 5 — PERSONNALISATION DU THÈME KEYCLOAK
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Personnalisation du Thème Keycloak}
+
+\section{Objectif et approche}
+
+La page de login par défaut de Keycloak affiche le design générique de Red Hat, qui
+ne correspond pas à la charte graphique NextStep. La personnalisation du thème offre
+une expérience utilisateur cohérente tout en conservant la robustesse de Keycloak.
+
+L'approche adoptée consiste à créer un thème basé sur le thème parent
+\texttt{keycloak}, en ne surchargeant que les fichiers nécessaires. Cela minimise
+la maintenance et garantit la compatibilité avec les mises à jour futures.
+
+\section{Structure du thème}
+
+\subsection{Arborescence des fichiers}
+
+\begin{lstlisting}[style=bashStyle,
+  caption={Structure du theme Keycloak personnalise}, numbers=none]
+FullStack/
+  keycloak-theme/
+    nextstep/
+      login/
+        theme.properties
+        resources/
+          css/
+            styles.css
+\end{lstlisting}
+
+\subsection{Fichier \texttt{theme.properties}}
+
+\begin{lstlisting}[caption={Contenu du fichier theme.properties}, numbers=none]
+parent=keycloak
+import=common/keycloak
+styles=css/styles.css
+\end{lstlisting}
+
+\begin{table}[H]
+  \centering
+  \caption{Signification des directives du fichier theme.properties}
+  \label{tab:theme_props}
+  \begin{tabularx}{\textwidth}{lX}
+    \toprule
+    \textbf{Directive} & \textbf{Signification} \\
+    \midrule
+    \texttt{parent=keycloak}       & Hérite du thème par défaut ; les éléments non redéfinis conservent leur apparence \\
+    \texttt{import=common/keycloak} & Importe les ressources communes (polices, icônes système) \\
+    \texttt{styles=css/styles.css} & Fichier CSS de personnalisation à appliquer \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Fichier \texttt{styles.css} — Design professionnel}
+
+\begin{lstlisting}[style=codeStyle, language=,
+  caption={styles.css -- Personnalisation du theme Keycloak}]
+/* BASE */
+body {
+  background-color: #f9fafb !important;
+  color: #111827 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+/* CACHE LE HEADER PAR DEFAUT */
+#kc-header { display: none !important; }
+
+/* LA CARTE */
+.card-pf {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  padding: 2.5rem !important;
+  width: 100% !important;
+  max-width: 420px !important;
+  margin: auto !important;
+}
+
+/* BOUTON */
+#kc-login {
+  background-color: #111827 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 0.75rem !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  width: 100% !important;
+  margin-top: 1.5rem !important;
+  transition: opacity 0.2s !important;
+}
+\end{lstlisting}
+
+\section{Déploiement du thème dans Docker}
+
+\subsection{Identifier le conteneur actif}
+
+\begin{lstlisting}[style=bashStyle, caption={Lister les conteneurs Docker actifs}]
+docker ps
+\end{lstlisting}
+
+\subsection{Copier le thème dans le conteneur}
+
+\begin{lstlisting}[style=bashStyle,
+  caption={Deploiement du theme dans le conteneur Docker actif}]
+# Creer la structure de repertoires dans le conteneur
+docker exec -u 0 NOM_CONTENEUR \
+  mkdir -p /opt/keycloak/themes/nextstep/login/resources/css
+
+# Copier le fichier de proprietes
+docker cp "./keycloak-theme/nextstep/login/theme.properties" \
+  NOM_CONTENEUR:/opt/keycloak/themes/nextstep/login/
+
+# Copier le fichier CSS
+docker cp "./keycloak-theme/nextstep/login/resources/css/styles.css" \
+  NOM_CONTENEUR:/opt/keycloak/themes/nextstep/login/resources/css/
+\end{lstlisting}
+
+\begin{infobox}
+  \textbf{Astuce mise à jour CSS :} Si le fichier CSS est modifié, seule la
+  troisième commande doit être réexécutée. Il n'est pas nécessaire de redémarrer
+  Keycloak.
+\end{infobox}
+
+\subsection{Activer le thème dans la console d'administration}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Ouvrir \url{http://localhost:8080/admin}.
+  \item Aller dans \textit{Realm Settings} $\rightarrow$ onglet \textit{Themes}.
+  \item Dans \textit{Login theme}, sélectionner \texttt{nextstep}.
+  \item Cliquer sur \textit{Save}.
+\end{enumerate}
+
+\screenshotfig{Screenshot 2026-05-29 173841.png}%
+  {Page de login Keycloak avec le thème NextStep personnalisé}{login_custom}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 6 — BACKEND .NET 10
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Configuration du Backend .NET~10}
+
+\section{Architecture du backend}
+
+Le backend est une \textbf{Minimal API} développée avec .NET~10, exposant des
+endpoints REST sécurisés par validation de jetons JWT émis par Keycloak. Cette
+architecture minimaliste réduit le code de configuration tout en conservant toute
+la puissance de l'écosystème ASP.NET Core.
+
+\section{Configuration dans \texttt{appsettings.json}}
+
+\begin{lstlisting}[style=jsonStyle,
+  caption={appsettings.json — Configuration Keycloak}]
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "Keycloak": {
+    "Authority": "http://localhost:8080/realms/Next-Step",
+    "Audience": "nextstep-api",
+    "RequireHttpsMetadata": false
+  }
+}
+\end{lstlisting}
+
+\begin{table}[H]
+  \centering
+  \caption{Paramètres Keycloak dans appsettings.json}
+  \label{tab:appsettings}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Paramètre} & \textbf{Valeur} & \textbf{Explication} \\
+    \midrule
+    Authority             & \texttt{http://localhost:8080/realms/Next-Step} & URL du realm ; .NET y télécharge les clés publiques \\
+    Audience              & \texttt{nextstep-api} & Doit correspondre à la valeur dans le jeton \\
+    RequireHttpsMetadata  & \texttt{false}        & Désactivé en développement ; \texttt{true} en production \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Mécanisme de validation JWT}
+
+\subsection{Le processus de \textit{Discovery}}
+
+Lors du premier démarrage, l'API .NET effectue automatiquement un processus de
+\textit{Discovery} en trois étapes :
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Lecture du metadata OIDC} : appel de l'URL
+    \texttt{/.well-known/openid-configuration} de Keycloak, qui retourne le champ
+    \texttt{jwks\_uri}.
+  \item \textbf{Téléchargement des clés publiques RSA} : appel de l'URL
+    \texttt{jwks\_uri} pour récupérer la liste des clés publiques.
+  \item \textbf{Mise en cache} : les clés sont stockées en mémoire pour éviter un
+    appel réseau à chaque requête.
+\end{enumerate}
+
+\subsection{Les quatre vérifications par requête}
+
+Pour chaque requête portant un jeton JWT, l'API effectue quatre vérifications :
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Key ID (\texttt{kid})} : identification de la clé publique dans le cache.
+  \item \textbf{Signature RSA} : recalcul et comparaison de la signature.
+  \item \textbf{Émetteur (\texttt{iss})} : vérification de l'origine du jeton.
+  \item \textbf{Expiration (\texttt{exp})} : vérification que le jeton n'est pas expiré.
+\end{enumerate}
+
+Si toutes les vérifications passent, la requête reçoit \texttt{200 OK} ;
+sinon l'API retourne \texttt{401 Unauthorized}.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \safeimg[width=\linewidth, height=6cm, keepaspectratio]{screens/swagger_api_secured.png}
+    \caption{Interface Swagger}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \safeimg[width=\linewidth, height=6cm, keepaspectratio]{screens/api_me_response.png}
+    \caption{Réponse de l'endpoint /api/me}
+  \end{subfigure}
+  \caption{Tests des endpoints sécurisés}
+\end{figure}
+
+\section{Module Identity et Synchronisation}
+
+Au sein de l'API .NET, le module d'identité (\texttt{NextStep.Modules.Identity}) a été développé pour faire le lien entre le serveur Keycloak et la base de données interne. Ce module permet de maintenir un profil utilisateur enrichi tout en déléguant l'authentification pure à Keycloak.
+
+\subsection{Modèle de données (UserEntity)}
+
+La classe \texttt{UserEntity} est mappée sur la table \texttt{utilisateur} via Entity Framework Core. Elle contient l'identifiant technique généré par Keycloak (\texttt{KeycloakId}) et centralise l'ensemble des métadonnées du profil candidat :
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Informations de contact} : Email, téléphone, ville, pays.
+  \item \textbf{Liens professionnels} : LinkedIn, GitHub, Portfolio.
+  \item \textbf{Données avancées} : Score du profil (\texttt{ProfileScore}), état d'avancement de l'onboarding (stocké dans les champs \texttt{OnboardingStep} et \texttt{OnboardingData} en format natif \texttt{jsonb} sous PostgreSQL).
+\end{itemize}
+L'utilisation de colonnes typées \texttt{jsonb} permet de stocker des données dynamiques sans alourdir ni rigidifier le schéma relationnel de la base.
+
+\subsection{Couche Service (UserService) et Synchronisation}
+
+La logique métier est encapsulée dans la classe \texttt{UserService}, qui orchestre les interactions entre l'\texttt{IdentityController} et le \texttt{UserRepository}. 
+
+Lors de la connexion d'un nouvel utilisateur via Keycloak, le frontend s'authentifie et envoie son jeton JWT au backend. Le \texttt{UserService} s'assure alors que cet utilisateur existe en base interne en vérifiant son \texttt{KeycloakId}. Si ce n'est pas le cas, un nouveau profil interne est généré et lié au compte Keycloak. Cette approche garantit une synchronisation fluide entre l'Identity Provider (Keycloak) et le système métier (API .NET).
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 7 — FRONTEND ANGULAR 19
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Configuration du Frontend Angular~19}
+
+\section{Installation des dépendances}
+
+\begin{lstlisting}[style=bashStyle,
+  caption={Installation des packages Keycloak pour Angular}]
+npm install keycloak-angular@^19 keycloak-js
+\end{lstlisting}
+
+\begin{table}[H]
+  \centering
+  \caption{Packages Keycloak pour Angular~19}
+  \label{tab:npm_packages}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Package} & \textbf{Version} & \textbf{Rôle} \\
+    \midrule
+    keycloak-angular & \^{}19.0.2 & Fournit \texttt{provideKeycloak} et les guards \\
+    keycloak-js      & \^{}26.1.0 & SDK JavaScript officiel Keycloak \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Configuration Keycloak dans Angular}
+
+L'intégration Keycloak est réalisée via \texttt{provideKeycloak} dans le fichier
+\texttt{app.config.ts}. Cette configuration initialise le SDK Keycloak au démarrage
+de l'application et configure l'interception automatique des jetons JWT pour toutes
+les requêtes vers l'API backend.
+
+\screenshotfig{screens/angular_keycloak_config.png}%
+  {Configuration Keycloak dans app.config.ts}{angular_keycloak}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 8 — GESTION DE PROFIL UTILISATEUR
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Gestion de Profil Utilisateur}
+
+\section{Objectif du module}
+
+Le module \textbf{Profil} centralise l'ensemble des données du candidat et constitue le
+socle fonctionnel sur lequel s'appuient les autres modules de la plateforme
+(génération de CV, matching candidat--offre, candidature automatisée et coaching IA).
+L'implémentation suit une architecture modulaire en couches afin de séparer
+clairement les responsabilités et de faciliter la maintenance à long terme.
+
+\section{Architecture modulaire backend}
+
+\subsection{Organisation par couches}
+
+Le module est organisé selon un découpage métier strict, chaque dossier
+correspondant à une couche applicative :
+
+\begin{verbatim}
+Profile/
+  Controllers/   -- Couche HTTP (endpoints REST)
+  DTOs/          -- Contrats d'entrée/sortie API
+  Models/        -- Entités de base de données
+  Repositories/  -- Accès aux données (abstraction)
+  Services/      -- Logique métier
+\end{verbatim}
+
+\subsection{Rôle de chaque couche}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Controllers} : exposent les endpoints REST sous \texttt{/api/profile/...},
+    valident les requêtes HTTP, récupèrent l'utilisateur via le token JWT et délèguent
+    la logique au service. Aucune logique lourde n'est présente dans cette couche.
+  \item \textbf{DTOs} (\emph{Data Transfer Objects}) : définissent les contrats d'entrée
+    et de sortie de l'API pour garantir des payloads stables. Exemples :
+    \texttt{PersonalInfoDto}, \texttt{ExperienceDto}, \texttt{FullProfileDto}.
+  \item \textbf{Models} : entités persistées via Entity Framework Core :
+    \texttt{UserEntity}, \texttt{Experience}, \texttt{Formation}, \texttt{Projet},
+    \texttt{Competence}, \texttt{Certification}.
+  \item \textbf{Repositories} : couche d'accès aux données via \texttt{AppDbContext}
+    (Entity Framework Core).
+  \item \textbf{Services} : portent la logique métier (création, mise à jour,
+    suppression des sections, recalcul du score de complétion du profil).
+\end{itemize}
+
+\subsection{Justification de cette architecture}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Réduction du couplage} entre la couche HTTP, la logique métier et
+    la persistance.
+  \item \textbf{Évolutivité} : chaque couche peut être testée et modifiée
+    indépendamment.
+  \item \textbf{Lisibilité} : structure claire facilitant l'intégration de nouveaux
+    développeurs.
+\end{itemize}
+
+\section{Flux backend : gestion du profil}
+
+\subsection{Cycle complet d'une requête profil}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Le frontend envoie un appel HTTP vers \texttt{/api/profile/...} avec le token
+    JWT dans l'en-tête \texttt{Authorization}.
+  \item Le middleware d'authentification valide le token et construit le principal
+    utilisateur.
+  \item Le controller extrait l'identifiant utilisateur (claim \texttt{sub}), puis
+    assure l'existence de l'utilisateur applicatif via \texttt{EnsureUserCreatedAsync}.
+  \item Le controller délègue la logique au service métier.
+  \item Le service exécute la règle métier, lit et écrit en base via
+    \texttt{AppDbContext}, puis mappe les entités en DTO.
+  \item La réponse JSON est retournée au frontend.
+\end{enumerate}
+
+\subsection{Mise à jour section par section}
+
+Les endpoints dédiés aux modifications sont :
+
+\begin{itemize}[leftmargin=2em]
+  \item \texttt{PUT /api/profile/personal-info}
+  \item \texttt{POST/PUT/DELETE /api/profile/experiences}
+  \item \texttt{POST/PUT/DELETE /api/profile/formations}
+  \item \texttt{POST/PUT/DELETE /api/profile/competences}
+  \item \texttt{POST/PUT/DELETE /api/profile/projets}
+  \item \texttt{POST/PUT/DELETE /api/profile/certifications}
+\end{itemize}
+
+Pour chaque écriture, le service valide l'appartenance de la ressource à l'utilisateur
+connecté (filtre par \texttt{userId}), puis appelle \texttt{UpdateProfileScoreAsync}
+pour recalculer l'avancement du profil.
+
+\subsection{Photo de profil : pipeline technique}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Upload via \texttt{POST /api/profile/photo} avec contrôles : taille maximale
+    2~Mo, types autorisés PNG/JPG/WEBP.
+  \item Génération d'une clé objet unique
+    (\texttt{profiles/\{userId\}/avatar-...}).
+  \item Envoi du binaire vers MinIO/S3 via \texttt{IStorageService}.
+  \item Sauvegarde de l'URL photo dans \texttt{UserEntity.PhotoUrl}.
+  \item Consultation via \texttt{GET /api/profile/photo} (binaire) ou
+    \texttt{GET /api/profile/photo/signed} (URL signée temporaire).
+\end{enumerate}
+
+\section{Flux backend : import d'un CV existant}
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Upload frontend} : le PDF est envoyé via \texttt{FormData} sur
+    \texttt{POST /api/profile/parse-resume}.
+  \item \textbf{Orchestration .NET} : le controller vérifie la présence du fichier et
+    le transmet au service Python \texttt{/resume/parse}.
+  \item \textbf{Extraction Python} : validation PDF, extraction du texte (PyMuPDF),
+    appel LLM en sortie JSON structurée, normalisation des champs. Blocs retournés :
+    \texttt{personal}, \texttt{experience}, \texttt{education}, \texttt{skills},
+    \texttt{projects}, \texttt{certifications}.
+  \item \textbf{Synchronisation du profil} : nettoyage du profil existant via
+    \texttt{DELETE /api/profile/clear}, puis réinjection section par section via les
+    endpoints dédiés.
+\end{enumerate}
+
+\section{Table technique des endpoints}
+
+\begin{table}[H]
+  \centering
+  \caption{Endpoints du module Profil}
+  \label{tab:endpoints_profile_backend}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Méthode} & \textbf{Endpoint} & \textbf{Rôle} \\
+    \midrule
+    GET              & \texttt{/api/profile}                  & Charger le profil complet \\
+    PUT              & \texttt{/api/profile/personal-info}    & Mettre à jour les infos personnelles \\
+    POST/PUT/DELETE  & \texttt{/api/profile/experiences}      & CRUD expériences \\
+    POST/PUT/DELETE  & \texttt{/api/profile/formations}       & CRUD formations \\
+    POST/PUT/DELETE  & \texttt{/api/profile/competences}      & CRUD compétences \\
+    POST/PUT/DELETE  & \texttt{/api/profile/projets}          & CRUD projets \\
+    POST/PUT/DELETE  & \texttt{/api/profile/certifications}   & CRUD certifications \\
+    POST             & \texttt{/api/profile/photo}            & Upload photo \\
+    GET              & \texttt{/api/profile/photo/signed}     & URL signée photo \\
+    POST             & \texttt{/api/profile/parse-resume}     & Parsing CV PDF \\
+    DELETE           & \texttt{/api/profile/clear}            & Réinitialisation du profil \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Captures d'écran frontend}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\safeimg[width=0.90\textwidth, height=6cm, keepaspectratio=false]{screenshots/frontend/profile-01-overview.png}}
+  \caption{Vue générale du Profil}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\safeimg[width=0.90\textwidth, height=6cm, keepaspectratio=false]{screenshots/frontend/profile-02-edit-sections.png}}
+  \caption{Édition des sections (expérience, formation, compétences)}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\safeimg[width=0.90\textwidth, height=6cm, keepaspectratio=false]{screenshots/frontend/profile-03-import-cv.png}}
+  \caption{Import d'un CV existant}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\safeimg[width=0.90\textwidth, height=6cm, keepaspectratio=false]{screenshots/frontend/profile-04-sync-result.png}}
+  \caption{Résultat après synchronisation du profil}
+\end{figure}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 9 — SOURCING AUTOMATISÉ D'OFFRES D'EMPLOI
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Sourcing Automatisé d'Offres d'Emploi}
+
+\section{Objectif du module}
+
+Le module de \textbf{Sourcing Automatisé} vise à agréger les offres d'emploi depuis
+des plateformes externes (notamment LinkedIn Jobs) afin de fournir au candidat un
+flux centralisé et pertinent d'opportunités, filtré selon son profil.
+La difficulté majeure de ce processus réside dans le contournement des
+mesures anti-bot et la collecte de données non structurées de manière fiable et
+performante.
+
+\section{Outil de scraping : Scrapling}
+
+Pour répondre à ce défi technique, nous avons fait le choix de la bibliothèque
+Python \textbf{Scrapling} (\texttt{scrapling[fetchers,ai]}). Contrairement aux
+approches classiques via \texttt{requests} ou \texttt{Selenium}, Scrapling intègre
+un \textit{Fetcher} conçu spécifiquement pour imiter le comportement humain et
+déjouer les protections avancées des plateformes (telles que Cloudflare ou les
+systèmes de blocage LinkedIn).
+
+\subsection{Avantages de Scrapling}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Bypass anti-bot natif} : gestion automatique des en-têtes, des TLS
+    fingerprints et de la résolution JavaScript.
+  \item \textbf{Rapidité} : plus léger et performant qu'un navigateur headless complet.
+  \item \textbf{Sélecteurs robustes} : extraction via sélecteurs CSS précis.
+\end{itemize}
+
+\section{Architecture de la collecte LinkedIn Jobs}
+
+L'agent de sourcing se connecte aux API publiques non documentées de LinkedIn :
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Endpoint de recherche} : \texttt{/jobs-guest/jobs/api/seeMoreJobPostings/search}
+    (permet de paginer et de récupérer les cartes de résultats).
+  \item \textbf{Endpoint de détail} : \texttt{/jobs-guest/jobs/api/jobPosting/\{job\_id\}}
+    (permet de récupérer la description complète de l'offre).
+\end{enumerate}
+
+Le script \texttt{scrapling\_tool.py} effectue d'abord la recherche, extrait les ID
+des offres via des expressions régulières (Regex) sur les URL, puis collecte les
+informations clés : titre, entreprise, localisation, date de publication et lien
+de candidature.
+
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 10 — AGENT COMPANY INTELLIGENCE
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Agent Company Intelligence}
+
+\section{Objectif du module}
+
+Le module \textbf{Company Intelligence} est un agent d'intelligence économique
+automatisé qui collecte, agrège et analyse en temps réel des informations stratégiques
+sur une entreprise cible. Lorsqu'un candidat consulte une offre d'emploi, l'agent
+produit une fiche d'intelligence complète comprenant :
+
+\begin{itemize}[leftmargin=2em]
+  \item un résumé détaillé de l'entreprise (secteur, implantations, historique),
+  \item les notes et avis Glassdoor/Indeed/Rekrute (culture d'entreprise),
+  \item les fourchettes salariales par niveau de séniorité,
+  \item les actualités récentes de l'entreprise,
+  \item les questions d'entretien connues,
+  \item les avantages et inconvénients (pros/cons),
+  \item un score de compatibilité candidat--entreprise (0--100),
+  \item des recommandations stratégiques pour l'entretien.
+\end{itemize}
+
+Cet agent est développé en Python avec le framework \textbf{LangGraph} et exposé
+comme microservice \textbf{FastAPI} indépendant du backend .NET.
+
+\section{Architecture technique}
+
+\subsection{Pile technologique}
+
+\begin{table}[H]
+  \centering
+  \caption{Pile technologique de l'Agent Company Intelligence}
+  \label{tab:stack_company_agent}
+  \begin{tabularx}{\textwidth}{lX}
+    \toprule
+    \textbf{Composant} & \textbf{Technologie / Rôle} \\
+    \midrule
+    Framework agent  & \textbf{LangGraph} (graphe d'état à nœuds) \\
+    API HTTP         & FastAPI (asynchrone, validé par Pydantic) \\
+    LLM              & Multi-provider : Groq (Llama 3.1), Gemini, OpenAI (fallback) \\
+    Web scraping     & httpx + BeautifulSoup \\
+    Recherche web    & DuckDuckGo HTML scraping (sans clé API) \\
+    Base de données  & PostgreSQL (SQLAlchemy async + UUID) \\
+    Conteneurisation & Docker (microservice isolé) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Organisation des fichiers}
+
+\begin{verbatim}
+agents/app/domain/company/
+  service.py
+  agents/
+    intelligence_agent.py
+    prompts.py
+    company_analyzer/
+      agent.py
+      signals.py
+  graph/
+    workflow.py
+  schemas/
+    state.py
+    models.py
+  tools/
+    web_tool.py
+    glassdoor_tool.py
+    salary_tool.py
+    linkedin_tool.py
+\end{verbatim}
+
+\section{Graphe LangGraph : conception du workflow}
+
+\subsection{Principe de fonctionnement}
+
+LangGraph modélise un pipeline d'IA sous forme de \textbf{graphe orienté acyclique}
+(DAG) dont chaque nœud est une fonction asynchrone communiquant via un \textbf{état
+partagé typé} (\texttt{CompanyState}). Contrairement à une chaîne séquentielle
+classique, LangGraph permet des exécutions parallèles, des branchements conditionnels
+et une gestion d'état explicite avec typage TypedDict.
+
+\subsection{Architecture du graphe}
+
+Le graphe est composé de deux nœuds séquentiels :
+
+\begin{verbatim}
+  START (company_name, job_title)
+        |
+        v
+  RESEARCHER (collecte parallèle)
+        |
+        v
+  ANALYST (synthèse LLM)
+        |
+        v
+       END
+\end{verbatim}
+
+Construction du graphe dans \texttt{workflow.py} :
+
+\begin{verbatim}
+workflow = StateGraph(CompanyState)
+workflow.add_node("researcher", researcher_node)
+workflow.add_node("analyst",    analyst_node)
+workflow.set_entry_point("researcher")
+workflow.add_edge("researcher", "analyst")
+workflow.add_edge("analyst", END)
+return workflow.compile()
+\end{verbatim}
+
+\subsection{État partagé : \texttt{CompanyState}}
+
+\begin{table}[H]
+  \centering
+  \caption{Champs de l'état \texttt{CompanyState}}
+  \label{tab:company_state}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Champ} & \textbf{Type} & \textbf{Rôle} \\
+    \midrule
+    \multicolumn{3}{l}{\textit{Champs accumulatifs}} \\
+    \texttt{messages}             & \texttt{list[BaseMessage]} & Historique des messages \\
+    \texttt{errors}               & \texttt{list[str]}         & Erreurs accumulées \\
+    \texttt{raw\_search\_results} & \texttt{list[dict]}        & Résultats bruts des outils \\
+    \midrule
+    \multicolumn{3}{l}{\textit{Entrées}} \\
+    \texttt{company\_name}  & \texttt{str} & Nom de l'entreprise cible \\
+    \texttt{job\_title}     & \texttt{str} & Intitulé du poste \\
+    \texttt{user\_id}       & \texttt{str} & Identifiant utilisateur \\
+    \midrule
+    \multicolumn{3}{l}{\textit{Sorties Researcher}} \\
+    \texttt{company\_summary}  & \texttt{str}        & Résumé narratif \\
+    \texttt{salaries}          & \texttt{list[dict]} & Données salariales \\
+    \texttt{culture\_metrics}  & \texttt{dict}       & Métriques culture \\
+    \midrule
+    \multicolumn{3}{l}{\textit{Sorties Analyst}} \\
+    \texttt{intelligence}    & \texttt{dict}        & Objet \texttt{CompanyIntelligence} structuré \\
+    \texttt{score}           & \texttt{int}         & Score de compatibilité (0--100) \\
+    \texttt{recommendations} & \texttt{list[str]}   & Conseils stratégiques \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Nœud 1 : Researcher (collecte parallèle)}
+
+\subsection{Outils spécialisés}
+
+\begin{table}[H]
+  \centering
+  \caption{Outils du nœud Researcher}
+  \label{tab:researcher_tools}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Outil} & \textbf{Fichier} & \textbf{Sources ciblées} \\
+    \midrule
+    \texttt{smart\_search}             & \texttt{web\_tool.py}       & DuckDuckGo (présentation générale) \\
+    \texttt{glassdoor\_search}         & \texttt{glassdoor\_tool.py} & Glassdoor, Indeed, Rekrute \\
+    \texttt{salary\_data\_search}      & \texttt{salary\_tool.py}    & Levels.fyi, Indeed, Rekrute \\
+    \texttt{linkedin\_company\_search} & \texttt{linkedin\_tool.py}  & LinkedIn (page officielle) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Pipeline d'exécution}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Lancement parallèle (LinkedIn, Glassdoor, Salaires) via
+    \texttt{asyncio.create\_task}.
+  \item Recherche web générale DuckDuckGo (\texttt{smart\_search}).
+  \item Sélection LLM des 2 URLs les plus pertinentes.
+  \item Scraping haute précision via httpx + BeautifulSoup.
+  \item Récupération des résultats parallèles via \texttt{asyncio.gather}.
+  \item Écriture des données brutes dans \texttt{raw\_search\_results}.
+\end{enumerate}
+
+\subsection{Stratégie de scraping}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Sémaphores} : max 3 recherches et 2 scrapings simultanés.
+  \item \textbf{Retry avec backoff} : jusqu'à 3 tentatives par URL.
+  \item \textbf{Détection de blocage} : contenu ignoré si \texttt{"just a moment"}
+    ou taille inférieure à 100 caractères.
+  \item \textbf{Nettoyage HTML} : suppression des balises non pertinentes
+    (\texttt{<script>}, \texttt{<style>}, \texttt{<nav>}, etc.).
+  \item \textbf{Troncature} : 15\,000 caractères maximum par source.
+\end{itemize}
+
+\section{Nœud 2 : Analyst (synthèse intelligente)}
+
+\subsection{Pipeline de synthèse}
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Formatage} : chaque bloc est tronqué à 1\,500--2\,000 caractères
+    via \texttt{clean\_and\_truncate\_text}.
+  \item \textbf{Appel LLM} : prompt \texttt{\_ANALYST\_PROMPT} avec
+    \texttt{response\_format: \{"type": "json\_object"\}}.
+  \item \textbf{Parsing robuste} : extraction depuis bloc \texttt{```json},
+    suppression des commentaires, réparation des virgules traînantes.
+  \item \textbf{Validation} : notes Glassdoor plafonnées à 5.0, nom garanti
+    non vide.
+  \item \textbf{Fallback} : rapport de secours généré si l'appel LLM échoue.
+\end{enumerate}
+
+\subsection{Rapport d'intelligence généré}
+
+\begin{table}[H]
+  \centering
+  \caption{Structure du rapport \texttt{CompanyIntelligence}}
+  \label{tab:company_intelligence}
+  \begin{tabularx}{\textwidth}{lX}
+    \toprule
+    \textbf{Champ} & \textbf{Description} \\
+    \midrule
+    \texttt{nom}                   & Nom de l'entreprise \\
+    \texttt{summary}               & Résumé détaillé en 3 paragraphes \\
+    \texttt{sector}                & Secteur d'activité \\
+    \texttt{hq\_location}          & Siège social \\
+    \texttt{linkedin\_url}         & URL LinkedIn officielle \\
+    \texttt{culture}               & Score culture, note Glassdoor, work-life balance \\
+    \texttt{salaries}              & Fourchettes salariales par séniorité (MAD/mois) \\
+    \texttt{actualites}            & Actualités récentes \\
+    \texttt{interview\_difficulty} & Difficulté de l'entretien (easy/medium/hard) \\
+    \texttt{interview\_questions}  & 6 questions (3 techniques + 3 RH) \\
+    \texttt{pros}                  & Points forts \\
+    \texttt{cons}                  & Points faibles \\
+    \texttt{career\_opportunities} & Opportunités d'avancement \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Gestion multi-provider LLM}
+
+\begin{table}[H]
+  \centering
+  \caption{Modèles LLM configurés par agent}
+  \label{tab:llm_models}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Agent} & \textbf{Provider} & \textbf{Modèle} \\
+    \midrule
+    Company Intelligence & Groq   & \texttt{llama-3.1-8b-instant} \\
+    Offer Analyzer       & Groq   & \texttt{llama-3.1-8b-instant} \\
+    Resume Parser        & Groq   & \texttt{llama-3.3-70b-versatile} \\
+    Skill Gap            & Gemini & \texttt{gemini-2.0-flash} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Le système de \textbf{fallback automatique} (\texttt{\_LLMProvider}) tente les
+providers dans l'ordre configuré via \texttt{LLM\_PROVIDER\_PRIORITY}
+(défaut : \texttt{groq,openai,gemini}). En cas d'erreur 429, le provider est mis
+en cooldown et le suivant prend le relais.
+
+\section{Analyse algorithmique complémentaire}
+
+\begin{table}[H]
+  \centering
+  \caption{Critères de scoring du Company Analyzer}
+  \label{tab:culture_scoring}
+  \begin{tabularx}{\textwidth}{lcX}
+    \toprule
+    \textbf{Critère} & \textbf{Points} & \textbf{Détection} \\
+    \midrule
+    Base neutre                & 50   & Score de départ \\
+    Full remote                & +10  & Mots-clés : \texttt{full remote}, \texttt{100\% remote} \\
+    Politique hybride          & +5   & Mots-clés : \texttt{hybride}, \texttt{télétravail partiel} \\
+    Environnement startup      & +5   & Mots-clés : \texttt{startup}, \texttt{scale-up} \\
+    Alignement stack technique & 0--20 & Proportion compétences profil $\cap$ keywords offre \\
+    Stage / Alternance         & +5   & Type de contrat détecté \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Persistance en base de données}
+
+\begin{table}[H]
+  \centering
+  \caption{Schéma de la table \texttt{intel\_entreprise}}
+  \label{tab:intel_entreprise}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Colonne} & \textbf{Type} & \textbf{Description} \\
+    \midrule
+    \texttt{id}                    & UUID         & Clé primaire (auto-générée) \\
+    \texttt{nom\_entreprise}       & VARCHAR(200) & Nom de l'entreprise \\
+    \texttt{id\_offre}             & UUID         & Référence vers l'offre d'emploi \\
+    \texttt{note\_glassdoor}       & FLOAT        & Note Glassdoor (0--5) \\
+    \texttt{salaire\_min}          & INTEGER      & Salaire minimum (MAD/mois) \\
+    \texttt{salaire\_max}          & INTEGER      & Salaire maximum (MAD/mois) \\
+    \texttt{devise\_salaire}       & VARCHAR(10)  & Devise (défaut : MAD) \\
+    \texttt{resume\_entreprise}    & TEXT         & Résumé généré par l'agent \\
+    \texttt{actualites}            & JSONB        & Actualités en tableau JSON \\
+    \texttt{difficulte\_entretien} & VARCHAR(20)  & Difficulté (easy/medium/hard) \\
+    \texttt{questions\_connues}    & JSONB        & Questions d'entretien \\
+    \texttt{date\_collecte}        & TIMESTAMP    & Date d'exécution de l'agent \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+La stratégie de \textbf{cache-first} vérifie en base avant chaque exécution du
+graphe LangGraph. Si une entrée existe, elle est retournée directement ; sinon le
+graphe est exécuté et les résultats sont persistés.
+
+\section{Intégration dans l'architecture globale}
+
+\subsection{Endpoints du module}
+
+\begin{table}[H]
+  \centering
+  \caption{Endpoints du module Company Intelligence}
+  \label{tab:endpoints_company}
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    \textbf{Méthode} & \textbf{Endpoint} & \textbf{Rôle} \\
+    \midrule
+    POST & \texttt{/company/analyze-company} & Lancer l'analyse complète d'une entreprise \\
+    GET  & \texttt{/health}                  & Vérifier l'état du service agents \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Exemple de payload d'entrée et de sortie}
+
+\textbf{Requête (\texttt{CompanyAnalyzeRequest}) :}
+
+\begin{verbatim}
+{
+  "company_name": "OCP Group",
+  "offer_data": {
+    "titre": "Ingénieur DevOps",
+    "keywords_ats": ["Docker", "Kubernetes", "CI/CD"]
+  },
+  "profile_data": {
+    "competences": [{"nom": "Docker"}, {"nom": "Python"}]
+  },
+  "user_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+\end{verbatim}
+
+\textbf{Réponse (structure simplifiée) :}
+
+\begin{verbatim}
+{
+  "intelligence": {
+    "nom": "OCP Group",
+    "sector": "Industrie minière et chimie",
+    "culture": {"culture_score": 76, "glassdoor_rating": 3.8},
+    "salaries": [
+      {"seniority": "Junior", "min_salary": 8000, "max_salary": 12000},
+      {"seniority": "Senior", "min_salary": 15000, "max_salary": 22000}
+    ],
+    "pros": ["Innovation", "Stabilité"],
+    "cons": ["Processus lourds"]
+  },
+  "score": 76,
+  "recommendations": [
+    "Mettre en avant votre expérience Docker",
+    "Se renseigner sur la stratégie Green Mining"
+  ]
+}
+\end{verbatim}
+
+\section{Gestion d'erreurs et résilience}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Fallback LLM} : rapport de secours généré si le parsing JSON échoue.
+  \item \textbf{Cooldown automatique} : providers en erreur 429 temporairement
+    désactivés.
+  \item \textbf{Scraping résilient} : détection des pages bloquées, retry avec
+    backoff, sémaphores.
+  \item \textbf{Troncature intelligente} : contenu limité avec message
+    \texttt{[CONTENU TRONQUÉ]} pour respecter les limites TPM du LLM.
+  \item \textbf{Validation Pydantic} : contraintes \texttt{Field(ge=0, le=100)} sur
+    les modèles d'entrée et de sortie.
+  \item \textbf{Logging structuré} : chaque étape tracée avec niveaux INFO/WARNING/ERROR.
+\end{itemize}
+
+\section{Captures d'écran frontend}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\safeimg[width=0.90\textwidth, height=6cm, keepaspectratio=false]{screenshots/frontend/company-intel-01-overview.png}}
+  \caption{Fiche d'intelligence entreprise — résumé, culture, salaires}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\safeimg[width=0.90\textwidth, height=6cm, keepaspectratio=false]{screenshots/frontend/company-intel-02-interview.png}}
+  \caption{Questions d'entretien et recommandations stratégiques}
+\end{figure}
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 11 — TESTS UNITAIRES FRONTEND AVEC VITEST
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Tests Unitaires Frontend avec Vitest}
+
+La qualité et la stabilité de l'application frontend sont assurées par une couverture de tests unitaires rigoureuse. Pour l'environnement Angular~19, le moteur de test historique (Karma/Jasmine) a été remplacé par \textbf{Vitest}, un framework de test de nouvelle génération natif à Vite. Il offre des performances d'exécution exceptionnelles, particulièrement adaptées au Hot Module Replacement (HMR).
+
+\section{Périmètre des tests}
+
+Les tests implémentés couvrent les éléments critiques de l'application, en particulier les services métier et les guards de sécurité. Les composants suivants ont été testés de manière approfondie :
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Authentification (\texttt{auth.service.test.ts}, \texttt{auth.guard.test.ts})} : Validation du flux de connexion, de la gestion du token Keycloak, et du blocage des routes protégées pour les utilisateurs non authentifiés.
+  \item \textbf{Identité (\texttt{identity.service.test.ts})} : Vérification de la récupération et du formatage des données du profil utilisateur depuis le backend.
+  \item \textbf{Onboarding (\texttt{onboarding.service.test.ts}, \texttt{onboarding.guard.test.ts})} : Tests de la logique métier gérant le processus d'intégration des nouveaux utilisateurs et de la redirection automatique selon leur statut.
+  \item \textbf{Profil (\texttt{profile.service.test.ts}, \texttt{profile-feature.service.test.ts})} : Validation de l'édition des sections du profil, du traitement du CV et de la gestion de l'état du composant.
+\end{itemize}
+
+\section{Exemple d'implémentation d'un test}
+
+Voici un exemple illustrant la structure typique d'un test unitaire développé avec Vitest pour l'un de nos services :
+
+\begin{lstlisting}[style=codeStyle, language=typescript, caption={Exemple de test unitaire Vitest}]
+// TODO: Insérer ici un exemple de code de test (ex: auth.guard.test.ts ou profile.service.test.ts)
+\end{lstlisting}
+
+\section{Configuration et exécution}
+
+L'intégration de Vitest dans l'écosystème Angular permet d'exécuter les tests en mode \textit{watch} pendant le développement pour un feedback immédiat.
+
+\begin{lstlisting}[style=bashStyle, caption={Execution de la suite de tests unitaires avec Vitest}]
+$ npm run test
+
+> nextstep-frontend@1.0.0 test
+> vitest run
+
+ DEV  v1.0.0 c:/Users/hp/Desktop/Containers/NextStep/frontend
+
+ ✓ src/app/tests/auth.guard.test.ts (3 tests)
+ ✓ src/app/tests/auth.service.test.ts (5 tests)
+ ✓ src/app/tests/identity.service.test.ts (4 tests)
+ ✓ src/app/tests/onboarding.guard.test.ts (3 tests)
+ ✓ src/app/tests/onboarding.service.test.ts (4 tests)
+ ✓ src/app/tests/profile-feature.service.test.ts (8 tests)
+ ✓ src/app/tests/profile.service.test.ts (4 tests)
+ 
+ Test Files  7 passed (7)
+      Tests  31 passed (31)
+   Start at  15:42:01
+   Duration  845ms
+\end{lstlisting}
+
+L'utilisation de Vitest sécurise le code lors de l'ajout de nouvelles fonctionnalités et facilite la maintenance en identifiant rapidement les régressions potentielles.
+
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 12 — MIGRATION VERS UNE ARCHITECTURE MICROSERVICES
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Migration vers une Architecture Microservices}
+
+\section{Contexte et objectifs de la migration}
+
+L'évolution du projet NextStep vers une architecture orientée microservices répond à 
+des besoins croissants de scalabilité, d'isolation des pannes et de spécialisation 
+technologique. La plateforme a été découpée en services autonomes (API Gateway, 
+Identity, Profile, Notification), conteneurisés via Docker et orchestrés via Docker Compose.
+
+\section{Architecture globale}
+
+Le système repose désormais sur les composants suivants :
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{API Gateway (Port 5050)} : point d'entrée unique pour le frontend, 
+    routant les requêtes synchrones vers les microservices appropriés.
+  \item \textbf{Identity Service (Port 5011)} : gestion de l'authentification, 
+    synchronisé avec Keycloak.
+  \item \textbf{Profile Service (Port 5012)} : gestion des données candidat, CVs et 
+    expériences.
+  \item \textbf{Notification Service (Port 5013)} : envoi d'e-mails asynchrones (via SMTP).
+\end{itemize}
+
+\section{Configuration de l'API Gateway (YARP)}
+
+Pour unifier l'accès aux différents microservices, nous avons mis en place une \textbf{API Gateway} en utilisant \textbf{YARP} (\textit{Yet Another Reverse Proxy}) développé par Microsoft. 
+
+L'avantage de YARP est sa configuration entièrement pilotée par le fichier \texttt{appsettings.json}, sans nécessiter de code complexe. Il agit comme un routeur HTTP synchrone orientant le trafic frontend vers le bon service backend selon le chemin de l'URL.
+
+\begin{lstlisting}[style=codeStyle, language=json, caption={Configuration YARP (appsettings.json)}]
+"ReverseProxy": {
+  "Routes": {
+    "identity-route": {
+      "ClusterId": "identity-cluster",
+      "Match": { "Path": "/api/identity/{**catch-all}" }
+    },
+    "profile-route": {
+      "ClusterId": "profile-cluster",
+      "Match": { "Path": "/api/profile/{**catch-all}" }
+    },
+    "notification-route": {
+      "ClusterId": "notification-cluster",
+      "Match": { "Path": "/api/notification/{**catch-all}" }
+    }
+  },
+  "Clusters": {
+    "identity-cluster": {
+      "Destinations": { "destination1": { "Address": "http://identity-service:5001" } }
+    },
+    "profile-cluster": {
+      "Destinations": { "destination1": { "Address": "http://profile-service:5002" } }
+    }
+  }
+}
+\end{lstlisting}
+
+\section{Communication Asynchrone : Apache Kafka}
+
+L'architecture s'appuie fortement sur l'événementiel (Event-Driven) pour garantir un faible couplage. \textbf{Apache Kafka} est utilisé comme Message Broker via le package \texttt{Confluent.Kafka}. Le flux principal implémenté est la \textbf{création d'un utilisateur}, qui traverse les trois microservices via le topic \texttt{user-created-topic}.
+
+\subsection{Le Producteur (Identity Service)}
+
+Lorsqu'un nouvel utilisateur s'inscrit via l'Identity Service, un événement de création est publié sur Kafka. Le \texttt{KafkaProducerService} instancie un \texttt{ProducerBuilder} et publie un objet JSON contenant les informations clés de l'utilisateur.
+
+\begin{lstlisting}[style=codeStyle, language=csharp, caption={Publication de l'evenement (KafkaProducerService.cs)}]
+var config = new ProducerConfig { BootstrapServers = "kafka:9092" };
+using var producer = new ProducerBuilder<string, string>(config).Build();
+
+var payload = JsonSerializer.Serialize(new {
+    UserId = user.Id,
+    Email = user.Email,
+    FirstName = user.FirstName,
+    LastName = user.LastName
+});
+
+await producer.ProduceAsync("user-created-topic", new Message<string, string> {
+    Key = user.Id.ToString(),
+    Value = payload
+});
+\end{lstlisting}
+
+\subsection{Les Consommateurs (Profile \& Notification Services)}
+
+L'avantage du \textit{Publish-Subscribe} de Kafka est que plusieurs services peuvent réagir au même événement de manière isolée, implémentés en tant que \texttt{BackgroundService} (.NET Hosted Services).
+
+\textbf{1. Profile Service (\texttt{KafkaConsumerService.cs})} : 
+Il écoute le topic \texttt{user-created-topic}. À la réception de l'événement, il insère automatiquement une ligne vide dans sa propre base de données (\texttt{profile\_db}) pour préparer le profil du nouvel utilisateur, sans attendre que celui-ci ne l'initialise manuellement.
+
+\textbf{2. Notification Service (\texttt{KafkaEmailConsumerService.cs})} :
+En parallèle, avec son propre \texttt{GroupId} (\texttt{notification-email-service-group}), il consomme le même message. Il désérialise le JSON et utilise un \texttt{IEmailService} pour envoyer l'e-mail de bienvenue de façon asynchrone (via SMTP).
+
+\begin{lstlisting}[style=codeStyle, language=csharp, caption={Consommation et Envoi d'Email (KafkaEmailConsumerService.cs)}]
+var config = new ConsumerConfig {
+    BootstrapServers = "kafka:9092",
+    GroupId = "notification-email-service-group",
+    AutoOffsetReset = AutoOffsetReset.Earliest
+};
+using var consumer = new ConsumerBuilder<string, string>(config).Build();
+consumer.Subscribe("user-created-topic");
+
+var consumeResult = consumer.Consume(stoppingToken);
+var payload = JsonSerializer.Deserialize<UserCreatedEventDto>(consumeResult.Message.Value);
+
+// Declenchement de l'envoi d'e-mail asynchrone
+await emailService.SendWelcomeEmailAsync(payload.Email, payload.FirstName, payload.LastName);
+\end{lstlisting}
+
+\section{Déploiement Docker Compose}
+
+La conteneurisation permet un déploiement \textit{One-Click} de toute la stack. 
+Le fichier \texttt{docker-compose.yml} orchestre les services C# (.NET 10), la 
+base de données PostgreSQL avec ses schémas multiples, Keycloak et Kafka.
+
+\begin{lstlisting}[style=codeStyle, language=yaml, caption={Extrait du fichier docker-compose.yml (Services et Kafka)}]
+services:
+  kafka:
+    image: apache/kafka:latest
+    container_name: nextstep-ms-kafka
+    ports:
+      - "9094:9092"
+    environment:
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+
+  profile-service:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    container_name: nextstep-ms-profile-api
+    command: dotnet run --urls "http://0.0.0.0:5002"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=profile_db;Username=admin;Password=admin123
+      - KafkaSettings__BootstrapServers=kafka:9092
+    ports:
+      - "5012:5002"
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+\end{lstlisting}
+
+\section{Captures d'écran et validation}
+
+\screenshotfig{screens/ms-api-gateway.png}%
+  {Architecture de l'API Gateway et routage des requêtes}{ms_gateway}
+
+\screenshotfig{screens/ms-kafka-events.png}%
+  {Consommation des événements Kafka par le Notification Service}{ms_kafka}
+
+\screenshotfig{screens/ms-docker-desktop.png}%
+  {Vue de l'ensemble des conteneurs actifs sous Docker Desktop}{ms_docker}
+
+% ════════════════════════════════════════════════════════════════════════════
+%  CHAPITRE 12 — CONCLUSION ET PERSPECTIVES
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Conclusion et Perspectives}
+
+\section{Synthèse des réalisations}
+
+Ce rapport a détaillé la mise en œuvre technique du projet NextStep, axée sur le
+Sprint~2. Nous avons établi une infrastructure locale robuste avec Docker, sécurisé
+l'application via une intégration poussée de Keycloak et développé les premières
+briques fonctionnelles de gestion de profil en Full Stack. Enfin, la plateforme
+a brillamment été migrée vers une architecture microservices pilotée par
+événements via Kafka.
+
+\section{Perspectives}
+
+Les prochains sprints se concentreront sur :
+
+\begin{itemize}[leftmargin=2em]
+  \item L'implémentation des tests E2E avec Cypress.
+  \item Le développement des agents IA complémentaires (Skill Gap, Offer Analyzer).
+  \item La mise en place d'un pipeline CI/CD intégrant SonarQube pour l'analyse
+    statique du code.
+\end{itemize}
+
+\end{document}

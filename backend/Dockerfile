@@ -21,6 +21,7 @@ WORKDIR /app
 # Runtime dependencies required for HTML/PDF rendering and headless browser operations.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     fonts-dejavu-core \
     fonts-liberation \
     libasound2t64 \

@@ -197,6 +197,18 @@ export interface SourcedOfferListItemDto {
   employmentType?: string | null;
   seniorityLevel?: string | null;
   matchedItTerms: string[];
+  aiScore?: number | null;
+  aiScoreSkills?: number | null;
+  aiScoreTitle?: number | null;
+  aiScoreLocation?: number | null;
+  aiScoreContract?: number | null;
+  aiScoreFreshness?: number | null;
+  aiConfidence?: number | null;
+  aiMatchedSkills?: string[];
+  aiMissingSkills?: string[];
+  aiReasons?: string[];
+  aiSummary?: string | null;
+  aiRankedAtUtc?: string | null;
   isSaved: boolean;
   isShortlisted: boolean;
   isArchived: boolean;

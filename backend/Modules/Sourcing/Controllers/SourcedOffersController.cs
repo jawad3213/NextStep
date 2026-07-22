@@ -37,8 +37,15 @@ public class SourcedOffersController(
     [HttpPost("search")]
     public async Task<ActionResult<SourcedOfferSearchResponse>> Search([FromBody] SourcedOfferSearchRequest request, CancellationToken ct)
     {
-        var userId = await GetUserIdAsync();
-        return Ok(await sourcedOfferService.SearchAsync(userId, request, ct));
+        try
+        {
+            var userId = await GetUserIdAsync();
+            return Ok(await sourcedOfferService.SearchAsync(userId, request, ct));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpGet]
@@ -53,19 +60,26 @@ public class SourcedOffersController(
         [FromQuery] string? workflowState,
         CancellationToken ct)
     {
-        var userId = await GetUserIdAsync();
-        var request = new SourcedOfferSearchRequest
+        try
         {
-            Keywords = keywords,
-            Location = location,
-            Providers = providers ?? new List<string>(),
-            Limit = limit ?? 50,
-            PostedWindow = postedWindow ?? PostedWindowValues.Any,
-            ContractTypes = contractTypes ?? new List<string>(),
-            IndeedCountryCode = indeedCountryCode,
-            WorkflowState = workflowState,
-        };
-        return Ok(await sourcedOfferService.ListAsync(userId, request, ct));
+            var userId = await GetUserIdAsync();
+            var request = new SourcedOfferSearchRequest
+            {
+                Keywords = keywords,
+                Location = location,
+                Providers = providers ?? new List<string>(),
+                Limit = limit ?? 50,
+                PostedWindow = postedWindow ?? PostedWindowValues.Any,
+                ContractTypes = contractTypes ?? new List<string>(),
+                IndeedCountryCode = indeedCountryCode,
+                WorkflowState = workflowState,
+            };
+            return Ok(await sourcedOfferService.ListAsync(userId, request, ct));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpGet("{id:guid}")]

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using NextStep.data;
 using NextStep.Modules.Offer.Services;
@@ -30,15 +31,14 @@ public class SourcedOfferService(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private static readonly string[] DefaultProviders = ["linkedin", "indeed", "glassdoor"];
     private static bool _schemaEnsured;
     private static readonly SemaphoreSlim SchemaLock = new(1, 1);
 
     public async Task<SourcedOfferSearchResponse> SearchAsync(Guid userId, SourcedOfferSearchRequest request, CancellationToken ct = default)
     {
-        await EnsureSchemaAsync(ct);
         var normalizedRequest = NormalizeRequest(request);
-        var providers = normalizedRequest.Providers.Count == 0 ? DefaultProviders.ToList() : normalizedRequest.Providers;
+        await EnsureSchemaAsync(ct);
+        var providers = normalizedRequest.Providers.Count == 0 ? SourcingProviders.All.ToList() : normalizedRequest.Providers;
         var warnings = new List<string>();
         var errors = new List<string>();
         var normalizedOffers = new List<NormalizedProviderOffer>();
@@ -57,12 +57,28 @@ public class SourcedOfferService(
             normalizedOffers.AddRange(result.Offers);
         }
 
+        if (normalizedRequest.ContractTypes.Count > 0)
+        {
+            normalizedOffers = normalizedOffers
+                .Where(offer => SourcingContractFilters.Matches(
+                    normalizedRequest.ContractTypes,
+                    offer.NormalizedContractType,
+                    offer.EmploymentType,
+                    offer.Title,
+                    offer.Description,
+                    offer.RawContractType,
+                    offer.SeniorityLevel))
+                .ToList();
+        }
+
         var persistedOffers = new List<SourcedOffer>();
         foreach (var normalizedOffer in normalizedOffers)
         {
             var persisted = await UpsertAsync(userId, normalizedOffer, normalizedRequest, ct);
             persistedOffers.Add(persisted);
         }
+
+        warnings.AddRange(await RankPersistedOffersAsync(userId, persistedOffers, normalizedRequest, ct));
 
         var session = new ScrapeSession
         {
@@ -86,7 +102,8 @@ public class SourcedOfferService(
         {
             Session = MapSession(session),
             Offers = persistedOffers
-                .OrderByDescending(x => x.LastSeenAtUtc)
+                .OrderByDescending(x => x.AiScore ?? -1)
+                .ThenByDescending(x => x.LastSeenAtUtc)
                 .Take(normalizedRequest.Limit)
                 .Select(MapListItem)
                 .ToList(),
@@ -96,8 +113,8 @@ public class SourcedOfferService(
 
     public async Task<List<SourcedOfferListItemDto>> ListAsync(Guid userId, SourcedOfferSearchRequest request, CancellationToken ct = default)
     {
-        await EnsureSchemaAsync(ct);
         var normalizedRequest = NormalizeRequest(request);
+        await EnsureSchemaAsync(ct);
         var query = db.Set<SourcedOffer>()
             .Where(x => x.UserId == userId);
 
@@ -140,10 +157,28 @@ public class SourcedOfferService(
             _ => query.Where(x => !x.IsArchived),
         };
 
+        var takeLimit = Math.Clamp(normalizedRequest.Limit, 1, 100);
+        var prefilterLimit = normalizedRequest.ContractTypes.Count > 0 ? Math.Min(takeLimit * 3, 300) : takeLimit;
         var offers = await query
-            .OrderByDescending(x => x.LastSeenAtUtc)
-            .Take(Math.Clamp(normalizedRequest.Limit, 1, 100))
+            .OrderByDescending(x => x.AiScore ?? -1)
+            .ThenByDescending(x => x.LastSeenAtUtc)
+            .Take(prefilterLimit)
             .ToListAsync(ct);
+
+        if (normalizedRequest.ContractTypes.Count > 0)
+        {
+            offers = offers
+                .Where(offer => SourcingContractFilters.Matches(
+                    normalizedRequest.ContractTypes,
+                    offer.NormalizedContractType,
+                    offer.EmploymentType,
+                    offer.Title,
+                    offer.Description,
+                    offer.RawContractType,
+                    offer.SeniorityLevel))
+                .Take(takeLimit)
+                .ToList();
+        }
 
         return offers.Select(MapListItem).ToList();
     }
@@ -295,6 +330,164 @@ public class SourcedOfferService(
                 ct);
     }
 
+    private async Task<List<string>> RankPersistedOffersAsync(
+        Guid userId,
+        List<SourcedOffer> persistedOffers,
+        SourcedOfferSearchRequest request,
+        CancellationToken ct)
+    {
+        if (persistedOffers.Count == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            var payload = new JobSearchRankPayload
+            {
+                Profile = await BuildCandidateProfilePayloadAsync(userId, request, ct),
+                Offers = persistedOffers.Select(MapRankOfferPayload).ToList(),
+                AiRefineLimit = Math.Min(12, Math.Max(0, request.Limit)),
+            };
+
+            var response = await agentHttpClient.PostAsync<JobSearchRankPayload, JobSearchRankResponse>(
+                "/job-search-ai/rank",
+                payload,
+                ct);
+
+            var rankedById = response.RankedOffers
+                .Where(x => Guid.TryParse(x.OfferId, out _))
+                .GroupBy(x => x.OfferId)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+            var now = DateTime.UtcNow;
+            foreach (var offer in persistedOffers)
+            {
+                if (!rankedById.TryGetValue(offer.Id.ToString(), out var ranked))
+                {
+                    continue;
+                }
+
+                offer.AiScore = Math.Clamp(ranked.ScoreTotal, 0, 100);
+                offer.AiScoreSkills = Math.Clamp(ranked.ScoreSkills, 0, 50);
+                offer.AiScoreTitle = Math.Clamp(ranked.ScoreTitle, 0, 20);
+                offer.AiScoreLocation = Math.Clamp(ranked.ScoreLocation, 0, 10);
+                offer.AiScoreContract = Math.Clamp(ranked.ScoreContract, 0, 10);
+                offer.AiScoreFreshness = Math.Clamp(ranked.ScoreFreshness, 0, 10);
+                offer.AiConfidence = Math.Clamp(ranked.Confidence, 0d, 1d);
+                offer.AiMatchedSkillsJson = SerializeJson(ranked.MatchedSkills.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+                offer.AiMissingSkillsJson = SerializeJson(ranked.MissingSkills.Distinct(StringComparer.OrdinalIgnoreCase).Take(12).ToList());
+                offer.AiReasonsJson = SerializeJson(ranked.Reasons.Where(x => !string.IsNullOrWhiteSpace(x)).Take(5).ToList());
+                offer.AiSummary = NullIfWhiteSpace(ranked.Summary);
+                offer.AiRankedAtUtc = now;
+                offer.UpdatedAtUtc = now;
+            }
+
+            await db.SaveChangesAsync(ct);
+            return response.Warnings ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Sourced offer AI ranking unavailable for user {UserId}", userId);
+            return [$"AI ranking unavailable, raw sourcing results returned: {ex.Message}"];
+        }
+    }
+
+    private async Task<CandidateProfilePayload> BuildCandidateProfilePayloadAsync(
+        Guid userId,
+        SourcedOfferSearchRequest request,
+        CancellationToken ct)
+    {
+        var user = await db.Utilisateurs.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == userId, ct);
+
+        var skills = await db.Competences.AsNoTracking()
+            .Where(x => x.UserId == userId && x.Nom != null)
+            .OrderByDescending(x => x.Niveau)
+            .Select(x => x.Nom!)
+            .Take(80)
+            .ToListAsync(ct);
+
+        var experiences = await db.Experiences.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.DateDebut)
+            .Select(x => new { x.Poste, x.Missions })
+            .Take(8)
+            .ToListAsync(ct);
+
+        var projects = await db.Projets.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.DateRealisation)
+            .Select(x => new { x.TitreProjet, x.Description, x.TechnologiesUtilisees })
+            .Take(8)
+            .ToListAsync(ct);
+
+        var formations = await db.Formations.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.AnneeFin ?? x.Annee)
+            .Select(x => new { x.Diplome, x.Specialisation, x.Etablissement })
+            .Take(6)
+            .ToListAsync(ct);
+
+        var projectTechnologies = projects
+            .SelectMany(x => SplitSearchTerms(x.TechnologiesUtilisees))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new CandidateProfilePayload
+        {
+            Title = user?.TitrePoste,
+            Summary = user?.ResumeProfessionnel ?? user?.Objectif,
+            Location = user?.Ville,
+            Country = user?.Pays,
+            Level = user?.Niveau,
+            Sector = user?.Secteur,
+            Skills = skills.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            ExperienceTitles = experiences.Select(x => x.Poste).Where(x => !string.IsNullOrWhiteSpace(x)).Cast<string>().ToList(),
+            ExperienceSummaries = experiences.Select(x => x.Missions).Where(x => !string.IsNullOrWhiteSpace(x)).Cast<string>().ToList(),
+            ProjectTitles = projects.Select(x => x.TitreProjet).Where(x => !string.IsNullOrWhiteSpace(x)).Cast<string>().ToList(),
+            ProjectTechnologies = projectTechnologies,
+            Education = formations
+                .Select(x => string.Join(" ", new[] { x.Diplome, x.Specialisation, x.Etablissement }.Where(v => !string.IsNullOrWhiteSpace(v))))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList(),
+            TargetKeywords = SplitSearchTerms(request.Keywords),
+            PreferredContractTypes = request.ContractTypes,
+        };
+    }
+
+    private static List<string> SplitSearchTerms(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        return Regex.Split(value, @"[,;/|]+")
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static JobSearchOfferPayload MapRankOfferPayload(SourcedOffer offer) => new()
+    {
+        Id = offer.Id.ToString(),
+        Provider = offer.Provider,
+        ProviderJobId = offer.ProviderJobId,
+        ExternalUrl = offer.ExternalUrl,
+        Title = offer.Title,
+        Company = offer.Company,
+        Location = offer.Location,
+        Description = offer.Description,
+        PostedAtText = offer.PostedAtText,
+        PostedWindow = offer.PostedWindow,
+        NormalizedContractType = offer.NormalizedContractType,
+        EmploymentType = offer.EmploymentType,
+        SeniorityLevel = offer.SeniorityLevel,
+        MatchedItTerms = DeserializeJson(offer.MatchedItTermsJson, new List<string>()),
+    };
+
     private async Task EnsureSchemaAsync(CancellationToken ct)
     {
         if (_schemaEnsured)
@@ -328,6 +521,18 @@ public class SourcedOfferService(
                     employment_type TEXT NULL,
                     seniority_level TEXT NULL,
                     matched_it_terms_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ai_score INTEGER NULL,
+                    ai_score_skills INTEGER NULL,
+                    ai_score_title INTEGER NULL,
+                    ai_score_location INTEGER NULL,
+                    ai_score_contract INTEGER NULL,
+                    ai_score_freshness INTEGER NULL,
+                    ai_confidence DOUBLE PRECISION NULL,
+                    ai_matched_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ai_missing_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ai_reasons_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ai_summary TEXT NULL,
+                    ai_ranked_at_utc TIMESTAMP NULL,
                     source_query_json JSONB NOT NULL DEFAULT '{{}}'::jsonb,
                     dedupe_key TEXT NOT NULL,
                     is_saved BOOLEAN NOT NULL DEFAULT FALSE,
@@ -358,11 +563,30 @@ public class SourcedOfferService(
                 );
             ", cancellationToken: ct);
 
+            await db.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE public.sourced_offer
+                    ADD COLUMN IF NOT EXISTS ai_score INTEGER NULL,
+                    ADD COLUMN IF NOT EXISTS ai_score_skills INTEGER NULL,
+                    ADD COLUMN IF NOT EXISTS ai_score_title INTEGER NULL,
+                    ADD COLUMN IF NOT EXISTS ai_score_location INTEGER NULL,
+                    ADD COLUMN IF NOT EXISTS ai_score_contract INTEGER NULL,
+                    ADD COLUMN IF NOT EXISTS ai_score_freshness INTEGER NULL,
+                    ADD COLUMN IF NOT EXISTS ai_confidence DOUBLE PRECISION NULL,
+                    ADD COLUMN IF NOT EXISTS ai_matched_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ADD COLUMN IF NOT EXISTS ai_missing_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ADD COLUMN IF NOT EXISTS ai_reasons_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ADD COLUMN IF NOT EXISTS ai_summary TEXT NULL,
+                    ADD COLUMN IF NOT EXISTS ai_ranked_at_utc TIMESTAMP NULL;
+            ", cancellationToken: ct);
+
             await db.Database.ExecuteSqlRawAsync(
                 "CREATE INDEX IF NOT EXISTS ix_sourced_offer_user_provider_job ON public.sourced_offer (user_id, provider, provider_job_id);",
                 cancellationToken: ct);
             await db.Database.ExecuteSqlRawAsync(
                 "CREATE INDEX IF NOT EXISTS ix_sourced_offer_user_dedupe ON public.sourced_offer (user_id, dedupe_key);",
+                cancellationToken: ct);
+            await db.Database.ExecuteSqlRawAsync(
+                "CREATE INDEX IF NOT EXISTS ix_sourced_offer_user_ai_score ON public.sourced_offer (user_id, ai_score DESC NULLS LAST);",
                 cancellationToken: ct);
             await db.Database.ExecuteSqlRawAsync(
                 "CREATE INDEX IF NOT EXISTS ix_scrape_session_user_created ON public.scrape_session (user_id, created_at_utc);",
@@ -382,9 +606,9 @@ public class SourcedOfferService(
         {
             return provider switch
             {
-                "linkedin" => await SearchLinkedInAsync(request, ct),
-                "indeed" => await SearchIndeedAsync(request, ct),
-                "glassdoor" => await SearchGlassdoorAsync(request, ct),
+                SourcingProviders.Linkedin => await SearchLinkedInAsync(request, ct),
+                SourcingProviders.Indeed => await SearchIndeedAsync(request, ct),
+                SourcingProviders.Glassdoor => await SearchGlassdoorAsync(request, ct),
                 _ => new ProviderSearchResult
                 {
                     Provider = provider,
@@ -579,33 +803,11 @@ public class SourcedOfferService(
 
     private static string NormalizeContractType(string? normalizedContractType, string? employmentType, string? title, string? description)
     {
-        if (!string.IsNullOrWhiteSpace(normalizedContractType))
-        {
-            return normalizedContractType.Trim().ToLowerInvariant();
-        }
-
-        var corpus = $"{employmentType} {title} {description}".ToLowerInvariant();
-        var mappings = new Dictionary<string, string[]>
-        {
-            [NormalizedContractTypes.Internship] = ["internship", "intern", "stage", "stagiaire"],
-            [NormalizedContractTypes.Cdi] = ["cdi", "permanent"],
-            [NormalizedContractTypes.Cdd] = ["cdd", "fixed term", "fixed-term"],
-            [NormalizedContractTypes.Freelance] = ["freelance", "freelancer", "contractor", "contract"],
-            [NormalizedContractTypes.Alternance] = ["alternance", "apprenticeship", "apprenti"],
-            [NormalizedContractTypes.PartTime] = ["part-time", "part time", "temps partiel"],
-            [NormalizedContractTypes.FullTime] = ["full-time", "full time", "temps plein"],
-            [NormalizedContractTypes.Temporary] = ["temporary", "temporaire", "interim"],
-        };
-
-        foreach (var entry in mappings)
-        {
-            if (entry.Value.Any(term => corpus.Contains(term)))
-            {
-                return entry.Key;
-            }
-        }
-
-        return NormalizedContractTypes.Other;
+        return SourcingContractFilters.NormalizeContractType(
+            normalizedContractType,
+            employmentType,
+            title,
+            description);
     }
 
     private static string SerializeJson<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
@@ -627,11 +829,7 @@ public class SourcedOfferService(
 
     private static SourcedOfferSearchRequest NormalizeRequest(SourcedOfferSearchRequest request)
     {
-        request.Providers = request.Providers
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x.Trim().ToLowerInvariant())
-            .Distinct()
-            .ToList();
+        request.Providers = SourcingProviders.NormalizeRequestedProviders(request.Providers);
         request.ContractTypes = request.ContractTypes
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim().ToLowerInvariant())
@@ -676,6 +874,18 @@ public class SourcedOfferService(
         EmploymentType = offer.EmploymentType,
         SeniorityLevel = offer.SeniorityLevel,
         MatchedItTerms = DeserializeJson(offer.MatchedItTermsJson, new List<string>()),
+        AiScore = offer.AiScore,
+        AiScoreSkills = offer.AiScoreSkills,
+        AiScoreTitle = offer.AiScoreTitle,
+        AiScoreLocation = offer.AiScoreLocation,
+        AiScoreContract = offer.AiScoreContract,
+        AiScoreFreshness = offer.AiScoreFreshness,
+        AiConfidence = offer.AiConfidence,
+        AiMatchedSkills = DeserializeJson(offer.AiMatchedSkillsJson, new List<string>()),
+        AiMissingSkills = DeserializeJson(offer.AiMissingSkillsJson, new List<string>()),
+        AiReasons = DeserializeJson(offer.AiReasonsJson, new List<string>()),
+        AiSummary = offer.AiSummary,
+        AiRankedAtUtc = offer.AiRankedAtUtc,
         IsSaved = offer.IsSaved,
         IsShortlisted = offer.IsShortlisted,
         IsArchived = offer.IsArchived,
@@ -702,6 +912,18 @@ public class SourcedOfferService(
         EmploymentType = offer.EmploymentType,
         SeniorityLevel = offer.SeniorityLevel,
         MatchedItTerms = DeserializeJson(offer.MatchedItTermsJson, new List<string>()),
+        AiScore = offer.AiScore,
+        AiScoreSkills = offer.AiScoreSkills,
+        AiScoreTitle = offer.AiScoreTitle,
+        AiScoreLocation = offer.AiScoreLocation,
+        AiScoreContract = offer.AiScoreContract,
+        AiScoreFreshness = offer.AiScoreFreshness,
+        AiConfidence = offer.AiConfidence,
+        AiMatchedSkills = DeserializeJson(offer.AiMatchedSkillsJson, new List<string>()),
+        AiMissingSkills = DeserializeJson(offer.AiMissingSkillsJson, new List<string>()),
+        AiReasons = DeserializeJson(offer.AiReasonsJson, new List<string>()),
+        AiSummary = offer.AiSummary,
+        AiRankedAtUtc = offer.AiRankedAtUtc,
         IsSaved = offer.IsSaved,
         IsShortlisted = offer.IsShortlisted,
         IsArchived = offer.IsArchived,
@@ -711,6 +933,71 @@ public class SourcedOfferService(
         ScrapedAtUtc = offer.ScrapedAtUtc,
         SourceQuery = DeserializeJson(offer.SourceQueryJson, new Dictionary<string, object?>()),
     };
+
+    private sealed class JobSearchRankPayload
+    {
+        public CandidateProfilePayload Profile { get; set; } = new();
+        public List<JobSearchOfferPayload> Offers { get; set; } = new();
+        public int AiRefineLimit { get; set; } = 12;
+    }
+
+    private sealed class CandidateProfilePayload
+    {
+        public string? Title { get; set; }
+        public string? Summary { get; set; }
+        public string? Location { get; set; }
+        public string? Country { get; set; }
+        public string? Level { get; set; }
+        public string? Sector { get; set; }
+        public List<string> Skills { get; set; } = new();
+        public List<string> ExperienceTitles { get; set; } = new();
+        public List<string> ExperienceSummaries { get; set; } = new();
+        public List<string> ProjectTitles { get; set; } = new();
+        public List<string> ProjectTechnologies { get; set; } = new();
+        public List<string> Education { get; set; } = new();
+        public List<string> TargetKeywords { get; set; } = new();
+        public List<string> PreferredContractTypes { get; set; } = new();
+    }
+
+    private sealed class JobSearchOfferPayload
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Provider { get; set; } = string.Empty;
+        public string? ProviderJobId { get; set; }
+        public string? ExternalUrl { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Company { get; set; }
+        public string? Location { get; set; }
+        public string? Description { get; set; }
+        public string? PostedAtText { get; set; }
+        public string? PostedWindow { get; set; }
+        public string? NormalizedContractType { get; set; }
+        public string? EmploymentType { get; set; }
+        public string? SeniorityLevel { get; set; }
+        public List<string> MatchedItTerms { get; set; } = new();
+    }
+
+    private sealed class JobSearchRankResponse
+    {
+        public List<RankedJobOfferPayload> RankedOffers { get; set; } = new();
+        public List<string> Warnings { get; set; } = new();
+    }
+
+    private sealed class RankedJobOfferPayload
+    {
+        public string OfferId { get; set; } = string.Empty;
+        public int ScoreTotal { get; set; }
+        public int ScoreSkills { get; set; }
+        public int ScoreTitle { get; set; }
+        public int ScoreLocation { get; set; }
+        public int ScoreContract { get; set; }
+        public int ScoreFreshness { get; set; }
+        public double Confidence { get; set; }
+        public List<string> MatchedSkills { get; set; } = new();
+        public List<string> MissingSkills { get; set; } = new();
+        public List<string> Reasons { get; set; } = new();
+        public string? Summary { get; set; }
+    }
 
     private sealed class ProviderSearchPayload
     {

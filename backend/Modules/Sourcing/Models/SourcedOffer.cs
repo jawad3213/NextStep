@@ -58,6 +58,42 @@ public class SourcedOffer
     [Column("matched_it_terms_json", TypeName = "jsonb")]
     public string MatchedItTermsJson { get; set; } = "[]";
 
+    [Column("ai_score")]
+    public int? AiScore { get; set; }
+
+    [Column("ai_score_skills")]
+    public int? AiScoreSkills { get; set; }
+
+    [Column("ai_score_title")]
+    public int? AiScoreTitle { get; set; }
+
+    [Column("ai_score_location")]
+    public int? AiScoreLocation { get; set; }
+
+    [Column("ai_score_contract")]
+    public int? AiScoreContract { get; set; }
+
+    [Column("ai_score_freshness")]
+    public int? AiScoreFreshness { get; set; }
+
+    [Column("ai_confidence")]
+    public double? AiConfidence { get; set; }
+
+    [Column("ai_matched_skills_json", TypeName = "jsonb")]
+    public string AiMatchedSkillsJson { get; set; } = "[]";
+
+    [Column("ai_missing_skills_json", TypeName = "jsonb")]
+    public string AiMissingSkillsJson { get; set; } = "[]";
+
+    [Column("ai_reasons_json", TypeName = "jsonb")]
+    public string AiReasonsJson { get; set; } = "[]";
+
+    [Column("ai_summary")]
+    public string? AiSummary { get; set; }
+
+    [Column("ai_ranked_at_utc")]
+    public DateTime? AiRankedAtUtc { get; set; }
+
     [Column("source_query_json", TypeName = "jsonb")]
     public string SourceQueryJson { get; set; } = "{}";
 

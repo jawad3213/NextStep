@@ -169,6 +169,7 @@
           (ngModelChange)="sortBy.set($event)"
           class="rounded-xl border-slate-200 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white"
         >
+          <option value="score">Best match</option>
           <option value="recent">Most recent</option>
           <option value="company">Company A-Z</option>
           <option value="title">Title A-Z</option>
@@ -218,22 +219,37 @@
               </div>
             </div>
 
-            <span [class]="'rounded-full border px-2.5 py-1 text-[11px] font-semibold ' + getProviderChip(offer.provider).tone">
-              {{ getProviderChip(offer.provider).label }}
-            </span>
+            <div class="flex shrink-0 flex-col items-end gap-2">
+              @if (offer.aiScore !== null && offer.aiScore !== undefined) {
+                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                  {{ offer.aiScore }}% match
+                </span>
+              }
+              <span [class]="'rounded-full border px-2.5 py-1 text-[11px] font-semibold ' + getProviderChip(offer.provider).tone">
+                {{ getProviderChip(offer.provider).label }}
+              </span>
+            </div>
           </div>
 
           <div class="mt-3 flex flex-wrap gap-2">
-            @for (tag of offer.matchedItTerms.slice(0, 5); track tag) {
+            @for (tag of getRankingTags(offer).slice(0, 5); track tag) {
               <span class="rounded-md bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">{{ tag }}</span>
             }
-            @if (offer.employmentType) {
+            @if (shouldShowEmploymentType(offer)) {
               <span class="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{{ offer.employmentType }}</span>
             }
-            @if (offer.seniorityLevel) {
+            @if (shouldShowSeniority(offer)) {
               <span class="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{{ offer.seniorityLevel }}</span>
             }
           </div>
+
+          @if (getAiReasons(offer).length) {
+            <div class="mt-3 space-y-1">
+              @for (reason of getAiReasons(offer).slice(0, 2); track reason) {
+                <p class="text-xs leading-5 text-emerald-700">{{ reason }}</p>
+              }
+            </div>
+          }
 
           <p class="mt-4 line-clamp-4 text-sm leading-6 text-slate-600">
             {{ offer.description || 'No description available yet.' }}

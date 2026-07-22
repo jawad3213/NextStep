@@ -108,6 +108,18 @@ export class SourcedOfferDetailComponent implements OnInit {
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 
+  getRankingTags(offer: SourcedOfferDetailDto): string[] {
+    return offer.aiMatchedSkills?.length ? offer.aiMatchedSkills : offer.matchedItTerms;
+  }
+
+  getAiReasons(offer: SourcedOfferDetailDto): string[] {
+    return offer.aiReasons ?? [];
+  }
+
+  getMissingSkills(offer: SourcedOfferDetailDto): string[] {
+    return offer.aiMissingSkills ?? [];
+  }
+
   private patch(payload: { isSaved?: boolean; isShortlisted?: boolean; isArchived?: boolean }): void {
     const offer = this.offer();
     if (!offer) return;

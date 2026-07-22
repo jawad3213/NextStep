@@ -28,6 +28,7 @@ from app.api.chatbot_routes import router as chatbot_router
 from app.api.glassdoor_jobs_routes import router as glassdoor_jobs_router
 from app.api.indeed_jobs_routes import router as indeed_jobs_router
 from app.api.linkedin_jobs_routes import router as linkedin_jobs_router
+from app.api.job_search_ai_routes import router as job_search_ai_router
 from app.api.resume_routes import router as resume_router
 
 # Email Composer (M4) — domain-driven refactor of email_engine
@@ -93,6 +94,7 @@ app = FastAPI(lifespan=lifespan,
 | **cv_optimizer**      | — | Optimisation et réécriture du CV (STAR) |
 | **cv_engine**         | — | Formateur algorithmique pour QuestPDF JSON |
 | **company**           | — | Analyse entreprise + score culture |
+| **job_search_ai**     | — | Ranking profil/offres apres sourcing Scrapling |
 | **email_composer**    | M4 | Génération d'emails de candidature (pipeline + direct) |
 """,
     version="3.0.0",
@@ -125,6 +127,7 @@ app.include_router(company_router, prefix="/company")
 app.include_router(glassdoor_jobs_router, prefix="/glassdoor-jobs")
 app.include_router(indeed_jobs_router, prefix="/indeed-jobs")
 app.include_router(linkedin_jobs_router, prefix="/linkedin-jobs")
+app.include_router(job_search_ai_router, prefix="/job-search-ai")
 app.include_router(cv_optimizer_router)
 app.include_router(cv_engine_router)
 app.include_router(chatbot_router)
@@ -155,6 +158,7 @@ async def health_check():
             "glassdoor_jobs": "POST /glassdoor-jobs/search",
             "indeed_jobs": "POST /indeed-jobs/search",
             "linkedin_jobs": "POST /linkedin-jobs/search",
+            "job_search_rank": "POST /job-search-ai/rank",
 
             "format_questpdf": "POST /cv-engine/format-questpdf",
             "analyze_company": "POST /company/analyze-company",

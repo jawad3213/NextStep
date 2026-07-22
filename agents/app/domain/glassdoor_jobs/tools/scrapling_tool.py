@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl, quote_plus, urlencode, urlparse, urlunparse
 
 from app.domain.linkedin_jobs.tools.scrapling_tool import (
     IT_TERMS,
+    matches_contract_types,
     matches_posted_window,
     normalize_contract_type,
 )
@@ -260,9 +261,5 @@ def filter_jobs(
         jobs = [job for job in jobs if matches_posted_window(job, posted_window)]
     normalized_contract_types = {value.strip().lower() for value in (contract_types or []) if value}
     if normalized_contract_types:
-        jobs = [
-            job
-            for job in jobs
-            if (job.get("normalized_contract_type") or normalize_contract_type(job) or "").lower() in normalized_contract_types
-        ]
+        jobs = [job for job in jobs if matches_contract_types(job, contract_types)]
     return jobs[:limit]

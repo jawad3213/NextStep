@@ -21,12 +21,13 @@ CONTRACT_TYPE_TERMS = {
     "internship": {"internship", "intern", "stage", "stagiaire", "stage pfe", "stage pre-embauche"},
     "cdi": {"cdi", "permanent", "full-time permanent", "contrat a duree indeterminee"},
     "cdd": {"cdd", "contrat a duree determinee", "fixed term", "fixed-term", "contractuel"},
-    "freelance": {"freelance", "freelancer", "contract", "contractor", "consultant indépendant"},
+    "freelance": {"freelance", "freelancer", "contractor", "independent contractor", "consultant independant"},
     "alternance": {"alternance", "apprenticeship", "apprenti", "work-study"},
     "part_time": {"part time", "part-time", "temps partiel"},
     "full_time": {"full time", "full-time", "temps plein"},
     "temporary": {"temporary", "temporaire", "interim"},
 }
+NORMALIZED_CONTRACT_TYPES = set(CONTRACT_TYPE_TERMS.keys()) | {"other"}
 
 IT_TERMS = {
     "software",
@@ -308,18 +309,41 @@ def extract_relative_hours(posted_text: Optional[str]) -> Optional[int]:
 
 
 def normalize_contract_type(job: dict) -> Optional[str]:
-    corpus = " ".join(
+    explicit = (job.get("normalized_contract_type") or "").strip().lower()
+    if explicit in NORMALIZED_CONTRACT_TYPES and explicit != "other":
+        return explicit
+
+    primary_corpus = " ".join(
         [
             job.get("employment_type") or "",
+            job.get("raw_contract_type") or "",
             job.get("title") or "",
-            job.get("description") or "",
             job.get("job_function") or "",
+            job.get("seniority_level") or "",
         ]
     ).lower()
-    for contract_type, terms in CONTRACT_TYPE_TERMS.items():
-        if any(term in corpus for term in terms):
-            return contract_type
-    return "other" if corpus.strip() else None
+    secondary_corpus = (job.get("description") or "").lower()
+
+    for corpus in [primary_corpus, secondary_corpus]:
+        if not corpus.strip():
+            continue
+        for contract_type, terms in CONTRACT_TYPE_TERMS.items():
+            if any(_contains_contract_term(corpus, term) for term in terms):
+                return contract_type
+    return "other" if f"{primary_corpus} {secondary_corpus}".strip() else None
+
+
+def _contains_contract_term(corpus: str, term: str) -> bool:
+    escaped = re.escape(term.lower()).replace(r"\ ", r"\s+")
+    return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", corpus.lower()) is not None
+
+
+def matches_contract_types(job: dict, contract_types: Optional[list[str]]) -> bool:
+    normalized_contract_types = {value.strip().lower() for value in (contract_types or []) if value}
+    if not normalized_contract_types:
+        return True
+    contract_type = (job.get("normalized_contract_type") or normalize_contract_type(job) or "").strip().lower()
+    return contract_type in normalized_contract_types
 
 
 def matches_posted_window(job: dict, posted_window: Optional[str]) -> bool:
@@ -477,9 +501,5 @@ def filter_jobs(
         jobs = [job for job in jobs if matches_posted_window(job, posted_window)]
     normalized_contract_types = {value.strip().lower() for value in (contract_types or []) if value}
     if normalized_contract_types:
-        jobs = [
-            job
-            for job in jobs
-            if (job.get("normalized_contract_type") or normalize_contract_type(job) or "").lower() in normalized_contract_types
-        ]
+        jobs = [job for job in jobs if matches_contract_types(job, contract_types)]
     return jobs[:limit]

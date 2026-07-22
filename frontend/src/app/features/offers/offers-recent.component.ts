@@ -117,7 +117,7 @@ export class OffersRecentComponent implements OnInit {
   });
 
   readonly searchTerm = signal('');
-  readonly sortBy = signal<'recent' | 'company' | 'title'>('recent');
+  readonly sortBy = signal<'score' | 'recent' | 'company' | 'title'>('score');
   readonly isLoading = signal(false);
   readonly actionOfferId = signal<string | null>(null);
   readonly errorMessage = signal('');
@@ -141,6 +141,9 @@ export class OffersRecentComponent implements OnInit {
 
     result.sort((a, b) => {
       switch (sort) {
+        case 'score':
+          return (b.aiScore ?? -1) - (a.aiScore ?? -1)
+            || new Date(b.lastSeenAtUtc).getTime() - new Date(a.lastSeenAtUtc).getTime();
         case 'company':
           return (a.company ?? '').localeCompare(b.company ?? '');
         case 'title':
@@ -299,6 +302,29 @@ export class OffersRecentComponent implements OnInit {
 
   getProviderCount(provider: ScrapeProvider): number {
     return this.offers().filter((offer) => offer.provider === provider).length;
+  }
+
+  getRankingTags(offer: SourcedOfferListItemDto): string[] {
+    return offer.aiMatchedSkills?.length ? offer.aiMatchedSkills : offer.matchedItTerms;
+  }
+
+  getAiReasons(offer: SourcedOfferListItemDto): string[] {
+    return offer.aiReasons ?? [];
+  }
+
+  shouldShowEmploymentType(offer: SourcedOfferListItemDto): boolean {
+    const employment = (offer.employmentType ?? '').trim().toLowerCase();
+    if (!employment || employment === 'not applicable') return false;
+    const contract = (offer.normalizedContractType ?? '').trim().toLowerCase();
+    if (contract && contract !== 'other' && ['full-time', 'full time', 'part-time', 'part time'].includes(employment)) {
+      return false;
+    }
+    return true;
+  }
+
+  shouldShowSeniority(offer: SourcedOfferListItemDto): boolean {
+    const seniority = (offer.seniorityLevel ?? '').trim().toLowerCase();
+    return !!seniority && seniority !== 'not applicable';
   }
 
   getBubbleGradient(company: string): string {

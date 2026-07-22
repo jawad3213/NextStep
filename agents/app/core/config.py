@@ -33,6 +33,7 @@ GROQ_DEFAULTS = {
     "skill_gap": "llama-3.1-8b-instant",
     "cv_optimizer": "llama-3.1-8b-instant",
     "company": "llama-3.1-8b-instant",
+    "job_search_ai": "llama-3.1-8b-instant",
     "resume": "llama-3.3-70b-versatile",
     "default": "llama-3.1-8b-instant",
 }

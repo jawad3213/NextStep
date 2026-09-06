@@ -4,6 +4,7 @@ using NextStep.Modules.Chatbot.DTOs;
 using NextStep.Modules.Chatbot.Interfaces;
 using NextStep.Modules.Chatbot.Models;
 using NextStep.data;
+using NextStep.Modules.Offer.Models;
 
 namespace NextStep.Modules.Chatbot.Services;
 
@@ -71,7 +72,7 @@ public class ArenaService : IArenaService
                 {
                     var offerGuid = Guid.Parse(request.OfferId);
                     
-                    // 1. S'assurer que l'offre existe dans la table public.offre pour satisfaire la FK de candidature
+                    // 1. S'assurer que l'offre existe dans la table moderne pour satisfaire la FK de candidature
                     var offerExists = await CheckOfferExistsAsync(offerGuid);
 
                     if (!offerExists)
@@ -89,12 +90,21 @@ public class ArenaService : IArenaService
                             location = offerDetails.Localisation ?? location;
                         }
 
-                        // Use EF Core parameterized SQL to safely insert the offer row
-                        await _db.Database.ExecuteSqlAsync(
-                            $"""
-                            INSERT INTO public.offre (id_offre, date_scraping, entreprise, localisation, url_source, description_brute, titre_poste)
-                            VALUES ({offerGuid}, NOW(), {company}, {location}, '', 'Auto-created from chat session', {title})
-                            """);
+                        var placeholderRawText =
+                            $"Auto-created from chat session{Environment.NewLine}" +
+                            $"Title: {title}{Environment.NewLine}" +
+                            $"Company: {company}{Environment.NewLine}" +
+                            $"Location: {location}";
+
+                        _db.OffresEmploi.Add(new OffreEmploi
+                        {
+                            Id = offerGuid,
+                            UtilisateurId = internalUser.Id,
+                            TexteBrut = placeholderRawText,
+                            AnalyseJson = null,
+                            DateCreation = DateTime.UtcNow
+                        });
+                        await _db.SaveChangesAsync();
                     }
 
                     // 2. S'assurer qu'une candidature existe pour cet utilisateur et cette offre
@@ -424,7 +434,7 @@ public class ArenaService : IArenaService
         {
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT 1 FROM public.offre WHERE id_offre = @idOffre LIMIT 1";
+                cmd.CommandText = "SELECT 1 FROM public.offres_emploi WHERE id = @idOffre LIMIT 1";
                 var p = cmd.CreateParameter();
                 p.ParameterName = "@idOffre";
                 p.Value = offerId;
@@ -556,4 +566,4 @@ public class OffreAnalyseeRaw
 public class MatchScoreRaw
 {
     public int? ScoreGlobal { get; set; }
-}
+}

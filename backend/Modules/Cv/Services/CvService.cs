@@ -86,6 +86,8 @@ public class CvHistoryDto
 
 public class CvService : ICvService
 {
+    private static readonly TimeSpan PdfRenderTimeout = TimeSpan.FromSeconds(15);
+
     private readonly IProfileService _profileService;
     private readonly IOfferService _offerService;
     private readonly IStorageService _storageService;
@@ -94,6 +96,7 @@ public class CvService : ICvService
     private readonly IAgentHttpClient _agentClient;
     private readonly ICvHtmlTemplateRenderer _htmlTemplateRenderer;
     private readonly ICvPdfRenderer _pdfRenderer;
+    private readonly ILogger<CvService> _logger;
 
     private static readonly string[] ActivitySignals =
     {
@@ -117,7 +120,8 @@ public class CvService : ICvService
         AppDbContext db,
         IAgentHttpClient agentClient,
         ICvHtmlTemplateRenderer htmlTemplateRenderer,
-        ICvPdfRenderer pdfRenderer)
+        ICvPdfRenderer pdfRenderer,
+        ILogger<CvService> logger)
     {
         _profileService = profileService;
         _offerService = offerService;
@@ -127,6 +131,7 @@ public class CvService : ICvService
         _agentClient = agentClient;
         _htmlTemplateRenderer = htmlTemplateRenderer;
         _pdfRenderer = pdfRenderer;
+        _logger = logger;
     }
 
     public async Task<CvPreviewResult> PreviewCvAsync(Guid userId, string templateId, Guid? jobId = null)
@@ -712,14 +717,24 @@ public class CvService : ICvService
     {
         try
         {
-            return await _pdfRenderer.RenderPdfAsync(htmlSnapshot);
+            return await _pdfRenderer.RenderPdfAsync(htmlSnapshot).WaitAsync(PdfRenderTimeout);
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Puppeteer PDF render timed out for template {Template}. Falling back to QuestPDF.", templateSlug);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("Chromium-compatible browser executable", StringComparison.OrdinalIgnoreCase))
         {
-            var document = CvDocumentFactory.Create(templateSlug, data);
-            QuestPDF.Settings.License = LicenseType.Community;
-            return document.GeneratePdf();
+            _logger.LogWarning(ex, "No Chromium-compatible browser available for template {Template}. Falling back to QuestPDF.", templateSlug);
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Puppeteer PDF render failed for template {Template}. Falling back to QuestPDF.", templateSlug);
+        }
+
+        var document = CvDocumentFactory.Create(templateSlug, data);
+        QuestPDF.Settings.License = LicenseType.Community;
+        return document.GeneratePdf();
     }
 }
 

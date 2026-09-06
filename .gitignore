@@ -111,3 +111,8 @@ offer copy.txt
 # --- Configurations Locales ---
 appsettings.local.json
 secrets.json
+
+# --- Documents & Rapports locaux ---
+*.latex
+rapp.latex
+rappor-fonctionnele.latex

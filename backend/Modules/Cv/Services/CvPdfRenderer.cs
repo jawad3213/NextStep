@@ -9,6 +9,8 @@ public interface ICvPdfRenderer
 
 public class CvPdfRenderer(ILogger<CvPdfRenderer> logger) : ICvPdfRenderer
 {
+    private static readonly TimeSpan RenderTimeout = TimeSpan.FromSeconds(12);
+
     public async Task<byte[]> RenderPdfAsync(string html)
     {
         var launchOptions = new LaunchOptions
@@ -30,13 +32,13 @@ public class CvPdfRenderer(ILogger<CvPdfRenderer> logger) : ICvPdfRenderer
 
         try
         {
-            return await RenderWithLaunchOptionsAsync(html, launchOptions);
+            return await RenderWithLaunchOptionsAsync(html, launchOptions).WaitAsync(RenderTimeout);
         }
         catch (Exception ex) when (!string.IsNullOrWhiteSpace(launchOptions.ExecutablePath))
         {
             logger.LogWarning(ex, "Primary Puppeteer executable failed. Falling back to a downloaded Chromium binary.");
             launchOptions.ExecutablePath = await EnsureDownloadedBrowserAsync();
-            return await RenderWithLaunchOptionsAsync(html, launchOptions);
+            return await RenderWithLaunchOptionsAsync(html, launchOptions).WaitAsync(RenderTimeout);
         }
     }
 
@@ -118,26 +120,24 @@ public class CvPdfRenderer(ILogger<CvPdfRenderer> logger) : ICvPdfRenderer
 
     private async Task<string> EnsureDownloadedBrowserAsync()
     {
+        var downloadPath = Path.Combine(AppContext.BaseDirectory, ".local-chromium");
         var browserFetcher = new BrowserFetcher(new BrowserFetcherOptions
         {
-            Path = Path.Combine(AppContext.BaseDirectory, ".local-chromium")
+            Path = downloadPath
         });
 
         await PuppeteerBrowserDownloadGuard.Lock.WaitAsync();
         try
         {
-            var existing = browserFetcher
-                .GetInstalledBrowsers()
-                .Select(b => b.GetExecutablePath())
-                .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path));
+            var existing = FindDownloadedBrowserExecutable(downloadPath);
 
             if (!string.IsNullOrWhiteSpace(existing))
             {
                 return existing;
             }
 
-            var installed = await browserFetcher.DownloadAsync();
-            var executablePath = installed.GetExecutablePath();
+            await browserFetcher.DownloadAsync();
+            var executablePath = FindDownloadedBrowserExecutable(downloadPath);
             if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
             {
                 throw new InvalidOperationException(
@@ -150,5 +150,29 @@ public class CvPdfRenderer(ILogger<CvPdfRenderer> logger) : ICvPdfRenderer
         {
             PuppeteerBrowserDownloadGuard.Lock.Release();
         }
+    }
+
+    private static string? FindDownloadedBrowserExecutable(string rootPath)
+    {
+        if (!Directory.Exists(rootPath))
+        {
+            return null;
+        }
+
+        var headlessShellName = OperatingSystem.IsWindows() ? "chrome-headless-shell.exe" : "chrome-headless-shell";
+        var chromeName = OperatingSystem.IsWindows() ? "chrome.exe" : "chrome";
+
+        var headlessShell = Directory
+            .EnumerateFiles(rootPath, headlessShellName, SearchOption.AllDirectories)
+            .FirstOrDefault(File.Exists);
+
+        if (!string.IsNullOrWhiteSpace(headlessShell))
+        {
+            return headlessShell;
+        }
+
+        return Directory
+            .EnumerateFiles(rootPath, chromeName, SearchOption.AllDirectories)
+            .FirstOrDefault(File.Exists);
     }
 }

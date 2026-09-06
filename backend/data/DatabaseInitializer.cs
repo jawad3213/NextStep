@@ -39,61 +39,69 @@ public static class DatabaseInitializer
             try
             {
                 Console.WriteLine("DEBUG: STARTING FULL NUCLEAR REPAIR...");
-                
-                // 1. Force Create Tables
-                await context.Database.ExecuteSqlRawAsync(@"
-                    CREATE TABLE IF NOT EXISTS public.utilisateur (id_utilisateur UUID PRIMARY KEY);
-                    CREATE TABLE IF NOT EXISTS public.experience (id_experience UUID PRIMARY KEY);
-                    CREATE TABLE IF NOT EXISTS public.formation (id_formation UUID PRIMARY KEY);
-                    CREATE TABLE IF NOT EXISTS public.projet (id_projet UUID PRIMARY KEY);
-                    CREATE TABLE IF NOT EXISTS public.competence (id_competence UUID PRIMARY KEY);
-                    CREATE TABLE IF NOT EXISTS public.certification (id_certification UUID PRIMARY KEY);
-                    CREATE TABLE IF NOT EXISTS public.skill_keyword (id_skill_keyword UUID PRIMARY KEY DEFAULT gen_random_uuid(), mot TEXT NOT NULL);
+                try
+                {
+                    // 1. Force Create Tables
+                    await context.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS public.utilisateur (id_utilisateur UUID PRIMARY KEY);
+                        CREATE TABLE IF NOT EXISTS public.experience (id_experience UUID PRIMARY KEY);
+                        CREATE TABLE IF NOT EXISTS public.formation (id_formation UUID PRIMARY KEY);
+                        CREATE TABLE IF NOT EXISTS public.projet (id_projet UUID PRIMARY KEY);
+                        CREATE TABLE IF NOT EXISTS public.competence (id_competence UUID PRIMARY KEY);
+                        CREATE TABLE IF NOT EXISTS public.certification (id_certification UUID PRIMARY KEY);
+                        CREATE TABLE IF NOT EXISTS public.skill_keyword (id_skill_keyword UUID PRIMARY KEY DEFAULT gen_random_uuid(), mot TEXT NOT NULL);
 
-                    CREATE TABLE IF NOT EXISTS public.offres_emploi (
-                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        texte_brut TEXT,
-                        analyse_json JSONB DEFAULT '{}',
-                        date_creation TIMESTAMP DEFAULT now(),
-                        utilisateur_id UUID
-                    );
+                        CREATE TABLE IF NOT EXISTS public.offres_emploi (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            texte_brut TEXT,
+                            analyse_json JSONB DEFAULT '{{}}',
+                            date_creation TIMESTAMP DEFAULT now(),
+                            utilisateur_id UUID
+                        );
 
-                    CREATE TABLE IF NOT EXISTS public.candidature (
-                        id_candidature UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        id_utilisateur UUID,
-                        id_offre UUID REFERENCES public.offres_emploi(id) ON DELETE CASCADE,
-                        date_creation TIMESTAMP DEFAULT now(),
-                        inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
-                        statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
-                    );
+                        CREATE TABLE IF NOT EXISTS public.candidature (
+                            id_candidature UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            id_utilisateur UUID,
+                            id_offre UUID REFERENCES public.offres_emploi(id) ON DELETE CASCADE,
+                            date_creation TIMESTAMP DEFAULT now(),
+                            inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
+                            statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
+                        );
 
-                    CREATE TABLE IF NOT EXISTS public.document_genere (
-                        id_document UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        id_candidature UUID UNIQUE REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
-                        cv_contenu_ia_json JSONB DEFAULT '{}',
-                        lettre_motiv_contenu_ia TEXT,
-                        chemin_pdf_cv VARCHAR(255),
-                        chemin_pdf_lettre VARCHAR(255),
-                        version INTEGER DEFAULT 1,
-                        date_generation TIMESTAMP DEFAULT now()
-                    );
+                        CREATE TABLE IF NOT EXISTS public.document_genere (
+                            id_document UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            id_candidature UUID UNIQUE REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                            cv_contenu_ia_json JSONB DEFAULT '{{}}',
+                            lettre_motiv_contenu_ia TEXT,
+                            chemin_pdf_cv VARCHAR(255),
+                            chemin_pdf_lettre VARCHAR(255),
+                            version INTEGER DEFAULT 1,
+                            date_generation TIMESTAMP DEFAULT now()
+                        );
 
-                    CREATE TABLE IF NOT EXISTS public.email_draft (
-                        id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        id_candidature UUID REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
-                        type_email VARCHAR(50) DEFAULT 'application',
-                        recipient_email VARCHAR(255),
-                        objet VARCHAR(255),
-                        corps TEXT,
-                        langue VARCHAR(10) DEFAULT 'fr',
-                        est_approuve BOOLEAN DEFAULT FALSE,
-                        est_envoye BOOLEAN DEFAULT FALSE,
-                        date_creation TIMESTAMP DEFAULT now(),
-                        date_modification TIMESTAMP,
-                        date_envoi TIMESTAMP,
-                        error_message TEXT
-                    );
-                ");
+                        CREATE TABLE IF NOT EXISTS public.email_draft (
+                            id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            id_candidature UUID REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                            type_email VARCHAR(50) DEFAULT 'application',
+                            recipient_email VARCHAR(255),
+                            objet VARCHAR(255),
+                            corps TEXT,
+                            langue VARCHAR(10) DEFAULT 'fr',
+                            est_approuve BOOLEAN DEFAULT FALSE,
+                            est_envoye BOOLEAN DEFAULT FALSE,
+                            date_creation TIMESTAMP DEFAULT now(),
+                            date_modification TIMESTAMP,
+                            date_envoi TIMESTAMP,
+                            error_message TEXT
+                        );
+                    ");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"DEBUG: core table bootstrap partially failed: {ex.Message}");
+                }
+
+                await EnsureOfferWorkflowSchemaAsync(context);
 
                 // 2. Force Add Columns (Utilisateur)
 
@@ -528,5 +536,195 @@ public static class DatabaseInitializer
             }
             catch (Exception ex) { Console.WriteLine($"DEBUG: REPAIR FAILED: {ex.Message}"); }
         }
+    }
+
+    private static async Task EnsureOfferWorkflowSchemaAsync(AppDbContext context)
+    {
+        Console.WriteLine("DEBUG: ENSURING OFFER WORKFLOW SCHEMA...");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.offres_emploi (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                texte_brut TEXT,
+                analyse_json JSONB DEFAULT '{{}}'::jsonb,
+                date_creation TIMESTAMP DEFAULT now(),
+                utilisateur_id UUID
+            );
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE public.offres_emploi ADD COLUMN IF NOT EXISTS texte_brut TEXT;
+            ALTER TABLE public.offres_emploi ADD COLUMN IF NOT EXISTS analyse_json JSONB DEFAULT '{{}}'::jsonb;
+            ALTER TABLE public.offres_emploi ADD COLUMN IF NOT EXISTS date_creation TIMESTAMP DEFAULT now();
+            ALTER TABLE public.offres_emploi ADD COLUMN IF NOT EXISTS utilisateur_id UUID;
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.candidature (
+                id_candidature UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_utilisateur UUID,
+                id_offre UUID REFERENCES public.offres_emploi(id) ON DELETE CASCADE,
+                date_creation TIMESTAMP DEFAULT now(),
+                inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
+                statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
+            );
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.document_genere (
+                id_document UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_candidature UUID UNIQUE REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                cv_contenu_ia_json JSONB DEFAULT '{{}}'::jsonb,
+                lettre_motiv_contenu_ia TEXT,
+                chemin_pdf_cv VARCHAR(255),
+                chemin_pdf_lettre VARCHAR(255),
+                version INTEGER DEFAULT 1,
+                date_generation TIMESTAMP DEFAULT now()
+            );
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS public.email_draft (
+                id_email_draft UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id_candidature UUID REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                type_email VARCHAR(50) DEFAULT 'application',
+                recipient_email VARCHAR(255),
+                objet VARCHAR(255),
+                corps TEXT,
+                langue VARCHAR(10) DEFAULT 'fr',
+                est_approuve BOOLEAN DEFAULT FALSE,
+                est_envoye BOOLEAN DEFAULT FALSE,
+                date_creation TIMESTAMP DEFAULT now(),
+                date_modification TIMESTAMP,
+                date_envoi TIMESTAMP,
+                error_message TEXT
+            );
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            DO $$
+            BEGIN
+                IF to_regclass('public.offre') IS NOT NULL THEN
+                    INSERT INTO public.offres_emploi (id, texte_brut, analyse_json, date_creation, utilisateur_id)
+                    SELECT
+                        legacy.id_offre,
+                        COALESCE(NULLIF(legacy.description_brute, ''), 'Legacy offer migrated from public.offre'),
+                        NULL,
+                        COALESCE(legacy.date_scraping, NOW()),
+                        COALESCE(cand.user_id, '00000000-0000-0000-0000-000000000000'::uuid)
+                    FROM public.offre legacy
+                    LEFT JOIN (
+                        SELECT id_offre, MIN(id_utilisateur::text)::uuid AS user_id
+                        FROM public.candidature
+                        WHERE id_utilisateur IS NOT NULL
+                        GROUP BY id_offre
+                    ) cand ON cand.id_offre = legacy.id_offre
+                    LEFT JOIN public.offres_emploi current_offer ON current_offer.id = legacy.id_offre
+                    WHERE current_offer.id IS NULL;
+                END IF;
+            END $$;
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            INSERT INTO public.offres_emploi (id, texte_brut, analyse_json, date_creation, utilisateur_id)
+            SELECT
+                c.id_offre,
+                'Legacy offer migrated from candidature',
+                NULL,
+                COALESCE(c.date_creation, NOW()),
+                COALESCE(c.id_utilisateur, '00000000-0000-0000-0000-000000000000'::uuid)
+            FROM public.candidature c
+            LEFT JOIN public.offres_emploi current_offer ON current_offer.id = c.id_offre
+            WHERE c.id_offre IS NOT NULL
+              AND current_offer.id IS NULL;
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            DO $$
+            BEGIN
+                IF to_regclass('public.candidature') IS NOT NULL THEN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conrelid = 'public.candidature'::regclass
+                          AND conname = 'candidature_id_offre_fkey'
+                          AND pg_get_constraintdef(oid) LIKE '%REFERENCES offre(id_offre)%'
+                    ) THEN
+                        ALTER TABLE public.candidature DROP CONSTRAINT candidature_id_offre_fkey;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conrelid = 'public.candidature'::regclass
+                          AND conname = 'candidature_id_offre_fkey'
+                    ) THEN
+                        ALTER TABLE public.candidature
+                            ADD CONSTRAINT candidature_id_offre_fkey
+                            FOREIGN KEY (id_offre) REFERENCES public.offres_emploi(id) ON DELETE CASCADE;
+                    END IF;
+                END IF;
+            END $$;
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            DO $$
+            BEGIN
+                IF to_regclass('public.session_coaching') IS NOT NULL THEN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conrelid = 'public.session_coaching'::regclass
+                          AND conname = 'session_coaching_id_candidature_fkey'
+                          AND pg_get_constraintdef(oid) NOT LIKE '%ON DELETE CASCADE%'
+                    ) THEN
+                        ALTER TABLE public.session_coaching
+                            DROP CONSTRAINT session_coaching_id_candidature_fkey;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conrelid = 'public.session_coaching'::regclass
+                          AND conname = 'session_coaching_id_candidature_fkey'
+                    ) THEN
+                        ALTER TABLE public.session_coaching
+                            ADD CONSTRAINT session_coaching_id_candidature_fkey
+                            FOREIGN KEY (id_candidature) REFERENCES public.candidature(id_candidature) ON DELETE CASCADE;
+                    END IF;
+                END IF;
+
+                IF to_regclass('public.chat_message') IS NOT NULL THEN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conrelid = 'public.chat_message'::regclass
+                          AND conname = 'chat_message_id_candidature_fkey'
+                          AND pg_get_constraintdef(oid) NOT LIKE '%ON DELETE CASCADE%'
+                    ) THEN
+                        ALTER TABLE public.chat_message
+                            DROP CONSTRAINT chat_message_id_candidature_fkey;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conrelid = 'public.chat_message'::regclass
+                          AND conname = 'chat_message_id_candidature_fkey'
+                    ) THEN
+                        ALTER TABLE public.chat_message
+                            ADD CONSTRAINT chat_message_id_candidature_fkey
+                            FOREIGN KEY (id_candidature) REFERENCES public.candidature(id_candidature) ON DELETE CASCADE;
+                    END IF;
+                END IF;
+            END $$;
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE INDEX IF NOT EXISTS ix_candidature_id_offre
+                ON public.candidature (id_offre);
+        ");
+
+        Console.WriteLine("DEBUG: OFFER WORKFLOW SCHEMA OK.");
     }
 }

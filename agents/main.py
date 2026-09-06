@@ -1,86 +1,56 @@
 # ============================================================
-# main.py — Point d'entrée FastAPI (Architecture Domain-Driven)
-#
-# Structure :
-#   app/
-#   ├── core/              — config.py, database.py (partagés)
-#   ├── domain/
-#   │   ├── offer_analyzer/
-#   │   ├── profile_retriever/
-#   │   ├── skill_gap/
-#   │   ├── cv_optimizer/
-#   │   ├── cv_engine/
-#   │   └── company/       — Analyse entreprise + score culture
-#   └── api/               — Routes FastAPI par domaine
-#
-# main.py                  ← CE FICHIER (monte les routers)
+# main.py - FastAPI entrypoint for the agents service
 # ============================================================
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.offer_routes import router as offer_router
-from app.api.company_routes import router as company_router
-from app.api.cv_optimizer_routes import router as cv_optimizer_router
-from app.api.cv_engine_routes import router as cv_engine_router
 from app.api.chatbot_routes import router as chatbot_router
+from app.api.company_routes import router as company_router
+from app.api.cv_engine_routes import router as cv_engine_router
+from app.api.cv_optimizer_routes import router as cv_optimizer_router
 from app.api.glassdoor_jobs_routes import router as glassdoor_jobs_router
 from app.api.indeed_jobs_routes import router as indeed_jobs_router
 from app.api.linkedin_jobs_routes import router as linkedin_jobs_router
+from app.api.offer_routes import router as offer_router
 from app.api.resume_routes import router as resume_router
+from app.core.schema_bootstrap import ensure_agent_runtime_schema
 
-# Email Composer (M4) — domain-driven refactor of email_engine
-# Primary: app.domain.email_composer.router
-# Fallback: email_engine.router (compatibility shim — should not be needed after refactor)
+# Email Composer (M4) - domain-driven refactor of email_engine
 try:
     from app.domain.email_composer.router import router as email_router
+
     _email_router_available = True
 except ImportError:
     try:
         from email_engine.router import router as email_router  # type: ignore
+
         _email_router_available = True
     except ImportError:
         _email_router_available = False
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s — %(message)s",
+    format="%(asctime)s | %(levelname)-8s | %(name)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# ─── Migration DB au démarrage ─────────────────────────────────
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🔄 Vérification des migrations DB...")
+    logger.info("Checking agent database schema...")
     try:
-        from app.core.database import AsyncSessionFactory
-        from sqlalchemy import text
-        async with AsyncSessionFactory() as db:
-            result = await db.execute(text("""
-                SELECT column_name FROM information_schema.columns
-                WHERE table_name = 'intel_entreprise' AND column_name = 'actualites'
-            """))
-            if not result.fetchone():
-                logger.info("📦 Ajout de la colonne 'actualites' à intel_entreprise...")
-                await db.execute(text("""
-                    ALTER TABLE intel_entreprise
-                    ADD COLUMN actualites JSONB
-                """))
-                await db.commit()
-                logger.info("✅ Colonne 'actualites' ajoutée avec succès")
-            else:
-                logger.info("✅ Colonne 'actualites' déjà présente")
+        await ensure_agent_runtime_schema()
     except Exception as e:
-        logger.warning(f"⚠️ Migration DB ignorée: {e}")
+        logger.warning("Agent schema bootstrap skipped: %s", e)
     yield
 
 
-# ─────────────────────────────────────────────────────────────
-# Application FastAPI
-# ─────────────────────────────────────────────────────────────
-app = FastAPI(lifespan=lifespan,
-    title="NextStep — Agents IA",
+app = FastAPI(
+    lifespan=lifespan,
+    title="NextStep - Agents IA",
     description="""\
 ## Architecture Agents IA (Domain-Driven + LangGraph)
 
@@ -88,29 +58,28 @@ app = FastAPI(lifespan=lifespan,
 | Domaine | Agents | Description |
 |---------|--------|-------------|
 | **offer_analyzer** | 1 | Analyse de l'offre (LLM) |
-| **profile_retriever**| 2 | Récupération du profil depuis BDD |
-| **skill_gap**      | 3, 4 | Normalisation + Scoring ATS et Gap Analysis |
-| **cv_optimizer**      | — | Optimisation et réécriture du CV (STAR) |
-| **cv_engine**         | — | Formateur algorithmique pour QuestPDF JSON |
-| **company**           | — | Analyse entreprise + score culture |
-| **email_composer**    | M4 | Génération d'emails de candidature (pipeline + direct) |
+| **profile_retriever** | 2 | Recuperation du profil depuis BDD |
+| **skill_gap** | 3, 4 | Normalisation + scoring ATS et gap analysis |
+| **cv_optimizer** | - | Optimisation et reecriture du CV |
+| **cv_engine** | - | Formateur algorithmique pour QuestPDF JSON |
+| **company** | - | Analyse entreprise + score culture |
+| **email_composer** | M4 | Generation d'emails de candidature |
 """,
     version="3.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_tags=[
         {"name": "Health"},
-        {"name": "M2 — Offer Pipeline"},
-        {"name": "CV Engine — Préparation données CV"},
-        {"name": "Company — Analyse Entreprise"},
+        {"name": "M2 - Offer Pipeline"},
+        {"name": "CV Engine - Preparation donnees CV"},
+        {"name": "Company - Analyse Entreprise"},
         {"name": "CV Optimizer"},
         {"name": "Email Agent", "description": "Module M4 autonome"},
     ],
 )
 
-# Enregistrement des routes
 app.include_router(resume_router, prefix="/resume", tags=["Resume Parsing"])
-# ─── CORS ─────────────────────────────────────────────────────
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:4200", "http://localhost:5000"],
@@ -119,7 +88,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Routers domaines ─────────────────────────────────────────
 app.include_router(offer_router, prefix="/offer")
 app.include_router(company_router, prefix="/company")
 app.include_router(glassdoor_jobs_router, prefix="/glassdoor-jobs")
@@ -129,19 +97,15 @@ app.include_router(cv_optimizer_router)
 app.include_router(cv_engine_router)
 app.include_router(chatbot_router)
 
-
-# ─── Router email_composer M4 (domain-driven) ────────────────
 if _email_router_available:
     app.include_router(email_router)
-    logger.info("✅ email_composer router monté (domain-driven M4)")
+    logger.info("email_composer router mounted")
 else:
-    logger.warning("⚠️  email_composer router non disponible — routes /email/* indisponibles")
+    logger.warning("email_composer router unavailable - /email/* routes disabled")
 
 
-# ─── Health check ─────────────────────────────────────────────
-@app.get("/health", tags=["Health"], summary="Vérifier l'état du service")
+@app.get("/health", tags=["Health"], summary="Verifier l'etat du service")
 async def health_check():
-    """Retourne l'état du service et le statut de chaque agent."""
     return {
         "status": "ok",
         "service": "nextstep-agents",
@@ -151,15 +115,12 @@ async def health_check():
             "pipeline": "POST /offer/run-pipeline",
             "analyze_offer": "POST /offer/analyze-offer",
             "match": "POST /offer/match",
-
             "glassdoor_jobs": "POST /glassdoor-jobs/search",
             "indeed_jobs": "POST /indeed-jobs/search",
             "linkedin_jobs": "POST /linkedin-jobs/search",
-
             "format_questpdf": "POST /cv-engine/format-questpdf",
             "analyze_company": "POST /company/analyze-company",
             "optimize_cv": "POST /cv-optimizer/optimize",
-
             "generate_email": "POST /email/generate",
             "generate_followup": "POST /email/generate-follow-up",
             "classify_response": "POST /email/classify-response",
@@ -168,4 +129,4 @@ async def health_check():
     }
 
 
-logger.info("✅ NextStep Agents v3.1 démarré — Architecture Domain-Driven + LangGraph (M4 email_composer intégré)")
+logger.info("NextStep Agents started - Domain-Driven + LangGraph")

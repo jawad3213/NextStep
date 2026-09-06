@@ -1,0 +1,180 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F8FBFF
+  BorderColor #2E4057
+  ArrowColor #2E4057
+}
+skinparam package {
+  BorderColor #6C8EBF
+}
+
+title NextStep - Diagramme de cas d'utilisation
+
+actor "Candidat" as Candidate
+actor "Keycloak / Google SSO" as IdP
+actor "Agents IA Python" as AI
+actor "Plateformes d'emploi\nLinkedIn / Indeed / Glassdoor" as JobPlatforms
+actor "Gmail / Google OAuth" as Gmail
+actor "Planificateur Hangfire" as Scheduler
+
+rectangle "Systeme NextStep" {
+
+  package "Authentification et onboarding" {
+    usecase "S'authentifier" as UCAuth
+    usecase "Completer l'onboarding" as UCOnboarding
+    usecase "Consulter le statut\ndu profil" as UCProfileStatus
+  }
+
+  package "Profil candidat" {
+    usecase "Consulter et modifier\nle profil" as UCProfile
+    usecase "Gerer experiences,\nformations, competences,\nprojets et certifications" as UCProfileSections
+    usecase "Televerser la photo\nde profil" as UCPhoto
+    usecase "Importer un CV PDF" as UCParseResume
+    usecase "Importer un profil\nLinkedIn" as UCImportLinkedIn
+    usecase "Generer un resume\nprofessionnel" as UCGenerateResume
+    usecase "Reinitialiser le profil" as UCClearProfile
+  }
+
+  package "CV Builder" {
+    usecase "Consulter les templates\nde CV" as UCTemplates
+    usecase "Previsualiser un CV" as UCPreviewCV
+    usecase "Generer et optimiser\nun CV cible" as UCGenerateCV
+    usecase "Sauvegarder un CV" as UCSaveCV
+    usecase "Consulter l'historique\ndes CV" as UCCvHistory
+    usecase "Telecharger un CV PDF" as UCDownloadCV
+  }
+
+  package "Offres et matching" {
+    usecase "Sourcer des offres\nmulti-plateformes" as UCSourcing
+    usecase "Filtrer et gerer\nles offres sourcees" as UCManageSourcedOffers
+    usecase "Promouvoir une offre sourcee\nvers le pipeline candidat" as UCPromoteOffer
+    usecase "Soumettre une offre\nmanuellement" as UCSubmitOffer
+    usecase "Analyser une offre" as UCAnalyzeOffer
+    usecase "Evaluer le skill gap" as UCSkillGap
+    usecase "Consulter la company\nintelligence" as UCCompanyIntel
+  }
+
+  package "Candidatures et emails" {
+    usecase "Creer et consulter\nles candidatures" as UCCandidature
+    usecase "Suivre l'etat d'une\ncandidature" as UCTrackCandidature
+    usecase "Configurer / connecter\nGmail" as UCConnectGmail
+    usecase "Verifier / deconnecter\nGmail" as UCVerifyGmail
+    usecase "Generer un brouillon\nd'email de candidature" as UCDraftEmail
+    usecase "Modifier et approuver\nun brouillon" as UCApproveDraft
+    usecase "Envoyer un email\navec CV joint" as UCSendEmail
+    usecase "Generer une relance" as UCFollowUp
+    usecase "Generer une reponse" as UCReply
+    usecase "Detecter les reponses\nemail" as UCDetectReply
+    usecase "Identifier les candidatures\na relancer" as UCMarkFollowUp
+  }
+
+  package "Coaching IA" {
+    usecase "Dialoguer avec\nle chatbot" as UCChatbot
+    usecase "Generer des questions\nd'entretien" as UCInterviewQuestions
+    usecase "Demarrer une session\nd'entretien" as UCStartInterview
+    usecase "Recevoir une evaluation\net un feedback" as UCEndInterview
+    usecase "Obtenir un coaching\nsalarial" as UCSalaryCoach
+    usecase "Consulter l'historique\ndes sessions" as UCSessionHistory
+  }
+}
+
+Candidate -- UCAuth
+Candidate -- UCOnboarding
+Candidate -- UCProfileStatus
+Candidate -- UCProfile
+Candidate -- UCPhoto
+Candidate -- UCParseResume
+Candidate -- UCImportLinkedIn
+Candidate -- UCGenerateResume
+Candidate -- UCClearProfile
+Candidate -- UCTemplates
+Candidate -- UCPreviewCV
+Candidate -- UCGenerateCV
+Candidate -- UCSaveCV
+Candidate -- UCCvHistory
+Candidate -- UCDownloadCV
+Candidate -- UCSourcing
+Candidate -- UCManageSourcedOffers
+Candidate -- UCPromoteOffer
+Candidate -- UCSubmitOffer
+Candidate -- UCAnalyzeOffer
+Candidate -- UCSkillGap
+Candidate -- UCCompanyIntel
+Candidate -- UCCandidature
+Candidate -- UCTrackCandidature
+Candidate -- UCConnectGmail
+Candidate -- UCVerifyGmail
+Candidate -- UCDraftEmail
+Candidate -- UCApproveDraft
+Candidate -- UCSendEmail
+Candidate -- UCFollowUp
+Candidate -- UCReply
+Candidate -- UCChatbot
+Candidate -- UCInterviewQuestions
+Candidate -- UCStartInterview
+Candidate -- UCEndInterview
+Candidate -- UCSalaryCoach
+Candidate -- UCSessionHistory
+
+IdP -- UCAuth
+
+JobPlatforms -- UCSourcing
+
+AI -- UCParseResume
+AI -- UCImportLinkedIn
+AI -- UCGenerateResume
+AI -- UCAnalyzeOffer
+AI -- UCSkillGap
+AI -- UCCompanyIntel
+AI -- UCGenerateCV
+AI -- UCDraftEmail
+AI -- UCFollowUp
+AI -- UCReply
+AI -- UCChatbot
+AI -- UCInterviewQuestions
+AI -- UCStartInterview
+AI -- UCEndInterview
+AI -- UCSalaryCoach
+
+Gmail -- UCConnectGmail
+Gmail -- UCVerifyGmail
+Gmail -- UCSendEmail
+Gmail -- UCDetectReply
+
+Scheduler -- UCDetectReply
+Scheduler -- UCMarkFollowUp
+
+UCProfile .> UCProfileSections : <<include>>
+UCGenerateCV .> UCTemplates : <<include>>
+UCGenerateCV .> UCAnalyzeOffer : <<include>>
+UCAnalyzeOffer .> UCSkillGap : <<include>>
+UCAnalyzeOffer .> UCCompanyIntel : <<include>>
+UCPromoteOffer .> UCSubmitOffer : <<include>>
+UCCandidature .> UCTrackCandidature : <<include>>
+UCApproveDraft .> UCDraftEmail : <<extend>>
+UCFollowUp .> UCDraftEmail : <<extend>>
+UCReply .> UCDraftEmail : <<extend>>
+UCSendEmail .> UCApproveDraft : <<include>>
+UCSendEmail .> UCConnectGmail : <<include>>
+UCEndInterview .> UCStartInterview : <<extend>>
+
+note right of UCAnalyzeOffer
+  Base sur le rapport fonctionnel
+  et sur le pipeline backend:
+  OfferController, OfferService,
+  PipelineRunnerService,
+  agents Python.
+end note
+
+note bottom of UCDetectReply
+  Cas d'utilisation technique
+  automatise par Hangfire:
+  suivi des reponses Gmail
+  et relances candidates.
+end note
+
+@enduml

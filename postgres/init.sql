@@ -79,19 +79,17 @@ CREATE TABLE IF NOT EXISTS competence (
 );
 
 -- MODULE OFFRES
-CREATE TABLE IF NOT EXISTS offre (
-    id_offre UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    titre_poste VARCHAR(150),
-    entreprise VARCHAR(150),
-    description_brute TEXT,
-    localisation VARCHAR(150),
-    url_source VARCHAR(255),
-    date_scraping TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS offres_emploi (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    texte_brut TEXT,
+    analyse_json JSONB DEFAULT '{}'::jsonb,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    utilisateur_id UUID
 );
 
 CREATE TABLE IF NOT EXISTS keyword (
     id_keyword SERIAL PRIMARY KEY,
-    id_offre UUID REFERENCES offre(id_offre) ON DELETE CASCADE,
+    id_offre UUID REFERENCES offres_emploi(id) ON DELETE CASCADE,
     label VARCHAR(100),
     poids_pertinence FLOAT
 );
@@ -100,7 +98,7 @@ CREATE TABLE IF NOT EXISTS keyword (
 CREATE TABLE IF NOT EXISTS candidature (
     id_candidature UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_utilisateur UUID REFERENCES utilisateur(id_utilisateur),
-    id_offre UUID REFERENCES offre(id_offre),
+    id_offre UUID REFERENCES offres_emploi(id),
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     inclure_lettre_motivation BOOLEAN DEFAULT FALSE,
     statut VARCHAR(50) DEFAULT 'EN_ATTENTE'
@@ -123,7 +121,7 @@ CREATE TABLE IF NOT EXISTS document_genere (
 -- PAS les messages — c'est le rôle de chat_message
 CREATE TABLE IF NOT EXISTS session_coaching (
     id_session          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_candidature      UUID REFERENCES candidature(id_candidature),
+    id_candidature      UUID REFERENCES candidature(id_candidature) ON DELETE CASCADE,
     id_utilisateur      UUID REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
 
     -- Mode
@@ -192,7 +190,7 @@ CREATE TABLE IF NOT EXISTS chat_message (
     id_utilisateur      UUID REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
     id_session          UUID REFERENCES session_coaching(id_session) ON DELETE CASCADE,
                         -- NULL pour tabs Questions et Salaire sans session active
-    id_candidature      UUID REFERENCES candidature(id_candidature),
+    id_candidature      UUID REFERENCES candidature(id_candidature) ON DELETE CASCADE,
                         -- NULL en Arena Mode
 
     chat_type           VARCHAR(20) NOT NULL,

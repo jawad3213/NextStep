@@ -8,6 +8,11 @@ class Skill(BaseModel):
     niveau: Optional[int] = Field(None, description="Niveau de maitrise (1-5)")
     type_competence: Optional[str] = Field(None, description="Categorie (Hard Skill, Soft Skill, Langue)")
 
+    @field_validator("nom", mode="before")
+    @classmethod
+    def _normalize_required_name(cls, value):
+        return str(value or "").strip()
+
 class Experience(BaseModel):
     titre: str = Field(..., description="Intitule du poste")
     entreprise: str = Field(..., description="Nom de l'entreprise")
@@ -33,16 +38,31 @@ class Experience(BaseModel):
             return [part.strip() for part in value.replace("\r", "\n").split("\n") if part.strip()] if "\n" in value else [part.strip() for part in value.split(",") if part.strip()]
         return [str(value).strip()] if str(value).strip() else []
 
+    @field_validator("titre", "entreprise", mode="before")
+    @classmethod
+    def _normalize_required_strings(cls, value):
+        return str(value or "").strip()
+
 class Formation(BaseModel):
     diplome: str = Field(..., description="Nom du diplome ou de la certification")
     etablissement: str = Field(..., description="Nom de l'ecole ou universite")
     annee: Optional[int] = Field(None, description="Annee d'obtention ou de fin")
     ville: Optional[str] = Field(None, description="Ville de l'etablissement")
 
+    @field_validator("diplome", "etablissement", mode="before")
+    @classmethod
+    def _normalize_required_strings(cls, value):
+        return str(value or "").strip()
+
 class Certification(BaseModel):
     nom: str = Field(..., description="Nom de la certification")
     organisme: str = Field(..., description="Organisme delivreur (ex: AWS, Google)")
     date_obtention: Optional[str] = Field(None, description="Date d'obtention")
+
+    @field_validator("nom", "organisme", mode="before")
+    @classmethod
+    def _normalize_required_strings(cls, value):
+        return str(value or "").strip()
 
 class Project(BaseModel):
     titre: str = Field(
@@ -73,12 +93,22 @@ class Project(BaseModel):
             return [part.strip() for part in value.replace("\r", "\n").split("\n") if part.strip()] if "\n" in value else [part.strip() for part in value.split(",") if part.strip()]
         return [str(value).strip()] if str(value).strip() else []
 
+    @field_validator("titre", mode="before")
+    @classmethod
+    def _normalize_required_title(cls, value):
+        return str(value or "").strip()
+
 class Activity(BaseModel):
     title: str = Field(..., description="Titre principal de l'activite")
     role: Optional[str] = Field(None, description="Organisation, evenement ou role secondaire")
     description: Optional[str] = Field(None, description="Ce qui a ete realise dans l'activite")
     date_debut: Optional[str] = Field(None, description="Date de debut")
     date_fin: Optional[str] = Field(None, description="Date de fin")
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def _normalize_required_title(cls, value):
+        return str(value or "").strip()
 
 # --- Main Domain Models ---
 

@@ -8,6 +8,8 @@ using NextStep.data;
 using NextStep.Modules.Candidature.Models;
 using NextStep.Modules.Cv.Models;
 using NextStep.Modules.Cv.Services;
+using Npgsql;
+using NpgsqlTypes;
 
 namespace NextStep.Modules.Offer.Services;
 
@@ -308,14 +310,56 @@ public class OfferService(
     {
         if (offerIds.Count == 0) return 0;
 
+        var uniqueOfferIds = offerIds
+            .Distinct()
+            .ToList();
+
         var offers = await db.OffresEmploi
-            .Where(o => o.UtilisateurId == userId && offerIds.Contains(o.Id))
+            .Where(o => o.UtilisateurId == userId && uniqueOfferIds.Contains(o.Id))
             .ToListAsync(ct);
 
         if (offers.Count == 0) return 0;
 
+        var ownedOfferIds = offers
+            .Select(o => o.Id)
+            .ToList();
+
+        var candidatureIds = await db.Candidatures
+            .Where(c => ownedOfferIds.Contains(c.IdOffre))
+            .Select(c => c.IdCandidature)
+            .ToListAsync(ct);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+
+        if (candidatureIds.Count > 0)
+        {
+            var candidatureIdsParameter = new NpgsqlParameter<Guid[]>("candidatureIds", candidatureIds.ToArray())
+            {
+                NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Uuid
+            };
+
+            // Some interview messages are attached directly to a candidature
+            // without an active session, so we clear them first.
+            await db.Database.ExecuteSqlRawAsync(
+                "DELETE FROM public.chat_message WHERE id_candidature = ANY (@candidatureIds);",
+                [candidatureIdsParameter],
+                ct);
+
+            await db.SessionCoachings
+                .Where(s => s.IdCandidature.HasValue && candidatureIds.Contains(s.IdCandidature.Value))
+                .ExecuteDeleteAsync(ct);
+        }
+
         db.OffresEmploi.RemoveRange(offers);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        logger.LogInformation(
+            "OfferService - deleted {OfferCount} offers and cleaned {CandidatureCount} linked candidatures for user {UserId}",
+            offers.Count,
+            candidatureIds.Count,
+            userId);
+
         return offers.Count;
     }
 

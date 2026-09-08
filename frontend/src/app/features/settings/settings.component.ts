@@ -93,6 +93,10 @@ export class SettingsComponent implements OnInit {
     });
   }
 
+  exportProfile() {
+    this.profileService.downloadProfileJson();
+  }
+
   toggleGmail() {
     if (this.gmailConnected()) {
       if (confirm('Etes-vous sur de vouloir deconnecter votre compte Gmail ?')) {

@@ -13,6 +13,7 @@ import {
 import { CandidatureService } from '../../../../services/candidature.service';
 import { EmailService } from '../../../../services/email.service';
 import { Router } from '@angular/router';
+import { extractApiError } from '../../../../core/utils/extract-api-error';
 
 @Component({
   selector: 'app-step-results',
@@ -92,7 +93,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
       this.downloadBlob(fileBlob, offerId);
     } catch (err: any) {
-      this.previewError = err?.message || 'Telechargement indisponible pour le moment.';
+      this.previewError = extractApiError(err).message || 'Telechargement indisponible pour le moment.';
     }
   }
 
@@ -132,7 +133,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         });
       }
     } catch (err: any) {
-      this.sendError = err?.error?.error ?? err?.error?.message ?? err?.message ?? 'Envoi de l email impossible.';
+      this.sendError = extractApiError(err).message || 'Envoi de l email impossible.';
     } finally {
       this.isSendingEmail = false;
     }
@@ -253,7 +254,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`
       );
     } catch (err: any) {
-      this.previewError = err?.message || 'Apercu PDF indisponible.';
+      this.previewError = extractApiError(err).message || 'Apercu PDF indisponible.';
     } finally {
       this.isLoadingPreview = false;
     }

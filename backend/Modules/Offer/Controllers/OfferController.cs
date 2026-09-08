@@ -35,25 +35,8 @@ public class OfferController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Submit([FromBody] OfferSubmitDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            var errors = ModelState
-                .Where(kvp => kvp.Value?.Errors.Count > 0)
-                .ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray());
-
-            logger.LogWarning(
-                "POST /api/offers/submit - validation failed: {Errors}",
-                JsonSerializer.Serialize(errors));
-
-            return BadRequest(new
-            {
-                error = "Validation failed",
-                details = errors
-            });
-        }
-
+        // Validation automatique via [ApiController] + ConfigureApiBehavior
+        // (retourne 400 { error, details }).
         var dbUserId = await GetUserIdAsync();
         var userIdStr = dbUserId.ToString();
 

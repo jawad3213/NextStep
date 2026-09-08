@@ -1,12 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
 import { PipelineResult, PipelineStateService } from '../../../../services/pipeline-state.service';
-import { environment } from '../../../../../environments/environment';
 import { ProfileService } from '../../../../services/profile.service';
+import { OfferApiService } from '../../services/offer-api.service';
+import { extractApiError } from '../../../../core/utils/extract-api-error';
 
 type SkillStatus = 'matched' | 'partial' | 'missing';
 type SkillCategory = 'technical' | 'soft';
@@ -46,10 +46,9 @@ interface RecommendationInsight {
 })
 export class StepAnalysisComponent {
   readonly pipeline = inject(PipelineStateService);
-  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly profileService = inject(ProfileService);
-  private readonly agentsBaseUrl = environment.agentsBaseUrl;
+  private readonly offerApi = inject(OfferApiService);
 
   skillsOpen = true;
   softSkillsOpen = true;
@@ -579,7 +578,7 @@ export class StepAnalysisComponent {
       };
 
       const apiRes = await firstValueFrom(
-        this.http.post<any>(`${this.agentsBaseUrl}/company/analyze-company`, payload)
+        this.offerApi.analyzeCompanyIntel(payload)
       );
 
       this.companyIntelProgressPercent = 100;
@@ -604,7 +603,7 @@ export class StepAnalysisComponent {
         }
       });
     } catch (e: any) {
-      this.companyIntelError = e?.error?.detail || "Echec de l'analyse entreprise.";
+      this.companyIntelError = extractApiError(e).message || "Echec de l'analyse entreprise.";
     } finally {
       if (this.companyIntelProgressInterval) {
         clearInterval(this.companyIntelProgressInterval);

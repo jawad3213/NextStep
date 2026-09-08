@@ -6,6 +6,7 @@ import {
   EmailConnectionStatusDto,
   GoogleClientCredentialsSummaryDto
 } from '../../../services/email.service';
+import { extractApiError } from '../../../core/utils/extract-api-error';
 
 @Component({
   selector: 'app-gmail-settings',
@@ -93,7 +94,7 @@ export class GmailSettingsComponent implements OnInit {
         this.loadCredentialSummary();
       },
       error: (err) => {
-        this.error.set(err?.error?.error || 'Impossible d enregistrer les credentials OAuth.');
+        this.error.set(extractApiError(err).message || 'Impossible d enregistrer les credentials OAuth.');
         this.savingCredentials.set(false);
       }
     });
@@ -139,7 +140,7 @@ export class GmailSettingsComponent implements OnInit {
         }
       },
       error: (err) => {
-        this.error.set(err?.error?.error || 'Impossible d obtenir le lien de connexion Gmail.');
+        this.error.set(extractApiError(err).message || 'Impossible d obtenir le lien de connexion Gmail.');
         this.connecting.set(false);
       }
     });

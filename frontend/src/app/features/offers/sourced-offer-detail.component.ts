@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { OfferApiService, SourcedOfferDetailDto } from './services/offer-api.service';
+import { extractApiError } from '../../core/utils/extract-api-error';
 
 @Component({
   selector: 'app-sourced-offer-detail',
@@ -82,7 +83,7 @@ export class SourcedOfferDetailComponent implements OnInit {
       },
       error: (err) => {
         this.actionBusy.set(false);
-        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Impossible de promouvoir l offre sourcee.');
+        this.errorMessage.set(extractApiError(err).message || 'Impossible de promouvoir l offre sourcee.');
       },
     });
   }
@@ -119,7 +120,7 @@ export class SourcedOfferDetailComponent implements OnInit {
       },
       error: (err) => {
         this.actionBusy.set(false);
-        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Mise a jour impossible.');
+        this.errorMessage.set(extractApiError(err).message || 'Mise a jour impossible.');
       },
     });
   }

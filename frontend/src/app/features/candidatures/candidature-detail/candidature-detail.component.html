@@ -1,0 +1,319 @@
+<div class="min-h-0 flex-1 overflow-y-auto">
+  <div class="p-3 md:p-4 lg:p-5 pt-1 md:pt-2 lg:pt-3 max-w-4xl mx-auto">
+
+    <!-- Back button -->
+    <button (click)="goBack()" class="mb-4 flex items-center gap-1 text-xs font-bold text-gray-400 transition-colors hover:text-brand-500">
+      <span class="material-symbols-outlined text-sm">arrow_back</span>
+      Retour au Kanban
+    </button>
+
+    <!-- Loading -->
+    @if (loading()) {
+      <div class="flex items-center justify-center py-16">
+        <div class="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500"></div>
+      </div>
+    }
+
+    @if (error()) {
+      <div class="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+        <span class="material-symbols-outlined text-base">error</span>
+        {{ error() }}
+      </div>
+    }
+
+    @if (!loading() && candidature()) {
+      <!-- Header Card -->
+      <div class="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div class="flex items-start justify-between">
+          <div class="flex items-start gap-4">
+            <!-- Company Avatar -->
+            <div class="flex h-12 w-12 items-center justify-center rounded-xl text-sm font-bold text-white"
+              [style.background]="getChannelColor(candidature()!.channel)">
+              {{ getEntreprise().charAt(0) }}
+            </div>
+            <div>
+              <h1 class="text-xl font-bold text-gray-900">{{ getEntreprise() }}</h1>
+              <p class="text-sm font-medium text-gray-500">{{ getPoste() }}</p>
+              <div class="mt-2 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold"
+                  [style.background]="getChannelColor(candidature()!.channel) + '15'"
+                  [style.color]="getChannelColor(candidature()!.channel)"
+                  [style.border-color]="getChannelColor(candidature()!.channel) + '30'">
+                  {{ getChannelLabel(candidature()!.channel) }}
+                </span>
+                <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold"
+                  [class]="getStatutColor(candidature()!.statut)">
+                  {{ getStatutLabel(candidature()!.statut) }}
+                </span>
+                @if (candidature()!.appliedManually) {
+                  <span class="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">
+                    <span class="material-symbols-outlined text-[10px]">check_circle</span>
+                    Deja postule
+                  </span>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-2">
+            <!-- Status dropdown -->
+            <div class="relative">
+              <button (click)="showStatusDropdown.set(!showStatusDropdown())"
+                class="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-all hover:border-brand-300 hover:text-brand-600">
+                <span class="material-symbols-outlined text-sm">swap_horiz</span>
+                Changer statut
+                <span class="material-symbols-outlined text-xs">expand_more</span>
+              </button>
+              @if (showStatusDropdown()) {
+                <div class="absolute right-0 top-full z-50 mt-1 w-56 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                  @for (opt of statutOptions; track opt.value) {
+                    <button
+                      class="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-gray-50"
+                      [class]="candidature()!.statut === opt.value ? 'bg-brand-50 text-brand-600' : 'text-gray-700'"
+                      (click)="changeStatut(opt.value)">
+                      @if (candidature()!.statut === opt.value) {
+                        <span class="material-symbols-outlined text-sm">check</span>
+                      } @else {
+                        <span class="h-4 w-4"></span>
+                      }
+                      {{ opt.label }}
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+
+            <button (click)="openEmailWorkspace()"
+              class="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600">
+              <span class="material-symbols-outlined text-sm">mail</span>
+              Email
+            </button>
+
+            <button (click)="deleteCandidature()"
+              class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-500">
+              <span class="material-symbols-outlined text-sm">delete</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Meta info -->
+        <div class="mt-4 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-4">
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Date de candidature</p>
+            <p class="mt-0.5 text-xs font-semibold text-gray-700">{{ candidature()!.applicationDate | date:'dd MMM yyyy' }}</p>
+          </div>
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Canal</p>
+            <p class="mt-0.5 text-xs font-semibold text-gray-700">{{ getChannelLabel(candidature()!.channel) }}</p>
+          </div>
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Langue</p>
+            <p class="mt-0.5 text-xs font-semibold text-gray-700">{{ candidature()!.language === 'AUTO' ? 'Auto-detection' : candidature()!.language }}</p>
+          </div>
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Creee le</p>
+            <p class="mt-0.5 text-xs font-semibold text-gray-700">{{ candidature()!.dateCreation | date:'dd MMM yyyy' }}</p>
+          </div>
+        </div>
+
+        @if (candidature()!.channelUrl) {
+          <div class="mt-3 border-t border-gray-100 pt-3">
+            <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">URL de l'offre</p>
+            <a [href]="candidature()!.channelUrl" target="_blank" rel="noopener"
+              class="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-500 hover:underline">
+              <span class="material-symbols-outlined text-[11px]">open_in_new</span>
+              {{ candidature()!.channelUrl }}
+            </a>
+          </div>
+        }
+
+        @if (candidature()!.channelContact) {
+          <div class="mt-3 border-t border-gray-100 pt-3">
+            <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Contact recruteur</p>
+            <p class="mt-0.5 text-xs font-semibold text-gray-700">{{ candidature()!.channelContact }}</p>
+          </div>
+        }
+      </div>
+
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <!-- Left column: Timeline + Notes -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+
+          <!-- Status History Timeline -->
+          <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900">
+              <span class="material-symbols-outlined text-brand-500">timeline</span>
+              Historique des statuts
+            </h3>
+            @if (candidature()!.statusHistoryEntries && candidature()!.statusHistoryEntries!.length > 0) {
+              <div class="relative ml-3 border-l-2 border-gray-100 pl-6">
+                @for (entry of candidature()!.statusHistoryEntries; track entry.id) {
+                  <div class="relative mb-6 last:mb-0">
+                    <div class="absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-white"
+                      [class]="entry.source === 'ai' ? 'bg-purple-500' : entry.source === 'email_reply' ? 'bg-blue-500' : entry.source === 'system' ? 'bg-gray-400' : 'bg-brand-500'">
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-gray-900">
+                          {{ entry.ancienStatut ? getStatutLabel(entry.ancienStatut) + ' → ' : '' }}{{ getStatutLabel(entry.nouveauStatut) }}
+                        </span>
+                        <span class="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase"
+                          [class]="getSourceColor(entry.source)">
+                          {{ entry.source }}
+                        </span>
+                      </div>
+                      @if (entry.details) {
+                        <p class="mt-0.5 text-[11px] text-gray-500">{{ entry.details }}</p>
+                      }
+                      <p class="mt-0.5 text-[10px] text-gray-400">{{ formatDate(entry.createdAt) }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-xs text-gray-400">Aucun historique de statut.</p>
+            }
+          </div>
+
+          <!-- Notes -->
+          <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900">
+              <span class="material-symbols-outlined text-brand-500">sticky_note_2</span>
+              Notes personnelles
+            </h3>
+
+            <!-- Add note form -->
+            <div class="mb-4 flex gap-2">
+              <textarea
+                class="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-900 outline-none transition-all resize-none focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                rows="2"
+                placeholder="Ajouter une note..."
+                [ngModel]="newNote()"
+                (ngModelChange)="newNote.set($event)"></textarea>
+              <button (click)="addNote()"
+                [disabled]="!newNote().trim() || addingNote()"
+                class="self-end rounded-lg bg-brand-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60">
+                @if (addingNote()) {
+                  <div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                } @else {
+                  <span class="material-symbols-outlined text-sm">add</span>
+                }
+              </button>
+            </div>
+
+            <!-- Notes list -->
+            @if (candidature()!.candidatureNotes && candidature()!.candidatureNotes!.length > 0) {
+              <div class="flex flex-col gap-3">
+                @for (note of candidature()!.candidatureNotes; track note.id) {
+                  <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <div class="flex items-center justify-between">
+                      <span class="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase"
+                        [class]="note.auteur === 'ai' ? 'bg-purple-50 text-purple-600' : 'bg-brand-50 text-brand-600'">
+                        {{ note.auteur === 'ai' ? 'IA' : 'Vous' }}
+                      </span>
+                      <span class="text-[10px] text-gray-400">{{ formatDate(note.createdAt) }}</span>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-700 whitespace-pre-wrap">{{ note.contenu }}</p>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-xs text-gray-400">Aucune note pour l'instant.</p>
+            }
+          </div>
+        </div>
+
+        <!-- Right column: AI Response + Actions -->
+        <div class="flex flex-col gap-6">
+
+          <!-- AI Response card -->
+          @if (candidature()!.hasResponse) {
+            <div class="rounded-xl border-2 border-purple-200 bg-purple-50 p-6">
+              <h3 class="mb-3 flex items-center gap-2 text-sm font-bold text-purple-900">
+                <span class="material-symbols-outlined">smart_toy</span>
+                Reponse IA
+              </h3>
+              @if (candidature()!.lastResponseFrom) {
+                <div class="mb-3">
+                  <p class="text-[9px] font-bold uppercase tracking-wider text-purple-400">De</p>
+                  <p class="text-xs font-semibold text-purple-800">{{ candidature()!.lastResponseFrom }}</p>
+                </div>
+              }
+              @if (candidature()!.responseSummary) {
+                <div class="mb-3">
+                  <p class="text-[9px] font-bold uppercase tracking-wider text-purple-400">Resume</p>
+                  <p class="mt-1 text-xs text-purple-800 leading-relaxed">{{ candidature()!.responseSummary }}</p>
+                </div>
+              }
+              @if (candidature()!.recommendedAction) {
+                <div class="rounded-lg bg-white p-3 border border-purple-200">
+                  <p class="text-[9px] font-bold uppercase tracking-wider text-purple-400">Action recommandee</p>
+                  <p class="mt-1 flex items-center gap-1 text-xs font-bold text-purple-700">
+                    <span class="material-symbols-outlined text-sm">lightbulb</span>
+                    {{ candidature()!.recommendedAction }}
+                  </p>
+                </div>
+              }
+              @if (candidature()!.lastResponseSnippet) {
+                <div class="mt-3 border-t border-purple-200 pt-3">
+                  <p class="text-[9px] font-bold uppercase tracking-wider text-purple-400">Apercu</p>
+                  <p class="mt-1 text-[11px] italic text-purple-600 line-clamp-3">"{{ candidature()!.lastResponseSnippet }}"</p>
+                </div>
+              }
+              <div class="mt-3 flex items-center gap-2 text-[10px] text-purple-400">
+                @if (candidature()!.responseConfidence) {
+                  <span>Confiance: {{ (candidature()!.responseConfidence! * 100) | number:'1.0-0' }}%</span>
+                }
+                @if (candidature()!.responseClassifiedAtUtc) {
+                  <span>• {{ formatDate(candidature()!.responseClassifiedAtUtc) }}</span>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Quick Actions -->
+          <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-3 text-sm font-bold text-gray-900">Actions rapides</h3>
+            <div class="flex flex-col gap-2">
+              <button (click)="openEmailWorkspace()"
+                class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-bold text-gray-700 transition-all hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600">
+                <span class="material-symbols-outlined text-sm">mail</span>
+                Ouvrir l'espace email
+              </button>
+              @if (candidature()!.idOffre) {
+                <a [routerLink]="['/offers', candidature()!.idOffre]"
+                  class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-bold text-gray-700 transition-all hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600">
+                  <span class="material-symbols-outlined text-sm">work</span>
+                  Voir l'offre d'emploi
+                </a>
+              }
+            </div>
+          </div>
+
+          <!-- Follow-up info -->
+          @if (candidature()!.followUpNeeded) {
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6">
+              <h3 class="mb-2 flex items-center gap-2 text-sm font-bold text-amber-900">
+                <span class="material-symbols-outlined">notification_important</span>
+                Relance recommandee
+              </h3>
+              <p class="text-xs text-amber-700">
+                Une relance est recommandee pour cette candidature.
+                @if (candidature()!.lastFollowUpAtUtc) {
+                  <br />Derniere relance: {{ formatDate(candidature()!.lastFollowUpAtUtc) }}
+                }
+              </p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+  </div>
+</div>
+
+<!-- Click outside to close dropdown -->
+@if (showStatusDropdown()) {
+  <div class="fixed inset-0 z-40" (click)="showStatusDropdown.set(false)"></div>
+}

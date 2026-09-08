@@ -420,7 +420,6 @@ export interface OfferAnalysisResponse {
 export class OfferApiService {
   private http = inject(HttpClient);
   private base = environment.apiBaseUrl;
-  private agentsBase = environment.agentsBaseUrl;
 
   submitOffer(payload: OfferSubmitPayload): Observable<OfferSubmitResponse> {
     return this.http.post<OfferSubmitResponse>(
@@ -463,16 +462,21 @@ export class OfferApiService {
     return this.http.post<PromoteSourcedOfferResponse>(`${this.base}/sourced-offers/${id}/promote`, {});
   }
 
+  /** Analyse entreprise via le proxy backend (service IA). */
+  analyzeCompanyIntel(payload: any): Observable<any> {
+    return this.http.post<any>(`${this.base}/agents/company/analyze`, payload);
+  }
+
   searchLinkedInJobs(payload: LinkedInJobsSearchRequest): Observable<LinkedInJobsSearchResponse> {
-    return this.http.post<LinkedInJobsSearchResponse>(`${this.agentsBase}/linkedin-jobs/search`, payload);
+    return this.http.post<LinkedInJobsSearchResponse>(`${this.base}/agents/jobs/linkedin/search`, payload);
   }
 
   searchIndeedJobs(payload: IndeedJobsSearchRequest): Observable<IndeedJobsSearchResponse> {
-    return this.http.post<IndeedJobsSearchResponse>(`${this.agentsBase}/indeed-jobs/search`, payload);
+    return this.http.post<IndeedJobsSearchResponse>(`${this.base}/agents/jobs/indeed/search`, payload);
   }
 
   searchGlassdoorJobs(payload: GlassdoorJobsSearchRequest): Observable<GlassdoorJobsSearchResponse> {
-    return this.http.post<GlassdoorJobsSearchResponse>(`${this.agentsBase}/glassdoor-jobs/search`, payload);
+    return this.http.post<GlassdoorJobsSearchResponse>(`${this.base}/agents/jobs/glassdoor/search`, payload);
   }
 
   bulkDeleteOffers(offerIds: string[]): Observable<{ deletedCount: number }> {

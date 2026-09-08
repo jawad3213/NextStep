@@ -10,6 +10,7 @@ import { StepTemplateComponent } from './components/step-template/step-template.
 import { OfferApiService } from './services/offer-api.service';
 import { OfferStepId } from './offers.types';
 import { timeout } from 'rxjs';
+import { extractApiError } from '../../core/utils/extract-api-error';
 
 @Component({
   selector: 'app-offer-pipeline',
@@ -205,7 +206,7 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         timers.forEach((timer) => clearTimeout(timer));
-        const message = err?.error?.error || err?.message || 'Erreur lors de l analyse de l offre.';
+        const message = extractApiError(err).message || 'Erreur lors de l analyse de l offre.';
         this.pipeline.pipelineError.set(message);
         this.clearAutoAnalyzeQueryFlag();
         this.pipeline.setLoading(false);

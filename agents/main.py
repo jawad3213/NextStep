@@ -17,6 +17,7 @@ from app.api.linkedin_jobs_routes import router as linkedin_jobs_router
 from app.api.offer_routes import router as offer_router
 from app.api.resume_routes import router as resume_router
 from app.core.schema_bootstrap import ensure_agent_runtime_schema
+from app.core.error_handlers import register_exception_handlers
 
 # Email Composer (M4) - domain-driven refactor of email_engine
 try:
@@ -77,6 +78,10 @@ app = FastAPI(
         {"name": "Email Agent", "description": "Module M4 autonome"},
     ],
 )
+
+# Normalise toutes les erreurs (validation, HTTP, internes) vers un contrat
+# commun sans fuite de détails internes.
+register_exception_handlers(app)
 
 app.include_router(resume_router, prefix="/resume", tags=["Resume Parsing"])
 

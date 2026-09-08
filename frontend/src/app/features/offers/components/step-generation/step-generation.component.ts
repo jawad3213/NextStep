@@ -13,6 +13,7 @@ import {
 import { environment } from '../../../../../environments/environment';
 import { SignalRService } from '../../../../services/signalr.service';
 import { ProfileService } from '../../../profile/profile.service';
+import { extractApiError } from '../../../../core/utils/extract-api-error';
 
 interface RealCvTemplate {
   slug: string;
@@ -191,7 +192,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     try {
       await this.saveFinalCv();
     } catch (err: any) {
-      this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Impossible de sauvegarder le CV final.');
+      this.pipeline.pipelineError.set(extractApiError(err).message || 'Impossible de sauvegarder le CV final.');
     } finally {
       // Always move to the email composer step so the flow cannot get stuck.
       this.pipeline.markStepDone(3);
@@ -284,7 +285,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('[CV-PIPELINE] Re-optimization failed', err);
-        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Echec de la re-optimisation du CV.');
+        this.pipeline.pipelineError.set(extractApiError(err).message || 'Echec de la re-optimisation du CV.');
         this.pipeline.currentAgentProgress.set(null);
         this.finishReoptimization();
       }
@@ -425,7 +426,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       this.downloadBlob(blob);
     } catch (err: any) {
       console.error('[CV-PIPELINE] Final CV download failed', err);
-      this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Telechargement PDF indisponible.');
+      this.pipeline.pipelineError.set(extractApiError(err).message || 'Telechargement PDF indisponible.');
     } finally {
       this.isGeneratingHighQualityPdf = false;
     }

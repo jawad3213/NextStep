@@ -119,6 +119,7 @@ namespace NextStep.Modules.Profile.Services
 
             user.Nom = dto.Nom;
             user.Prenom = dto.Prenom;
+            user.Email = dto.Email;
             user.Telephone = dto.Telephone;
             user.Ville = dto.Ville;
             user.Pays = dto.Pays;

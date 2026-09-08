@@ -28,6 +28,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserOAuthCredential> UserOAuthCredentials => Set<UserOAuthCredential>();
     public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
     public DbSet<DocumentGenere> DocumentsGeneres => Set<DocumentGenere>();
+    public DbSet<CandidatureNote> CandidatureNotes => Set<CandidatureNote>();
+    public DbSet<CandidatureStatusHistory> CandidatureStatusHistories => Set<CandidatureStatusHistory>();
     public DbSet<SourcedOffer> SourcedOffers => Set<SourcedOffer>();
     public DbSet<ScrapeSession> ScrapeSessions => Set<ScrapeSession>();
     
@@ -93,7 +95,40 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Statut)
                 .HasColumnName("statut")
                 .HasMaxLength(50)
-                .HasDefaultValue("EN_ATTENTE");
+                .HasDefaultValue("ENVOYE");
+
+            // ── Multi-channel tracking ──────────────────────────────────────────
+            entity.Property(e => e.Channel)
+                .HasColumnName("channel")
+                .HasMaxLength(30)
+                .HasDefaultValue("EMAIL");
+
+            entity.Property(e => e.ChannelUrl)
+                .HasColumnName("channel_url");
+
+            entity.Property(e => e.ChannelContact)
+                .HasColumnName("channel_contact")
+                .HasMaxLength(255);
+
+            entity.Property(e => e.ApplicationDate)
+                .HasColumnName("application_date")
+                .HasDefaultValueSql("now()");
+
+            entity.Property(e => e.AppliedManually)
+                .HasColumnName("applied_manually")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.OfferSource)
+                .HasColumnName("offer_source")
+                .HasMaxLength(30);
+
+            entity.Property(e => e.Notes)
+                .HasColumnName("notes");
+
+            entity.Property(e => e.Language)
+                .HasColumnName("language")
+                .HasMaxLength(5)
+                .HasDefaultValue("AUTO");
 
             entity.Property(e => e.ResponseStatus)
                 .HasColumnName("response_status")
@@ -666,6 +701,82 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(e => e.Candidature)
                 .WithOne()
                 .HasForeignKey<DocumentGenere>(e => e.IdCandidature)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── CandidatureNote ───
+        modelBuilder.Entity<CandidatureNote>(entity =>
+        {
+            entity.ToTable("candidature_note");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.CandidatureId)
+                .HasColumnName("id_candidature")
+                .IsRequired();
+
+            entity.Property(e => e.Contenu)
+                .HasColumnName("contenu")
+                .IsRequired();
+
+            entity.Property(e => e.Auteur)
+                .HasColumnName("auteur")
+                .HasMaxLength(10)
+                .HasDefaultValue("user");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("now()");
+
+            entity.HasOne(e => e.Candidature)
+                .WithMany(c => c.CandidatureNotes)
+                .HasForeignKey(e => e.CandidatureId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── CandidatureStatusHistory ───
+        modelBuilder.Entity<CandidatureStatusHistory>(entity =>
+        {
+            entity.ToTable("candidature_status_history");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.CandidatureId)
+                .HasColumnName("id_candidature")
+                .IsRequired();
+
+            entity.Property(e => e.AncienStatut)
+                .HasColumnName("ancien_statut")
+                .HasMaxLength(50);
+
+            entity.Property(e => e.NouveauStatut)
+                .HasColumnName("nouveau_statut")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.Source)
+                .HasColumnName("source")
+                .HasMaxLength(20)
+                .HasDefaultValue("user");
+
+            entity.Property(e => e.Details)
+                .HasColumnName("details");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("now()");
+
+            entity.HasOne(e => e.Candidature)
+                .WithMany(c => c.StatusHistory)
+                .HasForeignKey(e => e.CandidatureId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

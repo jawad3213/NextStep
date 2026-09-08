@@ -37,7 +37,7 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, "User not found in local database.");
+            return StatusCode(403, new { error = "User not found in local database." });
 
         var result = await _candidatureService.CreateAsync(localUser.Id, dto, cancellationToken);
 
@@ -52,7 +52,7 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, "User not found in local database.");
+            return StatusCode(403, new { error = "User not found in local database." });
 
         var results = await _candidatureService.GetByUserIdAsync(localUser.Id, cancellationToken);
         return Ok(results);
@@ -67,7 +67,7 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, "User not found in local database.");
+            return StatusCode(403, new { error = "User not found in local database." });
 
         var page = await _candidatureService.GetByUserIdPagedAsync(
             localUser.Id,
@@ -88,18 +88,147 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, "User not found in local database.");
+            return StatusCode(403, new { error = "User not found in local database." });
 
         var result = await _candidatureService.GetByIdAsync(id, cancellationToken);
 
         if (result is null)
             return NotFound();
 
-        // Ownership check — candidature must belong to current user
         if (result.IdUtilisateur != localUser.Id)
-            return StatusCode(403, "You do not have access to this candidature.");
+            return StatusCode(403, new { error = "You do not have access to this candidature." });
 
         return Ok(result);
+    }
+
+    // ── PATCH /api/candidatures/{id}/statut — Change status ─────────────────────
+
+    [HttpPatch("{id:guid}/statut")]
+    public async Task<ActionResult<CandidatureDto>> UpdateStatut(
+        Guid id,
+        [FromBody] UpdateStatutDto dto,
+        CancellationToken cancellationToken)
+    {
+        var localUser = await ResolveLocalUserAsync();
+        if (localUser is null)
+            return StatusCode(403, new { error = "User not found in local database." });
+
+        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return NotFound();
+        if (existing.IdUtilisateur != localUser.Id)
+            return StatusCode(403, new { error = "You do not have access to this candidature." });
+
+        var result = await _candidatureService.UpdateStatutAsync(id, dto, cancellationToken);
+        if (result is null) return NotFound();
+
+        return Ok(result);
+    }
+
+    // ── PUT /api/candidatures/{id} — Update candidature fields ──────────────────
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<CandidatureDto>> Update(
+        Guid id,
+        [FromBody] UpdateCandidatureDto dto,
+        CancellationToken cancellationToken)
+    {
+        var localUser = await ResolveLocalUserAsync();
+        if (localUser is null)
+            return StatusCode(403, new { error = "User not found in local database." });
+
+        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return NotFound();
+        if (existing.IdUtilisateur != localUser.Id)
+            return StatusCode(403, new { error = "You do not have access to this candidature." });
+
+        var result = await _candidatureService.UpdateAsync(id, dto, cancellationToken);
+        if (result is null) return NotFound();
+
+        return Ok(result);
+    }
+
+    // ── DELETE /api/candidatures/{id} — Delete candidature ──────────────────────
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var localUser = await ResolveLocalUserAsync();
+        if (localUser is null)
+            return StatusCode(403, new { error = "User not found in local database." });
+
+        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return NotFound();
+        if (existing.IdUtilisateur != localUser.Id)
+            return StatusCode(403, new { error = "You do not have access to this candidature." });
+
+        var deleted = await _candidatureService.DeleteAsync(id, cancellationToken);
+        if (!deleted) return NotFound();
+
+        return NoContent();
+    }
+
+    // ── POST /api/candidatures/{id}/notes — Add a note ─────────────────────────
+
+    [HttpPost("{id:guid}/notes")]
+    public async Task<ActionResult<CandidatureNoteDto>> AddNote(
+        Guid id,
+        [FromBody] AddNoteDto dto,
+        CancellationToken cancellationToken)
+    {
+        var localUser = await ResolveLocalUserAsync();
+        if (localUser is null)
+            return StatusCode(403, new { error = "User not found in local database." });
+
+        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return NotFound();
+        if (existing.IdUtilisateur != localUser.Id)
+            return StatusCode(403, new { error = "You do not have access to this candidature." });
+
+        var note = await _candidatureService.AddNoteAsync(id, dto, cancellationToken);
+
+        return CreatedAtAction(nameof(GetNotes), new { id }, note);
+    }
+
+    // ── GET /api/candidatures/{id}/notes — List notes ──────────────────────────
+
+    [HttpGet("{id:guid}/notes")]
+    public async Task<ActionResult<List<CandidatureNoteDto>>> GetNotes(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var localUser = await ResolveLocalUserAsync();
+        if (localUser is null)
+            return StatusCode(403, new { error = "User not found in local database." });
+
+        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return NotFound();
+        if (existing.IdUtilisateur != localUser.Id)
+            return StatusCode(403, new { error = "You do not have access to this candidature." });
+
+        var notes = await _candidatureService.GetNotesAsync(id, cancellationToken);
+        return Ok(notes);
+    }
+
+    // ── GET /api/candidatures/{id}/history — Status change history ──────────────
+
+    [HttpGet("{id:guid}/history")]
+    public async Task<ActionResult<List<CandidatureStatusHistoryDto>>> GetHistory(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var localUser = await ResolveLocalUserAsync();
+        if (localUser is null)
+            return StatusCode(403, new { error = "User not found in local database." });
+
+        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
+        if (existing is null) return NotFound();
+        if (existing.IdUtilisateur != localUser.Id)
+            return StatusCode(403, new { error = "You do not have access to this candidature." });
+
+        var history = await _candidatureService.GetHistoryAsync(id, cancellationToken);
+        return Ok(history);
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────────

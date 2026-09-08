@@ -2,7 +2,6 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { forkJoin, catchError, of } from 'rxjs';
 import { CandidatureService, CandidatureDto } from '../../../services/candidature.service';
 import { OfferService, OfferDto } from '../../../services/offer.service';
@@ -12,11 +11,13 @@ import {
   EmailConnectionStatusDto,
   GenerateReplyDraftPayload
 } from '../../../services/email.service';
+import { ToastService } from '../../../core/notifications/toast.service';
+import { extractApiError } from '../../../core/utils/extract-api-error';
 
 @Component({
   selector: 'app-email-workspace',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, MatSnackBarModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './email-workspace.component.html',
   styleUrl: './email-workspace.component.scss'
 })
@@ -26,7 +27,7 @@ export class EmailWorkspaceComponent implements OnInit {
   private readonly candidatureService = inject(CandidatureService);
   private readonly offerService = inject(OfferService);
   private readonly emailService = inject(EmailService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(ToastService);
 
   // ── State ────────────────────────────────────────────────────────────────
   candidatureId = '';
@@ -78,8 +79,6 @@ export class EmailWorkspaceComponent implements OnInit {
   }
 
   // Messages
-  successMessage = signal<string | null>(null);
-  errorMessage = signal<string | null>(null);
   pageError = signal<string | null>(null);
 
   // ── Init ─────────────────────────────────────────────────────────────────
@@ -158,14 +157,11 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (draft) => {
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
-        this.successMessage.set('Brouillon généré avec succès.');
-        this.showSuccessToast('Brouillon généré avec succès.');
+        this.toast.success('Brouillon généré avec succès.');
         this.generatingDraft.set(false);
       },
       error: (err) => {
-        const msg = err?.error || 'Erreur lors de la génération du brouillon.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        this.toast.error(extractApiError(err).message);
         this.generatingDraft.set(false);
       }
     });
@@ -185,14 +181,11 @@ export class EmailWorkspaceComponent implements OnInit {
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
         const msg = 'Email de relance généré avec succès. Relisez et approuvez avant envoi.';
-        this.successMessage.set(msg);
-        this.showSuccessToast(msg);
+        this.toast.success(msg);
         this.generatingDraft.set(false);
       },
       error: (err) => {
-        const msg = err?.error || 'Erreur lors de la génération de la relance.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        this.toast.error(extractApiError(err).message);
         this.generatingDraft.set(false);
       }
     });
@@ -216,14 +209,11 @@ export class EmailWorkspaceComponent implements OnInit {
         this.selectDraft(draft);
         this.userInstructions = '';
         const msg = 'Brouillon de réponse généré. Vérifiez et approuvez avant envoi.';
-        this.successMessage.set(msg);
-        this.showSuccessToast(msg);
+        this.toast.success(msg);
         this.generatingReply.set(false);
       },
       error: (err) => {
-        const msg = err?.error || 'Erreur lors de la génération de la réponse.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        this.toast.error(extractApiError(err).message);
         this.generatingReply.set(false);
       }
     });
@@ -243,14 +233,11 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (updated) => {
         this.updateDraftInList(updated);
         this.selectedDraft.set(updated);
-        this.successMessage.set('Brouillon sauvegardé.');
-        this.showSuccessToast('Brouillon sauvegardé.');
+        this.toast.success('Brouillon sauvegardé.');
         this.savingDraft.set(false);
       },
       error: (err) => {
-        const msg = err?.error || 'Erreur lors de la sauvegarde.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        this.toast.error(extractApiError(err).message);
         this.savingDraft.set(false);
       }
     });
@@ -266,15 +253,11 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (updated) => {
         this.updateDraftInList(updated);
         this.selectedDraft.set(updated);
-        const msg = 'Brouillon approuvé. Vous pouvez maintenant l\'envoyer.';
-        this.successMessage.set(msg);
-        this.showSuccessToast(msg);
+        this.toast.success('Brouillon approuvé. Vous pouvez maintenant l\'envoyer.');
         this.approvingDraft.set(false);
       },
       error: (err) => {
-        const msg = err?.error || 'Erreur lors de l\'approbation.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        this.toast.error(extractApiError(err).message);
         this.approvingDraft.set(false);
       }
     });
@@ -299,19 +282,13 @@ export class EmailWorkspaceComponent implements OnInit {
           };
           this.updateDraftInList(updated);
           this.selectedDraft.set(updated);
-          const msg = `Email envoyé avec succès ! ID Gmail : ${result.providerMessageId ?? '—'}`;
-          this.successMessage.set(msg);
-          this.showSuccessToast(msg);
+          this.toast.success(`Email envoyé avec succès ! ID Gmail : ${result.providerMessageId ?? '—'}`);
         } else {
-          const msg = result.errorMessage ?? 'L\'envoi a échoué.';
-          this.errorMessage.set(msg);
-          this.showErrorToast(msg);
+          this.toast.error(result.errorMessage ?? 'L\'envoi a échoué.');
         }
       },
       error: (err) => {
-        const msg = err?.error || 'Erreur lors de l\'envoi.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        this.toast.error(extractApiError(err).message);
         this.sendingDraft.set(false);
       }
     });
@@ -339,9 +316,7 @@ export class EmailWorkspaceComponent implements OnInit {
     const redirectUri = this.oauthRedirectUri.trim();
 
     if (!clientId || !clientSecret) {
-      const msg = 'Client ID et Client Secret sont obligatoires.';
-      this.errorMessage.set(msg);
-      this.showErrorToast(msg);
+      this.toast.error('Client ID et Client Secret sont obligatoires.');
       return;
     }
 
@@ -369,12 +344,9 @@ export class EmailWorkspaceComponent implements OnInit {
         this.connectWithLoginUrl();
       },
       error: (err) => {
-        const backendError = typeof err?.error === 'string'
-          ? err.error
-          : (err?.error?.error || err?.error?.message || err?.message);
-        const msg = backendError || 'Impossible d\'enregistrer les credentials OAuth.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        const message = extractApiError(err).message;
+        const msg = message || 'Impossible d\'enregistrer les credentials OAuth.';
+        this.toast.error(msg);
         this.savingOauthCredentials.set(false);
       }
     });
@@ -396,19 +368,15 @@ export class EmailWorkspaceComponent implements OnInit {
           return;
         }
 
-        const msg = 'URL de connexion Gmail invalide.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        this.toast.error('URL de connexion Gmail invalide.');
         this.connectingGmail.set(false);
       },
       error: (err) => {
-        const backendError = err?.error?.error || err?.error?.message || '';
         if (!this.gmailStatus()?.hasCustomClientCredentials) {
           this.showOauthCredentialsForm.set(true);
         }
-        const msg = backendError || 'Impossible d\'obtenir l\'URL de connexion Gmail.';
-        this.errorMessage.set(msg);
-        this.showErrorToast(msg);
+        const msg = extractApiError(err).message || 'Impossible d\'obtenir l\'URL de connexion Gmail.';
+        this.toast.error(msg);
         this.connectingGmail.set(false);
       }
     });
@@ -425,28 +393,8 @@ export class EmailWorkspaceComponent implements OnInit {
     this.drafts.update(drafts => drafts.map(d => d.id === updated.id ? updated : d));
   }
 
-  private showSuccessToast(message: string) {
-    this.snackBar.open(message, 'Fermer', {
-      duration: 4000,
-      horizontalPosition: 'end',
-      verticalPosition: 'top',
-      panelClass: ['toast-success']
-    });
-  }
-
-  private showErrorToast(message: string) {
-    this.snackBar.open(message, 'Fermer', {
-      duration: 5000,
-      horizontalPosition: 'end',
-      verticalPosition: 'top',
-      panelClass: ['toast-error']
-    });
-  }
-
   private clearMessages() {
-    this.successMessage.set(null);
-    this.errorMessage.set(null);
-    this.snackBar.dismiss();
+    this.toast.dismiss();
   }
 
   // ── Computed getters ──────────────────────────────────────────────────────

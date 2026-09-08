@@ -25,18 +25,11 @@ namespace NextStep.Modules.Identity.Controllers
         {
             if (string.IsNullOrEmpty(payload.KeycloakId) || string.IsNullOrEmpty(payload.Email))
             {
-                return BadRequest("Payload invalide : KeycloakId et Email sont requis.");
+                return BadRequest(new { error = "Payload invalide : KeycloakId et Email sont requis." });
             }
 
-            try
-            {
-                await _userService.SyncUserFromKeycloakAsync(payload);
-                return Ok(new { message = "Synchronisation réussie." });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erreur interne : {ex.Message}");
-            }
+            await _userService.SyncUserFromKeycloakAsync(payload);
+            return Ok(new { message = "Synchronisation réussie." });
         }
 
         /// <summary>
@@ -46,19 +39,12 @@ namespace NextStep.Modules.Identity.Controllers
         [Authorize]
         public async Task<IActionResult> GetUserProfile()
         {
-            try
-            {
-                var userProfile = await _userService.EnsureUserCreatedAsync(User);
-                return Ok(new 
-                { 
-                    message = "Profil récupéré avec succès (Synchronisé avec Keycloak).",
-                    data = userProfile 
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erreur lors de la synchronisation du profil : {ex.Message}");
-            }
+            var userProfile = await _userService.EnsureUserCreatedAsync(User);
+            return Ok(new 
+            { 
+                message = "Profil récupéré avec succès (Synchronisé avec Keycloak).",
+                data = userProfile 
+            });
         }
 
         /// <summary>
@@ -68,23 +54,12 @@ namespace NextStep.Modules.Identity.Controllers
         [Authorize]
         public async Task<IActionResult> GetOnboardingStatus()
         {
-            try
-            {
-                var keycloakId = GetKeycloakId();
-                var status = await _userService.GetProfileStatusAsync(keycloakId);
-                return Ok(new { 
-                    onboardingCompleted = status.OnboardingCompleted,
-                    profileScore = status.ProfileScore
-                });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound("Utilisateur non trouvé.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erreur : {ex.Message}");
-            }
+            var keycloakId = GetKeycloakId();
+            var status = await _userService.GetProfileStatusAsync(keycloakId);
+            return Ok(new { 
+                onboardingCompleted = status.OnboardingCompleted,
+                profileScore = status.ProfileScore
+            });
         }
 
         /// <summary>
@@ -94,24 +69,13 @@ namespace NextStep.Modules.Identity.Controllers
         [Authorize]
         public async Task<IActionResult> UpdateSoftOnboarding([FromBody] SoftOnboardingDto dto)
         {
-            try
+            var keycloakId = GetKeycloakId();
+            var user = await _userService.UpdateSoftOnboardingAsync(keycloakId, dto);
+            return Ok(new
             {
-                var keycloakId = GetKeycloakId();
-                var user = await _userService.UpdateSoftOnboardingAsync(keycloakId, dto);
-                return Ok(new
-                {
-                    message = "Onboarding soft complété.",
-                    data = new { user.OnboardingCompleted }
-                });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound("Utilisateur non trouvé.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erreur : {ex.Message}");
-            }
+                message = "Onboarding soft complété.",
+                data = new { user.OnboardingCompleted }
+            });
         }
 
         /// <summary>
@@ -121,20 +85,9 @@ namespace NextStep.Modules.Identity.Controllers
         [Authorize]
         public async Task<IActionResult> GetProfileStatus()
         {
-            try
-            {
-                var keycloakId = GetKeycloakId();
-                var status = await _userService.GetProfileStatusAsync(keycloakId);
-                return Ok(status);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound("Utilisateur non trouvé.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erreur : {ex.Message}");
-            }
+            var keycloakId = GetKeycloakId();
+            var status = await _userService.GetProfileStatusAsync(keycloakId);
+            return Ok(status);
         }
 
         /// <summary>

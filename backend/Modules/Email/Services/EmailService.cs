@@ -61,7 +61,7 @@ public class EmailService : IEmailService
         if (candidature is null)
             throw new KeyNotFoundException($"Candidature {dto.CandidatureId} not found.");
 
-        var ctx = await BuildCandidatureContextAsync(candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
+        var ctx = await BuildCandidatureContextAsync(candidature.IdUtilisateur, candidature.IdOffre!.Value, cancellationToken);
 
         var pythonRequest = new
         {
@@ -461,7 +461,7 @@ public class EmailService : IEmailService
 
         // â”€â”€ 6. Load profile and offer context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var ctx = await BuildCandidatureContextAsync(
-            candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
+            candidature.IdUtilisateur, candidature.IdOffre!.Value, cancellationToken);
 
         // â”€â”€ 7. Build Python payload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var pythonRequest = new
@@ -595,7 +595,7 @@ public class EmailService : IEmailService
 
         // â”€â”€ 6. Load candidate + offer context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var ctx = await BuildCandidatureContextAsync(
-            candidature.IdUtilisateur, candidature.IdOffre, cancellationToken);
+            candidature.IdUtilisateur, candidature.IdOffre!.Value, cancellationToken);
 
         // â”€â”€ 7. Resolve recipient email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Prefer LastResponseFrom (parse "Name <email>" format safely).

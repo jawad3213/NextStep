@@ -351,4 +351,126 @@ describe('ProfileFeatureService (State & Signals)', () => {
     await promise;
     expect(loadSpy).toHaveBeenCalled();
   });
+
+  it('devrait exporter le profil au format JSON avec les métadonnées et sections', () => {
+    service.profile.set({
+      personal: {
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane.doe@example.com',
+        phone: '0612345678',
+        jobTitle: 'Software Engineer',
+        address: 'Paris, France',
+        city: 'Paris',
+        country: 'France',
+        linkedinUrl: 'https://linkedin.com/in/janedoe',
+        githubUrl: 'https://github.com/janedoe',
+        portfolioUrl: 'https://janedoe.dev',
+        photoUrl: null,
+        useAsHeadline: true
+      },
+      education: [
+        {
+          id: 'edu-1',
+          degree: 'Master Informatique',
+          institution: 'Sorbonne',
+          city: 'Paris',
+          startYear: '2020',
+          endYear: '2022',
+          current: false,
+          specialization: 'Génie Logiciel',
+          mention: 'Très bien'
+        }
+      ],
+      experience: [
+        {
+          id: 'exp-1',
+          title: 'Full Stack Dev',
+          company: 'Acme Corp',
+          city: 'Paris',
+          startDate: '2022-01',
+          endDate: '2024-01',
+          current: false,
+          type: 'CDI',
+          description: 'Dev full stack',
+          taches: ['Feature A', 'Feature B']
+        }
+      ],
+      skills: [
+        { id: 'skill-1', name: 'Angular', category: 'Technical' }
+      ],
+      languages: [
+        { id: 'lang-1', name: 'Français', level: 'Native' }
+      ],
+      resume: 'Développeur passionné avec 2 ans d’expérience.',
+      projets: [
+        {
+          id: 'proj-1',
+          title: 'Plateforme Web',
+          description: 'App web complète',
+          stack: ['Angular', '.NET'],
+          githubUrl: 'https://github.com/proj',
+          demoUrl: '',
+          isUniversity: false,
+          taches: []
+        }
+      ],
+      certifications: [
+        {
+          id: 'cert-1',
+          name: 'Azure Fundamentals',
+          issuer: 'Microsoft',
+          date: '2023-05',
+          verificationUrl: ''
+        }
+      ]
+    });
+
+    const exportResult = service.exportProfileJson();
+    expect(exportResult).toBeDefined();
+    expect(exportResult.filename).toContain('profil_jane_doe_');
+    expect(exportResult.filename).toMatch(/\.json$/);
+
+    const parsed = JSON.parse(exportResult.jsonContent);
+    expect(parsed.metadata.format).toBe('NextStep-Profile-JSON');
+    expect(parsed.profile.personal.firstName).toBe('Jane');
+    expect(parsed.profile.personal.lastName).toBe('Doe');
+    expect(parsed.profile.education.length).toBe(1);
+    expect(parsed.profile.experience.length).toBe(1);
+    expect(parsed.profile.skills.length).toBe(1);
+    expect(parsed.profile.languages.length).toBe(1);
+    expect(parsed.profile.projects.length).toBe(1);
+    expect(parsed.profile.certifications.length).toBe(1);
+    expect(parsed.profile.summary).toBe('Développeur passionné avec 2 ans d’expérience.');
+  });
+
+  it('devrait déclencher le téléchargement du fichier JSON (downloadProfileJson)', () => {
+    const createObjectURLSpy = vi.fn().mockReturnValue('blob:http://localhost/dummy');
+    const revokeObjectURLSpy = vi.fn();
+    globalThis.URL.createObjectURL = createObjectURLSpy;
+    globalThis.URL.revokeObjectURL = revokeObjectURLSpy;
+
+    const mockAnchor = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    } as any;
+
+    const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor);
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockAnchor);
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockAnchor);
+
+    service.downloadProfileJson();
+
+    expect(createObjectURLSpy).toHaveBeenCalled();
+    expect(createElementSpy).toHaveBeenCalledWith('a');
+    expect(appendChildSpy).toHaveBeenCalledWith(mockAnchor);
+    expect(mockAnchor.click).toHaveBeenCalled();
+    expect(removeChildSpy).toHaveBeenCalledWith(mockAnchor);
+    expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:http://localhost/dummy');
+
+    createElementSpy.mockRestore();
+    appendChildSpy.mockRestore();
+    removeChildSpy.mockRestore();
+  });
 });

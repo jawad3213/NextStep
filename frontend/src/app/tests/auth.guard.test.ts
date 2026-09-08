@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { RouterStateSnapshot, ActivatedRouteSnapshot } from '@angular/router';
 import Keycloak from 'keycloak-js';
+import { AUTH_CONFIG } from '../core/auth/auth-config.token';
 import { authGuard } from '../core/guards/auth.guard';
 
 describe('AuthGuard', () => {
@@ -17,7 +18,9 @@ describe('AuthGuard', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        { provide: Keycloak, useValue: mockKeycloak }
+        { provide: Keycloak, useValue: mockKeycloak },
+        // Force auth on so the actual Keycloak logic is exercised.
+        { provide: AUTH_CONFIG, useValue: { authEnabled: true } }
       ]
     });
 

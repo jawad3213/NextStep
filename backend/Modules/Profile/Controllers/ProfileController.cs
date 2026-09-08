@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text;
 using NextStep.Shared.Storage;
+using NextStep.Shared.Http;
+using System.Net.Http.Json;
 
 namespace NextStep.Modules.Profile.Controllers
 {
@@ -20,15 +22,15 @@ namespace NextStep.Modules.Profile.Controllers
         private readonly IProfileService _profileService;
         private readonly IUserService _userService;
         private readonly AppDbContext _context;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IAgentHttpClient _agentHttpClient;
         private readonly IStorageService _storageService;
 
-        public ProfileController(IProfileService profileService, IUserService userService, AppDbContext context, IHttpClientFactory httpClientFactory, IStorageService storageService)
+        public ProfileController(IProfileService profileService, IUserService userService, AppDbContext context, IAgentHttpClient agentHttpClient, IStorageService storageService)
         {
             _profileService = profileService;
             _userService = userService;
             _context = context;
-            _httpClientFactory = httpClientFactory;
+            _agentHttpClient = agentHttpClient;
             _storageService = storageService;
         }
 
@@ -46,6 +48,24 @@ namespace NextStep.Modules.Profile.Controllers
             var userId = await GetUserIdAsync();
             var profile = await _profileService.GetFullProfileAsync(userId);
             return Ok(profile);
+        }
+
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportProfileJson()
+        {
+            var userId = await GetUserIdAsync();
+            var profile = await _profileService.GetFullProfileAsync(userId);
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var jsonString = JsonSerializer.Serialize(profile, options);
+            var bytes = Encoding.UTF8.GetBytes(jsonString);
+            var prenom = profile.PersonalInfo?.Prenom ?? "user";
+            var nom = profile.PersonalInfo?.Nom ?? "profile";
+            var fileName = $"profile_{prenom}_{nom}_{DateTime.UtcNow:yyyyMMdd}.json";
+            return File(bytes, "application/json", fileName);
         }
 
         [HttpPut("personal-info")]
@@ -338,27 +358,25 @@ namespace NextStep.Modules.Profile.Controllers
         [HttpPost("generate-resume")]
         public async Task<IActionResult> GenerateResume([FromBody] object profileData)
         {
-            try 
+            // Dégradé 200 + erreurs explicites (décision produit) : le frontend
+            // sait afficher un avertissement au lieu d'une fausse génération.
+            try
             {
-                // Proxy vers le conteneur Python Agent
-                var client = _httpClientFactory.CreateClient();
-                var agentUrl = Environment.GetEnvironmentVariable("PythonAgents__Url") ?? "http://agents-python:8000";
-                
-                var content = new StringContent(JsonSerializer.Serialize(profileData), Encoding.UTF8, "application/json");
-                var response = await client.PostAsync($"{agentUrl}/generate-resume", content);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    var result = await response.Content.ReadAsStringAsync();
-                    return Ok(new { resume = result });
-                }
-                
-                // Fallback si l'IA n'est pas prête
-                return Ok(new { resume = "Expert passionné avec une solide expérience technique. Toujours à la recherche de nouveaux défis pour innover et apporter de la valeur." });
+                // L'endpoint n'existe pas (encore) chez les agents Python.
+                // On le signale comme service indisponible plutôt que d'inventer du contenu.
+                var doc = await _agentHttpClient.PostRawAsync("/generate-resume", profileData);
+                return Ok(new { resume = doc.RootElement.GetRawText() });
             }
             catch (Exception)
             {
-                return Ok(new { resume = "Expert passionné avec une solide expérience technique. Toujours à la recherche de nouveaux défis pour innover et apporter de la valeur." });
+                return Ok(new
+                {
+                    resume = string.Empty,
+                    errors = new[]
+                    {
+                        "Le service de génération de CV par IA est actuellement indisponible."
+                    }
+                });
             }
         }
 
@@ -366,60 +384,73 @@ namespace NextStep.Modules.Profile.Controllers
         public async Task<IActionResult> ParseResume(IFormFile file)
         {
             if (file == null || file.Length == 0)
-                return BadRequest("Aucun fichier fourni.");
+                return BadRequest(new { error = "Aucun fichier fourni." });
 
-            try 
+            try
             {
-                var client = _httpClientFactory.CreateClient();
-                var agentUrl = Environment.GetEnvironmentVariable("PythonAgents__Url") ?? "http://agents-python:8000";
-                
-                using var content = new MultipartFormDataContent();
-                using var stream = file.OpenReadStream();
-                content.Add(new StreamContent(stream), "file", file.FileName);
-                
-                var response = await client.PostAsync($"{agentUrl}/resume/parse", content);
-                
-                if (response.IsSuccessStatusCode)
+                using var memory = new MemoryStream();
+                await file.CopyToAsync(memory);
+                var json = await _agentHttpClient.PostFileAsync(
+                    "/resume/parse", memory.ToArray(), file.FileName, file.ContentType);
+                return Content(json, "application/json");
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(502, new { error = ExtractReadableAgentError(ex), detail = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        // L'erreur remontée par les agents contient déjà le message d'origine
+        // du LLM (ex: modèle obsolète). On l'extrait pour un message lisible,
+        // sinon on retombe sur un message générique stable pour l'UI.
+        private static string ExtractReadableAgentError(HttpRequestException ex)
+        {
+            var msg = ex.Message;
+            try
+            {
+                var prefixIndex = msg.IndexOf('{');
+                if (prefixIndex >= 0)
                 {
-                    var result = await response.Content.ReadAsStringAsync();
-                    return Content(result, "application/json"); 
+                    using var doc = JsonDocument.Parse(msg[prefixIndex..]);
+                    if (doc.RootElement.TryGetProperty("detail", out var detail) &&
+                        detail.ValueKind == JsonValueKind.String &&
+                        detail.GetString() is { Length: > 0 } d)
+                        return $"L'analyse de ce CV a échoué : {d}";
+                    if (doc.RootElement.TryGetProperty("error", out var error) &&
+                        error.ValueKind == JsonValueKind.String &&
+                        error.GetString() is { Length: > 0 } e)
+                        return $"L'analyse de ce CV a échoué : {e}";
                 }
-                
-                var error = await response.Content.ReadAsStringAsync();
-                return StatusCode((int)response.StatusCode, $"Erreur agent IA : {error}");
             }
-            catch (Exception ex)
+            catch (JsonException)
             {
-                return StatusCode(500, $"Erreur proxy IA : {ex.Message}");
+                // best-effort : on garde le message générique
             }
+            return "Le service d'analyse de CV par IA n'a pas pu traiter ce fichier.";
         }
 
         [HttpPost("import-linkedin")]
         public async Task<IActionResult> ImportLinkedIn([FromBody] LinkedInImportDto dto)
         {
-            if (dto == null)
-                return BadRequest("Aucune donnée fournie.");
+            if (dto == null || (string.IsNullOrWhiteSpace(dto.Url) && string.IsNullOrWhiteSpace(dto.RawText)))
+                return BadRequest(new { error = "Aucune donnée fournie." });
 
-            try 
+            try
             {
-                var client = _httpClientFactory.CreateClient();
-                var agentUrl = Environment.GetEnvironmentVariable("PythonAgents__Url") ?? "http://agents-python:8000";
-                
-                var jsonContent = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
-                var response = await client.PostAsync($"{agentUrl}/resume/parse-linkedin", jsonContent);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    var result = await response.Content.ReadAsStringAsync();
-                    return Content(result, "application/json"); 
-                }
-                
-                var error = await response.Content.ReadAsStringAsync();
-                return StatusCode((int)response.StatusCode, $"Erreur agent IA : {error}");
+                var doc = await _agentHttpClient.PostRawAsync("/resume/parse-linkedin", new { url = dto.Url, rawText = dto.RawText });
+                return Content(doc.RootElement.GetRawText(), "application/json");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
-                return StatusCode(500, $"Erreur proxy IA : {ex.Message}");
+                return StatusCode(502, new { error = "Le service d'import LinkedIn est indisponible.", detail = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
             }
         }
         [HttpDelete("clear")]

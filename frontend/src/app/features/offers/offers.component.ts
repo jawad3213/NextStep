@@ -6,6 +6,7 @@ import { Router, RouterModule } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 import { ANALYSIS_STEPS, MOCK_OFFERS, OfferCard } from './offers-data';
 import { OfferApiService } from './services/offer-api.service';
+import { extractApiError } from '../../core/utils/extract-api-error';
 
 @Component({
   selector: 'app-offers',
@@ -167,7 +168,7 @@ export class OffersComponent implements OnInit {
       },
       error: (err) => {
         this.isDeleting.set(false);
-        const msg = err?.error?.message || err?.error?.error || 'Suppression impossible pour le moment.';
+        const msg = extractApiError(err).message || 'Suppression impossible pour le moment.';
         alert(msg);
       },
     });

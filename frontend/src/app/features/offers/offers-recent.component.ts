@@ -10,6 +10,7 @@ import {
   ScrapeSessionDto,
   SourcedOfferListItemDto,
 } from './services/offer-api.service';
+import { extractApiError } from '../../core/utils/extract-api-error';
 
 type ProviderSummary = {
   key: ScrapeProvider;
@@ -179,7 +180,7 @@ export class OffersRecentComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to load sourced offers.');
+        this.errorMessage.set(extractApiError(err).message || 'Unable to load sourced offers.');
         this.offers.set([]);
         this.isLoading.set(false);
       },
@@ -223,7 +224,7 @@ export class OffersRecentComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to refresh sourced offers.');
+        this.errorMessage.set(extractApiError(err).message || 'Unable to refresh sourced offers.');
         this.isLoading.set(false);
       },
     });
@@ -282,7 +283,7 @@ export class OffersRecentComponent implements OnInit {
       },
       error: (err) => {
         this.actionOfferId.set(null);
-        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to promote sourced offer.');
+        this.errorMessage.set(extractApiError(err).message || 'Unable to promote sourced offer.');
       },
     });
   }
@@ -331,7 +332,7 @@ export class OffersRecentComponent implements OnInit {
       },
       error: (err) => {
         this.actionOfferId.set(null);
-        this.errorMessage.set(err?.error?.error || err?.error?.detail || 'Unable to update sourced offer.');
+        this.errorMessage.set(extractApiError(err).message || 'Unable to update sourced offer.');
       },
     });
   }

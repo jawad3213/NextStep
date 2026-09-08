@@ -98,6 +98,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
       },
       {
+        path: 'applications/:candidatureId',
+        canActivate: [onboardingGuard],
+        loadComponent: () => import('./features/candidatures/candidature-detail/candidature-detail.component').then(m => m.CandidatureDetailComponent)
+      },
+      {
         path: 'applications/:candidatureId/email',
         pathMatch: 'full',
         redirectTo: '/letters/:candidatureId'

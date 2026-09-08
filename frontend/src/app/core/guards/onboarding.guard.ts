@@ -1,9 +1,17 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
 import { OnboardingService } from '../../services/onboarding.service';
+import { AUTH_CONFIG } from '../auth/auth-config.token';
 import { catchError, map, of, take } from 'rxjs';
 
 export const onboardingGuard: CanActivateFn = (route, state) => {
+  // Local-development mode: skip the onboarding wall so the dashboard and all
+  // features are reachable directly.
+  const authConfig = inject(AUTH_CONFIG);
+  if (!authConfig.authEnabled) {
+    return of(true);
+  }
+
   const onboardingService = inject(OnboardingService);
   const router = inject(Router);
   const profileUnlockedKey = 'nextstep_profile_unlocked';
@@ -38,6 +46,12 @@ export const onboardingGuard: CanActivateFn = (route, state) => {
 };
 
 export const alreadyOnboardedGuard: CanActivateFn = () => {
+  // Local-development mode: never force the onboarding flow.
+  const authConfig = inject(AUTH_CONFIG);
+  if (!authConfig.authEnabled) {
+    return of(true);
+  }
+
   const onboardingService = inject(OnboardingService);
   const router = inject(Router);
 

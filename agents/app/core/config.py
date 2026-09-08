@@ -52,11 +52,12 @@ class Settings(BaseSettings):
     LLM_PRIORITY_CV_OPTIMIZER: str = "groq,openai,gemini"
     LLM_TEMPERATURE: float = 0.1
     LLM_MAX_TOKENS: int = 2000
+    LLM_REQUEST_TIMEOUT: float = 90.0
     
     # --- Groq Configuration ---
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.1-8b-instant"
-    GROQ_MODEL_PRECISE: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    GROQ_MODEL_PRECISE: str = "openai/gpt-oss-120b"
     # Agent Overrides
     GROQ_MODEL_OFFER_ANALYZER: str = ""
     GROQ_MODEL_SKILL_GAP: str = ""
@@ -66,7 +67,7 @@ class Settings(BaseSettings):
     # --- Gemini / Google Configuration ---
     GEMINI_API_KEY: str = ""
     GOOGLE_API_KEY: str = ""  # Fallback
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
     # Agent Overrides
     GEMINI_MODEL_SKILL_GAP: str = ""
     GEMINI_MODEL_CV_OPTIMIZER: str = ""
@@ -161,6 +162,7 @@ def _create_provider_llm(
                 api_key=settings.GROQ_API_KEY,
                 temperature=temp,
                 max_tokens=settings.LLM_MAX_TOKENS,
+                timeout=settings.LLM_REQUEST_TIMEOUT,
             )
 
         elif provider == "gemini":
@@ -171,6 +173,7 @@ def _create_provider_llm(
                 model=model,
                 google_api_key=api_key,
                 temperature=temp,
+                timeout=settings.LLM_REQUEST_TIMEOUT,
             )
 
         elif provider == "openai":
@@ -180,6 +183,7 @@ def _create_provider_llm(
                 model=model,
                 api_key=settings.OPENAI_API_KEY,
                 temperature=temp,
+                timeout=settings.LLM_REQUEST_TIMEOUT,
             )
         else:
             return None

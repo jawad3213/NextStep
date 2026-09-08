@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PipelineStateService, PipelineResult } from '../../../../services/pipeline-state.service';
 import { OfferApiService, OfferAnalysisResponse } from '../../services/offer-api.service';
 import { SidebarService } from '../../../../shared/services/sidebar.service';
+import { extractApiError } from '../../../../core/utils/extract-api-error';
 
 @Component({
   selector: 'app-step-submit',
@@ -163,7 +164,7 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
 
             const message = err?.status === 404
               ? 'Le endpoint d analyse /analyze-sync est introuvable sur le backend en cours. Redemarrez l API .NET pour charger la nouvelle route.'
-              : err?.error?.error || err.message || 'Erreur lors de l\'analyse';
+              : extractApiError(err).message || 'Erreur lors de l\'analyse';
 
             this.pipeline.setLoading(false);
             this.pipeline.pipelineError.set(message);

@@ -70,7 +70,7 @@ export class LettersComponent implements OnInit {
 
         const perCandidature = candidatures.map((c) =>
           forkJoin({
-            offer: this.offerService.getOfferById(c.idOffre).pipe(catchError(() => of(null))),
+            offer: c.idOffre ? this.offerService.getOfferById(c.idOffre).pipe(catchError(() => of(null))) : of(null),
             drafts: this.emailService.getDraftsByCandidature(c.idCandidature).pipe(
               catchError(() => of([] as EmailDraftDto[]))
             ),

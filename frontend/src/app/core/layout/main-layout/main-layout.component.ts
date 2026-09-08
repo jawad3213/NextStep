@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { catchError, filter, map, of, startWith, switchMap } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../auth/services/auth.service';
 import { ProfileService } from '../../../features/profile/profile.service';
 import { PipelineStateService } from '../../../services/pipeline-state.service';
@@ -59,13 +60,14 @@ export class MainLayoutComponent {
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),
     startWith(null),
     switchMap(() =>
-      this.onboardingService.getStatus().pipe(
+      // Local-development mode: the onboarding wall is disabled, sidebar always visible.
+      (environment.authEnabled ? this.onboardingService.getStatus() : of({ onboardingCompleted: true } as any)).pipe(
         map((status) => {
           const url = this.router.url;
           const isOnboardingRoute = url.startsWith('/onboarding');
           const isProfileRoute = url.startsWith('/profile');
           const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
-          
+
           // Sidebar remains hidden on onboarding page or if the profile hasn't been explicitly unlocked (Finish clicked)
           if (isOnboardingRoute) return false;
           const isForcedStepper = isProfileRoute && !profileUnlocked;
@@ -213,6 +215,11 @@ export class MainLayoutComponent {
   goToSettings(): void {
     this.isProfileMenuOpen.set(false);
     this.router.navigate(['/settings']);
+  }
+
+  exportProfile(): void {
+    this.isProfileMenuOpen.set(false);
+    this.profileService.downloadProfileJson();
   }
 
   goToSupport(): void {

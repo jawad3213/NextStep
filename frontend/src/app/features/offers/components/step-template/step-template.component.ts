@@ -7,6 +7,7 @@ import { ProfileService } from '../../../../services/profile.service';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { SignalRService } from '../../../../services/signalr.service';
+import { extractApiError } from '../../../../core/utils/extract-api-error';
 
 const INDUSTRIES = [
   'Administrative & Office',
@@ -270,7 +271,7 @@ export class StepTemplateComponent implements OnInit {
       },
       error: (err) => {
         this.pipeline.setLoading(false);
-        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Echec generation CV.');
+        this.pipeline.pipelineError.set(extractApiError(err).message || 'Echec generation CV.');
       }
     });
   }

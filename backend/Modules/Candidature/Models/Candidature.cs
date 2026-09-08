@@ -9,7 +9,7 @@ public class Candidature
 
     public Guid IdUtilisateur { get; set; }
 
-    public Guid IdOffre { get; set; }
+    public Guid? IdOffre { get; set; }
 
     public OffreEmploi? Offre { get; set; }
 
@@ -17,7 +17,25 @@ public class Candidature
 
     public bool InclureLettreMotivation { get; set; } = false;
 
-    public string Statut { get; set; } = "EN_ATTENTE";
+    public string Statut { get; set; } = "ENVOYE";
+
+    // ── Multi-channel tracking ──────────────────────────────────────────────────
+
+    public string Channel { get; set; } = "EMAIL";
+
+    public string? ChannelUrl { get; set; }
+
+    public string? ChannelContact { get; set; }
+
+    public DateTime ApplicationDate { get; set; } = DateTime.UtcNow;
+
+    public bool AppliedManually { get; set; } = false;
+
+    public string? OfferSource { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string Language { get; set; } = "AUTO";
 
     // ── Email reply tracking ──────────────────────────────────────────────────────
 
@@ -70,4 +88,8 @@ public class Candidature
     public DateTime? LastFollowUpAtUtc { get; set; }
 
     public ICollection<EmailDraft> EmailDrafts { get; set; } = new List<EmailDraft>();
+
+    public ICollection<CandidatureNote> CandidatureNotes { get; set; } = new List<CandidatureNote>();
+
+    public ICollection<CandidatureStatusHistory> StatusHistory { get; set; } = new List<CandidatureStatusHistory>();
 }

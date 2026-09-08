@@ -4,6 +4,7 @@ import { Profile, ProfileStepId, PersonalInfo, Experience, Education, Skill, Pro
 import { environment } from '../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/services/auth.service';
+import { extractApiError } from '../../core/utils/extract-api-error';
 
 interface ImportedPersonalSnapshot {
   firstName: string;
@@ -231,9 +232,9 @@ export class ProfileService {
   async flushOnboardingData() {
     const data = this.loadFromSessionStorage();
     if (!data) return;
-    this.profile.set(data);
+
     this.isOnboarding.set(false);
-    await firstValueFrom(this.http.delete(`${this.apiUrl}/clear`));
+
     await this.savePersonalInfo(data.personal);
     for (const exp of data.experience) { await this.addExperience({ ...exp, id: '' }, false); }
     for (const edu of data.education) { await this.addEducation({ ...edu, id: '' }, false); }
@@ -241,6 +242,7 @@ export class ProfileService {
     for (const lang of data.languages) { await this.addLanguage({ ...lang, id: '' }, false); }
     for (const proj of data.projets) { await this.addProject({ ...proj, id: '' }, false); }
     for (const cert of data.certifications) { await this.addCertification({ ...cert, id: '' }, false); }
+
     this.clearSessionStorage();
     await this.loadProfile();
   }
@@ -690,6 +692,68 @@ export class ProfileService {
       console.error('Erreur génération CV IA', e);
       return 'Generation error.';
     }
+  }
+
+  /**
+   * Generates a clean, structured JSON representation of the current profile.
+   */
+  exportProfileJson(): { filename: string; jsonContent: string; data: any } {
+    const p = this.profile();
+    const data = {
+      metadata: {
+        exportedAt: new Date().toISOString(),
+        format: 'NextStep-Profile-JSON',
+        version: '1.0'
+      },
+      profile: {
+        personal: {
+          firstName: p.personal?.firstName || '',
+          lastName: p.personal?.lastName || '',
+          email: p.personal?.email || '',
+          phone: p.personal?.phone || '',
+          jobTitle: p.personal?.jobTitle || '',
+          address: p.personal?.address || '',
+          city: p.personal?.city || '',
+          country: p.personal?.country || '',
+          linkedinUrl: p.personal?.linkedinUrl || '',
+          githubUrl: p.personal?.githubUrl || '',
+          portfolioUrl: p.personal?.portfolioUrl || ''
+        },
+        summary: p.resume || '',
+        education: p.education || [],
+        experience: p.experience || [],
+        skills: p.skills || [],
+        languages: p.languages || [],
+        projects: p.projets || [],
+        certifications: p.certifications || [],
+        sectionTitles: p.sectionTitles || {}
+      }
+    };
+
+    const jsonContent = JSON.stringify(data, null, 2);
+    const cleanFirstName = (p.personal?.firstName || '').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+    const cleanLastName = (p.personal?.lastName || '').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+    const namePart = [cleanFirstName, cleanLastName].filter(Boolean).join('_') || 'mon_profil';
+    const datePart = new Date().toISOString().split('T')[0];
+    const filename = `profil_${namePart}_${datePart}.json`;
+
+    return { filename, jsonContent, data };
+  }
+
+  /**
+   * Triggers client-side download of the profile JSON file.
+   */
+  downloadProfileJson(): void {
+    const { filename, jsonContent } = this.exportProfileJson();
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   /**
@@ -1173,7 +1237,8 @@ export class ProfileService {
       this.addParsingEvent('success', 'AI Analysis successful!');
       await this.processExtractedData(normalizedPayload);
     } catch (error) {
-      this.addParsingEvent('info', 'Error during parsing', 'Process halted');
+      const message = extractApiError(error).message;
+      this.addParsingEvent('info', message, 'Process halted');
       console.error('Erreur lors du parsing du CV:', error);
       throw error;
     }
@@ -1222,15 +1287,14 @@ export class ProfileService {
 
   private async processExtractedData(data: ImportedProfilePayload): Promise<void> {
     const wasOnboarding = this.isOnboarding();
-    this.isOnboarding.set(false); // Bypass local signal mode to hit actual backend endpoints
+    this.isOnboarding.set(false);
+    const errors: string[] = [];
     try {
-      // Clear existing profile data for a clean import
       this.addParsingEvent('info', 'Smart Overwrite: Clearing current profile...');
       await firstValueFrom(this.http.delete(`${this.apiUrl}/clear`));
 
       this.addParsingEvent('info', 'Synchronizing with profile...', 'Updating sections');
 
-      // 1. Personal Info
       const currentProfile = this.profile();
       const personal = {
         ...currentProfile.personal,
@@ -1247,88 +1311,84 @@ export class ProfileService {
         address: data.personal.address || currentProfile.personal.address
       };
 
-      this.updateProfile({
-        personal,
-        resume: data.resume || currentProfile.resume
-      });
-
+      this.updateProfile({ personal, resume: data.resume || currentProfile.resume });
       await this.savePersonalInfo(personal);
       this.addParsingEvent('success', 'Profile identity updated', `${personal.firstName} ${personal.lastName}`.trim() || personal.email);
 
-      // 2. Experiences (Work)
+      const safeAdd = async <T>(label: string, name: string, fn: () => Promise<void>) => {
+        try {
+          await fn();
+          this.addParsingEvent('success', label, name);
+        } catch (err) {
+          console.error(`Failed to add ${label}`, name, err);
+          errors.push(`${label}: ${name}`);
+          this.addParsingEvent('info', `${label} failed: ${name}`, 'Skipped');
+        }
+      };
+
       for (const exp of data.experience) {
         this.addParsingEvent('info', 'Mapping experience', exp.company || exp.title);
-        await this.addExperience(exp, false);
-        this.addParsingEvent('success', 'Experience synced', exp.company || exp.title);
+        await safeAdd('Experience', exp.company || exp.title, () => this.addExperience(exp, false));
       }
 
       for (const extra of data.extracurriculars) {
         this.addParsingEvent('info', 'Mapping extracurricular activity', extra.company || extra.title);
-        await this.addExperience(extra, false);
-        this.addParsingEvent('success', 'Extracurricular synced', extra.company || extra.title);
+        await safeAdd('Extracurricular', extra.company || extra.title, () => this.addExperience(extra, false));
       }
 
-      // 3. Education
       for (const edu of data.education) {
         this.addParsingEvent('info', 'Mapping education', edu.institution || edu.degree);
-        await this.addEducation(edu, false);
-        this.addParsingEvent('success', 'Education synced', edu.degree || edu.institution);
+        await safeAdd('Education', edu.institution || edu.degree, () => this.addEducation(edu, false));
       }
 
-      // 4. Skills & Languages
       for (const lang of data.languages) {
         this.addParsingEvent('info', 'Mapping language', lang.name);
-        await this.addLanguage(lang, false);
-        this.addParsingEvent('success', 'Language added', lang.name);
+        await safeAdd('Language', lang.name, () => this.addLanguage(lang, false));
       }
 
       for (const skill of data.skills) {
         const rawName = (skill.name || '').trim();
-        const normalizedName = rawName
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toLowerCase();
-
+        const normalizedName = rawName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const looksLikeLanguage = [
           'french', 'francais', 'english', 'anglais', 'arabic', 'arabe',
           'spanish', 'espagnol', 'german', 'allemand', 'italian', 'italien',
           'russian', 'russe', 'chinese', 'chinois', 'japanese', 'japonais',
           'portuguese', 'portugais'
-        ].some((lang) => normalizedName === lang || normalizedName.startsWith(`${lang} `) || normalizedName.includes(` ${lang} `));
+        ].some((l) => normalizedName === l || normalizedName.startsWith(`${l} `) || normalizedName.includes(` ${l} `));
 
         if (looksLikeLanguage) {
           const levelMatch = rawName.match(/\b(A1|A2|B1|B2|C1|C2|Native|Fluent|Advanced|Proficient|Beginner|Elementary|Intermediate|Upper-Intermediate)\b/i);
           const level = levelMatch?.[1] || 'B2';
           this.addParsingEvent('info', 'Mapping language from skills', rawName);
-          await this.addLanguage({ id: '', name: rawName.split(/[-(|]/)[0].trim(), level }, false);
-          this.addParsingEvent('success', 'Language added', rawName);
+          await safeAdd('Language', rawName, () => this.addLanguage({ id: '', name: rawName.split(/[-(|]/)[0].trim(), level }, false));
           continue;
         }
 
         this.addParsingEvent('info', 'Mapping skill', rawName);
-        await this.addSkill(skill, false);
-        this.addParsingEvent('success', 'Skill added', rawName);
+        await safeAdd('Skill', rawName, () => this.addSkill(skill, false));
       }
 
       for (const project of data.projects) {
         this.addParsingEvent('info', 'Mapping project', project.title);
-        await this.addProject(project, false);
-        this.addParsingEvent('success', 'Project synced', project.title);
+        await safeAdd('Project', project.title, () => this.addProject(project, false));
       }
 
       for (const cert of data.certifications) {
         this.addParsingEvent('info', 'Mapping certification', cert.name);
-        await this.addCertification(cert, false);
-        this.addParsingEvent('success', 'Cert synced', cert.name);
+        await safeAdd('Certification', cert.name, () => this.addCertification(cert, false));
       }
 
+      if (errors.length > 0) {
+        this.addParsingEvent('info', `${errors.length} section(s) skipped — see console for details`);
+      }
       this.addParsingEvent('success', 'Profile fully synchronized!');
       await this.loadProfile();
     } catch (e) {
       console.error('Error integrating data', e);
       throw e;
     } finally {
-      this.isOnboarding.set(wasOnboarding);
+      this.isOnboarding.set(false);
+      localStorage.setItem('nextstep_profile_unlocked', 'true');
     }
   }
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using Amazon.S3;
 using Hangfire;
 using Hangfire.PostgreSql;
 using NextStep.data;
+using NextStep.Shared.Auth;
 using NextStep.Shared.Http;
 using NextStep.Shared.Storage;
 using NextStep.Modules.Candidature.Repositories;
@@ -83,6 +85,17 @@ public static class DependencyInjection
 
     public static IServiceCollection AddAppAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
+        var authMode = configuration["Auth:Mode"] ?? "Keycloak";
+
+        if (string.Equals(authMode, "Dev", StringComparison.OrdinalIgnoreCase))
+        {
+            // Local development only: no Keycloak. Every request is treated as
+            // the seeded "dev-user" (see DevAuthenticationHandler).
+            services.AddAuthentication(DevAuthenticationHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>(DevAuthenticationHandler.SchemeName, null);
+            return services;
+        }
+
         Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -175,7 +188,7 @@ public static class DependencyInjection
         return services;
     }
 
-    public static IServiceCollection AddAppStorageAndJobs(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddAppStorageAndJobs(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
@@ -187,19 +200,35 @@ public static class DependencyInjection
             .UsePostgreSqlStorage(opt => opt.UseNpgsqlConnection(connectionString)));
         services.AddHangfireServer();
 
-        // MinIO / S3 Storage
-        services.Configure<MinioOptions>(configuration.GetSection("Minio"));
-        services.AddSingleton<IAmazonS3>(sp =>
+        var storageMode = configuration["Storage:Mode"] ?? "Minio";
+
+        if (string.Equals(storageMode, "Local", StringComparison.OrdinalIgnoreCase))
         {
-            var opts = sp.GetRequiredService<IOptions<MinioOptions>>().Value;
-            var config = new AmazonS3Config
+            // Local development only: persist files on disk and serve them via
+            // the backend static-file middleware (see Program.cs /uploads).
+            services.Configure<LocalStorageOptions>(options =>
             {
-                ServiceURL = opts.Endpoint,
-                ForcePathStyle = true,   // Required for MinIO
-            };
-            return new AmazonS3Client(opts.AccessKey, opts.SecretKey, config);
-        });
-        services.AddSingleton<IStorageService, MinioStorageService>();
+                options.RootPath = Path.Combine(environment.ContentRootPath, "storage");
+                options.PublicBaseUrl = configuration["App:PublicBaseUrl"] ?? "http://localhost:5000";
+            });
+            services.AddSingleton<IStorageService, LocalFileStorageService>();
+        }
+        else
+        {
+            // MinIO / S3 Storage
+            services.Configure<MinioOptions>(configuration.GetSection("Minio"));
+            services.AddSingleton<IAmazonS3>(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<MinioOptions>>().Value;
+                var config = new AmazonS3Config
+                {
+                    ServiceURL = opts.Endpoint,
+                    ForcePathStyle = true,   // Required for MinIO
+                };
+                return new AmazonS3Client(opts.AccessKey, opts.SecretKey, config);
+            });
+            services.AddSingleton<IStorageService, MinioStorageService>();
+        }
 
         return services;
     }

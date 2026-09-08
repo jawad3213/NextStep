@@ -101,6 +101,9 @@ export class DashboardComponent {
   private readonly offerHistoryData = signal<OfferHistoryItemDto[]>([]);
   private readonly offerMapSignal = signal<Map<string, OfferHistoryItemDto>>(new Map());
 
+  /** Sources du dashboard qui ont échoué au dernier chargement (message + réessayer). */
+  readonly failedSections = signal<string[]>([]);
+
   readonly recentApplications = signal<Application[]>([]);
   readonly activities = signal<Activity[]>([]);
   readonly interviews = signal<Interview[]>([]);
@@ -224,16 +227,21 @@ export class DashboardComponent {
   private loadDashboard(manualRefresh = false): void {
     this.loading.set(true);
     this.errorMessage.set(null);
+    this.failedSections.set([]);
     if (manualRefresh) this.refreshing.set(true);
     this.currentDateLabel.set(this.formatHeaderDate(new Date()));
 
+    const failures: string[] = [];
+    const markFailed = (section: string) => failures.push(section);
+
     forkJoin({
-      onboarding: this.onboardingService.getStatus().pipe(catchError(() => of({ onboardingCompleted: true, profileScore: 0 }))),
-      candidatures: this.candidatureService.getMyCandidatures().pipe(catchError(() => of([] as CandidatureDto[]))),
-      history: this.offerService.getMyOfferHistory().pipe(catchError(() => of([] as OfferHistoryItemDto[]))),
-      scrapedOffers: this.offerApi.getSourcedOffers({ limit: 6, postedWindow: '24h', location: 'Casablanca' }).pipe(catchError(() => of([] as SourcedOfferListItemDto[]))),
+      onboarding: this.onboardingService.getStatus().pipe(catchError(() => { markFailed('onboarding'); return of(null); })),
+      candidatures: this.candidatureService.getMyCandidatures().pipe(catchError(() => { markFailed('candidatures'); return of([] as CandidatureDto[]); })),
+      history: this.offerService.getMyOfferHistory().pipe(catchError(() => { markFailed('historique'); return of([] as OfferHistoryItemDto[]); })),
+      scrapedOffers: this.offerApi.getSourcedOffers({ limit: 6, postedWindow: '24h', location: 'Casablanca' }).pipe(catchError(() => { markFailed('offres'); return of([] as SourcedOfferListItemDto[]); })),
     }).subscribe({
-      next: ({ onboarding, candidatures, history, scrapedOffers }) => {
+      next: ({ candidatures, history, scrapedOffers }) => {
+        if (failures.length) this.failedSections.set(failures);
         this.candidaturesData.set(candidatures);
         this.offerHistoryData.set(history);
         this.sourcedOffers.set(scrapedOffers);
@@ -279,6 +287,7 @@ export class DashboardComponent {
       },
       error: () => {
         this.errorMessage.set('Impossible de charger le dashboard depuis le backend.');
+        if (failures.length) this.failedSections.set(failures);
         this.finishLoading();
       }
     });
@@ -301,7 +310,7 @@ export class DashboardComponent {
   }
 
   private toApplication(candidature: CandidatureDto, offerMap: Map<string, OfferHistoryItemDto>): Application {
-    const offer = offerMap.get(candidature.idOffre);
+    const offer = offerMap.get(candidature.idOffre ?? '');
     const meta = this.getStatusMeta(candidature);
     return {
       candidatureId: candidature.idCandidature,
@@ -324,7 +333,7 @@ export class DashboardComponent {
       .slice(0, 2)
       .map(c => {
         const baseDate = new Date(c.lastResponseAtUtc ?? c.dateCreation);
-        const offer = offerMap.get(c.idOffre);
+        const offer = offerMap.get(c.idOffre ?? '');
         return {
           candidatureId: c.idCandidature,
           dayLabel: new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(baseDate).replace('.', '').toUpperCase(),
@@ -352,7 +361,7 @@ export class DashboardComponent {
           const offerMap = this.offerMapSignal();
           const mapped = page.items.map((c) => {
             const baseDate = new Date(c.lastResponseAtUtc ?? c.dateCreation);
-            const offer = offerMap.get(c.idOffre);
+            const offer = offerMap.get(c.idOffre ?? '');
             return {
               candidatureId: c.idCandidature,
               dayLabel: new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(baseDate).replace('.', '').toUpperCase(),
@@ -377,6 +386,7 @@ export class DashboardComponent {
         error: () => {
           this.loadingMoreInterviews.set(false);
           this.hasMoreInterviews.set(false);
+          this.failedSections.update(f => f.includes('entretiens') ? f : [...f, 'entretiens']);
         }
       });
   }
@@ -388,7 +398,7 @@ export class DashboardComponent {
   ): Activity[] {
     const activityFromCandidatures: Activity[] = candidatures.slice(0, 3).map(c => {
       const meta = this.getStatusMeta(c);
-      const company = offerMap.get(c.idOffre)?.entreprise || 'Entreprise';
+      const company = offerMap.get(c.idOffre ?? '')?.entreprise || 'Entreprise';
       return {
         icon: meta.color === 'success' ? 'check_circle' : meta.color === 'warning' ? 'schedule' : 'send',
         iconBg: meta.color === 'success' ? 'bg-green-50' : meta.color === 'warning' ? 'bg-amber-50' : 'bg-brand-50',

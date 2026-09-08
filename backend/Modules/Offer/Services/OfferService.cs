@@ -249,8 +249,8 @@ public class OfferService(
         var generatedOfferIds = await (
             from c in db.Candidatures
             join d in db.DocumentsGeneres on c.IdCandidature equals d.IdCandidature
-            where offerIds.Contains(c.IdOffre)
-            select c.IdOffre
+            where c.IdOffre.HasValue && offerIds.Contains(c.IdOffre.Value)
+            select c.IdOffre!.Value
         ).Distinct().ToListAsync(ct);
         var generatedSet = generatedOfferIds.ToHashSet();
 
@@ -277,8 +277,11 @@ public class OfferService(
                     status = "analysee";
                     currentStep = 2;
                 }
-                catch
+                catch (JsonException parseEx)
                 {
+                    logger.LogWarning(parseEx,
+                        "OfferService — AnalyseJson corrompu pour l'offre {OfferId}, traitement dégradé.",
+                        offer.Id);
                     status = "analysee";
                     currentStep = 2;
                 }
@@ -325,7 +328,7 @@ public class OfferService(
             .ToList();
 
         var candidatureIds = await db.Candidatures
-            .Where(c => ownedOfferIds.Contains(c.IdOffre))
+            .Where(c => c.IdOffre.HasValue && ownedOfferIds.Contains(c.IdOffre.Value))
             .Select(c => c.IdCandidature)
             .ToListAsync(ct);
 

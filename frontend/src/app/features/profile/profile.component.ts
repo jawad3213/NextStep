@@ -11,6 +11,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { ProfileService } from './profile.service';
 import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
+import { ToastService } from '../../core/notifications/toast.service';
+import { extractApiError } from '../../core/utils/extract-api-error';
 
 type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 
@@ -53,6 +55,7 @@ import { ResumeComponent } from './components/resume/resume.component';
 export class UserProfileComponent implements OnInit, OnDestroy {
   private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   profileService = inject(ProfileService);
+  private readonly toast = inject(ToastService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   
@@ -95,7 +98,38 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   showInsufficientToast = signal(false);
   private lastSavedSnapshot: string = '';
 
-  
+  // Export JSON State
+  showExportModal = signal(false);
+  exportJsonString = signal('');
+  exportFilename = signal('');
+  isExportCopied = signal(false);
+  exportViewMode = signal<'code' | 'visual'>('code');
+
+  exportStats = computed(() => {
+    const p = this.profile();
+    return {
+      experiences: p.experience?.length || 0,
+      education: p.education?.length || 0,
+      skills: p.skills?.length || 0,
+      languages: p.languages?.length || 0,
+      projects: p.projets?.length || 0,
+      certifications: p.certifications?.length || 0,
+      hasResume: !!(p.resume && p.resume.length > 20),
+      totalItems: (p.experience?.length || 0) + (p.education?.length || 0) + (p.skills?.length || 0) + (p.languages?.length || 0) + (p.projets?.length || 0) + (p.certifications?.length || 0)
+    };
+  });
+
+  jsonSizeKb = computed(() => {
+    const str = this.exportJsonString();
+    if (!str) return '0.0';
+    const bytes = new Blob([str]).size;
+    return (bytes / 1024).toFixed(1);
+  });
+
+  jsonLines = computed(() => {
+    const s = this.exportJsonString();
+    return s ? s.split('\n') : [];
+  });
   // Section States
   isAddingFormation = signal(false);
   isAddingExperience = signal(false);
@@ -389,6 +423,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
     } catch (error) {
       console.error('Import failed', error);
+      this.toast.error(extractApiError(error).message, 6000);
       this.isParsing.set(false);
       this.isApplyingData.set(false);
     } finally {
@@ -407,6 +442,40 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
   closeLinkedInModal() {
     this.showLinkedInModal.set(false);
+  }
+
+  openExportModal() {
+    const result = this.profileService.exportProfileJson();
+    this.exportJsonString.set(result.jsonContent);
+    this.exportFilename.set(result.filename);
+    this.isExportCopied.set(false);
+    this.showExportModal.set(true);
+  }
+
+  closeExportModal() {
+    this.showExportModal.set(false);
+  }
+
+  downloadExportJson() {
+    this.profileService.downloadProfileJson();
+    this.toastMessage.set('Profile JSON downloaded');
+    this.showToast.set(true);
+    setTimeout(() => {
+      this.showToast.set(false);
+      this.toastMessage.set('Changes saved');
+    }, 3000);
+  }
+
+  async copyExportJson() {
+    try {
+      await navigator.clipboard.writeText(this.exportJsonString());
+      this.isExportCopied.set(true);
+      setTimeout(() => {
+        this.isExportCopied.set(false);
+      }, 2500);
+    } catch (err) {
+      console.error('Failed to copy JSON to clipboard', err);
+    }
   }
 
   async executeLinkedInImport() {

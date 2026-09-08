@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NextStep.data;
 using NextStep.Jobs;
 using NextStep.Modules.Cv.Services;
@@ -19,6 +20,7 @@ public static class DatabaseInitializer
         using (var scope = app.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseInitializer");
             // ─── CRITICAL SCHEMA FIX: runs in its own isolated block so it cannot be
             // skipped if any other startup SQL fails. Adds columns that EF Core
             // requires but that may be absent from databases created before the
@@ -29,16 +31,16 @@ public static class DatabaseInitializer
                     "ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS design_config_json JSONB NOT NULL DEFAULT '{{}}'::jsonb;");
                 await context.Database.ExecuteSqlRawAsync(
                     "ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS html_snapshot TEXT;");
-                Console.WriteLine("DEBUG: cv_history schema fix applied.");
+                logger.LogInformation("cv_history schema fix applied.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"DEBUG: cv_history schema fix skipped (table may not exist yet): {ex.Message}");
+                logger.LogWarning(ex, "cv_history schema fix skipped (table may not exist yet).");
             }
 
             try
             {
-                Console.WriteLine("DEBUG: STARTING FULL NUCLEAR REPAIR...");
+                logger.LogInformation("STARTING FULL NUCLEAR REPAIR...");
                 try
                 {
                     // 1. Force Create Tables
@@ -98,10 +100,10 @@ public static class DatabaseInitializer
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"DEBUG: core table bootstrap partially failed: {ex.Message}");
+                    logger.LogWarning(ex, "core table bootstrap partially failed.");
                 }
 
-                await EnsureOfferWorkflowSchemaAsync(context);
+                await EnsureOfferWorkflowSchemaAsync(context, logger);
 
                 // 2. Force Add Columns (Utilisateur)
 
@@ -329,6 +331,43 @@ public static class DatabaseInitializer
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_confidence DOUBLE PRECISION;");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS response_classified_at_utc TIMESTAMP;");
 
+                // 8d. Candidature — multi-channel tracking fields
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS channel VARCHAR(30) DEFAULT 'EMAIL';");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS channel_url TEXT;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS channel_contact VARCHAR(255);");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS application_date TIMESTAMP DEFAULT now();");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS applied_manually BOOLEAN DEFAULT FALSE;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS offer_source VARCHAR(30);");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS notes TEXT;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'AUTO';");
+
+                // 8e. Candidature — make id_offre nullable for spontaneous applications
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE public.candidature ALTER COLUMN id_offre DROP NOT NULL;");
+
+                // 8f. Candidature — notes and status history tables
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS public.candidature_note (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        id_candidature UUID NOT NULL REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                        contenu TEXT NOT NULL DEFAULT '',
+                        auteur VARCHAR(10) NOT NULL DEFAULT 'user',
+                        created_at TIMESTAMP NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_candidature_note_candidature ON public.candidature_note (id_candidature);
+                ");
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS public.candidature_status_history (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        id_candidature UUID NOT NULL REFERENCES public.candidature(id_candidature) ON DELETE CASCADE,
+                        ancien_statut VARCHAR(50),
+                        nouveau_statut VARCHAR(50) NOT NULL,
+                        source VARCHAR(20) NOT NULL DEFAULT 'user',
+                        details TEXT,
+                        created_at TIMESTAMP NOT NULL DEFAULT now()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_candidature_status_history_candidature ON public.candidature_status_history (id_candidature);
+                ");
+
                 // 9. user_email_connection — stores encrypted Gmail OAuth tokens
                 await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS public.user_email_connection (
@@ -447,10 +486,19 @@ public static class DatabaseInitializer
                 foreach (var c in histCols)
                     await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS {c};");
 
-                Console.WriteLine("DEBUG: NUCLEAR REPAIR COMPLETED.");
+                // 8c. Seed the local dev user (Auth:Mode = "Dev").
+                // Matches DevAuthenticationHandler so [Authorize] endpoints and
+                // JIT user provisioning resolve to an existing user.
+                await context.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO public.utilisateur (id_utilisateur, keycloak_id, email, nom, prenom, date_inscription, onboarding_completed, profile_score)
+                    SELECT '00000000-0000-0000-0000-0000000000de', 'dev-user', 'dev@nextstep.local', 'User', 'Dev', NOW(), TRUE, 70
+                    WHERE NOT EXISTS (SELECT 1 FROM public.utilisateur WHERE keycloak_id = 'dev-user');
+                ");
+
+                logger.LogInformation("NUCLEAR REPAIR COMPLETED.");
 
                 // 10. Offers, Candidatures, DocumentGenere and EmailDraft tables
-                Console.WriteLine("DEBUG: REPAIRING OFFERS, CANDIDATURES, DOCUMENTS AND EMAILS...");
+                logger.LogInformation("REPAIRING OFFERS, CANDIDATURES, DOCUMENTS AND EMAILS...");
                 await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS public.offres_emploi (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -496,13 +544,13 @@ public static class DatabaseInitializer
                         error_message TEXT
                     );
                 ");
-                Console.WriteLine("DEBUG: OFFERS, CANDIDATURES, DOCUMENTS AND EMAILS REPAIR COMPLETED.");
+                logger.LogInformation("OFFERS, CANDIDATURES, DOCUMENTS AND EMAILS REPAIR COMPLETED.");
 
                 // 11. Ensure MinIO Buckets Exist on Startup
-                Console.WriteLine("DEBUG: ENSURING MINIO BUCKETS EXIST...");
+                logger.LogInformation("ENSURING STORAGE BUCKETS EXIST...");
                 var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
                 await storageService.EnsureBucketExistsAsync();
-                Console.WriteLine("DEBUG: MINIO BUCKETS OK.");
+                logger.LogInformation("STORAGE BUCKETS OK.");
 
                 // 12. Generate template thumbnails only when explicitly enabled.
                 var generateThumbnailsOnStartup =
@@ -513,34 +561,37 @@ public static class DatabaseInitializer
 
                 if (generateThumbnailsOnStartup)
                 {
-                    Console.WriteLine("DEBUG: CHECKING TEMPLATE THUMBNAILS...");
+                    logger.LogInformation("CHECKING TEMPLATE THUMBNAILS...");
                     var thumbnailService = scope.ServiceProvider.GetRequiredService<ITemplateThumbnailService>();
                     var missing = thumbnailService.GetTemplateSlugs()
                         .Where(s => thumbnailService.GetThumbnailPng(s) is null)
                         .ToList();
                     if (missing.Count > 0)
                     {
-                        Console.WriteLine($"DEBUG: Generating thumbnails for: {string.Join(", ", missing)}");
+                        logger.LogInformation("Generating {Count} thumbnails.", missing.Count);
                         await thumbnailService.GenerateAllThumbnailsAsync();
-                        Console.WriteLine("DEBUG: THUMBNAILS GENERATED.");
+                        logger.LogInformation("THUMBNAILS GENERATED.");
                     }
                     else
                     {
-                        Console.WriteLine("DEBUG: All thumbnails exist. Skipping generation.");
+                        logger.LogInformation("All thumbnails exist. Skipping generation.");
                     }
                 }
                 else
                 {
-                    Console.WriteLine("DEBUG: THUMBNAIL GENERATION DISABLED ON STARTUP.");
+                    logger.LogInformation("THUMBNAIL GENERATION DISABLED ON STARTUP.");
                 }
             }
-            catch (Exception ex) { Console.WriteLine($"DEBUG: REPAIR FAILED: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "DatabaseInitializer — réparation du schéma/seed incomplète. L'application démarre en mode dégradé.");
+            }
         }
     }
 
-    private static async Task EnsureOfferWorkflowSchemaAsync(AppDbContext context)
+    private static async Task EnsureOfferWorkflowSchemaAsync(AppDbContext context, ILogger logger)
     {
-        Console.WriteLine("DEBUG: ENSURING OFFER WORKFLOW SCHEMA...");
+        logger.LogInformation("ENSURING OFFER WORKFLOW SCHEMA...");
 
         await context.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS public.offres_emploi (
@@ -725,6 +776,6 @@ public static class DatabaseInitializer
                 ON public.candidature (id_offre);
         ");
 
-        Console.WriteLine("DEBUG: OFFER WORKFLOW SCHEMA OK.");
+        logger.LogInformation("OFFER WORKFLOW SCHEMA OK.");
     }
 }

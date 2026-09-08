@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NextStep.data;
 using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
+using NextStep.Modules.Candidature.Models;
 
 namespace NextStep.Modules.Candidature.Repositories;
 
@@ -81,6 +82,66 @@ public class CandidatureRepository : ICandidatureRepository
             .FirstOrDefaultAsync(
                 x => x.IdUtilisateur == userId && x.IdOffre == offerId,
                 cancellationToken);
+    }
+
+    public async Task UpdateAsync(
+        CandidatureEntity candidature,
+        CancellationToken cancellationToken = default)
+    {
+        _db.Candidatures.Update(candidature);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteAsync(
+        CandidatureEntity candidature,
+        CancellationToken cancellationToken = default)
+    {
+        _db.Candidatures.Remove(candidature);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    // ── Notes ───────────────────────────────────────────────────────────────────
+
+    public async Task<List<CandidatureNote>> GetNotesAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.CandidatureNotes
+            .AsNoTracking()
+            .Where(n => n.CandidatureId == candidatureId)
+            .OrderByDescending(n => n.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<CandidatureNote> AddNoteAsync(
+        CandidatureNote note,
+        CancellationToken cancellationToken = default)
+    {
+        _db.CandidatureNotes.Add(note);
+        await _db.SaveChangesAsync(cancellationToken);
+        return note;
+    }
+
+    // ── Status History ──────────────────────────────────────────────────────────
+
+    public async Task<List<CandidatureStatusHistory>> GetHistoryAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.CandidatureStatusHistories
+            .AsNoTracking()
+            .Where(h => h.CandidatureId == candidatureId)
+            .OrderByDescending(h => h.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<CandidatureStatusHistory> AddHistoryAsync(
+        CandidatureStatusHistory history,
+        CancellationToken cancellationToken = default)
+    {
+        _db.CandidatureStatusHistories.Add(history);
+        await _db.SaveChangesAsync(cancellationToken);
+        return history;
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)

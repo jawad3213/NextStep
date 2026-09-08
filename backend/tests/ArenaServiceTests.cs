@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NextStep.data;
 using NextStep.Modules.Chatbot.DTOs;
@@ -30,7 +31,7 @@ public class ArenaServiceTests : IDisposable
 
         _db = new AppDbContext(options);
         _mockAgentClient = new Mock<IAgentHttpClient>();
-        _service = new ArenaService(_mockAgentClient.Object, _db);
+        _service = new ArenaService(_mockAgentClient.Object, _db, NullLogger<ArenaService>.Instance);
     }
 
     public void Dispose()

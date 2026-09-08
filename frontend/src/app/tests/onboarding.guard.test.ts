@@ -2,6 +2,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree } from '@angular/router';
 import { of } from 'rxjs';
+import { AUTH_CONFIG } from '../core/auth/auth-config.token';
 import { onboardingGuard, alreadyOnboardedGuard } from '../core/guards/onboarding.guard';
 import { OnboardingService } from '../services/onboarding.service';
 
@@ -24,6 +25,8 @@ describe('OnboardingGuards', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        // Force auth on so the actual onboarding logic is exercised.
+        { provide: AUTH_CONFIG, useValue: { authEnabled: true } },
         { provide: OnboardingService, useValue: mockOnboardingService },
         { provide: Router, useValue: mockRouter }
       ]

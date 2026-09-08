@@ -24,4 +24,31 @@ public interface ICandidatureService
         int limit,
         bool interviewOnly = false,
         CancellationToken cancellationToken = default);
+
+    Task<CandidatureDto?> UpdateStatutAsync(
+        Guid candidatureId,
+        UpdateStatutDto dto,
+        CancellationToken cancellationToken = default);
+
+    Task<CandidatureDto?> UpdateAsync(
+        Guid candidatureId,
+        UpdateCandidatureDto dto,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default);
+
+    Task<List<CandidatureNoteDto>> GetNotesAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default);
+
+    Task<CandidatureNoteDto> AddNoteAsync(
+        Guid candidatureId,
+        AddNoteDto dto,
+        CancellationToken cancellationToken = default);
+
+    Task<List<CandidatureStatusHistoryDto>> GetHistoryAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default);
 }

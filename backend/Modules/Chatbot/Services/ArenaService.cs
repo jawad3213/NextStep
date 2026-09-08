@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NextStep.Modules.Chatbot.DTOs;
 using NextStep.Modules.Chatbot.Interfaces;
 using NextStep.Modules.Chatbot.Models;
@@ -19,12 +20,14 @@ namespace NextStep.Modules.Chatbot.Services;
 public class ArenaService : IArenaService
 {
     private readonly IAgentHttpClient _agentClient;
-    private readonly AppDbContext _db; // ton DbContext partagé NextStep
+    private readonly AppDbContext _db;
+    private readonly ILogger<ArenaService> _logger;
 
-    public ArenaService(IAgentHttpClient agentClient, AppDbContext db)
+    public ArenaService(IAgentHttpClient agentClient, AppDbContext db, ILogger<ArenaService> logger)
     {
         _agentClient = agentClient;
         _db = db;
+        _logger = logger;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -126,9 +129,11 @@ public class ArenaService : IArenaService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Auto-create candidature failed silently — session creation continues
+                // Best-effort : l'auto-création de la candidature ne doit pas
+                // bloquer la session, mais l'échec doit rester traçable.
+                _logger.LogWarning(ex, "ArenaService — auto-création de candidature ignorée pour la session.");
             }
         }
 
@@ -238,16 +243,16 @@ public class ArenaService : IArenaService
                     {
                         try
                         {
-                            var row = await QueryOffreAnalyseeAsync(cand.IdOffre);
+                            var row = await QueryOffreAnalyseeAsync(cand.IdOffre!.Value);
                             if (row != null)
                             {
                                 jobTitle = row.TitrePoste;
                                 company = row.Entreprise;
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // Ignore
+                            _logger.LogDebug(ex, "ArenaService — enrichissement offre ignoré pour {CandidatureId}.", cand.IdCandidature);
                         }
                     }
                 }
@@ -313,16 +318,16 @@ public class ArenaService : IArenaService
                 {
                     try
                     {
-                        var row = await QueryOffreAnalyseeAsync(cand.IdOffre);
+                        var row = await QueryOffreAnalyseeAsync(cand.IdOffre!.Value);
                         if (row != null)
                         {
                             jobTitle = row.TitrePoste;
                             company = row.Entreprise;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Offer detail lookup failed silently
+                        _logger.LogDebug(ex, "ArenaService — détail offre ignoré pour le détail de session.");
                     }
                 }
             }
@@ -383,8 +388,8 @@ public class ArenaService : IArenaService
 
         // Get all candidatures for this user, with their associated analyzed offer
         var candidatureIds = await _db.Candidatures
-            .Where(c => c.IdUtilisateur == internalUser.Id)
-            .Select(c => c.IdOffre)
+            .Where(c => c.IdUtilisateur == internalUser.Id && c.IdOffre.HasValue)
+            .Select(c => c.IdOffre!.Value)
             .ToListAsync();
 
         if (candidatureIds.Count == 0) return [];
@@ -404,7 +409,10 @@ public class ArenaService : IArenaService
                 if (!string.IsNullOrEmpty(r.CompetencesRequises))
                     skills = System.Text.Json.JsonSerializer.Deserialize<List<string>>(r.CompetencesRequises) ?? [];
             }
-            catch { /* ignore parse errors */ }
+            catch (JsonException parseEx)
+            {
+                _logger.LogWarning(parseEx, "ArenaService — compétences illisibles pour l'offre {OfferId}.", offreId);
+            }
 
             // Get matching score from resultat_matching
             int? matchScore = await QueryMatchScoreAsync(offreId, internalUser.Id);
@@ -443,9 +451,9 @@ public class ArenaService : IArenaService
                 return val != null && val != DBNull.Value;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Offer existence check failed — assume not exists
+            _logger.LogDebug(ex, "ArenaService — vérification d'existence de l'offre {OfferId} échouée.", offerId);
         }
         finally
         {
@@ -494,9 +502,9 @@ public class ArenaService : IArenaService
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Query failed silently — returns null
+            _logger.LogDebug(ex, "ArenaService — requête offre analysée échouée pour {OfferId}.", idOffre);
         }
         finally
         {
@@ -537,9 +545,9 @@ public class ArenaService : IArenaService
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Match score lookup failed silently — returns null
+            _logger.LogDebug(ex, "ArenaService — récupération du score matching échouée pour {OfferId}.", idOffre);
         }
         finally
         {

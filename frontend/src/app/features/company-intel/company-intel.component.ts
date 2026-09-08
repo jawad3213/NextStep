@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
 import { PipelineStateService } from '../../services/pipeline-state.service';
+import { extractApiError } from '../../core/utils/extract-api-error';
 
 interface SalaryInfo {
   jobTitle: string;
@@ -53,6 +54,7 @@ export class CompanyIntelComponent implements OnInit {
   jobTitle = signal('');
   loading = signal(false);
   result = signal<CompanyIntel | null>(null);
+  apiError = signal<string | null>(null);
 
   getSeniorityLabel(s: SalaryInfo): string {
     if (s.seniority) return s.seniority;
@@ -131,8 +133,9 @@ export class CompanyIntelComponent implements OnInit {
   async analyzeCompany() {
     if (!this.companyName()) return;
     this.loading.set(true);
+    this.apiError.set(null);
     try {
-      const res = await firstValueFrom(this.http.post<any>(`${environment.agentsBaseUrl}/company/analyze-company`, {
+      const res = await firstValueFrom(this.http.post<any>(`${environment.apiBaseUrl}/agents/company/analyze`, {
         company_name: this.companyName(),
         user_id: 0,
         profile_data: {},
@@ -148,7 +151,9 @@ export class CompanyIntelComponent implements OnInit {
       this.result.set(mapped);
       localStorage.setItem('nextstep.company.interview_questions', JSON.stringify(mapped.interviewQuestions ?? []));
       localStorage.setItem('nextstep.company.interview_difficulty', mapped.interviewDifficulty);
-    } catch { } finally {
+    } catch (e) {
+      this.apiError.set(extractApiError(e).message);
+    } finally {
       this.loading.set(false);
     }
   }

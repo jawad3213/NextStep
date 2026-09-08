@@ -73,4 +73,8 @@ export class ProfileService {
   deleteEducation(id: string): Observable<any> {
     return this.http.delete(`${this.baseUrl}/formations/${id}`);
   }
+
+  exportProfileJson(): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/export`, { responseType: 'blob' });
+  }
 }

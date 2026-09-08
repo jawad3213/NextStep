@@ -31,23 +31,8 @@ public class EmailController : ControllerBase
         [FromBody] GenerateEmailDraftDto dto,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _emailService.GenerateDraftAsync(dto, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, ex.Message);
-        }
+        var result = await _emailService.GenerateDraftAsync(dto, cancellationToken);
+        return Ok(result);
     }
 
     [HttpPost("send")]
@@ -67,17 +52,9 @@ public class EmailController : ControllerBase
         Guid candidatureId,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _emailService.GetDraftsByCandidatureAsync(
-                candidatureId, cancellationToken);
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        var result = await _emailService.GetDraftsByCandidatureAsync(
+            candidatureId, cancellationToken);
+        return Ok(result);
     }
 
     // ── Existing: Get draft by ID ───────────────────────────────────────
@@ -88,25 +65,10 @@ public class EmailController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return Unauthorized("User not found in local database.");
+            return Unauthorized(new { error = "User not found in local database." });
 
-        try
-        {
-            var result = await _emailService.GetDraftByIdAsync(draftId, localUserId.Value, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(403, ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, ex.Message);
-        }
+        var result = await _emailService.GetDraftByIdAsync(draftId, localUserId.Value, cancellationToken);
+        return Ok(result);
     }
 
     // ── POST /api/emails/generate-follow-up ──────────────────────────────────────
@@ -117,29 +79,10 @@ public class EmailController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return Unauthorized("User not found in local database.");
+            return Unauthorized(new { error = "User not found in local database." });
 
-        try
-        {
-            var result = await _emailService.GenerateFollowUpDraftAsync(dto, localUserId.Value, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(403, ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, ex.Message);
-        }
+        var result = await _emailService.GenerateFollowUpDraftAsync(dto, localUserId.Value, cancellationToken);
+        return Ok(result);
     }
 
     // ── POST /api/emails/generate-reply ──────────────────────────────────────────
@@ -151,29 +94,10 @@ public class EmailController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return Unauthorized("User not found in local database.");
+            return Unauthorized(new { error = "User not found in local database." });
 
-        try
-        {
-            var result = await _emailService.GenerateReplyDraftAsync(dto, localUserId.Value, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(403, ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, ex.Message);
-        }
+        var result = await _emailService.GenerateReplyDraftAsync(dto, localUserId.Value, cancellationToken);
+        return Ok(result);
     }
 
     // ── PUT /api/emails/drafts/{draftId} — Update draft ──────────────────────────
@@ -186,26 +110,11 @@ public class EmailController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return StatusCode(403, new { error = "User not found in local database." });
 
-        try
-        {
-            var result = await _emailService.UpdateDraftAsync(
-                draftId, localUserId.Value, dto, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(403, ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        var result = await _emailService.UpdateDraftAsync(
+            draftId, localUserId.Value, dto, cancellationToken);
+        return Ok(result);
     }
 
     // ── POST /api/emails/drafts/{draftId}/approve — Approve draft ────────────────
@@ -217,26 +126,11 @@ public class EmailController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return StatusCode(403, new { error = "User not found in local database." });
 
-        try
-        {
-            var result = await _emailService.ApproveDraftAsync(
-                draftId, localUserId.Value, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(403, ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        var result = await _emailService.ApproveDraftAsync(
+            draftId, localUserId.Value, cancellationToken);
+        return Ok(result);
     }
 
     // ── POST /api/emails/drafts/{draftId}/send — Send approved draft ──────────────
@@ -248,29 +142,14 @@ public class EmailController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return StatusCode(403, new { error = "User not found in local database." });
 
-        try
-        {
-            var result = await _emailService.SendDraftAsync(
-                draftId, localUserId.Value, cancellationToken);
+        var result = await _emailService.SendDraftAsync(
+            draftId, localUserId.Value, cancellationToken);
 
-            // Return 200 regardless of success/failure — the result contains the status.
-            // The caller must check result.Success.
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(403, ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        // Return 200 regardless of success/failure — the result contains the status.
+        // The caller must check result.Success.
+        return Ok(result);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────

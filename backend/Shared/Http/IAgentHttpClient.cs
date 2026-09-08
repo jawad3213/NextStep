@@ -16,4 +16,6 @@ public interface IAgentHttpClient
     Task<JsonDocument> MatchProfileAsync(string userId, JsonElement analyzedOffer, CancellationToken ct = default);
     Task<bool> IsHealthyAsync(CancellationToken ct = default);
     Task<TResponse> PostAsync<TRequest, TResponse>(string url, TRequest data, CancellationToken ct = default);
+    Task<JsonDocument> PostRawAsync<TRequest>(string url, TRequest data, CancellationToken ct = default);
+    Task<string> PostFileAsync(string url, byte[] fileBytes, string fileName, string contentType = "application/pdf", CancellationToken ct = default);
 }

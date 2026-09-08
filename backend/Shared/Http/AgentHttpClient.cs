@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Net.Http.Json;
@@ -9,6 +10,10 @@ public class AgentHttpClient : IAgentHttpClient
 {
     private readonly HttpClient _client;
     private readonly ILogger<AgentHttpClient> _logger;
+
+    // Bounded, lightweight retry (no extra NuGet dependency). Only retries
+    // transient failures: timeouts, connection resets, 5xx from the agent.
+    private const int MaxAttempts = 3;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -23,7 +28,9 @@ public class AgentHttpClient : IAgentHttpClient
     {
         _client = client;
         _client.BaseAddress = new Uri(options.Value.Url);
-        _client.Timeout = TimeSpan.FromSeconds(600); // pipeline IA (6 agents + LLM + scraping) peut dépasser 2 min
+        // Pipeline IA (6 agents + LLM + scraping) peut dépasser 2 min, mais on
+        // borne à 120 s afin de ne pas occuper un thread indéfiniment.
+        _client.Timeout = TimeSpan.FromSeconds(120);
         _logger = logger;
     }
 
@@ -63,24 +70,13 @@ public class AgentHttpClient : IAgentHttpClient
             }
         }
 
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
         _logger.LogInformation("AgentHttpClient — POST /run-pipeline (onlyAnalysis={OnlyAnalysis}) for user_id={UserId}", onlyAnalysis, userId);
 
-        var response = await _client.PostAsync("/offer/run-pipeline", content, ct);
+        using var response = await SendWithRetryAsync(
+            () => _client.PostAsync("/offer/run-pipeline", JsonPayload(payload), ct),
+            "run-pipeline", ct);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogError("AgentHttpClient — Erreur pipeline : {Status} — {Error}",
-                response.StatusCode, error);
-            throw new HttpRequestException(
-                $"Erreur pipeline IA : {response.StatusCode} — {error}");
-        }
-
-        var responseJson = await response.Content.ReadAsStringAsync(ct);
-        return JsonDocument.Parse(responseJson);
+        return await ReadJsonAsync(response, ct);
     }
 
     /// <summary>
@@ -99,14 +95,11 @@ public class AgentHttpClient : IAgentHttpClient
             offer_id = Guid.NewGuid().ToString(),
         };
 
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await SendWithRetryAsync(
+            () => _client.PostAsync("/offer/analyze-offer", JsonPayload(payload), ct),
+            "analyze-offer", ct);
 
-        var response = await _client.PostAsync("/offer/analyze-offer", content, ct);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(ct);
-        return JsonDocument.Parse(responseJson);
+        return await ReadJsonAsync(response, ct);
     }
 
     /// <summary>
@@ -123,14 +116,11 @@ public class AgentHttpClient : IAgentHttpClient
             ["analyzed_offer"] = JsonSerializer.Deserialize<object>(analyzedOffer.GetRawText(), JsonOptions)!
         };
 
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await SendWithRetryAsync(
+            () => _client.PostAsync("/offer/match", JsonPayload(payload), ct),
+            "match", ct);
 
-        var response = await _client.PostAsync("/offer/match", content, ct);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(ct);
-        return JsonDocument.Parse(responseJson);
+        return await ReadJsonAsync(response, ct);
     }
 
     /// <summary>Health check des agents Python.</summary>
@@ -152,9 +142,133 @@ public class AgentHttpClient : IAgentHttpClient
     /// </summary>
     public async Task<TResponse> PostAsync<TRequest, TResponse>(string url, TRequest data, CancellationToken ct = default)
     {
-        var response = await _client.PostAsJsonAsync(url, data, JsonOptions, ct);
-        response.EnsureSuccessStatusCode();
+        using var response = await SendWithRetryAsync(
+            () => _client.PostAsJsonAsync(url, data, JsonOptions, ct),
+            url, ct);
+
+        if (!response.IsSuccessStatusCode)
+            ThrowUpstreamError(url, response, ct);
+
         return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken: ct)
                ?? throw new InvalidOperationException($"Failed to parse response from {url}.");
+    }
+
+    /// <summary>
+    /// Generic POST that returns the raw JSON body as a <see cref="JsonDocument"/>,
+    /// used for endpoints whose schema is owned by the Python service (e.g. resume).
+    /// </summary>
+    public async Task<JsonDocument> PostRawAsync<TRequest>(string url, TRequest data, CancellationToken ct = default)
+    {
+        using var response = await SendWithRetryAsync(
+            () => _client.PostAsJsonAsync(url, data, JsonOptions, ct),
+            url, ct);
+
+        if (!response.IsSuccessStatusCode)
+            ThrowUpstreamError(url, response, ct);
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        return JsonDocument.Parse(body);
+    }
+
+    /// <summary>
+    /// Multipart upload toward an agent endpoint (e.g. PDF resume parsing).
+    /// </summary>
+    public async Task<string> PostFileAsync(
+        string url,
+        byte[] fileBytes,
+        string fileName,
+        string contentType = "application/pdf",
+        CancellationToken ct = default)
+    {
+        using var form = new MultipartFormDataContent();
+        using var fileContent = new ByteArrayContent(fileBytes);
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        form.Add(fileContent, "file", fileName);
+
+        using var response = await SendWithRetryAsync(
+            () => _client.PostAsync(url, form, ct),
+            url, ct);
+
+        if (!response.IsSuccessStatusCode)
+            ThrowUpstreamError(url, response, ct);
+
+        return await response.Content.ReadAsStringAsync(ct);
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    private static HttpContent JsonPayload(object payload) =>
+        new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json");
+
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
+        Func<Task<HttpResponseMessage>> request,
+        string operation,
+        CancellationToken ct)
+    {
+        HttpRequestException? lastException = null;
+        HttpResponseMessage? transientResponse = null;
+
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                var response = await request();
+
+                // Retry only on 5xx from the agent (transient upstream failure).
+                if ((int)response.StatusCode < 500 || attempt == MaxAttempts)
+                    return response;
+
+                transientResponse = response;
+                lastException = new HttpRequestException(
+                    $"Agent responded {response.StatusCode} on {operation} (attempt {attempt}).");
+            }
+            catch (HttpRequestException ex)
+            {
+                lastException = ex;
+            }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            {
+                lastException = new HttpRequestException($"Agent call {operation} timed out (attempt {attempt}).");
+            }
+
+            _logger.LogWarning("Agent call {Operation} failed (attempt {Attempt}/{Max}), retrying…",
+                operation, attempt, MaxAttempts);
+
+            transientResponse?.Dispose();
+            await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt), ct);
+        }
+
+        throw lastException
+            ?? new HttpRequestException($"Agent call {operation} failed after {MaxAttempts} attempts.");
+    }
+
+    private async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (!response.IsSuccessStatusCode)
+            ThrowUpstreamError(response.RequestMessage?.RequestUri?.PathAndQuery ?? "agent", response, ct);
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        return JsonDocument.Parse(body);
+    }
+
+    private void ThrowUpstreamError(string url, HttpResponseMessage response, CancellationToken ct)
+    {
+        var errorBody = string.Empty;
+        try
+        {
+            errorBody = response.Content.ReadAsStringAsync(ct).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // best-effort: read the raw body only, never throw here
+        }
+
+        _logger.LogError("AgentHttpClient — upstream error {Status} on {Url}: {Body}",
+            response.StatusCode, url, errorBody);
+
+        throw new HttpRequestException(
+            $"Agent '{url}' returned {response.StatusCode}: {errorBody}");
     }
 }

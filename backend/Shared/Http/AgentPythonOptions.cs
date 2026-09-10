@@ -2,5 +2,5 @@ namespace NextStep.Shared.Http;
 
 public class AgentPythonOptions
 {
-    public string Url { get; set; } = "http://agents-python:8000";
+    public string Url { get; set; } = "http://localhost:8000";
 }

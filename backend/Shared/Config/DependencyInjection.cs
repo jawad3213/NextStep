@@ -142,7 +142,13 @@ public static class DependencyInjection
     public static IServiceCollection AddAppBusinessServices(this IServiceCollection services, IConfiguration configuration)
     {
         // Python Agents settings
-        services.Configure<AgentPythonOptions>(configuration.GetSection("PythonAgents"));
+        services.Configure<AgentPythonOptions>(options =>
+        {
+            var url = configuration["PythonAgents:Url"]
+                   ?? configuration["AgentsService:BaseUrl"]
+                   ?? "http://localhost:8000";
+            options.Url = url;
+        });
         services.Configure<SmtpEmailOptions>(configuration.GetSection("Email:Smtp"));
         services.AddHttpClient("SharedAgentClient").AddTypedClient<IAgentHttpClient, AgentHttpClient>();
         

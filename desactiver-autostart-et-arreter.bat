@@ -6,11 +6,13 @@ echo ========================================================
 echo.
 
 :: 1. Supprimer le raccourci du dossier de demarrage automatique de Windows
+if exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\NextStep-Autostart.cmd" (
+    del /f /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\NextStep-Autostart.cmd"
+    echo [OK] Script de demarrage automatique supprime de Windows.
+)
 if exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\NextStep.lnk" (
     del /f /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\NextStep.lnk"
-    echo [OK] Demarrage automatique supprime de Windows.
-) else (
-    echo [INFO] Le demarrage automatique n'etait pas actif.
+    echo [OK] Raccourci de demarrage automatique supprime de Windows.
 )
 
 :: 2. Arreter les tunnels (Ngrok / Cloudflare / Localtunnel)

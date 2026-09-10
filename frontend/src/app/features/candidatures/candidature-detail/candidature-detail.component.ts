@@ -144,6 +144,78 @@ export class CandidatureDetailComponent implements OnInit {
     return this.offer()?.titre || c.notes?.split('\n')[1] || 'Poste non precise';
   }
 
+  getType(): string {
+    const c = this.candidature();
+    if (!c) return 'Stage PFE';
+    return this.resolveContractType(this.offer()?.typeContrat, this.getPoste(), c.notes);
+  }
+
+  resolveContractType(rawType?: string | null, role?: string | null, notes?: string | null): string {
+    const typeStr = (rawType || '').trim();
+    if (typeStr && typeStr !== 'CDI' && typeStr !== 'Non spécifié') {
+      if (/pfe/i.test(typeStr)) return 'Stage PFE';
+      if (/pfa/i.test(typeStr)) return 'Stage PFA';
+      if (/stage|intern/i.test(typeStr)) return 'Stage';
+      if (/alternan/i.test(typeStr)) return 'Alternance';
+      if (/freelance/i.test(typeStr)) return 'Freelance';
+      if (/cdd/i.test(typeStr)) return 'CDD';
+      return typeStr;
+    }
+
+    if (notes) {
+      const lines = notes.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length >= 3) {
+        const candidate = lines[2];
+        if (/pfe/i.test(candidate)) return 'Stage PFE';
+        if (/pfa/i.test(candidate)) return 'Stage PFA';
+        if (/stage|intern/i.test(candidate)) return 'Stage';
+        if (/alternan/i.test(candidate)) return 'Alternance';
+        if (/freelance/i.test(candidate)) return 'Freelance';
+        if (/cdd/i.test(candidate)) return 'CDD';
+        if (/cdi/i.test(candidate)) return 'CDI';
+        if (candidate.length > 2 && candidate.length < 30) return candidate;
+      }
+    }
+
+    const combined = `${role || ''} ${notes || ''}`.toLowerCase();
+    if (combined.includes('pfe') || combined.includes("fin d'études") || combined.includes('fin d’études')) {
+      return 'Stage PFE';
+    }
+    if (combined.includes('pfa')) {
+      return 'Stage PFA';
+    }
+    if (combined.includes('intern') || combined.includes('stagiaire') || combined.includes('stage')) {
+      return 'Stage';
+    }
+    if (combined.includes('alternan') || combined.includes('apprenti') || combined.includes('contrat pro')) {
+      return 'Alternance';
+    }
+    if (combined.includes('freelance') || combined.includes('independant') || combined.includes('consultant')) {
+      return 'Freelance';
+    }
+    if (combined.includes('cdd')) {
+      return 'CDD';
+    }
+    if (combined.includes('cdi')) {
+      return 'CDI';
+    }
+
+    return rawType && rawType !== 'CDI' ? rawType : 'Stage PFE';
+  }
+
+  getTypeBadgeClass(type: string): string {
+    const map: Record<string, string> = {
+      'Stage PFE': 'bg-orange-50 text-orange-700 border-orange-200',
+      'Stage PFA': 'bg-amber-50 text-amber-700 border-amber-200',
+      Stage: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      Alternance: 'bg-sky-50 text-sky-700 border-sky-200',
+      CDI: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      CDD: 'bg-purple-50 text-purple-700 border-purple-200',
+      Freelance: 'bg-teal-50 text-teal-700 border-teal-200',
+    };
+    return map[type] || 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
   getStatutLabel(statut: string): string {
     const opt = this.statutOptions.find((o) => o.value === statut);
     return opt?.label || statut;

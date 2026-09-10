@@ -96,7 +96,7 @@ export class ApplicationsComponent implements OnInit {
   newForm = signal({
     entreprise: '',
     poste: '',
-    type: 'CDI',
+    type: 'Stage PFE',
     idOffre: '',
     channel: 'EMAIL',
     channelUrl: '',
@@ -321,26 +321,32 @@ export class ApplicationsComponent implements OnInit {
 
         forkJoin(requests).subscribe({
           next: (offers) => {
-            const mappedCards: CandidatureCard[] = candidatures.map((c, i) => ({
-              id: c.idCandidature,
-              idOffre: c.idOffre,
-              entreprise: offers[i]?.entreprise || c.notes?.split('\n')[0] || 'Candidature spontanée',
-              role: offers[i]?.titre || c.notes?.split('\n')[1] || 'Poste non précisé',
-              type: 'CDI',
-              statut: this.mapStatusToKanban(c.statut),
-              channel: c.channel,
-              applicationDate: c.applicationDate,
-              dateCreation: c.dateCreation,
-              hasResponse: c.hasResponse,
-              responseStatus: c.responseStatus,
-              lastResponseSnippet: c.lastResponseSnippet,
-              responseSummary: c.responseSummary,
-              recommendedAction: c.recommendedAction,
-              lastResponseAtUtc: c.lastResponseAtUtc,
-              followUpNeeded: c.followUpNeeded,
-              lastFollowUpAtUtc: c.lastFollowUpAtUtc,
-              notes: c.notes,
-            }));
+            const mappedCards: CandidatureCard[] = candidatures.map((c, i) => {
+              const entreprise = offers[i]?.entreprise || c.notes?.split('\n')[0]?.trim() || 'Candidature spontanée';
+              const role = offers[i]?.titre || c.notes?.split('\n')[1]?.trim() || 'Poste non précisé';
+              const resolvedType = this.resolveContractType(offers[i]?.typeContrat, role, c.notes);
+
+              return {
+                id: c.idCandidature,
+                idOffre: c.idOffre,
+                entreprise,
+                role,
+                type: resolvedType,
+                statut: this.mapStatusToKanban(c.statut),
+                channel: c.channel,
+                applicationDate: c.applicationDate,
+                dateCreation: c.dateCreation,
+                hasResponse: c.hasResponse,
+                responseStatus: c.responseStatus,
+                lastResponseSnippet: c.lastResponseSnippet,
+                responseSummary: c.responseSummary,
+                recommendedAction: c.recommendedAction,
+                lastResponseAtUtc: c.lastResponseAtUtc,
+                followUpNeeded: c.followUpNeeded,
+                lastFollowUpAtUtc: c.lastFollowUpAtUtc,
+                notes: c.notes,
+              };
+            });
 
             this.cards.update((existing) => (reset ? mappedCards : [...existing, ...mappedCards]));
             this.offset += mappedCards.length;
@@ -508,12 +514,13 @@ export class ApplicationsComponent implements OnInit {
 
     this.candidatureService.create(payload).subscribe({
       next: (created) => {
+        const resolvedType = this.resolveContractType(f.type, f.poste, f.notes);
         const newCard: CandidatureCard = {
           id: created.idCandidature,
           idOffre: created.idOffre,
           entreprise: f.entreprise,
           role: f.poste,
-          type: f.type,
+          type: resolvedType,
           statut: this.mapStatusToKanban(created.statut),
           channel: created.channel,
           applicationDate: created.applicationDate,
@@ -567,7 +574,7 @@ export class ApplicationsComponent implements OnInit {
     this.newForm.set({
       entreprise: '',
       poste: '',
-      type: 'CDI',
+      type: 'Stage PFE',
       idOffre: '',
       channel: 'EMAIL',
       channelUrl: '',
@@ -609,15 +616,110 @@ export class ApplicationsComponent implements OnInit {
     URL.revokeObjectURL(url);
   }
 
+  resolveContractType(rawType?: string | null, role?: string | null, notes?: string | null): string {
+    const typeStr = (rawType || '').trim();
+    if (typeStr && typeStr !== 'CDI' && typeStr !== 'Non spécifié') {
+      if (/pfe/i.test(typeStr)) return 'Stage PFE';
+      if (/pfa/i.test(typeStr)) return 'Stage PFA';
+      if (/stage|intern/i.test(typeStr)) return 'Stage';
+      if (/alternan/i.test(typeStr)) return 'Alternance';
+      if (/freelance/i.test(typeStr)) return 'Freelance';
+      if (/cdd/i.test(typeStr)) return 'CDD';
+      return typeStr;
+    }
+
+    if (notes) {
+      const lines = notes.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length >= 3) {
+        const candidate = lines[2];
+        if (/pfe/i.test(candidate)) return 'Stage PFE';
+        if (/pfa/i.test(candidate)) return 'Stage PFA';
+        if (/stage|intern/i.test(candidate)) return 'Stage';
+        if (/alternan/i.test(candidate)) return 'Alternance';
+        if (/freelance/i.test(candidate)) return 'Freelance';
+        if (/cdd/i.test(candidate)) return 'CDD';
+        if (/cdi/i.test(candidate)) return 'CDI';
+        if (candidate.length > 2 && candidate.length < 30) return candidate;
+      }
+    }
+
+    const combined = `${role || ''} ${notes || ''}`.toLowerCase();
+    if (combined.includes('pfe') || combined.includes("fin d'études") || combined.includes('fin d’études')) {
+      return 'Stage PFE';
+    }
+    if (combined.includes('pfa')) {
+      return 'Stage PFA';
+    }
+    if (combined.includes('intern') || combined.includes('stagiaire') || combined.includes('stage')) {
+      return 'Stage';
+    }
+    if (combined.includes('alternan') || combined.includes('apprenti') || combined.includes('contrat pro')) {
+      return 'Alternance';
+    }
+    if (combined.includes('freelance') || combined.includes('independant') || combined.includes('consultant')) {
+      return 'Freelance';
+    }
+    if (combined.includes('cdd')) {
+      return 'CDD';
+    }
+    if (combined.includes('cdi')) {
+      return 'CDI';
+    }
+
+    return rawType && rawType !== 'CDI' ? rawType : 'Stage PFE';
+  }
+
+  getDaysSince(dateStr?: string | null): number {
+    if (!dateStr) return 0;
+    const then = new Date(dateStr).getTime();
+    if (isNaN(then)) return 0;
+    const now = new Date().getTime();
+    const diffDays = Math.floor((now - then) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : 0;
+  }
+
+  formatRelativeDate(dateStr?: string | null): string {
+    if (!dateStr) return '';
+    const days = this.getDaysSince(dateStr);
+    if (days === 0) return "Aujourd'hui";
+    if (days === 1) return 'Hier';
+    return `J+${days}`;
+  }
+
+  formatDateShort(dateStr?: string | null): string {
+    if (!dateStr) return 'Date non précisée';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Date invalide';
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  isFollowUpSuggested(card: CandidatureCard): boolean {
+    if (card.statut !== 'en-attente' && card.statut !== 'envoye') return false;
+    if (card.hasResponse) return false;
+    return this.getDaysSince(card.applicationDate) >= 5;
+  }
+
+  getChannelLabel(channel: string): string {
+    switch (channel) {
+      case 'EMAIL': return 'Email';
+      case 'LINKEDIN': return 'LinkedIn';
+      case 'INDEED': return 'Indeed';
+      case 'WHATSAPP': return 'WhatsApp';
+      case 'WEBSITE': return 'Site web';
+      case 'PHONE': return 'Téléphone';
+      default: return channel || 'Direct';
+    }
+  }
+
   getChannelIcon(channel: string): string {
     switch (channel) {
-      case 'EMAIL': return 'M';
+      case 'EMAIL': return 'mail';
       case 'LINKEDIN': return 'in';
       case 'INDEED': return 'i';
-      case 'WHATSAPP': return 'W';
-      case 'WEBSITE': return 'W';
-      case 'PHONE': return 'P';
-      default: return '?';
+      case 'WHATSAPP': return 'chat';
+      case 'WEBSITE': return 'language';
+      case 'PHONE': return 'call';
+      default: return 'send';
     }
   }
 
@@ -626,10 +728,10 @@ export class ApplicationsComponent implements OnInit {
       case 'EMAIL': return '#465fff';
       case 'LINKEDIN': return '#0A66C2';
       case 'INDEED': return '#2164F3';
-      case 'WHATSAPP': return '#25D366';
-      case 'WEBSITE': return '#7c3aed';
+      case 'WHATSAPP': return '#128C7E';
+      case 'WEBSITE': return '#6366F1';
       case 'PHONE': return '#F59B00';
-      default: return '#9CA3AF';
+      default: return '#6B7280';
     }
   }
 
@@ -639,15 +741,15 @@ export class ApplicationsComponent implements OnInit {
 
   getTypeBadgeClass(type: string): string {
     const map: Record<string, string> = {
-      CDI: 'bg-brand-50 text-brand-600',
-      'Stage PFA': 'bg-amber-50 text-amber-700',
-      'Stage PFE': 'bg-orange-50 text-orange-700',
-      Stage: 'bg-gray-100 text-gray-600',
-      Freelance: 'bg-green-50 text-green-700',
-      CDD: 'bg-red-50 text-red-600',
-      Alternance: 'bg-blue-50 text-blue-600',
+      'Stage PFE': 'bg-orange-50 text-orange-700 border border-orange-200/80',
+      'Stage PFA': 'bg-amber-50 text-amber-700 border border-amber-200/80',
+      Stage: 'bg-indigo-50 text-indigo-700 border border-indigo-200/80',
+      Alternance: 'bg-sky-50 text-sky-700 border border-sky-200/80',
+      CDI: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+      CDD: 'bg-purple-50 text-purple-700 border border-purple-200/80',
+      Freelance: 'bg-teal-50 text-teal-700 border border-teal-200/80',
     };
-    return map[type] || 'bg-gray-100 text-gray-500';
+    return map[type] || 'bg-gray-100 text-gray-700 border border-gray-200';
   }
 
   getCompanyColor(name: string): string {

@@ -42,6 +42,10 @@
                   {{ getChannelLabel(candidature()!.channel) }}
                 </span>
                 <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold"
+                  [class]="getTypeBadgeClass(getType())">
+                  {{ getType() }}
+                </span>
+                <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold"
                   [class]="getStatutColor(candidature()!.statut)">
                   {{ getStatutLabel(candidature()!.statut) }}
                 </span>

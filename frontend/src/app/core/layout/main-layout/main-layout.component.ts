@@ -12,6 +12,8 @@ import { SidebarService } from '../../../shared/services/sidebar.service';
 import { ThemeService } from '../../../shared/services/theme.service';
 import { OfferStepId } from '../../../features/offers/offers.types';
 import { OffersStepperComponent } from '../../../features/offers/stepper/offers-stepper.component';
+import { SnDrawerComponent } from '../sn-drawer/sn-drawer.component';
+import { SnCopilotService } from '../../../services/sn-copilot.service';
 
 type HeaderState = {
   eyebrow: string;
@@ -21,19 +23,28 @@ type HeaderState = {
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, AppSidebarComponent, OffersStepperComponent],
+  imports: [CommonModule, RouterModule, AppSidebarComponent, OffersStepperComponent, SnDrawerComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss'
 })
 export class MainLayoutComponent {
   private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   readonly sidebarService = inject(SidebarService);
+  readonly snService = inject(SnCopilotService);
   readonly router = inject(Router);
   readonly authService = inject(AuthService);
   readonly profileService = inject(ProfileService);
   readonly onboardingService = inject(OnboardingService);
   readonly pipelineState = inject(PipelineStateService);
   readonly themeService = inject(ThemeService);
+
+  @HostListener('window:keydown', ['$event'])
+  onGlobalKeyDown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.snService.toggleDrawer();
+    }
+  }
   readonly isExpanded$ = this.sidebarService.isExpanded$;
   readonly isMobileOpen$ = this.sidebarService.isMobileOpen$;
   readonly isHovered$ = this.sidebarService.isHovered$;

@@ -72,4 +72,12 @@ public class AgentHttpClient : IAgentHttpClient
         return await response.Content.ReadFromJsonAsync<SalaryResponse>(_jsonOptions)
                ?? throw new InvalidOperationException("Empty response from Python agent (salary)");
     }
+
+    public async Task<SnChatAgentResponse> PostSnChatAsync(SnChatAgentRequest request)
+    {
+        var response = await _http.PostAsJsonAsync("/api/agents/sn/chat", request, _jsonOptions);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<SnChatAgentResponse>(_jsonOptions)
+               ?? throw new InvalidOperationException("Empty response from Python agent (sn/chat)");
+    }
 }

@@ -53,6 +53,8 @@ Thumbs.db
 
 # --- Docker ---
 docker-compose.override.yml
+cloudflared.exe
+
 
 # --- Engineering Dashboard ---
 

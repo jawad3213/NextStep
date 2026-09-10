@@ -26,4 +26,7 @@ public interface IAgentHttpClient
 
     /// <summary>POST /api/chatbot/salary</summary>
     Task<SalaryResponse> PostSalaryAsync(SalaryRequest request);
+
+    /// <summary>POST /api/agents/sn/chat</summary>
+    Task<SnChatAgentResponse> PostSnChatAsync(SnChatAgentRequest request);
 }

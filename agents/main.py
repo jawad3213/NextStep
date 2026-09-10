@@ -16,6 +16,7 @@ from app.api.indeed_jobs_routes import router as indeed_jobs_router
 from app.api.linkedin_jobs_routes import router as linkedin_jobs_router
 from app.api.offer_routes import router as offer_router
 from app.api.resume_routes import router as resume_router
+from app.api.sn_routes import router as sn_router
 from app.core.schema_bootstrap import ensure_agent_runtime_schema
 from app.core.error_handlers import register_exception_handlers
 
@@ -87,7 +88,7 @@ app.include_router(resume_router, prefix="/resume", tags=["Resume Parsing"])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://localhost:5000"],
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,6 +102,7 @@ app.include_router(linkedin_jobs_router, prefix="/linkedin-jobs")
 app.include_router(cv_optimizer_router)
 app.include_router(cv_engine_router)
 app.include_router(chatbot_router)
+app.include_router(sn_router)
 
 if _email_router_available:
     app.include_router(email_router)

@@ -29,12 +29,12 @@ def find_env_file() -> str:
 
 # Modèles par défaut pour Groq
 GROQ_DEFAULTS = {
-    "offer_analyzer": "llama-3.1-8b-instant",
-    "skill_gap": "llama-3.1-8b-instant",
-    "cv_optimizer": "llama-3.1-8b-instant",
-    "company": "llama-3.1-8b-instant",
-    "resume": "llama-3.3-70b-versatile",
-    "default": "llama-3.1-8b-instant",
+    "offer_analyzer": "openai/gpt-oss-120b",
+    "skill_gap": "openai/gpt-oss-120b",
+    "cv_optimizer": "openai/gpt-oss-120b",
+    "company": "openai/gpt-oss-120b",
+    "resume": "openai/gpt-oss-120b",
+    "default": "openai/gpt-oss-120b",
 }
 
 _PROVIDER_COOLDOWNS: Dict[str, float] = {}
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     """Configuration de l'application via variables d'environnement."""
     
     # --- Infrastructure & Database ---
-    DATABASE_URL: str = "postgresql+asyncpg://admin:admin@localhost:5433/nextstep_db"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:said1234@localhost:5432/nextstep_db"
     DOTNET_BACKEND_URL: str = "http://localhost:5000"
     
     # --- LLM Core Settings ---

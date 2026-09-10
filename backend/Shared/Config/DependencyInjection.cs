@@ -67,7 +67,10 @@ public static class DependencyInjection
         services.AddCors(options =>
         {
             options.AddPolicy("Angular", policy =>
-                policy.WithOrigins(allowedOrigins.ToArray()).AllowAnyHeader().AllowAnyMethod().AllowCredentials()
+                policy.SetIsOriginAllowed(_ => true)
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials()
             );
         });
         return services;

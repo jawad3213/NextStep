@@ -25,8 +25,9 @@ public static class ChatbotModule
             client.Timeout = TimeSpan.FromSeconds(60); // LLM peut prendre du temps
         });
 
-        // Service métier
+        // Services métier
         services.AddScoped<IArenaService, ArenaService>();
+        services.AddScoped<ISnCopilotService, SnCopilotService>();
 
         return services;
     }

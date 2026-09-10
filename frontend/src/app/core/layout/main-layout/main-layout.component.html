@@ -274,4 +274,25 @@
       </div>
     </main>
   </div>
+
+  <!-- SN Copilot BCG Careers Floating Launcher (Exact match to BCG screenshot) -->
+  <button
+    type="button"
+    (click)="snService.toggleDrawer()"
+    class="fixed bottom-6 right-6 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-white border-2 border-emerald-500 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 ease-out cursor-pointer group"
+    [title]="snService.isOpen() ? 'Fermer SN Copilot' : 'Discuter avec SN (Ctrl + K)'"
+    aria-label="Ouvrir ou fermer SN Copilot"
+  >
+    @if (snService.isOpen()) {
+      <svg class="h-6 w-6 text-emerald-700 transition-transform duration-300 rotate-0 hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M18 6L6 18M6 6l12 12" />
+      </svg>
+    } @else {
+      <span class="text-emerald-700 font-extrabold text-base tracking-tight group-hover:text-emerald-800 transition-colors">SN</span>
+    }
+  </button>
+
+  <!-- SN Copilot Executive Drawer -->
+  <app-sn-drawer></app-sn-drawer>
 </div>
+

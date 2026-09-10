@@ -17,13 +17,7 @@ import { extractApiError } from '../utils/extract-api-error';
 export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
 
-  const reqWithHeader = req.clone({
-    setHeaders: {
-      'ngrok-skip-browser-warning': 'true',
-    },
-  });
-
-  return next(reqWithHeader).pipe(
+  return next(req).pipe(
     catchError((err: unknown) => {
       const normalized = extractApiError(err);
 

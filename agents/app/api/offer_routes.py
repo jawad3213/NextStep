@@ -418,8 +418,8 @@ async def run_pipeline(payload: OfferInput) -> PipelineResult:
         )
 
     except Exception as e:
-        logger.error("POST /run-pipeline failed: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"Erreur pipeline : {str(e)}")
+        logger.error("POST /run-pipeline failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de l'execution du pipeline.")
 
 
 @router.post("/analyze-offer", response_model=dict)
@@ -438,7 +438,8 @@ async def analyze_offer(payload: OfferInput) -> dict:
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("POST /analyze-offer failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse de l'offre.")
 
 
 @router.post("/match", response_model=dict)
@@ -455,4 +456,5 @@ async def match_profile(payload: MatchRequest) -> dict:
         return _build_deterministic_result(profile_data or {}, payload.analyzed_offer or {})
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("POST /match failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la mise en correspondance.")

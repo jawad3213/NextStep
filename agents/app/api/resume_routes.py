@@ -31,7 +31,7 @@ async def parse_resume(file: UploadFile = File(...)):
 
     except Exception as e:
         logger.exception("Error parsing resume")
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse du CV : {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse du CV.")
 
 @router.post("/parse-linkedin")
 async def parse_linkedin_route(payload: LinkedInRequest):
@@ -40,4 +40,4 @@ async def parse_linkedin_route(payload: LinkedInRequest):
         return parsed_json
     except Exception as e:
         logger.exception("Error parsing LinkedIn payload")
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'import LinkedIn : {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'import LinkedIn.")

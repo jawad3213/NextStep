@@ -44,14 +44,13 @@ async def generate_email(
     try:
         return await generate_email_with_llm(payload)
     except ValueError as exc:
-        # Configuration errors (missing API key, unsupported provider)
         logger.error("Email agent — configuration error: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Configuration de l'agent email invalide.") from exc
     except Exception as exc:
-        logger.error("Email agent — generation failed: %s", exc)
+        logger.error("Email agent — generation failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Erreur génération email : {exc}",
+            detail="Erreur lors de la generation de l'email.",
         ) from exc
 
 
@@ -73,12 +72,12 @@ async def generate_follow_up_email(
         return await generate_follow_up_email_with_llm(payload)
     except ValueError as exc:
         logger.error("Follow-up agent — configuration error: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Configuration de l'agent relance invalide.") from exc
     except Exception as exc:
-        logger.error("Follow-up agent — generation failed: %s", exc)
+        logger.error("Follow-up agent — generation failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Erreur génération relance : {exc}",
+            detail="Erreur lors de la generation de la relance.",
         ) from exc
 
 
@@ -100,12 +99,12 @@ async def classify_response(
         return await classify_recruiter_response_with_llm(payload)
     except ValueError as exc:
         logger.error("Classify agent — configuration error: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Configuration de l'agent de classification invalide.") from exc
     except Exception as exc:
-        logger.error("Classify agent — classification failed: %s", exc)
+        logger.error("Classify agent — classification failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Erreur classification réponse : {exc}",
+            detail="Erreur lors de la classification de la reponse.",
         ) from exc
 
 
@@ -127,10 +126,10 @@ async def generate_reply_email(
         return await generate_reply_email_with_llm(payload)
     except ValueError as exc:
         logger.error("Reply agent — configuration error: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Configuration error: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Configuration de l'agent de reponse invalide.") from exc
     except Exception as exc:
-        logger.error("Reply agent — generation failed: %s", exc)
+        logger.error("Reply agent — generation failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Erreur génération réponse : {exc}",
+            detail="Erreur lors de la generation de la reponse.",
         ) from exc

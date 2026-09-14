@@ -40,5 +40,5 @@ async def optimize_cv_endpoint(payload: CVOptimizeRequest) -> OptimizedCVOutput:
         )
         return result
     except Exception as e:
-        logger.error("POST /cv-optimizer/optimize failed - %s", str(e))
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'optimisation: {str(e)}")
+        logger.error("POST /cv-optimizer/optimize failed - %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de l'optimisation du CV.")

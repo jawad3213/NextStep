@@ -63,4 +63,4 @@ async def chat_with_sn(req: SnChatRequest):
         return SnChatResponse(**result)
     except Exception as e:
         logger.error("[SN:Route] Chat error: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erreur lors de la communication avec SN Copilot.")

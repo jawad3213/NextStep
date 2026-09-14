@@ -36,5 +36,5 @@ async def scrape_glassdoor_jobs(payload: GlassdoorJobSearchRequest) -> Glassdoor
         )
         return GlassdoorJobSearchResponse(**result)
     except Exception as exc:
-        logger.error("POST /glassdoor-jobs/search failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.error("POST /glassdoor-jobs/search failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la recherche d'offres Glassdoor.")

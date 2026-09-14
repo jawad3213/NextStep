@@ -102,6 +102,7 @@ export class SignalRService {
       .catch(err => {
         console.error('SignalR connection failed:', err);
         this.connectionPromise = null;
+        this.pipeline.pipelineError.set('Connexion temps reel indisponible. Les mises a jour en direct ne fonctionneront pas.');
       });
 
     return this.connectionPromise;
@@ -109,7 +110,9 @@ export class SignalRService {
 
   disconnect(): void {
     if (this.hubConnection) {
-      this.hubConnection.stop();
+      this.hubConnection.stop().catch(err =>
+        console.warn('Error stopping SignalR connection:', err)
+      );
       this.isConnected.set(false);
       this.connectionPromise = null;
     }
@@ -130,7 +133,9 @@ export class SignalRService {
   async leaveOfferGroup(offerId: string): Promise<void> {
     try {
       await this.hubConnection?.invoke('LeaveOfferGroup', offerId);
-    } catch { }
+    } catch (err) {
+      console.warn('Failed to leave SignalR group:', err);
+    }
     if (this.currentOfferId === offerId) {
       this.currentOfferId = null;
     }

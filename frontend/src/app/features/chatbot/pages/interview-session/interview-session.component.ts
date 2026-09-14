@@ -86,7 +86,9 @@ export class InterviewSessionComponent implements OnInit, OnDestroy, AfterViewCh
       try {
         const el = this.chatScroll?.nativeElement;
         if (el) el.scrollTop = el.scrollHeight;
-      } catch {}
+      } catch (err) {
+        console.warn('[InterviewSession] Scroll failed:', err);
+      }
       this.needsScroll = false;
     }
   }

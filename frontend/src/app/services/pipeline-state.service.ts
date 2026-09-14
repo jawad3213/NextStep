@@ -280,7 +280,9 @@ export class PipelineStateService {
         finalCvHistoryId: this.finalCvHistoryId(),
         finalCvTitle: this.finalCvTitle(),
       }));
-    } catch {}
+    } catch (err) {
+      console.warn('[PipelineState] Failed to persist to localStorage:', err);
+    }
   }
 
   private restoreFromStorage(): void {
@@ -302,7 +304,9 @@ export class PipelineStateService {
       if (typeof saved.finalCvHistoryId === 'string') this.finalCvHistoryId.set(saved.finalCvHistoryId);
       if (typeof saved.finalCvTitle === 'string') this.finalCvTitle.set(saved.finalCvTitle);
       if (typeof saved.isFlowOpen === 'boolean') this.isFlowOpen.set(saved.isFlowOpen);
-    } catch {}
+    } catch (err) {
+      console.warn('[PipelineState] Failed to restore from localStorage:', err);
+    }
   }
 
   private updateStepStatus(index: number, status: PipelineStepStatus): void {

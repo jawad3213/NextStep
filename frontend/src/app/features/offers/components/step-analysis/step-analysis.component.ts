@@ -668,7 +668,9 @@ export class StepAnalysisComponent {
       );
 
       localStorage.setItem('nextstep.company.history', JSON.stringify([entry, ...deduped].slice(0, 20)));
-    } catch {}
+    } catch (err) {
+      console.warn('[StepAnalysis] Failed to persist company history:', err);
+    }
   }
 
   private buildFallbackRecommendations(): string[] {

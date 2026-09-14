@@ -152,13 +152,15 @@ export class SalaryCoachComponent implements OnInit, AfterViewChecked {
     this.loading.set(false);
     this.svc.getSalary(this.config).subscribe({
       next: r => { this.salary.set(r); },
-      error: () => { },
+      error: (err) => {
+        console.error('Failed to load salary data:', err);
+      },
     });
   }
 
   ngAfterViewChecked() {
     if (this.needsScroll) {
-      try { const el = this.chatScroll?.nativeElement; if (el) el.scrollTop = el.scrollHeight; } catch { }
+      try { const el = this.chatScroll?.nativeElement; if (el) el.scrollTop = el.scrollHeight; } catch (err) { console.warn('Scroll failed:', err); }
       this.needsScroll = false;
     }
   }

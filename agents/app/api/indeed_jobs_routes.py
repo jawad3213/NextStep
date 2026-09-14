@@ -37,5 +37,5 @@ async def scrape_indeed_jobs(payload: IndeedJobSearchRequest) -> IndeedJobSearch
         )
         return IndeedJobSearchResponse(**result)
     except Exception as exc:
-        logger.error("POST /indeed-jobs/search failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.error("POST /indeed-jobs/search failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la recherche d'offres Indeed.")

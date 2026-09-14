@@ -81,10 +81,10 @@ namespace NextStep.Modules.Profile.Controllers
         public async Task<IActionResult> UploadProfilePhoto(IFormFile file)
         {
             if (file == null || file.Length == 0)
-                return BadRequest(new { message = "Aucune image fournie." });
+                return BadRequest(new { error = "Aucune image fournie." });
 
             if (file.Length > 2 * 1024 * 1024)
-                return BadRequest(new { message = "L'image ne doit pas depasser 2MB." });
+                return BadRequest(new { error = "L'image ne doit pas depasser 2MB." });
 
             var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -95,7 +95,7 @@ namespace NextStep.Modules.Profile.Controllers
             };
 
             if (!allowedTypes.Contains(file.ContentType))
-                return BadRequest(new { message = "Format d'image non supporte. Utilisez PNG, JPG ou WEBP." });
+                return BadRequest(new { error = "Format d'image non supporte. Utilisez PNG, JPG ou WEBP." });
 
             var userId = await GetUserIdAsync();
             var user = await _context.Utilisateurs.FindAsync(userId);
@@ -134,11 +134,11 @@ namespace NextStep.Modules.Profile.Controllers
             var userId = await GetUserIdAsync();
             var user = await _context.Utilisateurs.FindAsync(userId);
             if (user == null)
-                return NotFound(new { message = "Utilisateur non trouve." });
+                return NotFound(new { error = "Utilisateur non trouve." });
 
             var objectKey = ExtractObjectKey(user.PhotoUrl);
             if (string.IsNullOrWhiteSpace(objectKey))
-                return NotFound(new { message = "Photo de profil introuvable." });
+                return NotFound(new { error = "Photo de profil introuvable." });
 
             var bytes = await _storageService.DownloadFileAsync(objectKey);
             return File(bytes, ResolveImageContentType(objectKey));
@@ -150,7 +150,7 @@ namespace NextStep.Modules.Profile.Controllers
             var userId = await GetUserIdAsync();
             var user = await _context.Utilisateurs.FindAsync(userId);
             if (user == null)
-                return NotFound(new { message = "Utilisateur non trouve." });
+                return NotFound(new { error = "Utilisateur non trouve." });
 
             var rawUrl = (user.PhotoUrl ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(rawUrl))
@@ -396,11 +396,11 @@ namespace NextStep.Modules.Profile.Controllers
             }
             catch (HttpRequestException ex)
             {
-                return StatusCode(502, new { error = ExtractReadableAgentError(ex), detail = ex.Message });
+                return StatusCode(502, new { error = "Le service d'analyse de CV est indisponible." });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { error = ex.Message });
+                return BadRequest(new { error = "Fichier invalide ou format non supporte." });
             }
         }
 
@@ -446,11 +446,11 @@ namespace NextStep.Modules.Profile.Controllers
             }
             catch (HttpRequestException ex)
             {
-                return StatusCode(502, new { error = "Le service d'import LinkedIn est indisponible.", detail = ex.Message });
+                return StatusCode(502, new { error = "Le service d'import LinkedIn est indisponible." });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { error = ex.Message });
+                return BadRequest(new { error = "Donnees LinkedIn invalides." });
             }
         }
         [HttpDelete("clear")]

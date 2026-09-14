@@ -125,5 +125,5 @@ async def analyze_company(
             logger.warning("Unable to cache company intelligence for '%s': %s", company_name, save_error)
         return result
     except Exception as e:
-        logger.error("POST /analyze-company failed: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("POST /analyze-company failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse de l'entreprise.")

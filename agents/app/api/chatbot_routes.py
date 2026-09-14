@@ -54,8 +54,8 @@ async def generate_questions(
             db=db,
         )
     except Exception as e:
-        logger.error(f"generate_questions error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("generate_questions error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la generation des questions.")
 
 
 # ── Tab 1 : Chat libre ────────────────────────────────────────
@@ -86,8 +86,8 @@ async def free_chat(
             salary_context=req.salary_context,
         )
     except Exception as e:
-        logger.error(f"free_chat error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("free_chat error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors du chat libre.")
 
 
 # ── Tab 2 : Démarrer ─────────────────────────────────────────
@@ -107,8 +107,8 @@ async def start_interview(
             session_id=req.session_id,
         )
     except Exception as e:
-        logger.error(f"start_interview error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("start_interview error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors du demarrage de l'entretien.")
 
 
 # ── Tab 2 : Envoyer message ───────────────────────────────────
@@ -130,8 +130,8 @@ async def send_message(
             db=db,
         )
     except Exception as e:
-        logger.error(f"send_message error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("send_message error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de l'envoi du message.")
 
 
 # ── Tab 2 : Terminer + évaluer ────────────────────────────────
@@ -153,8 +153,8 @@ async def end_interview(
             db=db,
         )
     except Exception as e:
-        logger.error(f"end_interview error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("end_interview error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la fin de l'entretien.")
 
 
 # ── Tab 3 : Salary ────────────────────────────────────────────
@@ -175,5 +175,5 @@ async def get_salary(
             db=db,
         )
     except Exception as e:
-        logger.error(f"get_salary error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("get_salary error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse salariale.")

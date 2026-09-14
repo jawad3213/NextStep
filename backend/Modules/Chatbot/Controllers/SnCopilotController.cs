@@ -71,7 +71,7 @@ public class SnCopilotController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erreur lors de l'interaction avec SN Copilot.");
-            return StatusCode(500, new { error = "Erreur de communication avec le copilote SN.", details = ex.Message });
+            return StatusCode(500, new { error = "Erreur de communication avec le copilote SN." });
         }
     }
 
@@ -92,8 +92,9 @@ public class SnCopilotController : ControllerBase
         {
             return await _userService.EnsureUserCreatedAsync(User);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "EnsureUserCreatedAsync failed, falling back to direct Keycloak lookup");
             var keycloakId = User.FindFirstValue("sub")
                           ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
                           ?? User.FindFirstValue("uid");

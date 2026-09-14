@@ -194,8 +194,10 @@ export class SkillGapComponent {
         }
       }));
       this.result.set(res);
-    } catch {
+    } catch (err) {
+      console.error('Skill gap analysis failed:', err);
       this.result.set(mockGap);
+      this.apiError?.set('Analyse des ecarts de competences indisponible. Donnees de demonstration affichees.');
     } finally {
       this.loading.set(false);
     }

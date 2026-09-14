@@ -130,6 +130,7 @@ export class CvBuilderComponent implements OnInit {
       window.open(url, '_blank');
     } catch (e) {
       console.error('Download error:', e);
+      alert('Echec du telechargement du CV. Veuillez reessayer.');
     }
   }
 
@@ -139,6 +140,7 @@ export class CvBuilderComponent implements OnInit {
       this.historyItems.update((items) => items.filter((i) => i.id !== id));
     } catch (e) {
       console.error('Delete error:', e);
+      alert('Echec de la suppression du CV. Veuillez reessayer.');
     }
   }
 

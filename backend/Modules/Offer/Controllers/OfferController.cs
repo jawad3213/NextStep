@@ -194,7 +194,7 @@ public class OfferController(
         catch (Exception ex)
         {
             logger.LogError(ex, "Synchronous analysis failed for offer {OfferId} / user {UserId}", id, dbUserId);
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "L'analyse de l'offre a echoue. Veuillez reessayer." });
         }
     }
 
@@ -242,7 +242,7 @@ public class OfferController(
         catch (Exception ex)
         {
             logger.LogError(ex, "PDF generation failed for offer {OfferId}", id);
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "La generation du PDF a echoue. Veuillez reessayer." });
         }
     }
 

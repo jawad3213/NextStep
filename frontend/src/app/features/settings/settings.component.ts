@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { EmailService } from '../../services/email.service';
@@ -154,9 +155,12 @@ export class SettingsComponent implements OnInit {
   async clearData() {
     if (confirm('Etes-vous sur de vouloir effacer toutes vos donnees ? Cette action est irreversible.')) {
       try {
-        await this.http.delete(`${this.baseUrl}/profile/clear`).toPromise();
+        await firstValueFrom(this.http.delete(`${this.baseUrl}/profile/clear`));
         window.location.reload();
-      } catch {}
+      } catch (err) {
+        console.error('Failed to clear profile data:', err);
+        alert('Echec de la suppression des donnees. Veuillez reessayer.');
+      }
     }
   }
 }

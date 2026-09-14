@@ -1276,7 +1276,9 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     try {
       localStorage.setItem('nextstep_cv_draft', JSON.stringify(payload));
       localStorage.setItem('nextstep_cv_visibility', JSON.stringify(visibility));
-    } catch {}
+    } catch (err) {
+      console.warn('[ResumeEditor] Failed to persist draft to localStorage:', err);
+    }
 
     clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
@@ -1302,14 +1304,18 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
         try {
           const parsed = JSON.parse(saved);
           this.hydrateFromGenerated(parsed);
-        } catch {}
+        } catch (err) {
+          console.warn('[ResumeEditor] Failed to parse saved draft:', err);
+        }
       }
     }
     const savedVis = localStorage.getItem('nextstep_cv_visibility');
     if (savedVis) {
       try {
         this.sectionVisibility.set(JSON.parse(savedVis));
-      } catch {}
+      } catch (err) {
+        console.warn('[ResumeEditor] Failed to parse saved visibility:', err);
+      }
     }
 
   }

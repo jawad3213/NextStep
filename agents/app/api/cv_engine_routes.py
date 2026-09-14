@@ -28,8 +28,8 @@ async def format_questpdf(payload: CVEngineRequest) -> dict:
             optimized_cv=payload.optimized_cv
         )
     except Exception as e:
-        logger.error("POST /cv-engine/format-questpdf ❌ — %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("POST /cv-engine/format-questpdf failed - %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors du formatage CV.")
 
 
 @router.post(
@@ -120,5 +120,5 @@ async def prepare_cv(payload: PrepareCvRequest) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Erreur dans POST /prepare-cv: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Erreur dans POST /prepare-cv: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la preparation du CV.")

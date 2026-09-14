@@ -97,7 +97,7 @@ public class ArenaController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "Erreur lors de l'envoi du message. Veuillez reessayer." });
         }
     }
 
@@ -116,7 +116,7 @@ public class ArenaController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "Erreur lors de la fin de session. Veuillez reessayer." });
         }
     }
 

@@ -237,7 +237,7 @@ erDiagram
 
 ## 2. Shared chatbot / agents tables
 
-Ces tables existent dans les modeles ou dans `postgres/init.sql` et sont utilisees par `ArenaService` et les agents Python.
+Ces tables existent dans les modeles ou dans `deploy/postgres/init.sql` et sont utilisees par `ArenaService` et les agents Python.
 
 ```mermaid
 erDiagram
@@ -544,4 +544,4 @@ classDiagram
 - `backend/Modules/Chatbot/*`
 - `backend/Jobs/*`
 - `backend/SignalR/PipelineHub.cs`
-- `postgres/init.sql`
+- `deploy/postgres/init.sql`

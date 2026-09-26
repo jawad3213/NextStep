@@ -1,5 +1,5 @@
 <#
-nextstep-dev.ps1 - Lance tout le stack NextStep en local (sans Docker).
+scripts/dev.ps1 - Lance tout le stack NextStep en local (sans Docker).
 
   - Agents FastAPI   : http://localhost:8000  (docs /docs, health /health)
   - Backend  .NET    : http://localhost:5000  (swagger /swagger)
@@ -23,7 +23,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$root = $PSScriptRoot
+$root = Split-Path $PSScriptRoot -Parent
 if (-not $root) { $root = (Get-Item .).FullName }
 $backendDir  = Join-Path $root 'backend'
 $frontendDir = Join-Path $root 'frontend'

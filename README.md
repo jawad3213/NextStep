@@ -121,10 +121,12 @@ NextStep/
 ├─ frontend/                 # UI Angular
 ├─ backend/                  # API .NET + modules métier
 ├─ agents/                   # API FastAPI + agents IA
-├─ postgres/                 # scripts init DB
-├─ keycloak-config/          # realm import
-├─ keycloak-theme/           # thèmes custom Keycloak
+├─ deploy/
+│  ├─ postgres/              # scripts init DB + seeds
+│  └─ keycloak/              # realm import + thèmes custom
 ├─ infra/                    # Terraform + infra locale/AWS
+├─ scripts/                  # dev.ps1 (stack local sans Docker), switch-mode
+├─ docs/                     # diagrammes et documentation
 ├─ docker-compose.yml        # orchestration locale complète
 └─ NextStep.sln
 ```

@@ -172,7 +172,7 @@
 
     - name: Copier la configuration du realm Keycloak
       copy:
-        src: ../../../keycloak-config/realm-export.json
+        src: ../../../deploy/keycloak/import/realm-export.json
         dest: /opt/nextstep/keycloak-config/realm-export.json
         mode: '0644'
 
@@ -184,7 +184,7 @@
 
     - name: Copier les thèmes Keycloak
       copy:
-        src: ../../../keycloak-theme/
+        src: ../../../deploy/keycloak/themes/
         dest: /opt/nextstep/keycloak-theme/
         mode: '0644'
         directory_mode: '0755'

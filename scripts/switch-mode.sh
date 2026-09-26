@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Script pour basculer facilement entre le Mode Dev (sans auth) et le Mode Auth (Keycloak)
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$DIR"
 
 echo "============================================================"

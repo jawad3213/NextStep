@@ -113,7 +113,6 @@ services:
     volumes:
       - ./keycloak-config/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
       - ./keycloak-theme/nextstep:/opt/keycloak/themes/nextstep:ro
-      - ./keycloak-theme/jaouad:/opt/keycloak/themes/jaouad:ro
     ports:
       - "8080:8080"
     healthcheck:

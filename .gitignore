@@ -26,6 +26,13 @@ agents/**/__pycache__/
 agents/*.pyc
 agents/.venv/
 agents/venv/
+agents/scratch/
+
+# --- Generated artifacts ---
+# Only <slug>.html.png is served; everything else is regenerated or unused
+backend/thumbnails/*.pdf
+backend/thumbnails/*.html
+*.tar.gz
 
 # --- Infrastructure (Vagrant & Terraform) ---
 **/.vagrant/

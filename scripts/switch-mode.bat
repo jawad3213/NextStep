@@ -1,6 +1,6 @@
 @echo off
 title NextStep - Gestion du mode Authentification
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 :menu
 cls

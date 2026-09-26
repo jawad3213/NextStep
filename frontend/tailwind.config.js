@@ -42,7 +42,9 @@ module.exports = {
         }
       },
       fontFamily: {
-        outfit: ['Outfit', 'sans-serif'],
+        sans: ['"DM Sans"', '"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        casual: ['"DM Sans"', '"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+        outfit: ['"Outfit"', '"DM Sans"', 'sans-serif'],
         lato: ['Lato', 'sans-serif'],
       },
       borderRadius: {

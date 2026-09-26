@@ -1,41 +1,32 @@
-import { Injectable, inject } from '@angular/core';
-import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
+import { Injectable } from '@angular/core';
+import { toast } from 'ngx-sonner';
+import { extractApiError } from '../utils/extract-api-error';
 
+/**
+ * Couche d'abstraction sur ngx-sonner, affiché en haut à droite.
+ * Garde l'API historique (success/error/info/dismiss/apiError) pour que tous
+ * les composants et l'intercepteur HTTP fonctionnent sans modification.
+ */
 @Injectable({ providedIn: 'root' })
 export class ToastService {
-  private readonly snackBar = inject(MatSnackBar);
-
   success(message: string, duration = 3000): void {
-    this.show(message, { duration, panelClass: ['toast-success'] });
+    toast.success(message, { duration });
   }
 
   error(message: string, duration = 5000): void {
-    this.show(message, { duration, panelClass: ['toast-error'] });
+    toast.error(message, { duration });
   }
 
   info(message: string, duration = 3000): void {
-    this.show(message, { duration, panelClass: ['toast-info'] });
+    toast.message(message, { duration });
   }
 
   dismiss(): void {
-    this.snackBar.dismiss();
+    toast.dismiss();
   }
 
   /** Shortcut pour afficher une erreur d'API normalisée. */
   apiError(error: unknown, fallback = 'Une erreur est survenue.'): void {
-    const message = this.extractShortMessage(error) ?? fallback;
-    this.error(message);
-  }
-
-  private extractShortMessage(error: unknown): string | null {
-    if (error && typeof error === 'object' && 'message' in error) {
-      const m = (error as { message?: unknown }).message;
-      if (typeof m === 'string' && m.length > 0 && m.length < 300) return m;
-    }
-    return null;
-  }
-
-  private show(message: string, config: MatSnackBarConfig): void {
-    this.snackBar.open(message, 'Fermer', config);
+    this.error(extractApiError(error).message || fallback);
   }
 }

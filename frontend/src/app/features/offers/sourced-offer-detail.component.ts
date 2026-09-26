@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { OfferApiService, SourcedOfferDetailDto } from './services/offer-api.service';
 import { extractApiError } from '../../core/utils/extract-api-error';
+import { ToastService } from '../../core/notifications/toast.service';
 
 @Component({
   selector: 'app-sourced-offer-detail',
@@ -15,6 +16,7 @@ export class SourcedOfferDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly offerApi = inject(OfferApiService);
+  private readonly toast = inject(ToastService);
 
   readonly offer = signal<SourcedOfferDetailDto | null>(null);
   readonly isLoading = signal(true);
@@ -74,6 +76,7 @@ export class SourcedOfferDetailComponent implements OnInit {
     this.offerApi.promoteSourcedOffer(offer.id).subscribe({
       next: (promotion) => {
         this.actionBusy.set(false);
+        this.toast.success('Analyse lancée.');
         this.router.navigate(['/offers/analyze'], {
           queryParams: {
             offerId: promotion.offerId,
@@ -117,6 +120,7 @@ export class SourcedOfferDetailComponent implements OnInit {
       next: (updated) => {
         this.offer.set({ ...updated, similarOffers: offer.similarOffers, sourceQuery: offer.sourceQuery });
         this.actionBusy.set(false);
+        this.toast.success('Préférence mise à jour.');
       },
       error: (err) => {
         this.actionBusy.set(false);

@@ -8,6 +8,7 @@ using NextStep.Modules.Identity.Services;
 using NextStep.Modules.Offer.DTOs;
 using NextStep.Modules.Offer.Services;
 using NextStep.Shared.Http;
+using NextStep.Shared.ErrorHandling;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -69,11 +70,11 @@ public class OfferController(
         try
         {
             var draft = await offerService.GetCvDraftAsync(dbUserId, id, ct);
-            return draft is null ? NotFound() : Ok(draft);
+            return draft is null ? ApiResult.NotFound("Brouillon de CV introuvable.") : Ok(draft);
         }
         catch (KeyNotFoundException)
         {
-            return NotFound();
+            return ApiResult.NotFound("Brouillon de CV introuvable.");
         }
     }
 
@@ -92,15 +93,15 @@ public class OfferController(
         }
         catch (KeyNotFoundException)
         {
-            return NotFound();
+            return ApiResult.NotFound("Brouillon de CV introuvable.");
         }
         catch (JsonException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiResult.BadRequest(ex.Message);
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiResult.BadRequest(ex.Message);
         }
     }
 
@@ -149,7 +150,7 @@ public class OfferController(
             var offre = await offerService.GetOfferWithAnalysisAsync(dbUserId, id, ct);
             if (offre == null)
             {
-                return NotFound(new { error = "Offer not found." });
+                return ApiResult.NotFound("Offre introuvable.");
             }
 
             var rawText = offre.TexteBrut ?? "";
@@ -186,7 +187,7 @@ public class OfferController(
 
             if (analysisDto == null)
             {
-                return StatusCode(500, new { error = "Failed to retrieve analysis after saving." });
+                return ApiResult.Error("Impossible de récupérer l'analyse après enregistrement.");
             }
 
             return Ok(analysisDto);
@@ -194,7 +195,7 @@ public class OfferController(
         catch (Exception ex)
         {
             logger.LogError(ex, "Synchronous analysis failed for offer {OfferId} / user {UserId}", id, dbUserId);
-            return StatusCode(500, new { error = "L'analyse de l'offre a echoue. Veuillez reessayer." });
+            return ApiResult.Error("L'analyse de l'offre a échoué. Veuillez réessayer.");
         }
     }
 
@@ -242,7 +243,7 @@ public class OfferController(
         catch (Exception ex)
         {
             logger.LogError(ex, "PDF generation failed for offer {OfferId}", id);
-            return StatusCode(500, new { error = "La generation du PDF a echoue. Veuillez reessayer." });
+            return ApiResult.Error("La génération du PDF a échoué. Veuillez réessayer.");
         }
     }
 
@@ -256,11 +257,11 @@ public class OfferController(
         try
         {
             var result = await offerService.GetAnalysisAsync(dbUserId, id, ct);
-            return result is null ? NotFound() : Ok(result);
+            return result is null ? ApiResult.NotFound("Analyse introuvable.") : Ok(result);
         }
         catch (KeyNotFoundException)
         {
-            return NotFound();
+            return ApiResult.NotFound("Analyse introuvable.");
         }
     }
 

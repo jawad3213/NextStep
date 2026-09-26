@@ -11,6 +11,7 @@ import {
   SourcedOfferListItemDto,
 } from './services/offer-api.service';
 import { extractApiError } from '../../core/utils/extract-api-error';
+import { ToastService } from '../../core/notifications/toast.service';
 
 type ProviderSummary = {
   key: ScrapeProvider;
@@ -27,6 +28,7 @@ type ProviderSummary = {
 })
 export class OffersRecentComponent implements OnInit {
   private readonly offerApi = inject(OfferApiService);
+  private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
   readonly providers: ProviderSummary[] = [
@@ -222,6 +224,7 @@ export class OffersRecentComponent implements OnInit {
         this.lastSession.set(response.session ?? null);
         this.warnings.set(response.warnings ?? []);
         this.isLoading.set(false);
+        this.toast.success('Offres actualisées.');
       },
       error: (err) => {
         this.errorMessage.set(extractApiError(err).message || 'Unable to refresh sourced offers.');
@@ -280,6 +283,7 @@ export class OffersRecentComponent implements OnInit {
             autoAnalyze: 1,
           },
         });
+        this.toast.success('Analyse lancée.');
       },
       error: (err) => {
         this.actionOfferId.set(null);
@@ -329,6 +333,7 @@ export class OffersRecentComponent implements OnInit {
       next: (updated) => {
         this.offers.update((current) => current.map((offer) => offer.id === id ? { ...offer, ...updated } : offer));
         this.actionOfferId.set(null);
+        this.toast.success('Préférence mise à jour.');
       },
       error: (err) => {
         this.actionOfferId.set(null);

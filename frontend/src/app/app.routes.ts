@@ -9,7 +9,15 @@ import { OnboardingComponent } from './features/onboarding/onboarding.component'
 import { CvBuilderComponent } from './features/cv-builder/cv-builder.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'offers', pathMatch: 'full' },
+  {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () => import('./features/landing/landing.component').then(m => m.LandingComponent),
+  },
+  {
+    path: 'landing',
+    loadComponent: () => import('./features/landing/landing.component').then(m => m.LandingComponent),
+  },
   {
     path: 'signup',
     loadComponent: () => import('./features/signup/signup.component').then(m => m.SignupComponent),

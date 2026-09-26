@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Email.DTOs;
+using NextStep.Shared.ErrorHandling;
 using NextStep.Modules.Email.Services;
 using NextStep.Modules.Identity.Repositories;
 
@@ -37,7 +38,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         try
         {
@@ -46,7 +47,7 @@ public class EmailConnectionsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiResult.BadRequest(ex.Message);
         }
     }
 
@@ -57,7 +58,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var summary = await _connectionService.GetGoogleClientCredentialsSummaryAsync(localUserId.Value, cancellationToken);
         return Ok(summary);
@@ -69,7 +70,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         await _connectionService.DeleteGoogleClientCredentialsAsync(localUserId.Value, cancellationToken);
         return NoContent();
@@ -87,7 +88,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User authenticated but not found in local database. Please complete onboarding.");
+            return ApiResult.Forbidden("Utilisateur authentifié introuvable. Veuillez compléter l'onboarding.");
 
         try
         {
@@ -99,7 +100,7 @@ public class EmailConnectionsController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "EmailConnections â€” failed to build Google login URL for user {UserId}", localUserId);
-            return StatusCode(500, $"Configuration error: {ex.Message}");
+            return ApiResult.Error($"Erreur de configuration : {ex.Message}");
         }
     }
     // GET /api/email-connections/google/login-url â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -114,7 +115,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User authenticated but not found in local database. Please complete onboarding.");
+            return ApiResult.Forbidden("Utilisateur authentifié introuvable. Veuillez compléter l'onboarding.");
 
         try
         {
@@ -126,7 +127,7 @@ public class EmailConnectionsController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "EmailConnections â€” failed to build Google login URL for user {UserId}", localUserId);
-            return StatusCode(500, $"Configuration error: {ex.Message}");
+            return ApiResult.Error($"Erreur de configuration : {ex.Message}");
         }
     }
 
@@ -146,7 +147,7 @@ public class EmailConnectionsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state))
         {
-            return BadRequest("Missing 'code' or 'state' query parameters.");
+            return ApiResult.BadRequest("Paramètres 'code' ou 'state' manquants.");
         }
 
         try
@@ -181,7 +182,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var status = await _connectionService.GetStatusAsync(localUserId.Value, cancellationToken);
         return Ok(status);
@@ -198,7 +199,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         await _connectionService.DisconnectAsync(localUserId.Value, cancellationToken);
         return NoContent();
@@ -215,7 +216,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return StatusCode(403, "User not found in local database.");
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var status = await _connectionService.VerifyConnectionAsync(localUserId.Value, cancellationToken);
         return Ok(status);

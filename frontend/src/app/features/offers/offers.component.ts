@@ -4,9 +4,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-import { ANALYSIS_STEPS, MOCK_OFFERS, OfferCard } from './offers-data';
+import { ANALYSIS_STEPS, OfferCard } from './offers-data';
 import { OfferApiService } from './services/offer-api.service';
-import { extractApiError } from '../../core/utils/extract-api-error';
+import { ToastService } from '../../core/notifications/toast.service';
 
 @Component({
   selector: 'app-offers',
@@ -31,6 +31,7 @@ export class OffersComponent implements OnInit {
   readonly steps = ANALYSIS_STEPS;
   private readonly offerApi = inject(OfferApiService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
   readonly offers = signal<OfferCard[]>([]);
 
   readonly searchTerm = signal('');
@@ -59,7 +60,7 @@ export class OffersComponent implements OnInit {
         })));
         this.selectedOfferIds.set(new Set<string>());
       },
-      error: () => this.offers.set(MOCK_OFFERS)
+      error: () => this.offers.set([])
     });
   }
 
@@ -165,11 +166,10 @@ export class OffersComponent implements OnInit {
         this.selectedOfferIds.set(new Set<string>());
         this.isDeleting.set(false);
         this.showDeleteConfirm.set(false);
+        this.toast.success('Offre(s) supprimée(s) avec succès.');
       },
-      error: (err) => {
+      error: () => {
         this.isDeleting.set(false);
-        const msg = extractApiError(err).message || 'Suppression impossible pour le moment.';
-        alert(msg);
       },
     });
   }

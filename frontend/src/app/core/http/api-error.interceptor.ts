@@ -1,4 +1,4 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpContextToken, HttpInterceptorFn } from '@angular/common/http';
 import { throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { inject } from '@angular/core';
@@ -6,13 +6,33 @@ import { ToastService } from '../notifications/toast.service';
 import { extractApiError } from '../utils/extract-api-error';
 
 /**
+ * Jeton à passer via HttpContext pour supprimer le toast automatique d'erreur
+ * pour une requête précise (utile quand le composant gère lui-même l'affichage).
+ */
+export const SUPPRESS_ERROR_TOAST = new HttpContextToken<boolean>(() => false);
+
+/**
+ * Préfixes d'URL gérés localement par leur écran (toast/banner custom déjà en place).
+ * On évite de déclencher un toast global en double.
+ */
+const SELF_MANAGED_HINTS = [
+  '/parse-resume',
+  '/import-linkedin',
+  '/emails',           // email-workspace (toasts locaux)
+  '/email-connections',// gmail-settings (toasts locaux)
+  '/arena',            // chatbot (gestion en-session)
+  '/chatbot',          // chatbot (gestion en-session)
+  '/sn/',              // SN Copilot (réponse in-chat)
+];
+
+/**
  * Interceptor global de gestion d'erreurs HTTP :
- *   - normalise les erreurs via le contrat d'erreur commun (extractApiError)
- *   - affiche un toast pour les réponses 5xx non attendues (et 401 hors auth angulaire)
- *   - ré-émet l'erreur normalisée pour que les services/composants puissent la traiter.
+ *   - normalise n'importe quelle erreur (4xx, 5xx, réseau) via extractApiError
+ *   - affiche un toast d'échec pour TOUTES les actions utilisateur
+ *   - ré-émet l'erreur d'origine pour que services/composants puissent la traiter.
  *
- * Les composants restent libres d'afficher leur propre état d'erreur ; le toast
- * est un filet de sécurité pour les cas non couverts par une page.
+ * Désactivation au cas-par-cas : mettre SUPPRESS_ERROR_TOAST dans le HttpContext
+ * de la requête, ou laisser une URL listée dans SELF_MANAGED_HINTS.
  */
 export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
@@ -20,16 +40,12 @@ export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req).pipe(
     catchError((err: unknown) => {
       const normalized = extractApiError(err);
+      const suppressed =
+        req.context.get(SUPPRESS_ERROR_TOAST) ||
+        SELF_MANAGED_HINTS.some((hint) => req.url.includes(hint));
 
-      // Toast global uniquement pour les 5xx (le backend est down, une route a
-      // échoué sans gestion dédiée). On évite de spammer sur les 400/404 qui
-      // sont souvent gérés localement. Les imports de CV/Profile gèrent leur
-      // propre affichage (toast + feed terminal) — pas de doublon ici.
-      const isProfileImport =
-        req.url.includes('/parse-resume') || req.url.includes('/import-linkedin');
-
-      if (normalized.status && normalized.status >= 500 && !isProfileImport) {
-        toast.error(normalized.message || 'Le serveur rencontre un problème.');
+      if (!suppressed) {
+        toast.error(normalized.message || 'Une erreur est survenue.');
       }
 
       return throwError(() => err);

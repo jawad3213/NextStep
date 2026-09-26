@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Chatbot.DTOs;
 using NextStep.Modules.Chatbot.Interfaces;
+using NextStep.Shared.ErrorHandling;
 
 namespace NextStep.Modules.Chatbot.Controllers;
 
@@ -97,7 +98,7 @@ public class ArenaController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = "Erreur lors de l'envoi du message. Veuillez reessayer." });
+            return ApiResult.Error("Erreur lors de l'envoi du message. Veuillez réessayer.");
         }
     }
 
@@ -116,7 +117,7 @@ public class ArenaController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = "Erreur lors de la fin de session. Veuillez reessayer." });
+            return ApiResult.Error("Erreur lors de la fin de session. Veuillez réessayer.");
         }
     }
 
@@ -161,7 +162,7 @@ public class ArenaController : ControllerBase
     public async Task<IActionResult> GetSessions()
     {
         var userId = GetUserId();
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("Utilisateur non authentifié.");
         
         var result = await _arenaService.GetSessionsAsync(userId);
         return Ok(result);
@@ -171,7 +172,7 @@ public class ArenaController : ControllerBase
     [HttpGet("sessions/{sessionId}")]
     public async Task<IActionResult> GetSessionDetail([FromRoute] string sessionId)
     {
-        if (string.IsNullOrEmpty(sessionId)) return BadRequest();
+        if (string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Identifiant de session invalide.");
         var result = await _arenaService.GetSessionDetailAsync(sessionId);
         return Ok(result);
     }
@@ -183,10 +184,10 @@ public class ArenaController : ControllerBase
     public async Task<IActionResult> DeleteSession([FromRoute] string sessionId)
     {
         var userId = GetUserId();
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(sessionId)) return BadRequest();
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Utilisateur ou session invalide.");
         
         var success = await _arenaService.DeleteSessionAsync(sessionId, userId);
-        return success ? Ok() : NotFound();
+        return success ? Ok() : ApiResult.NotFound("Session introuvable.");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -201,7 +202,7 @@ public class ArenaController : ControllerBase
     public async Task<IActionResult> GetMyOffers()
     {
         var userId = GetUserId();
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("Utilisateur non authentifié.");
 
         var result = await _arenaService.GetUserOffersAsync(userId);
         return Ok(result);

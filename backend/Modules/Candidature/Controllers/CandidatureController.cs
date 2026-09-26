@@ -6,6 +6,7 @@ using NextStep.Modules.Candidature.DTOs;
 using NextStep.Modules.Candidature.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NextStep.Shared.ErrorHandling;
 
 namespace NextStep.Modules.Candidature.Controllers;
 
@@ -37,7 +38,7 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var result = await _candidatureService.CreateAsync(localUser.Id, dto, cancellationToken);
 
@@ -52,7 +53,7 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var results = await _candidatureService.GetByUserIdAsync(localUser.Id, cancellationToken);
         return Ok(results);
@@ -67,7 +68,7 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var page = await _candidatureService.GetByUserIdPagedAsync(
             localUser.Id,
@@ -88,15 +89,15 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var result = await _candidatureService.GetByIdAsync(id, cancellationToken);
 
         if (result is null)
-            return NotFound();
+            return ApiResult.NotFound("Candidature introuvable.");
 
         if (result.IdUtilisateur != localUser.Id)
-            return StatusCode(403, new { error = "You do not have access to this candidature." });
+            return ApiResult.Forbidden("Accès refusé à cette candidature.");
 
         return Ok(result);
     }
@@ -111,15 +112,15 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return NotFound();
+        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
         if (existing.IdUtilisateur != localUser.Id)
-            return StatusCode(403, new { error = "You do not have access to this candidature." });
+            return ApiResult.Forbidden("Accès refusé à cette candidature.");
 
         var result = await _candidatureService.UpdateStatutAsync(id, dto, cancellationToken);
-        if (result is null) return NotFound();
+        if (result is null) return ApiResult.NotFound("Candidature introuvable.");
 
         return Ok(result);
     }
@@ -134,15 +135,15 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return NotFound();
+        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
         if (existing.IdUtilisateur != localUser.Id)
-            return StatusCode(403, new { error = "You do not have access to this candidature." });
+            return ApiResult.Forbidden("Accès refusé à cette candidature.");
 
         var result = await _candidatureService.UpdateAsync(id, dto, cancellationToken);
-        if (result is null) return NotFound();
+        if (result is null) return ApiResult.NotFound("Candidature introuvable.");
 
         return Ok(result);
     }
@@ -156,15 +157,15 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return NotFound();
+        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
         if (existing.IdUtilisateur != localUser.Id)
-            return StatusCode(403, new { error = "You do not have access to this candidature." });
+            return ApiResult.Forbidden("Accès refusé à cette candidature.");
 
         var deleted = await _candidatureService.DeleteAsync(id, cancellationToken);
-        if (!deleted) return NotFound();
+        if (!deleted) return ApiResult.NotFound("Candidature introuvable.");
 
         return NoContent();
     }
@@ -179,12 +180,12 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return NotFound();
+        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
         if (existing.IdUtilisateur != localUser.Id)
-            return StatusCode(403, new { error = "You do not have access to this candidature." });
+            return ApiResult.Forbidden("Accès refusé à cette candidature.");
 
         var note = await _candidatureService.AddNoteAsync(id, dto, cancellationToken);
 
@@ -200,12 +201,12 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return NotFound();
+        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
         if (existing.IdUtilisateur != localUser.Id)
-            return StatusCode(403, new { error = "You do not have access to this candidature." });
+            return ApiResult.Forbidden("Accès refusé à cette candidature.");
 
         var notes = await _candidatureService.GetNotesAsync(id, cancellationToken);
         return Ok(notes);
@@ -220,12 +221,12 @@ public class CandidatureController : ControllerBase
     {
         var localUser = await ResolveLocalUserAsync();
         if (localUser is null)
-            return StatusCode(403, new { error = "User not found in local database." });
+            return ApiResult.Forbidden("Utilisateur introuvable.");
 
         var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return NotFound();
+        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
         if (existing.IdUtilisateur != localUser.Id)
-            return StatusCode(403, new { error = "You do not have access to this candidature." });
+            return ApiResult.Forbidden("Accès refusé à cette candidature.");
 
         var history = await _candidatureService.GetHistoryAsync(id, cancellationToken);
         return Ok(history);

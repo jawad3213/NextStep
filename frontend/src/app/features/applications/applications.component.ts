@@ -9,6 +9,7 @@ import { CandidatureService, CandidatureDto } from '../../services/candidature.s
 import { OfferService } from '../../services/offer.service';
 import { ProfileService } from '../../features/profile/profile.service';
 import { AutocompleteService, CompanySuggestion, JobTitleSuggestion } from '../../services/autocomplete.service';
+import { ToastService } from '../../core/notifications/toast.service';
 
 interface CandidatureCard {
   id: string;
@@ -44,6 +45,7 @@ export class ApplicationsComponent implements OnInit {
   private readonly profileService = inject(ProfileService);
   private readonly autocompleteService = inject(AutocompleteService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   filterStatut = signal('Tous');
   searchQuery = signal('');
@@ -134,6 +136,7 @@ export class ApplicationsComponent implements OnInit {
     const backendStatus = this.mapKanbanToStatus(newStatus);
     this.cards.update((list) => list.map((c) => c.id === card.id ? { ...c, statut: newStatus } : c));
     this.candidatureService.updateStatut(card.id, { nouveauStatut: backendStatus }).subscribe({
+      next: () => this.toast.success('Statut mis à jour.'),
       error: () => {
         this.cards.update((list) => list.map((c) => c.id === card.id ? { ...c, statut: card.statut } : c));
       }
@@ -489,6 +492,7 @@ export class ApplicationsComponent implements OnInit {
       const newStatus = this.mapKanbanToStatus(col);
       this.cards.update((list) => list.map((c2) => (c2.id === card.id ? { ...c2, statut: col } : c2)));
       this.candidatureService.updateStatut(card.id, { nouveauStatut: newStatus }).subscribe({
+        next: () => this.toast.success('Statut mis à jour.'),
         error: () => {
           this.cards.update((list) => list.map((c2) => (c2.id === card.id ? { ...c2, statut: card.statut } : c2)));
         }
@@ -532,6 +536,7 @@ export class ApplicationsComponent implements OnInit {
         this.cards.update((list) => [newCard, ...list]);
         this.showNewForm.set(false);
         this.resetForm();
+        this.toast.success('Candidature créée avec succès.');
       },
       error: () => {
         this.error.set('Impossible de créer la candidature.');
@@ -544,6 +549,7 @@ export class ApplicationsComponent implements OnInit {
     this.candidatureService.deleteCandidature(card.id).subscribe({
       next: () => {
         this.cards.update((list) => list.filter((c) => c.id !== card.id));
+        this.toast.success('Candidature supprimée.');
       },
       error: () => {
         this.error.set('Impossible de supprimer la candidature.');

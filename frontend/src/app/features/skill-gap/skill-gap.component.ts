@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { ProfileService } from '../profile/profile.service';
+import { ToastService } from '../../core/notifications/toast.service';
 import { firstValueFrom } from 'rxjs';
 
 interface SkillGapResult {
@@ -174,6 +175,7 @@ interface SkillGapResult {
 export class SkillGapComponent {
   private http = inject(HttpClient);
   private profileService = inject(ProfileService);
+  private toast = inject(ToastService);
   private baseUrl = environment.apiBaseUrl;
 
   offerText = signal('');
@@ -183,6 +185,7 @@ export class SkillGapComponent {
   async analyzeGap() {
     if (!this.offerText()) return;
     this.loading.set(true);
+    this.result.set(null);
     const profile = this.profileService.profile();
     try {
       const res = await firstValueFrom(this.http.post<SkillGapResult>(`${this.baseUrl.replace('/api', '')}/offer/match`, {
@@ -194,48 +197,11 @@ export class SkillGapComponent {
         }
       }));
       this.result.set(res);
-    } catch (err) {
-      console.error('Skill gap analysis failed:', err);
-      this.result.set(mockGap);
-      this.apiError?.set('Analyse des ecarts de competences indisponible. Donnees de demonstration affichees.');
+      this.toast.success('Analyse des écarts de compétences terminée.');
+    } catch {
+      this.result.set(null);
     } finally {
       this.loading.set(false);
     }
   }
 }
-
-const mockGap: SkillGapResult = {
-  candidateName: 'Jean Dupont',
-  jobTitle: 'Full Stack Developer',
-  relevanceScore: 72,
-  matchedSkills: [
-    { name: 'Angular', category: 'Frontend' },
-    { name: 'React', category: 'Frontend' },
-    { name: 'TypeScript', category: 'Language' },
-    { name: 'PostgreSQL', category: 'Database' },
-    { name: 'Node.js', category: 'Backend' },
-  ],
-  missingSkills: [
-    { name: 'Docker', category: 'DevOps', priority: 'high' },
-    { name: 'Kubernetes', category: 'DevOps', priority: 'high' },
-    { name: 'AWS', category: 'Cloud', priority: 'medium' },
-    { name: 'GraphQL', category: 'API', priority: 'low' },
-  ],
-  requiredCerts: ['AWS Certified Developer'],
-  certMatch: false,
-  experienceYears: 2,
-  requiredYears: 3,
-  experienceGapYears: 1,
-  flag: 'MINOR',
-  recommendations: [
-    { type: 'COURSE', title: 'Docker pour les developpeurs', description: 'Maitrisez les conteneurs Docker et l\'orchestration de base', priority: 'high' },
-    { type: 'COURSE', title: 'Introduction a Kubernetes', description: 'Comprendre les concepts de base de K8s pour le deploiement', priority: 'high' },
-    { type: 'CERTIFICATION', title: 'AWS Cloud Practitioner', description: 'Certification fondamentale pour demarrer sur AWS', priority: 'medium' },
-    { type: 'PROJECT', title: 'Projet full-stack avec conteneurisation', description: 'Ajoutez un projet Docker a votre portfolio', priority: 'medium' },
-  ],
-  revisionHints: [
-    'Ajoutez Docker Compose a vos projets existants pour demontrer votre connaissance des conteneurs',
-    'Suivez le "Docker Mastery" course sur Udemy (environ 2 semaines)',
-    'Creer un petit projet deploye avec Docker et ajoutez-le a votre section projets',
-  ],
-};

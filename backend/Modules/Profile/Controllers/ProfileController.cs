@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text;
 using NextStep.Shared.Storage;
 using NextStep.Shared.Http;
+using NextStep.Shared.ErrorHandling;
 using System.Net.Http.Json;
 
 namespace NextStep.Modules.Profile.Controllers
@@ -100,7 +101,7 @@ namespace NextStep.Modules.Profile.Controllers
             var userId = await GetUserIdAsync();
             var user = await _context.Utilisateurs.FindAsync(userId);
             if (user == null)
-                return NotFound(new { message = "Utilisateur non trouve." });
+                return ApiResult.NotFound("Utilisateur introuvable.");
 
             var extension = Path.GetExtension(file.FileName);
             if (string.IsNullOrWhiteSpace(extension))

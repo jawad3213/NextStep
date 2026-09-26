@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Identity.Services;
 using NextStep.Modules.Sourcing.DTOs;
 using NextStep.Modules.Sourcing.Services;
+using NextStep.Shared.ErrorHandling;
 
 namespace NextStep.Modules.Sourcing.Controllers;
 
@@ -73,7 +74,7 @@ public class SourcedOffersController(
     {
         var userId = await GetUserIdAsync();
         var result = await sourcedOfferService.GetByIdAsync(userId, id, ct);
-        return result is null ? NotFound() : Ok(result);
+        return result is null ? ApiResult.NotFound("Offre sourcée introuvable.") : Ok(result);
     }
 
     [HttpPatch("{id:guid}")]

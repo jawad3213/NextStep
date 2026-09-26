@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { OfferService } from '../../services/offer.service';
+import { ToastService } from '../../core/notifications/toast.service';
 
 interface CvHistoryItem {
   id: string;
@@ -38,6 +39,7 @@ interface PagedResponse<T> {
 export class CvBuilderComponent implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly offerService = inject(OfferService);
+  private readonly toast = inject(ToastService);
   private readonly baseUrl = environment.apiBaseUrl;
 
   readonly historyItems = signal<CvHistoryItem[]>([]);
@@ -128,9 +130,9 @@ export class CvBuilderComponent implements OnInit {
       );
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
-    } catch (e) {
-      console.error('Download error:', e);
-      alert('Echec du telechargement du CV. Veuillez reessayer.');
+      this.toast.success('Téléchargement du CV lancé.');
+    } catch {
+      // Toast global affiché par l'intercepteur API
     }
   }
 
@@ -138,9 +140,9 @@ export class CvBuilderComponent implements OnInit {
     try {
       await firstValueFrom(this.http.delete(`${this.baseUrl}/cv/${id}`));
       this.historyItems.update((items) => items.filter((i) => i.id !== id));
-    } catch (e) {
-      console.error('Delete error:', e);
-      alert('Echec de la suppression du CV. Veuillez reessayer.');
+      this.toast.success('CV supprimé.');
+    } catch {
+      // Toast global affiché par l'intercepteur API
     }
   }
 

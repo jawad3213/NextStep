@@ -3,112 +3,67 @@
   <!-- GLOBAL LOADING OVERLAY FOR AI PARSING -->
   @if (isParsing()) {
   <div class="parsing-overlay animate-fade-in">
-    <div class="premium-loader-card" [class.is-done]="parsingPhase() === 'done'"
-      role="dialog" aria-modal="true" aria-labelledby="parsing-title">
+    <div class="premium-loader-card">
       <div class="loader-visual-container">
-        <!-- Resume being scanned: blocks light up as the AI moves through each stage -->
-        <div class="doc-scan" [attr.data-stage]="parsingPhase() === 'done' ? 'done' : parsingStatus()" aria-hidden="true">
-          <div class="doc-page">
-            <div class="doc-head">
-              <span class="doc-avatar"></span>
-              <span class="doc-head-lines">
-                <span class="doc-line dl-70"></span>
-                <span class="doc-line dl-45"></span>
-              </span>
-            </div>
-            <div class="doc-block b1">
-              <span class="doc-line is-title dl-40"></span>
-              <span class="doc-line"></span>
-              <span class="doc-line dl-80"></span>
-            </div>
-            <div class="doc-block b2">
-              <span class="doc-line is-title dl-35"></span>
-              <span class="doc-line dl-90"></span>
-              <span class="doc-line dl-60"></span>
-            </div>
-            <div class="doc-block b3">
-              <span class="doc-chip"></span>
-              <span class="doc-chip"></span>
-              <span class="doc-chip"></span>
-            </div>
-            <span class="doc-scanline"></span>
+        <div class="loader-visual">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring delay-1"></div>
+          <div class="pulse-ring delay-2"></div>
+          <div class="core-dot">
+            <mat-icon>auto_awesome</mat-icon>
           </div>
-          <span class="doc-badge">
-            <mat-icon>{{ parsingPhase() === 'done' ? 'check' : 'auto_awesome' }}</mat-icon>
+        </div>
+        <div class="loader-header-text">
+          <h2 class="loader-headline">{{ parsingStageCopy().headline }}</h2>
+          <p class="loader-subtext">{{ parsingStageCopy().description }}</p>
+        </div>
+      </div>
+      
+      <div class="live-feed">
+        <div class="live-feed-header">
+          <span class="live-feed-title">Activity</span>
+          <span class="live-feed-badge">
+            <span class="live-dot"></span>
+            Live
           </span>
         </div>
-
-        <div class="loader-header-text">
-          @if (parsingPhase() === 'done') {
-            <h2 id="parsing-title" class="loader-headline">Your profile is ready</h2>
-            <p class="loader-subtext">
-              We filled {{ importedSections().length || 'your' }} {{ importedSections().length === 1 ? 'section' : 'sections' }}
-              from your {{ parsingSource() === 'linkedin' ? 'LinkedIn profile' : 'resume' }}.
-              Take a minute to review them and correct anything the AI got wrong.
-            </p>
-          } @else {
-            <h2 id="parsing-title" class="loader-headline">{{ parsingStageCopy().headline }}</h2>
-            <p class="loader-subtext">{{ parsingStageCopy().description }}</p>
+        <div class="live-feed-list custom-scrollbar">
+          @for (event of parsingEventsLatestFirst(); track event.timestamp + event.message; let first = $first) {
+          <div class="feed-line"
+            [class.is-active]="first && event.type !== 'success'"
+            [class.is-success]="event.type === 'success'">
+            <span class="feed-status">
+              @if (first && event.type !== 'success') {
+                <span class="feed-spinner"></span>
+              } @else {
+                <mat-icon>check</mat-icon>
+              }
+            </span>
+            <span class="feed-message">{{event.message}}</span>
+            @if (event.entity) {
+              <span class="feed-entity">{{event.entity}}</span>
+            }
+            <span class="feed-time">{{event.timestamp}}</span>
+          </div>
+          }
+          @if (parsingEvents().length === 0) {
+            <div class="feed-line is-active">
+              <span class="feed-status"><span class="feed-spinner"></span></span>
+              <span class="feed-message">Initializing agentic workspace...</span>
+            </div>
           }
         </div>
       </div>
 
-      @if (parsingPhase() === 'done') {
-        @if (importedSections().length) {
-          <ul class="import-results">
-            @for (section of importedSections(); track section.key; let i = $index) {
-              <li class="import-result" [style.animation-delay.ms]="i * 60">
-                <span class="import-result-count">{{ section.count }}</span>
-                <span class="import-result-label">{{ section.label }}</span>
-              </li>
-            }
-          </ul>
-        }
-        <button type="button" class="btn-zety-primary parsing-continue" (click)="continueAfterImport()">
-          Review my profile
-          <mat-icon>arrow_forward</mat-icon>
-        </button>
-      } @else {
-        <ol class="parsing-stages" aria-live="polite">
-          @for (stage of parsingStages(); track stage.id) {
-            <li class="parsing-stage"
-              [class.is-done]="stage.state === 'done'"
-              [class.is-active]="stage.state === 'active'"
-              [class.is-pending]="stage.state === 'pending'">
-              <span class="stage-marker">
-                @if (stage.state === 'done') {
-                  <mat-icon>check</mat-icon>
-                } @else if (stage.state === 'active') {
-                  <span class="stage-spinner"></span>
-                }
-              </span>
-              <div class="stage-body">
-                <span class="stage-label">{{ stage.label }}</span>
-                @if (stage.state === 'active') {
-                  @if (latestParsingEvent(); as event) {
-                    <span class="stage-detail">
-                      {{ event.message }}
-                      @if (event.entity) {
-                        <span class="stage-entity">{{ event.entity }}</span>
-                      }
-                    </span>
-                  }
-                }
-              </div>
-            </li>
-          }
-        </ol>
-
-        <div class="loader-progress">
-          <div class="loader-progress-meta">
-            <span>Progress</span>
-            <span class="loader-progress-value">{{ parsingProgress() }}%</span>
-          </div>
-          <div class="loader-progress-container">
-            <div class="loader-progress-bar" [style.width.%]="parsingProgress()"></div>
-          </div>
+      <div class="loader-progress">
+        <div class="loader-progress-meta">
+          <span>Progress</span>
+          <span class="loader-progress-value">{{ parsingProgress() }}%</span>
         </div>
-      }
+        <div class="loader-progress-container">
+          <div class="loader-progress-bar" [style.width.%]="parsingProgress()"></div>
+        </div>
+      </div>
     </div>
   </div>
   }

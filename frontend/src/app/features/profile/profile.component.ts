@@ -153,6 +153,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   );
   isUploadingPhoto = signal(false);
   parsingStatus = signal<'reading' | 'analyzing' | 'structuring'>('reading');
+  parsingPhase = signal<'working' | 'done'>('working');
+  parsingSource = signal<'resume' | 'linkedin'>('resume');
   parsingProgress = signal(0);
   terminalFeed = signal<{timestamp: string, status: string, message: string}[]>([]);
   editingSection = signal<SectionTitleKey | null>(null);
@@ -374,7 +376,23 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   linkedinRawText = signal('');
 
   parsingEvents = this.profileService.parsingEvents;
-  parsingEventsLatestFirst = computed(() => [...this.parsingEvents()].reverse());
+  latestParsingEvent = computed(() => this.parsingEvents().at(-1) ?? null);
+  parsingStages = computed(() => {
+    const order = ['reading', 'analyzing', 'structuring', 'ready'] as const;
+    const labels = {
+      reading: this.parsingSource() === 'linkedin' ? 'Fetching your LinkedIn profile' : 'Reading your document',
+      analyzing: 'Analyzing your experience & skills',
+      structuring: 'Organizing your profile sections',
+      ready: 'Profile ready for review'
+    };
+    const current = this.parsingPhase() === 'done' ? order.length : order.indexOf(this.parsingStatus());
+    return order.map((id, i) => ({
+      id,
+      label: labels[id],
+      state: (i < current ? 'done' : i === current ? 'active' : 'pending') as 'done' | 'active' | 'pending'
+    }));
+  });
+  importedSections = computed(() => this.importSummaryCards().filter(card => card.count > 0));
   importSummary = this.profileService.lastImportSummary;
   parsingStageCopy = computed(() => {
     switch (this.parsingStatus()) {
@@ -415,10 +433,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     const file = event.target?.files?.[0] || input?.files?.[0];
     if (!file) return;
 
-    this.isParsing.set(true);
-    this.isApplyingData.set(false);
-    this.parsingStatus.set('reading');
-    this.parsingProgress.set(10);
+    this.startParsing('resume');
 
     try {
       // Small UX delay to show the start
@@ -429,21 +444,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       // Actual Import call (emits events into parsingEvents signal)
       await this.profileService.importResume(file);
 
-      this.parsingStatus.set('structuring');
-      this.parsingProgress.set(90);
-      
-      // Delay before closing modal to show the last feed lines
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      this.parsingProgress.set(100);
-      this.isParsing.set(false);
-      this.isApplyingData.set(true);
-      
-      // Keep skeletons for a moment to signify data integration
-      setTimeout(async () => {
-        this.isApplyingData.set(false);
-        await this.afterImportCheck();
-      }, 2000);
+      await this.showParsingSuccess();
 
     } catch (error) {
       console.error('Import failed', error);
@@ -451,7 +452,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.isParsing.set(false);
       this.isApplyingData.set(false);
     } finally {
-      this.parsingProgress.set(0);
       if (input) {
         input.value = '';
       }
@@ -511,10 +511,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     }
 
     this.showLinkedInModal.set(false);
-    this.isParsing.set(true);
-    this.isApplyingData.set(false);
-    this.parsingStatus.set('reading');
-    this.parsingProgress.set(10);
+    this.startParsing('linkedin');
 
     try {
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -524,28 +521,45 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       // Call our robust backend import via service
       await this.profileService.importLinkedIn(url, '');
 
-      this.parsingStatus.set('structuring');
-      this.parsingProgress.set(90);
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      this.parsingProgress.set(100);
-      this.isParsing.set(false);
-      this.isApplyingData.set(true);
-      
-      setTimeout(async () => {
-        this.isApplyingData.set(false);
-        await this.afterImportCheck();
-      }, 2000);
+      await this.showParsingSuccess();
 
     } catch (error) {
       console.error('LinkedIn import failed', error);
       this.isParsing.set(false);
       this.isApplyingData.set(false);
       alert("Une erreur s'est produite lors de l'import. Veuillez reessayer avec une URL LinkedIn valide.");
-    } finally {
-      this.parsingProgress.set(0);
     }
+  }
+
+  private startParsing(source: 'resume' | 'linkedin') {
+    this.parsingSource.set(source);
+    this.parsingPhase.set('working');
+    this.parsingStatus.set('reading');
+    this.parsingProgress.set(10);
+    this.isApplyingData.set(false);
+    this.isParsing.set(true);
+  }
+
+  /** Walks the loader through the last stage, then holds on the success state until the user continues. */
+  private async showParsingSuccess() {
+    this.parsingStatus.set('structuring');
+    this.parsingProgress.set(90);
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    this.parsingProgress.set(100);
+    this.parsingPhase.set('done');
+  }
+
+  continueAfterImport() {
+    this.isParsing.set(false);
+    this.parsingPhase.set('working');
+    this.parsingProgress.set(0);
+    this.isApplyingData.set(true);
+
+    // Keep skeletons for a moment to signify data integration
+    setTimeout(async () => {
+      this.isApplyingData.set(false);
+      await this.afterImportCheck();
+    }, 2000);
   }
 
   private async afterImportCheck() {

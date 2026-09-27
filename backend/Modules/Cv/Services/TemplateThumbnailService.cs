@@ -12,7 +12,7 @@ public interface ITemplateThumbnailService
 
 public class TemplateThumbnailService : ITemplateThumbnailService
 {
-    private static readonly string[] Slugs = ["modern", "latex"];
+    private static readonly string[] Slugs = [.. CvHtmlTemplateRenderer.TemplateSlugs];
     private readonly string _storageDir;
     private readonly ICvHtmlTemplateRenderer _htmlRenderer;
     private readonly ILogger<TemplateThumbnailService> _logger;

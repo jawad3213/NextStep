@@ -1,225 +1,140 @@
-﻿# Docker Compose configuration for NextStep
+# ============================================================
+# NextStep — base Compose file (shared by every environment)
+#
+# Never run this file alone. Combine it with an environment override:
+#   Dev : docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   Prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# This file holds what is identical everywhere: images, internal wiring,
+# healthchecks, startup order, volumes. It publishes NO ports.
+# Values come from .env (see .env.example).
+# ============================================================
+name: nextstep
+
 services:
   db:
     image: pgvector/pgvector:pg15
-    container_name: nextstep-db
-    restart: always
-    env_file:
-      - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-nextstep_db}
       POSTGRES_MULTIPLE_DATABASES: ${KEYCLOAK_DB:-keycloak_db}
-    ports:
-      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql
-      - ./deploy/postgres/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/00-create-multiple-postgresql-databases.sh
+      - ./init_config/postgres/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/00-create-multiple-postgresql-databases.sh:ro
+      - ./init_config/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-nextstep_db}" ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 5
-    networks:
-      - nextstep-network
+      retries: 10
+    networks: [nextstep-network]
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
-    container_name: nextstep-auth
-    command: start-dev --db-schema=keycloak_schema --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://db:5432/${KEYCLOAK_DB:-keycloak_db}
       KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-    ports:
-      - "8080:8080"
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:?Set KEYCLOAK_ADMIN in .env}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      # Used by the realm import (placeholders in realm-export.json)
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    volumes:
+      - ./init_config/keycloak/themes:/opt/keycloak/themes:ro
+      - ./init_config/keycloak/import:/opt/keycloak/data/import:ro
     depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./deploy/keycloak/themes:/opt/keycloak/themes
-      - ./deploy/keycloak/import:/opt/keycloak/data/import
-    networks:
-      - nextstep-network
-
-  redis:
-    image: redis:7-alpine
-    container_name: nextstep-cache
-    restart: always
-    ports:
-      - "127.0.0.1:6380:6379"
-    volumes:
-      - redis_data:/data
+      db: { condition: service_healthy }
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    networks:
-      - nextstep-network
+      test: ["CMD-SHELL", "bash -c ': > /dev/tcp/127.0.0.1/8080' || exit 1"]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [nextstep-network]
 
   backend:
     build:
-      context: ./backend  
-      dockerfile: Dockerfile
-    image: nextstep-backend:local
-    container_name: nextstep-api
-    restart: always
-    env_file:
-      - .env
+      context: ./backend
+      target: production
+    image: ${IMAGE_PREFIX:-nextstep}/backend:${IMAGE_TAG:-latest}
+    env_file: [.env]
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Host=db;Database=${POSTGRES_DB:-nextstep_db};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      - Keycloak__Authority=http://keycloak:8080/realms/Next-Step
-      - Redis__Configuration=redis:6379
-      - PythonAgents__Url=http://agents-python:8000
-      - AgentsService__BaseUrl=http://agents-python:8000
-      - Minio__Endpoint=http://minio:9000
-      - Minio__AccessKey=${MINIO_ROOT_USER:-admin}
-      - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-admin123}
-      - Minio__BucketName=nextstep-cvs
-      - Minio__PublicUrl=http://localhost:9000
-    ports:
-      - "5000:5000"
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-nextstep_db};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      PythonAgents__Url: http://agents:8000
+      AgentsService__BaseUrl: http://agents:8000
+      # Local disk storage (served under /uploads). MinIO: see the "minio" service below.
+      Storage__Mode: ${STORAGE_MODE:-Local}
+      Minio__Endpoint: http://minio:9000
+      Minio__AccessKey: ${MINIO_ROOT_USER:-}
+      Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-}
+      Minio__BucketName: nextstep-cvs
     volumes:
+      - backend_storage:/app/storage
       - backend_dataprotection_keys:/root/.aspnet/DataProtection-Keys
     depends_on:
-      db:
-        condition: service_healthy
-      keycloak:
-        condition: service_started
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_started
-    networks:
-      - nextstep-network
-
-  agents-python:
-    image: python:3.12-slim
-    container_name: nextstep-agents
-    restart: always
-    working_dir: /app
-    command: >
-      sh -c "pip install --no-cache-dir -r requirements.txt &&
-             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nextstep_db}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - EMAIL_LLM_PROVIDER=${EMAIL_LLM_PROVIDER:-groq}
-      - EMAIL_LLM_MODEL=${EMAIL_LLM_MODEL:-llama-3.3-70b-versatile}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - KEYCLOAK_URL=http://keycloak:8080
-      - BACKEND_URL=http://backend:5000
-    ports:
-      - "127.0.0.1:8000:8000"
-    volumes:
-      - ./agents:/app
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - nextstep-network
-
-  minio:
-    image: minio/minio
-    container_name: nextstep-storage
-    restart: always
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-admin123}
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - nextstep-network
-
-  frontend:
-    image: node:22-alpine
-    container_name: nextstep-ui
-    restart: always
-    working_dir: /app
-    command: >
-      sh -c "npm install --legacy-peer-deps &&
-             npx ng serve --host 0.0.0.0 --port 4200 --poll 2000"
-    ports:
-      - "4200:4200"
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-    depends_on:
-      - backend
-    networks:
-      - nextstep-network
-
-  sonarqube:
-    image: sonarqube:lts-community
-    container_name: nextstep-sonarqube
-    depends_on:
-      sonardb:
-        condition: service_healthy
-    environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://sonardb:5432/${SONAR_DB_NAME:-sonar}
-      - SONAR_JDBC_USERNAME=${SONAR_DB_USER:-sonar}
-      - SONAR_JDBC_PASSWORD=${SONAR_DB_PASSWORD:-sonar}
-    volumes:
-      - sonarqube_data:/opt/sonarqube/data
-      - sonarqube_extensions:/opt/sonarqube/extensions
-      - sonarqube_logs:/opt/sonarqube/logs
-    ports:
-      - "9005:9000"
-    networks:
-      - nextstep-network
-
-  sonardb:
-    image: postgres:15-alpine
-    container_name: nextstep-sonardb
-    environment:
-      - POSTGRES_USER=${SONAR_DB_USER:-sonar}
-      - POSTGRES_PASSWORD=${SONAR_DB_PASSWORD:-sonar}
-      - POSTGRES_DB=${SONAR_DB_NAME:-sonar}
-    volumes:
-      - sonardb_data:/var/lib/postgresql/data
+      db: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sonar"]
-      interval: 5s
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/health"]
+      start_period: 60s
+      interval: 15s
       timeout: 5s
       retries: 5
-    networks:
-      - nextstep-network
+    networks: [nextstep-network]
+
+  agents:
+    build:
+      context: ./agents
+      target: production
+    image: ${IMAGE_PREFIX:-nextstep}/agents:${IMAGE_TAG:-latest}
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nextstep_db}
+      DOTNET_BACKEND_URL: http://backend:5000
+      BACKEND_URL: http://backend:5000
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)"]
+      start_period: 30s
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [nextstep-network]
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    image: ${IMAGE_PREFIX:-nextstep}/frontend:${IMAGE_TAG:-latest}
+    depends_on:
+      backend: { condition: service_healthy }
+    networks: [nextstep-network]
+
+  # Optional S3 storage. Off by default: MinIO no longer publishes public
+  # images on Docker Hub, so set MINIO_IMAGE to an image you can pull, then run
+  # with `--profile minio` and STORAGE_MODE=Minio.
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:latest}
+    profiles: [minio]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+    volumes:
+      - minio_data:/data
+    networks: [nextstep-network]
 
 volumes:
   postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  frontend_node_modules:
-    driver: local
-  minio_data:
-    driver: local
-  sonarqube_data:
-    driver: local
-  sonarqube_extensions:
-    driver: local
-  sonarqube_logs:
-    driver: local
-  sonardb_data:
-    driver: local
+  backend_storage:
   backend_dataprotection_keys:
-    driver: local
+  minio_data:
 
 networks:
   nextstep-network:
-    driver: bridge
-

@@ -1,12 +1,9 @@
-import { ApplicationConfig, EnvironmentProviders, Provider, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import Keycloak from 'keycloak-js';
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
-import { AUTH_CONFIG } from './core/auth/auth-config.token';
-import { MOCK_KEYCLOAK } from './core/auth/services/mock-keycloak';
 import { apiErrorInterceptor } from './core/http/api-error.interceptor';
 import {
   provideKeycloak,
@@ -25,16 +22,12 @@ const apiTokenCondition = createInterceptorCondition<IncludeBearerTokenCondition
   bearerPrefix: 'Bearer',
 });
 
-function buildAuthProviders(): Array<Provider | EnvironmentProviders> {
-  if (!environment.authEnabled) {
-    // Local-development mode: no Keycloak server. Provide a fake instance that
-    // satisfies the DI token so all consumers keep working unchanged. The
-    // backend runs in Auth:Mode=Dev and authenticates every request as the
-    // seeded "dev-user".
-    return [{ provide: Keycloak, useValue: MOCK_KEYCLOAK as unknown as Keycloak }];
-  }
-
-  return [
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideRouter(routes),
+    provideAnimationsAsync(),
+    provideHttpClient(withInterceptors([includeBearerTokenInterceptor, apiErrorInterceptor])),
     provideKeycloak({
       config: {
         url: environment.keycloakUrl,
@@ -61,21 +54,5 @@ function buildAuthProviders(): Array<Provider | EnvironmentProviders> {
         },
       ],
     }),
-  ];
-}
-
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
-    provideAnimationsAsync(),
-    { provide: AUTH_CONFIG, useValue: { authEnabled: environment.authEnabled } },
-
-    // Bearer interceptor is only needed when Keycloak is active.
-    environment.authEnabled
-      ? provideHttpClient(withInterceptors([includeBearerTokenInterceptor, apiErrorInterceptor]))
-      : provideHttpClient(withInterceptors([apiErrorInterceptor])),
-
-    ...buildAuthProviders(),
   ],
 };

@@ -34,10 +34,7 @@ backend/thumbnails/*.pdf
 backend/thumbnails/*.html
 *.tar.gz
 
-# --- Infrastructure (Vagrant & Terraform) ---
-**/.vagrant/
-**/vagrant-*.log
-**/*.box
+# --- Infrastructure (Terraform) ---
 
 **/.terraform/
 **/*.tfstate
@@ -75,21 +72,18 @@ git-commit.ps1
 
 
 .specify/
+.agents/
 
 # Infrastructure & Secrets
 .env
 .env.prod
 .env.local
 .terraform/
-.vagrant/
 *.tfstate
 *.tfstate.backup
 *.tfvars
 *.tfvars.json
 .terraform.lock.hcl
-
-# Vagrant
-vagrant-*.log
 
 # Scripts de migration
 extract-microservice.ps1

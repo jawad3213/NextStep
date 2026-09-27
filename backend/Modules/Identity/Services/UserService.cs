@@ -13,6 +13,7 @@ namespace NextStep.Modules.Identity.Services
         Task<UserEntity> EnsureUserCreatedAsync(ClaimsPrincipal userPrincipal);
         Task<UserEntity> UpdateSoftOnboardingAsync(string keycloakId, SoftOnboardingDto dto);
         Task<ProfileStatusDto> GetProfileStatusAsync(string keycloakId);
+        Task<CompleteProfileResult> CompleteProfileAsync(string keycloakId);
         Task UpdateProfileScoreAsync(Guid userId);
     }
 
@@ -126,9 +127,83 @@ namespace NextStep.Modules.Identity.Services
             {
                 IsComplete = score >= 70,
                 OnboardingCompleted = user.OnboardingCompleted,
+                ProfileCompleted = user.ProfileCompleted,
                 ProfileScore = score,
+                CompletionPercent = await ComputeCompletionPercentAsync(user),
                 MissingSections = missingSections
             };
+        }
+
+        /// <summary>Minimum profile completion required to unlock the application.</summary>
+        public const int RequiredCompletionPercent = 85;
+
+        /// <summary>
+        /// Validates the profile on the server and unlocks the application for this user.
+        /// Called by the profile stepper's "Finish" button; the frontend check alone is not trusted.
+        /// </summary>
+        public async Task<CompleteProfileResult> CompleteProfileAsync(string keycloakId)
+        {
+            var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
+            if (user == null) throw new KeyNotFoundException("Utilisateur non trouvé.");
+
+            var percent = await ComputeCompletionPercentAsync(user);
+            var result = new CompleteProfileResult { CompletionPercent = percent, RequiredPercent = RequiredCompletionPercent };
+
+            if (!user.OnboardingCompleted)
+            {
+                result.Message = "Complete the onboarding questions first.";
+                return result;
+            }
+            if (percent < RequiredCompletionPercent)
+            {
+                result.Message = $"Complete at least {RequiredCompletionPercent}% of your profile to continue (currently {percent}%).";
+                return result;
+            }
+
+            if (!user.ProfileCompleted)
+            {
+                user.ProfileCompleted = true;
+                await _userRepository.UpdateUserAsync(user);
+            }
+            result.Succeeded = true;
+            result.Message = "Profile completed.";
+            return result;
+        }
+
+        /// <summary>
+        /// Profile completion (0-100). Same weights as completionPercentage in
+        /// frontend/src/app/features/profile/profile.service.ts: keep both in sync.
+        /// </summary>
+        private async Task<int> ComputeCompletionPercentAsync(UserEntity user)
+        {
+            int score = 0;
+            // Contact info (12)
+            if (!string.IsNullOrWhiteSpace(user.Prenom)) score += 2;
+            if (!string.IsNullOrWhiteSpace(user.Nom)) score += 2;
+            if (!string.IsNullOrWhiteSpace(user.Email)) score += 2;
+            if (!string.IsNullOrWhiteSpace(user.Telephone)) score += 2;
+            if (!string.IsNullOrWhiteSpace(user.TitrePoste)) score += 2;
+            if (!string.IsNullOrWhiteSpace(user.Ville)) score += 1;
+            if (!string.IsNullOrWhiteSpace(user.Pays)) score += 1;
+
+            if (await _context.Formations.AnyAsync(f => f.UserId == user.Id)) score += 14;
+            if (await _context.Experiences.AnyAsync(e => e.UserId == user.Id)) score += 14;
+
+            // Skills (16) and languages (4) share the competence table; languages have a "lang..." type.
+            var competenceTypes = await _context.Competences
+                .Where(c => c.UserId == user.Id)
+                .Select(c => c.TypeCompetence ?? string.Empty)
+                .ToListAsync();
+            static bool IsLanguage(string type) =>
+                type.Contains("lang", StringComparison.OrdinalIgnoreCase) || type.Contains("linguist", StringComparison.OrdinalIgnoreCase);
+            if (competenceTypes.Any(t => !IsLanguage(t))) score += 16;
+            if (competenceTypes.Any(IsLanguage)) score += 4;
+
+            if (await _context.Projets.AnyAsync(p => p.UserId == user.Id)) score += 14;
+            if ((user.ResumeProfessionnel ?? string.Empty).Length > 50) score += 14;
+            if (await _context.Certifications.AnyAsync(c => c.UserId == user.Id)) score += 12;
+
+            return Math.Min(score, 100);
         }
 
         public async Task UpdateProfileScoreAsync(Guid userId)

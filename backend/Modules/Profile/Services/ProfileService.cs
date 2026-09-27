@@ -119,7 +119,7 @@ namespace NextStep.Modules.Profile.Services
 
             user.Nom = dto.Nom;
             user.Prenom = dto.Prenom;
-            user.Email = dto.Email;
+            // user.Email is the login identity (from Keycloak, unique): never overwritten by the profile form or a CV import.
             user.Telephone = dto.Telephone;
             user.Ville = dto.Ville;
             user.Pays = dto.Pays;

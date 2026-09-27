@@ -93,10 +93,11 @@
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Professional Email</label>
           <div class="relative group">
             <mat-icon class="absolute left-4 top-1/2 -translate-y-1/2 !text-[18px] text-slate-300 group-focus-within:text-brand-500 transition-colors">alternate_email</mat-icon>
-            <input type="email" [value]="data?.email || ''" (input)="updateField('email', $any($event.target).value)" (blur)="onFieldBlur('email', $any($event.target).value)" 
-                   class="profile-ta-input profile-ta-input-with-icon"
-                   placeholder="email@example.com">
+            <input type="email" [value]="data?.email || ''" readonly
+                   class="profile-ta-input profile-ta-input-with-icon cursor-not-allowed opacity-70"
+                   title="This is your login email (managed by your NextStep account)">
           </div>
+          <p class="mt-1 text-[11px] text-slate-400">Your login email — it can't be changed here.</p>
         </div>
         <div class="field-group">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Phone Number</label>

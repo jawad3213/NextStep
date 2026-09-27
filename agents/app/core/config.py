@@ -11,12 +11,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-# Charge le fichier .env
-dotenv.load_dotenv()
-
 def find_env_file() -> str:
     """Recherche dynamiquement le fichier .env dans les dossiers parents."""
-    current = Path(__file__).resolve()
+    current = Path(__file__).resolve().parent
     for _ in range(6):
         env_path = current / ".env"
         if env_path.exists():
@@ -27,6 +24,9 @@ def find_env_file() -> str:
         current = current.parent
     return str(Path.cwd() / ".env")
 
+# Charge le fichier .env
+dotenv.load_dotenv(find_env_file())
+
 # Modèles par défaut pour Groq
 GROQ_DEFAULTS = {
     "offer_analyzer": "openai/gpt-oss-120b",
@@ -34,7 +34,7 @@ GROQ_DEFAULTS = {
     "cv_optimizer": "openai/gpt-oss-120b",
     "company": "openai/gpt-oss-120b",
     "resume": "openai/gpt-oss-120b",
-    "default": "openai/gpt-oss-120b",
+    "default": "openai/gpt-oss-20b",
 }
 
 _PROVIDER_COOLDOWNS: Dict[str, float] = {}
@@ -51,12 +51,14 @@ class Settings(BaseSettings):
     LLM_PRIORITY_SKILL_GAP: str = "gemini,groq"
     LLM_PRIORITY_CV_OPTIMIZER: str = "groq,openai,gemini"
     LLM_TEMPERATURE: float = 0.1
-    LLM_MAX_TOKENS: int = 2000
+    # Reasoning models (Groq gpt-oss) spend part of this budget thinking before answering:
+    # 2000 was too small and truncated long JSON answers (e.g. a full CV).
+    LLM_MAX_TOKENS: int = 8192
     LLM_REQUEST_TIMEOUT: float = 90.0
     
     # --- Groq Configuration ---
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
     GROQ_MODEL_PRECISE: str = "openai/gpt-oss-120b"
     # Agent Overrides
     GROQ_MODEL_OFFER_ANALYZER: str = ""
@@ -67,7 +69,7 @@ class Settings(BaseSettings):
     # --- Gemini / Google Configuration ---
     GEMINI_API_KEY: str = ""
     GOOGLE_API_KEY: str = ""  # Fallback
-    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GEMINI_MODEL: str = "gemini-flash-latest"  # alias: survives model retirements
     # Agent Overrides
     GEMINI_MODEL_SKILL_GAP: str = ""
     GEMINI_MODEL_CV_OPTIMIZER: str = ""
@@ -82,9 +84,9 @@ class Settings(BaseSettings):
     # --- External APIs ---
     TAVILY_API_KEY: str = ""
 
-    # --- Security & Auth ---
-    JWT_SECRET: str = "secret-keycloak-local"
-    JWT_ALGORITHM: str = "HS256"
+    # --- Security ---
+    # Shared secret required on every request (sent by the backend). Empty = all requests rejected.
+    AGENTS_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         env_file=find_env_file(),
@@ -107,6 +109,8 @@ settings = get_settings()
 def _resolve_model(provider: str, agent_name: Optional[str] = None) -> str:
     """Résout le modèle à utiliser selon le provider et l'agent."""
     if provider == "groq":
+        if agent_name == "precise":
+            return settings.GROQ_MODEL_PRECISE
         if agent_name:
             overrides = {
                 "offer_analyzer": settings.GROQ_MODEL_OFFER_ANALYZER,
@@ -163,6 +167,8 @@ def _create_provider_llm(
                 temperature=temp,
                 max_tokens=settings.LLM_MAX_TOKENS,
                 timeout=settings.LLM_REQUEST_TIMEOUT,
+                # gpt-oss models reason before answering; keep it short so the answer fits and returns fast.
+                model_kwargs={"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else {},
             )
 
         elif provider == "gemini":
@@ -346,11 +352,5 @@ def get_llm(temperature: Optional[float] = None, agent_name: Optional[str] = Non
     return _LLMProvider(agent_name=agent_name, temperature=temperature)
 
 def get_llm_precise():
-    """Modèle précis (Groq 70b) avec température 0."""
-    from langchain_groq import ChatGroq
-    return ChatGroq(
-        model=settings.GROQ_MODEL_PRECISE,
-        api_key=settings.GROQ_API_KEY,
-        temperature=0.0,
-        max_tokens=settings.LLM_MAX_TOKENS,
-    )
+    """Modèle précis (GROQ_MODEL_PRECISE) avec température 0, avec fallback multi-provider."""
+    return _LLMProvider(agent_name="precise", temperature=0.0)

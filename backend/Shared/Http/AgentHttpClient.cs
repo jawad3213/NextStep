@@ -11,9 +11,16 @@ public class AgentHttpClient : IAgentHttpClient
     private readonly HttpClient _client;
     private readonly ILogger<AgentHttpClient> _logger;
 
-    // Bounded, lightweight retry (no extra NuGet dependency). Only retries
-    // transient failures: timeouts, connection resets, 5xx from the agent.
+    // Bounded, lightweight retry (no extra NuGet dependency). Retries connection
+    // failures and 5xx replies only: never a timeout, because the agent may still be
+    // working and a retry would run the same job twice (LLM cost + duplicate DB writes).
     private const int MaxAttempts = 3;
+
+    // Per-call time limits (the HttpClient itself has no global timeout).
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(120);
+    // The full pipeline (analysis, CV optimisation, company intel, email) can take several
+    // minutes; PipelineRunnerService cancels the whole run after 10 minutes.
+    private static readonly TimeSpan PipelineTimeout = TimeSpan.FromMinutes(9);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -28,9 +35,8 @@ public class AgentHttpClient : IAgentHttpClient
     {
         _client = client;
         _client.BaseAddress = new Uri(options.Value.Url);
-        // Pipeline IA (6 agents + LLM + scraping) peut dépasser 2 min, mais on
-        // borne à 120 s afin de ne pas occuper un thread indéfiniment.
-        _client.Timeout = TimeSpan.FromSeconds(120);
+        // Time limits are applied per call (see DefaultTimeout / PipelineTimeout).
+        _client.Timeout = Timeout.InfiniteTimeSpan;
         _logger = logger;
     }
 
@@ -72,9 +78,10 @@ public class AgentHttpClient : IAgentHttpClient
 
         _logger.LogInformation("AgentHttpClient — POST /run-pipeline (onlyAnalysis={OnlyAnalysis}) for user_id={UserId}", onlyAnalysis, userId);
 
+        // Never retried: each run writes results to the database and costs LLM calls.
         using var response = await SendWithRetryAsync(
-            () => _client.PostAsync("/offer/run-pipeline", JsonPayload(payload), ct),
-            "run-pipeline", ct);
+            token => _client.PostAsync("/offer/run-pipeline", JsonPayload(payload), token),
+            "run-pipeline", ct, PipelineTimeout, maxAttempts: 1);
 
         return await ReadJsonAsync(response, ct);
     }
@@ -96,7 +103,7 @@ public class AgentHttpClient : IAgentHttpClient
         };
 
         using var response = await SendWithRetryAsync(
-            () => _client.PostAsync("/offer/analyze-offer", JsonPayload(payload), ct),
+            token => _client.PostAsync("/offer/analyze-offer", JsonPayload(payload), token),
             "analyze-offer", ct);
 
         return await ReadJsonAsync(response, ct);
@@ -117,7 +124,7 @@ public class AgentHttpClient : IAgentHttpClient
         };
 
         using var response = await SendWithRetryAsync(
-            () => _client.PostAsync("/offer/match", JsonPayload(payload), ct),
+            token => _client.PostAsync("/offer/match", JsonPayload(payload), token),
             "match", ct);
 
         return await ReadJsonAsync(response, ct);
@@ -143,7 +150,7 @@ public class AgentHttpClient : IAgentHttpClient
     public async Task<TResponse> PostAsync<TRequest, TResponse>(string url, TRequest data, CancellationToken ct = default)
     {
         using var response = await SendWithRetryAsync(
-            () => _client.PostAsJsonAsync(url, data, JsonOptions, ct),
+            token => _client.PostAsJsonAsync(url, data, JsonOptions, token),
             url, ct);
 
         if (!response.IsSuccessStatusCode)
@@ -160,7 +167,7 @@ public class AgentHttpClient : IAgentHttpClient
     public async Task<JsonDocument> PostRawAsync<TRequest>(string url, TRequest data, CancellationToken ct = default)
     {
         using var response = await SendWithRetryAsync(
-            () => _client.PostAsJsonAsync(url, data, JsonOptions, ct),
+            token => _client.PostAsJsonAsync(url, data, JsonOptions, token),
             url, ct);
 
         if (!response.IsSuccessStatusCode)
@@ -186,7 +193,7 @@ public class AgentHttpClient : IAgentHttpClient
         form.Add(fileContent, "file", fileName);
 
         using var response = await SendWithRetryAsync(
-            () => _client.PostAsync(url, form, ct),
+            token => _client.PostAsync(url, form, token),
             url, ct);
 
         if (!response.IsSuccessStatusCode)
@@ -201,47 +208,58 @@ public class AgentHttpClient : IAgentHttpClient
         new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json");
 
     private async Task<HttpResponseMessage> SendWithRetryAsync(
-        Func<Task<HttpResponseMessage>> request,
+        Func<CancellationToken, Task<HttpResponseMessage>> request,
         string operation,
-        CancellationToken ct)
+        CancellationToken ct,
+        TimeSpan? timeout = null,
+        int maxAttempts = MaxAttempts)
     {
+        var limit = timeout ?? DefaultTimeout;
         HttpRequestException? lastException = null;
-        HttpResponseMessage? transientResponse = null;
 
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             ct.ThrowIfCancellationRequested();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(limit);
 
             try
             {
-                var response = await request();
+                var response = await request(timeoutCts.Token);
 
-                // Retry only on 5xx from the agent (transient upstream failure).
-                if ((int)response.StatusCode < 500 || attempt == MaxAttempts)
+                // Retry only on 5xx: the agent answered, so the failed attempt is over.
+                if ((int)response.StatusCode < 500 || attempt == maxAttempts)
                     return response;
 
-                transientResponse = response;
+                var status = response.StatusCode;
+                response.Dispose();
                 lastException = new HttpRequestException(
-                    $"Agent responded {response.StatusCode} on {operation} (attempt {attempt}).");
+                    $"Agent responded {status} on {operation} (attempt {attempt}).");
             }
             catch (HttpRequestException ex)
             {
                 lastException = ex;
             }
-            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                lastException = new HttpRequestException($"Agent call {operation} timed out (attempt {attempt}).");
+                // Timed out: the agent may still be processing. Retrying would start the same
+                // work a second time, so stop here.
+                _logger.LogWarning("Agent call {Operation} timed out after {Seconds}s (not retried).",
+                    operation, limit.TotalSeconds);
+                throw new HttpRequestException(
+                    $"Agent call {operation} timed out after {limit.TotalSeconds:0}s.");
             }
 
-            _logger.LogWarning("Agent call {Operation} failed (attempt {Attempt}/{Max}), retrying…",
-                operation, attempt, MaxAttempts);
-
-            transientResponse?.Dispose();
-            await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt), ct);
+            if (attempt < maxAttempts)
+            {
+                _logger.LogWarning("Agent call {Operation} failed (attempt {Attempt}/{Max}), retrying…",
+                    operation, attempt, maxAttempts);
+                await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt), ct);
+            }
         }
 
         throw lastException
-            ?? new HttpRequestException($"Agent call {operation} failed after {MaxAttempts} attempts.");
+            ?? new HttpRequestException($"Agent call {operation} failed after {maxAttempts} attempts.");
     }
 
     private async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response, CancellationToken ct)

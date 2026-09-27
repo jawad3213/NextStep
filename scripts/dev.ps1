@@ -172,7 +172,11 @@ $agentsCmd = '$env:DATABASE_URL="postgresql+asyncpg://postgres:said1234@localhos
              "& `"$venvPython`" -m uvicorn main:app --host 0.0.0.0 --port 8000$reloadFlag"
 Start-AppWindow -Title 'NextStep - Agents (8000)' -WorkDir $agentsDir -Command $agentsCmd
 
-$backendCmd = '$env:ASPNETCORE_URLS="http://localhost:5000"; $env:PythonAgents__Url="http://localhost:8000"; dotnet run --urls "http://localhost:5000"'
+# Shared secret for backend -> agents calls (the agents read it from .env themselves).
+$agentsApiKey = ((Get-Content (Join-Path $root '.env') -ErrorAction SilentlyContinue |
+    Where-Object { $_ -match '^AGENTS_API_KEY=' } | Select-Object -Last 1) -replace '^AGENTS_API_KEY=', '').Trim()
+$backendCmd = '$env:AGENTS_API_KEY="' + $agentsApiKey + '"; ' +
+    '$env:ASPNETCORE_URLS="http://localhost:5000"; $env:PythonAgents__Url="http://localhost:8000"; dotnet run --urls "http://localhost:5000"'
 Start-AppWindow -Title 'NextStep - Backend (5000)' -WorkDir $backendDir -Command $backendCmd
 
 $frontendCmd = 'npm start'

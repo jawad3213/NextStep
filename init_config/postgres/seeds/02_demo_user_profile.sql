@@ -1,14 +1,9 @@
 -- ============================================================
--- 02 — Demo user + profile (skills, experiences, education)
--- The demo user is the backend's Dev-mode user (keycloak_id = 'dev-user',
--- see DevAuthenticationHandler / DatabaseInitializer), so this data is
--- visible immediately when running with Auth:Mode = "Dev".
+-- 02 — Demo profile (skills, experiences, education) for the seed user
+-- The user is a real Keycloak account selected by 00_select_user.sql;
+-- the backend creates its utilisateur row on first login.
 -- Idempotent: fixed IDs + ON CONFLICT DO NOTHING; never overwrites edits.
 -- ============================================================
-
-INSERT INTO public.utilisateur (id_utilisateur, keycloak_id, email, nom, prenom, date_inscription, onboarding_completed, profile_score)
-VALUES ('00000000-0000-0000-0000-0000000000de', 'dev-user', 'dev@nextstep.local', 'User', 'Dev', NOW(), TRUE, 70)
-ON CONFLICT DO NOTHING;
 
 -- Skills
 INSERT INTO public.competence (id_competence, id_utilisateur, nom, niveau, type_competence, is_valid)
@@ -21,7 +16,7 @@ CROSS JOIN (VALUES
     ('5eed0002-0000-4000-8000-000000000004', 'HTML/CSS',   5),
     ('5eed0002-0000-4000-8000-000000000005', 'PostgreSQL', 3)
 ) AS v(id, nom, niveau)
-WHERE u.keycloak_id = 'dev-user'
+WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;
 
 -- Experiences
@@ -34,7 +29,7 @@ CROSS JOIN (VALUES
     ('5eed0002-0000-4000-8000-000000000102', 'InnovInc', 'Web Developer', '2019-05-01', '2021-12-31',
      'Fullstack developer creating backend web services with .NET Core and C#, and frontend reactive components.', 'Lyon')
 ) AS v(id, entreprise, poste, debut, fin, missions, ville)
-WHERE u.keycloak_id = 'dev-user'
+WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;
 
 -- Education
@@ -42,5 +37,5 @@ INSERT INTO public.formation (id_formation, id_utilisateur, etablissement, diplo
 SELECT '5eed0002-0000-4000-8000-000000000201'::uuid, u.id_utilisateur,
        'Université Claude Bernard Lyon 1', 'Master', 'Génie Logiciel', 2017, 2019, 'Lyon'
 FROM public.utilisateur u
-WHERE u.keycloak_id = 'dev-user'
+WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;

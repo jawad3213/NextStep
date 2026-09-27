@@ -18,3 +18,9 @@ Thumbs.db
 
 # Version control
 .git/
+
+# Nested build output, tests and local runtime data
+**/bin/
+**/obj/
+tests/
+storage/

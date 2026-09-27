@@ -78,38 +78,19 @@ def _extract_company_and_role(row: Dict[str, Any]) -> tuple[str, str]:
 
 async def _resolve_user_id(session, user_id: Optional[str]) -> str:
     """
-    Intelligently resolve user_id into a valid id_utilisateur UUID string.
-    Supports Keycloak ID, UUID string, 'dev-user', and automatic fallback to 
-    the active dev user (00000000-0000-0000-0000-0000000000de) or any active candidate.
+    Resolve the caller's id (Keycloak subject or id_utilisateur UUID) to an
+    id_utilisateur. Never falls back to another user: an unknown id raises,
+    so one user's data can never be served to someone else.
     """
     uid_str = str(user_id or "").strip()
-    
-    # 1. If valid explicit UUID or keycloak id provided, check if it matches in DB
-    if uid_str and uid_str.lower() not in ("default-user", "undefined", "null", "none", "00000000-0000-0000-0000-000000000000"):
+    if uid_str:
         res = (await session.execute(
             text("SELECT id_utilisateur::text FROM public.utilisateur WHERE id_utilisateur::text = :uid OR keycloak_id = :uid LIMIT 1"),
             {"uid": uid_str}
         )).scalar()
         if res:
             return str(res)
-
-    # 2. Check for dev-user or seeded dev user
-    dev_res = (await session.execute(
-        text("SELECT id_utilisateur::text FROM public.utilisateur WHERE keycloak_id = 'dev-user' OR id_utilisateur = '00000000-0000-0000-0000-0000000000de' LIMIT 1")
-    )).scalar()
-    if dev_res:
-        return str(dev_res)
-
-    # 3. Fallback to candidate who has records in candidature table
-    cand_user = (await session.execute(
-        text("SELECT id_utilisateur::text FROM public.candidature WHERE id_utilisateur IS NOT NULL ORDER BY application_date DESC NULLS LAST, date_creation DESC LIMIT 1")
-    )).scalar()
-    if cand_user:
-        return str(cand_user)
-
-    # 4. Fallback to any first user
-    first_user = (await session.execute(text("SELECT id_utilisateur::text FROM public.utilisateur LIMIT 1"))).scalar()
-    return str(first_user or "00000000-0000-0000-0000-0000000000de")
+    raise ValueError(f"Unknown user id: {uid_str!r}")
 
 
 async def get_recent_candidatures(user_id: str, limit: int = 10) -> List[Dict[str, Any]]:

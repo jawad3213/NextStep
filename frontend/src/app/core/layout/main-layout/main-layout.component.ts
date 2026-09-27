@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { catchError, filter, map, of, startWith, switchMap } from 'rxjs';
-import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../auth/services/auth.service';
 import { ProfileService } from '../../../features/profile/profile.service';
 import { PipelineStateService } from '../../../services/pipeline-state.service';
@@ -28,7 +27,6 @@ type HeaderState = {
   styleUrl: './main-layout.component.scss'
 })
 export class MainLayoutComponent {
-  private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   readonly sidebarService = inject(SidebarService);
   readonly snService = inject(SnCopilotService);
   readonly router = inject(Router);
@@ -71,27 +69,13 @@ export class MainLayoutComponent {
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),
     startWith(null),
     switchMap(() =>
-      // Local-development mode: the onboarding wall is disabled, sidebar always visible.
-      (environment.authEnabled ? this.onboardingService.getStatus() : of({ onboardingCompleted: true } as any)).pipe(
-        map((status) => {
-          const url = this.router.url;
-          const isOnboardingRoute = url.startsWith('/onboarding');
-          const isProfileRoute = url.startsWith('/profile');
-          const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
-
-          // Sidebar remains hidden on onboarding page or if the profile hasn't been explicitly unlocked (Finish clicked)
-          if (isOnboardingRoute) return false;
-          const isForcedStepper = isProfileRoute && !profileUnlocked;
-          return !(!status.onboardingCompleted || isForcedStepper);
-        }),
-        catchError(() => {
-          const currentUrl = this.router.url;
-          if (currentUrl.startsWith('/onboarding')) return of(false);
-          const isProfileRoute = currentUrl.startsWith('/profile');
-          const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
-          const isForcedStepper = isProfileRoute && !profileUnlocked;
-          return of(!isForcedStepper);
-        })
+      this.onboardingService.getStatus().pipe(
+        // The sidebar (links to the whole app) appears only once the backend says the
+        // onboarding questions AND the profile are both completed for this user.
+        map((status) =>
+          !this.router.url.startsWith('/onboarding') && status.onboardingCompleted && status.profileCompleted
+        ),
+        catchError(() => of(false))
       )
     )
   );

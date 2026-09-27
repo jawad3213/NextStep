@@ -90,7 +90,6 @@ export class OnboardingComponent implements OnInit {
     this.onboardingService.submitSoftOnboarding(this.onboardingData).subscribe({
       next: () => {
         localStorage.removeItem(this.STORAGE_KEY);
-        localStorage.setItem('nextstep_soft_onboarding_done', 'true');
         this.router.navigate(['/profile'], {
           queryParams: { step: 'coordonnees' }
         });

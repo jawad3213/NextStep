@@ -13,6 +13,8 @@ import { ProfileService } from './profile.service';
 import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
 import { ToastService } from '../../core/notifications/toast.service';
 import { extractApiError } from '../../core/utils/extract-api-error';
+import { OnboardingService } from '../../services/onboarding.service';
+import { firstValueFrom } from 'rxjs';
 
 type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 
@@ -53,8 +55,8 @@ import { ResumeComponent } from './components/resume/resume.component';
   encapsulation: ViewEncapsulation.None
 })
 export class UserProfileComponent implements OnInit, OnDestroy {
-  private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   profileService = inject(ProfileService);
+  private readonly onboardingService = inject(OnboardingService);
   private readonly toast = inject(ToastService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -71,6 +73,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       const stepId = params.get('step') as ProfileStepId;
       if (stepId && this.steps.some(s => s.id === stepId)) {
         this.profileService.setStep(stepId);
+        this.markReviewed(stepId);
       }
     });
 
@@ -138,6 +141,16 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   isGeneratingAI = signal(false);
   isParsing = signal(false);
   isApplyingData = signal(false);
+
+  /**
+   * Set after a CV/LinkedIn import: the AI only pre-fills the profile. The user
+   * must open (review) every section before Finish is accepted.
+   */
+  readonly importReviewPending = signal(false);
+  readonly reviewedSteps = signal<ReadonlySet<ProfileStepId>>(new Set());
+  readonly unreviewedSteps = computed(() =>
+    this.importReviewPending() ? this.steps.filter(s => !this.reviewedSteps().has(s.id)) : []
+  );
   isUploadingPhoto = signal(false);
   parsingStatus = signal<'reading' | 'analyzing' | 'structuring'>('reading');
   parsingProgress = signal(0);
@@ -233,6 +246,12 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     if (nextIdx < this.steps.length) {
       this.goToStep(this.steps[nextIdx].id);
     } else {
+      const unreviewed = this.unreviewedSteps();
+      if (unreviewed.length > 0) {
+        this.toast.error(`Review what the AI filled before finishing: ${unreviewed.map(s => s.label).join(', ')}`, 6000);
+        this.goToStep(unreviewed[0].id);
+        return;
+      }
       if (this.completionPercentage() < 85) {
         this.toastMessage.set('Complete at least 85% of your profile to continue');
         this.showToast.set(true);
@@ -247,22 +266,26 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   async finishProfile() {
-    if (this.isForcedOnboarding()) {
+    const wasForced = this.isForcedOnboarding();
+    if (wasForced) {
       await this.profileService.flushOnboardingData();
-      this.showToast.set(true);
-      setTimeout(() => this.showToast.set(false), 3000);
     } else {
       await this.save();
     }
+    if (!wasForced) return;
+
+    // The server validates the profile and unlocks the application for this user.
+    try {
+      await firstValueFrom(this.onboardingService.completeProfile());
+    } catch (err) {
+      this.toast.error(extractApiError(err).message, 6000);
+      return;
+    }
     this.isForcedOnboarding.set(false);
     this.profileService.isOnboarding.set(false);
-    localStorage.setItem(this.profileUnlockedKey, 'true');
-    localStorage.removeItem('nextstep_soft_onboarding_done');
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { step: 'coordonnees' },
-      queryParamsHandling: 'merge'
-    });
+    this.importReviewPending.set(false);
+    this.toast.success('Profile completed — welcome to NextStep!');
+    this.router.navigate(['/offers']);
   }
 
   async prev() {
@@ -351,6 +374,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   linkedinRawText = signal('');
 
   parsingEvents = this.profileService.parsingEvents;
+  parsingEventsLatestFirst = computed(() => [...this.parsingEvents()].reverse());
   importSummary = this.profileService.lastImportSummary;
   parsingStageCopy = computed(() => {
     switch (this.parsingStatus()) {
@@ -526,17 +550,17 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
   private async afterImportCheck() {
     if (!this.isForcedOnboarding()) return;
-    const pct = this.completionPercentage();
-    if (pct >= 85) {
-      await this.finishProfile();
-    } else {
-      this.toastMessage.set(`Profile ${pct}% filled. Complete the remaining steps to finish.`);
-      this.showToast.set(true);
-      setTimeout(() => {
-        this.showToast.set(false);
-        this.toastMessage.set('Changes saved');
-      }, 4000);
-    }
+    // Never finish automatically: the user reviews and corrects every section
+    // the AI filled, then clicks Finish (validated again by the server).
+    this.importReviewPending.set(true);
+    this.reviewedSteps.set(new Set([this.steps[0].id]));
+    this.goToStep(this.steps[0].id);
+    this.toast.success('CV imported. Review each section, correct anything the AI got wrong, then click Finish.', 6000);
+  }
+
+  private markReviewed(id: ProfileStepId) {
+    if (!this.importReviewPending()) return;
+    this.reviewedSteps.update(reviewed => new Set(reviewed).add(id));
   }
 
   // Formation Methods
@@ -954,9 +978,15 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   private refreshOnboardingStatus() {
-    const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
-    const forced = !profileUnlocked;
-    this.isForcedOnboarding.set(forced);
-    this.profileService.isOnboarding.set(forced);
+    // Until the server marks the profile as completed, the page is a mandatory stepper.
+    this.isForcedOnboarding.set(true);
+    this.profileService.isOnboarding.set(true);
+    this.onboardingService.getStatus().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (status) => {
+        const forced = !status.profileCompleted;
+        this.isForcedOnboarding.set(forced);
+        this.profileService.isOnboarding.set(forced);
+      },
+    });
   }
 }

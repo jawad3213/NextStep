@@ -61,7 +61,6 @@ export interface SnUiMessage {
 export class SnCopilotService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = environment.apiBaseUrl || 'http://localhost:5000/api';
-  private readonly fallbackAgentsUrl = environment.agentsBaseUrl || 'http://localhost:8000';
 
   // ── Reactive Drawer & Chat State ──────────────────────────────────────────
   readonly isOpen = signal<boolean>(false);
@@ -192,17 +191,9 @@ export class SnCopilotService {
     // Primary: .NET backend endpoint
     this.http.post<SnChatAgentResponse>(`${this.baseUrl}/sn/chat`, requestPayload)
       .pipe(
+        // No direct call to the agents: they only accept requests from the backend.
         catchError((err) => {
-          console.warn('[SN Service] Backend failed, attempting direct agents fallback...', err);
-          // Fallback direct to Python agents if backend is unreachable
-          return this.http.post<SnChatAgentResponse>(`${this.fallbackAgentsUrl}/api/agents/sn/chat`, {
-            user_id: '00000000-0000-0000-0000-0000000000de',
-            message: text,
-            history: historyPayload
-          });
-        }),
-        catchError((err2) => {
-          console.error('[SN Service] Both endpoints failed:', err2);
+          console.error('[SN Service] Backend request failed:', err);
           return of({
             markdownText: `Désolé, je rencontre une indisponibilité momentanée pour contacter le moteur d'intelligence artificielle. Veuillez vous assurer que le service backend est actif et réessayer dans un instant.`,
             actionsPerformed: ['⚠️ Connexion au service SN Copilot indisponible'],

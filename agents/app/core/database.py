@@ -1,9 +1,8 @@
 # ============================================================
-# app/core/database.py — SQLAlchemy async + pgvector
+# app/core/database.py — SQLAlchemy async
 # ============================================================
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from pgvector.sqlalchemy import Vector  # noqa: F401 — enregistre le type Vector
 from app.core.config import settings
 import logging
 

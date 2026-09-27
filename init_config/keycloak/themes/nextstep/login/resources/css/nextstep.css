@@ -308,3 +308,81 @@ html, body {
   color: #DC2626;
   text-align: center;
 }
+
+/* Message colours by type (default .alert above stays the error style) */
+.alert-success { background: #ECFDF3; color: #027A48; }
+.alert-info    { background: #EEF4FF; color: #3538CD; }
+.alert-warning { background: #FFFAEB; color: #B54708; }
+
+/* Pages inherited from the base Keycloak theme (account linking, Google
+   profile review, re-authentication, errors...). See template.ftl. */
+.kc-generic form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kc-generic form > div {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kc-generic label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--auth-text-primary);
+}
+
+.kc-generic input[type="text"],
+.kc-generic input[type="email"],
+.kc-generic input[type="password"] {
+  width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  background-color: var(--auth-bg-input);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--auth-text-primary);
+  box-sizing: border-box;
+}
+
+.kc-generic button,
+.kc-generic input[type="submit"] {
+  width: 100%;
+  height: 40px;
+  background-color: #465FFF;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kc-generic button:hover,
+.kc-generic input[type="submit"]:hover {
+  background-color: #3641F5;
+}
+
+/* Secondary choice when a page offers two buttons (e.g. "Review profile") */
+.kc-generic button + button,
+.kc-generic input[type="submit"] + input[type="submit"] {
+  background-color: transparent;
+  color: #465FFF;
+  border: 1px solid #465FFF;
+}
+
+.kc-generic button + button:hover,
+.kc-generic input[type="submit"] + input[type="submit"]:hover {
+  background-color: #EEF4FF;
+}
+
+.kc-generic a {
+  color: #465FFF;
+  font-size: 13px;
+}

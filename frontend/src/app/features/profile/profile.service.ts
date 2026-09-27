@@ -1208,7 +1208,7 @@ export class ProfileService {
         const events: {type: 'info' | 'success', msg: string, entity?: string}[] = [
           { type: 'info', msg: 'Reading PDF binary data...' },
           { type: 'success', msg: 'Text extraction complete', entity: 'PDF Source' },
-          { type: 'info', msg: 'Waking up Llama-3.3 agents...' },
+          { type: 'info', msg: 'Waking up NextStep AI agents...' },
           { type: 'info', msg: 'Analyzing professional patterns...' },
           { type: 'info', msg: 'Extracting semantic entities...' }
         ];
@@ -1300,7 +1300,8 @@ export class ProfileService {
         ...currentProfile.personal,
         firstName: data.personal.firstName || currentProfile.personal.firstName,
         lastName: data.personal.lastName || currentProfile.personal.lastName,
-        email: data.personal.email || currentProfile.personal.email,
+        // The account email comes from the login (Keycloak); a CV import never replaces it.
+        email: currentProfile.personal.email || data.personal.email,
         phone: data.personal.phone || currentProfile.personal.phone,
         jobTitle: data.personal.jobTitle || currentProfile.personal.jobTitle,
         city: data.personal.city || currentProfile.personal.city,
@@ -1388,7 +1389,6 @@ export class ProfileService {
       throw e;
     } finally {
       this.isOnboarding.set(false);
-      localStorage.setItem('nextstep_profile_unlocked', 'true');
     }
   }
 

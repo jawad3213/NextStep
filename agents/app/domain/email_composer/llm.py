@@ -35,7 +35,7 @@ def get_email_llm() -> BaseChatModel:
             if provider == "groq":
                 from langchain_groq import ChatGroq  # type: ignore
 
-                model = os.getenv("EMAIL_LLM_MODEL", "llama-3.3-70b-versatile")
+                model = os.getenv("EMAIL_LLM_MODEL", "openai/gpt-oss-120b")
                 api_key = os.getenv("GROQ_API_KEY")
                 if not api_key:
                     raise ValueError("GROQ_API_KEY is missing from environment.")

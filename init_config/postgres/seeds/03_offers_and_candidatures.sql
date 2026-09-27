@@ -1,6 +1,6 @@
 -- ============================================================
 -- 03 — Demo job offer, candidature and AI agent outputs
--- Requires 02 (demo user). Offers live in offres_emploi (the legacy
+-- Requires 00 (seed user). Offers live in offres_emploi (the legacy
 -- "offre" table is migrated away by the backend at startup).
 -- The agent output tables are created by the agents service; those
 -- inserts are skipped if the agents have never been started.
@@ -27,7 +27,7 @@ SELECT
     }'::jsonb,
     NOW()
 FROM public.utilisateur u
-WHERE u.keycloak_id = 'dev-user'
+WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;
 
 -- Candidature (statut must be a CandidatureStatut enum name)
@@ -35,13 +35,13 @@ INSERT INTO public.candidature (id_candidature, id_utilisateur, id_offre, statut
 SELECT '5eed0003-0000-4000-8000-000000000002'::uuid, u.id_utilisateur,
        '5eed0003-0000-4000-8000-000000000001'::uuid, 'EN_COURS_EXAMEN', 'EMAIL', NOW()
 FROM public.utilisateur u
-WHERE u.keycloak_id = 'dev-user'
+WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;
 
 -- Agent outputs (tables owned by the agents service)
 DO $$
 DECLARE
-    v_user  uuid := (SELECT id_utilisateur FROM public.utilisateur WHERE keycloak_id = 'dev-user');
+    v_user  uuid := (SELECT id_utilisateur FROM public.utilisateur u WHERE lower(u.email) = lower(current_setting('nextstep.seed_email')));
     v_offer uuid := '5eed0003-0000-4000-8000-000000000001';
 BEGIN
     IF to_regclass('public.offre_analysee') IS NULL THEN

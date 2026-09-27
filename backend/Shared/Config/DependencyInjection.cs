@@ -8,7 +8,6 @@ using Amazon.S3;
 using Hangfire;
 using Hangfire.PostgreSql;
 using NextStep.data;
-using NextStep.Shared.Auth;
 using NextStep.Shared.Http;
 using NextStep.Shared.Storage;
 using NextStep.Modules.Candidature.Repositories;
@@ -88,17 +87,6 @@ public static class DependencyInjection
 
     public static IServiceCollection AddAppAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        var authMode = configuration["Auth:Mode"] ?? "Keycloak";
-
-        if (string.Equals(authMode, "Dev", StringComparison.OrdinalIgnoreCase))
-        {
-            // Local development only: no Keycloak. Every request is treated as
-            // the seeded "dev-user" (see DevAuthenticationHandler).
-            services.AddAuthentication(DevAuthenticationHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>(DevAuthenticationHandler.SchemeName, null);
-            return services;
-        }
-
         Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -112,7 +100,7 @@ public static class DependencyInjection
                 { 
                     ValidateAudience = false, 
                     ValidateIssuer = false, 
-                    ValidateLifetime = false,
+                    ValidateLifetime = true,
                     NameClaimType = "email" 
                 };
                 options.MapInboundClaims = false;
@@ -150,7 +138,10 @@ public static class DependencyInjection
             options.Url = url;
         });
         services.Configure<SmtpEmailOptions>(configuration.GetSection("Email:Smtp"));
-        services.AddHttpClient("SharedAgentClient").AddTypedClient<IAgentHttpClient, AgentHttpClient>();
+        services.AddTransient<AgentApiKeyHandler>();
+        services.AddHttpClient("SharedAgentClient")
+            .AddHttpMessageHandler<AgentApiKeyHandler>()
+            .AddTypedClient<IAgentHttpClient, AgentHttpClient>();
         
         // Chatbot Module
         services.AddChatbotModule(configuration);

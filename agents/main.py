@@ -1,11 +1,12 @@
 # ============================================================
 # main.py - FastAPI entrypoint for the agents service
 # ============================================================
+import hmac
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from app.api.chatbot_routes import router as chatbot_router
 from app.api.company_routes import router as company_router
@@ -17,6 +18,7 @@ from app.api.linkedin_jobs_routes import router as linkedin_jobs_router
 from app.api.offer_routes import router as offer_router
 from app.api.resume_routes import router as resume_router
 from app.api.sn_routes import router as sn_router
+from app.core.config import settings
 from app.core.schema_bootstrap import ensure_agent_runtime_schema
 from app.core.error_handlers import register_exception_handlers
 
@@ -26,12 +28,7 @@ try:
 
     _email_router_available = True
 except ImportError:
-    try:
-        from email_engine.router import router as email_router  # type: ignore
-
-        _email_router_available = True
-    except ImportError:
-        _email_router_available = False
+    _email_router_available = False
 
 logging.basicConfig(
     level=logging.INFO,
@@ -86,13 +83,22 @@ register_exception_handlers(app)
 
 app.include_router(resume_router, prefix="/resume", tags=["Resume Parsing"])
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=".*",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Only the NextStep backend may call the agents: every request must carry the shared
+# secret AGENTS_API_KEY. No CORS: browsers must never call this service directly.
+_PUBLIC_PATHS = {"/health", "/docs", "/redoc", "/openapi.json"}
+if not settings.AGENTS_API_KEY:
+    logger.error("AGENTS_API_KEY is not set: every agents request will be rejected (401). Set it in .env.")
+
+
+@app.middleware("http")
+async def require_internal_api_key(request: Request, call_next):
+    if request.url.path in _PUBLIC_PATHS:
+        return await call_next(request)
+    expected = settings.AGENTS_API_KEY
+    provided = request.headers.get("X-Internal-Api-Key", "")
+    if not expected or not hmac.compare_digest(provided.encode(), expected.encode()):
+        return JSONResponse(status_code=401, content={"error": "Unauthorized", "type": "AgentAuthError"})
+    return await call_next(request)
 
 app.include_router(offer_router, prefix="/offer")
 app.include_router(company_router, prefix="/company")

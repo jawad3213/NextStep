@@ -6,6 +6,7 @@ import { SafeHtml } from '@angular/platform-browser';
 import { SidebarService } from '../../../../shared/services/sidebar.service';
 import { CvDesignConfig } from '../../services/offer-api.service';
 import { environment } from '../../../../../environments/environment';
+import { CV_TEMPLATES, CV_TEMPLATE_SLUGS, CvTemplateSlug, cvTemplate, defaultCvDesignConfig, normalizeCvTemplateSlug } from '../../cv-templates';
 
 export interface Candidate {
   name: string;
@@ -115,7 +116,7 @@ interface PreviewSectionOverlay {
 
 
 type EditorPanelTab = 'templates' | 'design' | 'sections';
-type SupportedEditorTemplate = 'modern' | 'latex';
+type SupportedEditorTemplate = CvTemplateSlug;
 
 @Component({
   selector: 'app-resume-editor',
@@ -162,7 +163,8 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
 
   // DYNAMIC CHOSEN MODEL
   readonly activeTemplate = signal<string>('modern');
-  readonly supportedTemplateIds: SupportedEditorTemplate[] = ['modern', 'latex'];
+  readonly supportedTemplateIds = CV_TEMPLATE_SLUGS;
+  readonly templates = CV_TEMPLATES;
   readonly activePanelTab = signal<EditorPanelTab>('templates');
   readonly isPanelOpen = signal<boolean>(true);
   readonly activeAccentColor = signal<string>('green');
@@ -1921,10 +1923,12 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   private normalizeTemplateId(templateId: string | null | undefined): SupportedEditorTemplate {
-    const normalized = String(templateId ?? '').trim().toLowerCase();
-    return normalized === 'latex' || normalized === 'tech-latex' || normalized === 'tech_latex'
-      ? 'latex'
-      : 'modern';
+    return normalizeCvTemplateSlug(templateId);
+  }
+
+  /** Whether the active template has a side column (sidebar width setting). */
+  templateHasSidebar(): boolean {
+    return cvTemplate(this.activeTemplate()).hasSidebar;
   }
 
   private hydrateSectionState(rawSections: any): void {
@@ -2014,7 +2018,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       fontSize: this.fontSize(),
       lineSpacing: this.lineSpacing(),
       sectionSpacing: this.sectionSpacing(),
-      sidebarWidth: this.activeTemplate() === 'latex' ? '0%' : this.sidebarWidth()
+      sidebarWidth: this.templateHasSidebar() ? this.sidebarWidth() : '0%'
     });
   }
 
@@ -2040,23 +2044,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   private defaultDesignConfig(templateId: string): CvDesignConfig {
-    return this.normalizeTemplateId(templateId) === 'latex'
-      ? {
-          themeColor: '#111827',
-          fontFamily: "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
-          fontSize: '13px',
-          lineSpacing: '1.38',
-          sectionSpacing: '1rem',
-          sidebarWidth: '0%'
-        }
-      : {
-          themeColor: '#2d3a8c',
-          fontFamily: "Inter, 'Segoe UI', Arial, sans-serif",
-          fontSize: '14px',
-          lineSpacing: '1.45',
-          sectionSpacing: '1.2rem',
-          sidebarWidth: '31%'
-        };
+    return defaultCvDesignConfig(templateId);
   }
 
   // ── Drag-and-drop reorder ──

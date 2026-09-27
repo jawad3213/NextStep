@@ -58,8 +58,23 @@ namespace NextStep.Modules.Identity.Controllers
             var status = await _userService.GetProfileStatusAsync(keycloakId);
             return Ok(new { 
                 onboardingCompleted = status.OnboardingCompleted,
-                profileScore = status.ProfileScore
+                profileCompleted = status.ProfileCompleted,
+                profileScore = status.ProfileScore,
+                completionPercent = status.CompletionPercent
             });
+        }
+
+        /// <summary>
+        /// Validates the profile server-side (same 85% rule as the stepper) and unlocks the app.
+        /// </summary>
+        [HttpPost("complete-profile")]
+        [Authorize]
+        public async Task<IActionResult> CompleteProfile()
+        {
+            var result = await _userService.CompleteProfileAsync(GetKeycloakId());
+            if (result.Succeeded) return Ok(result);
+            // Standard error contract ({ error, ... }) read by the frontend's extractApiError.
+            return BadRequest(new { error = result.Message, result.CompletionPercent, result.RequiredPercent });
         }
 
         /// <summary>

@@ -14,6 +14,7 @@ import { environment } from '../../../../../environments/environment';
 import { SignalRService } from '../../../../services/signalr.service';
 import { ProfileService } from '../../../profile/profile.service';
 import { extractApiError } from '../../../../core/utils/extract-api-error';
+import { CV_TEMPLATES, CV_TEMPLATE_SLUGS, defaultCvDesignConfig } from '../../cv-templates';
 
 interface RealCvTemplate {
   slug: string;
@@ -77,10 +78,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     'formateur', 'trainer', 'formation', 'solihackathon', 'itwave', 'ids'
   ];
 
-  readonly realTemplates: RealCvTemplate[] = [
-    { slug: 'latex', label: 'LaTeX Tech', tone: 'Classic Engineering' },
-    { slug: 'modern', label: 'Modern', tone: 'Tech Minimal' },
-  ];
+  readonly realTemplates: RealCvTemplate[] = CV_TEMPLATES.map(({ slug, label, tone }) => ({ slug, label, tone }));
 
   readonly generationStages = [
     { key: 'profile_context', label: 'Contexte candidat' },
@@ -90,10 +88,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     { key: 'db_persist', label: 'Finalisation' },
   ] as const;
 
-  private readonly templateMap: Record<string, string> = {
-    latex: 'latex',
-    modern: 'modern',
-  };
+  private readonly templateMap: Record<string, string> = Object.fromEntries(CV_TEMPLATE_SLUGS.map((slug) => [slug, slug]));
 
   private readonly generatedCvSync = effect(() => {
     const generated = this.generatedCvData;
@@ -644,23 +639,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   }
 
   private defaultDesignConfig(templateSlug: string): CvDesignConfig {
-    return templateSlug === 'latex'
-      ? {
-          themeColor: '#111827',
-          fontFamily: "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
-          fontSize: '13px',
-          lineSpacing: '1.38',
-          sectionSpacing: '1rem',
-          sidebarWidth: '0%'
-        }
-      : {
-          themeColor: '#2d3a8c',
-          fontFamily: "Inter, 'Segoe UI', Arial, sans-serif",
-          fontSize: '14px',
-          lineSpacing: '1.45',
-          sectionSpacing: '1.2rem',
-          sidebarWidth: '31%'
-        };
+    return defaultCvDesignConfig(templateSlug);
   }
 
   private asEditorDraft(value: any): CvEditorDraft | null {

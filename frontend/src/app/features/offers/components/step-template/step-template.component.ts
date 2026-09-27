@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { SignalRService } from '../../../../services/signalr.service';
 import { extractApiError } from '../../../../core/utils/extract-api-error';
+import { CV_TEMPLATE_SLUGS } from '../../cv-templates';
 
 const INDUSTRIES = [
   'Administrative & Office',
@@ -95,7 +96,7 @@ export class StepTemplateComponent implements OnInit {
 
     this.offerApi.getCvTemplates().subscribe({
       next: (templates) => {
-        const htmlTemplateSlugs = new Set(['modern', 'latex']);
+        const htmlTemplateSlugs = new Set<string>(CV_TEMPLATE_SLUGS);
         const availableTemplates = (templates ?? [])
           .filter(template => htmlTemplateSlugs.has(template.slug))
           .sort((a, b) => this.sortRank(a) - this.sortRank(b));

@@ -1,0 +1,106 @@
+#!/bin/bash
+# ============================================================
+# NextStep EC2 first-boot bootstrap (rendered by Terraform templatefile)
+# Shell variables are written $VAR (no braces); $${name} are Terraform values.
+# Progress: sudo tail -f /var/log/nextstep-bootstrap.log
+# ============================================================
+set -euo pipefail
+exec > >(tee -a /var/log/nextstep-bootstrap.log) 2>&1
+
+AWS_REGION="${aws_region}"
+ENV_PARAM="${env_parameter_name}"
+REPO_URL="${repo_url}"
+REPO_BRANCH="${repo_branch}"
+DOMAIN="${domain_name}"
+ACME_EMAIL="${letsencrypt_email}"
+PUBLIC_IP="${public_ip}"
+
+APP_DIR=/opt/nextstep
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+export DEBIAN_FRONTEND=noninteractive
+
+echo "==> [1/7] Swap (image builds need more than 4 GB RAM)"
+if [ ! -f /swapfile ]; then
+  fallocate -l 4G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+echo "==> [2/7] Docker Engine + Compose plugin, AWS CLI"
+apt-get update -y
+apt-get install -y ca-certificates curl git
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  > /etc/apt/sources.list.d/docker.list
+apt-get update -y
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl enable --now docker
+snap install aws-cli --classic
+AWS=/snap/bin/aws
+
+echo "==> [3/7] Clone $REPO_URL ($REPO_BRANCH)"
+if [ ! -d "$APP_DIR/.git" ]; then
+  git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" "$APP_DIR"
+fi
+cd "$APP_DIR"
+
+echo "==> [4/7] Fetch .env from SSM Parameter Store"
+$AWS ssm get-parameter --region "$AWS_REGION" --name "$ENV_PARAM" --with-decryption \
+  --query Parameter.Value --output text > .env
+chmod 600 .env
+
+set_env() {  # set_env KEY VALUE — replace or append a line in .env
+  sed -i "/^$1=/d" .env
+  echo "$1=$2" >> .env
+}
+get_env() {  # get_env KEY — value without surrounding quotes
+  grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
+}
+
+if [ -n "$DOMAIN" ]; then
+  PUBLIC_URL="https://$DOMAIN"
+  set_env HTTP_PORT "127.0.0.1:8080"   # only Caddy (on the host) talks to nginx
+else
+  PUBLIC_URL="http://$PUBLIC_IP"
+  set_env HTTP_PORT "80"
+fi
+set_env PUBLIC_URL "$PUBLIC_URL"
+
+echo "==> [5/7] Build and start the stack (first build takes several minutes)"
+$COMPOSE up -d --build --wait
+
+echo "==> [6/7] Register $PUBLIC_URL as a Keycloak login redirect"
+KC="$COMPOSE exec -T keycloak /opt/keycloak/bin/kcadm.sh"
+$KC config credentials --server http://localhost:8080/auth --realm master \
+  --user "$(get_env KEYCLOAK_ADMIN)" --password "$(get_env KEYCLOAK_ADMIN_PASSWORD)"
+CLIENT_ID=$($KC get clients -r Next-Step -q clientId=nextstep-frontend --fields id --format csv --noquotes)
+$KC update "clients/$CLIENT_ID" -r Next-Step \
+  -s "redirectUris=[\"http://localhost:4200/*\",\"$PUBLIC_URL/*\"]" \
+  -s "webOrigins=[\"http://localhost:4200\",\"$PUBLIC_URL\"]"
+if [ -z "$DOMAIN" ]; then
+  # Plain-HTTP demo on a public IP: Keycloak would otherwise demand HTTPS.
+  $KC update realms/Next-Step -s sslRequired=NONE
+fi
+
+echo "==> [7/7] HTTPS"
+if [ -n "$DOMAIN" ]; then
+  mkdir -p /opt/caddy
+  {
+    if [ -n "$ACME_EMAIL" ]; then printf '{\n  email %s\n}\n\n' "$ACME_EMAIL"; fi
+    printf '%s {\n  reverse_proxy 127.0.0.1:8080\n}\n' "$DOMAIN"
+  } > /opt/caddy/Caddyfile
+  docker rm -f caddy 2>/dev/null || true
+  docker run -d --name caddy --restart unless-stopped --network host \
+    -v /opt/caddy/Caddyfile:/etc/caddy/Caddyfile:ro \
+    -v caddy_data:/data -v caddy_config:/config \
+    caddy:2
+  echo "Caddy will obtain a certificate once DNS for $DOMAIN points to $PUBLIC_IP"
+else
+  echo "No domain_name set: serving plain HTTP on $PUBLIC_URL"
+fi
+
+echo "==> Done: $PUBLIC_URL"

@@ -18,3 +18,9 @@ Thumbs.db
 *.log
 .pytest_cache/
 htmlcov/
+
+# Not needed in the image
+tests/
+scripts/
+scratch/
+.git/

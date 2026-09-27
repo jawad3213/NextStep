@@ -1,0 +1,326 @@
+/* Horizon — colour header band, timeline main column, light side panel. */
+.cv-document {
+  box-sizing: border-box;
+  width: 794px;
+  min-height: 1123px;
+  margin: 0 auto;
+  color: #1e293b;
+  font-family: var(--cv-font-family);
+  font-size: var(--cv-font-size);
+  line-height: var(--cv-line-height);
+}
+
+.cv-document * {
+  box-sizing: border-box;
+}
+
+.cv-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 1123px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.14);
+}
+
+/* Header band */
+.cv-hz-header {
+  padding: 30px 40px 24px;
+  color: #ffffff;
+  background: linear-gradient(120deg, var(--cv-theme-color) 0%, color-mix(in srgb, var(--cv-theme-color) 70%, #0f172a 30%) 100%);
+}
+
+.cv-hz-identity {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.cv-hz-avatar {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.65);
+}
+
+.cv-hz-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.cv-hz-header h1 {
+  margin: 0;
+  font-size: 2em;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.cv-hz-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-hz-contact li {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 0.82em;
+}
+
+/* Body: main + side panel */
+/* flex: 1 so the side panel runs to the bottom of the page */
+.cv-hz-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) var(--cv-sidebar-width);
+}
+
+.cv-hz-main {
+  padding: 26px 26px 34px 40px;
+}
+
+.cv-hz-side {
+  padding: 26px 26px 34px 22px;
+  background: color-mix(in srgb, var(--cv-theme-color) 7%, #ffffff);
+}
+
+.cv-section + .cv-section {
+  margin-top: var(--cv-section-spacing);
+}
+
+.cv-hz-title {
+  margin: 0 0 10px;
+  color: var(--cv-theme-color);
+  font-size: 0.86em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cv-summary {
+  margin: 0;
+  color: #334155;
+}
+
+/* Timeline */
+.cv-hz-timeline {
+  position: relative;
+  padding-left: 18px;
+  border-left: 2px solid color-mix(in srgb, var(--cv-theme-color) 28%, #e2e8f0);
+}
+
+.cv-hz-timeline .cv-entry {
+  position: relative;
+}
+
+.cv-hz-timeline .cv-entry::before {
+  content: "";
+  position: absolute;
+  top: 0.42em;
+  left: -24px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--cv-theme-color);
+}
+
+.cv-entry + .cv-entry {
+  margin-top: 14px;
+}
+
+.cv-entry-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.cv-entry-head strong {
+  color: #0f172a;
+  font-size: 1.02em;
+  font-weight: 700;
+}
+
+.cv-hz-date {
+  flex-shrink: 0;
+  color: var(--cv-theme-color);
+  font-size: 0.82em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cv-entry-sub {
+  margin: 1px 0 0;
+  color: #475569;
+  font-size: 0.92em;
+  font-weight: 600;
+}
+
+.cv-entry-description {
+  margin: 4px 0 0;
+  color: #334155;
+}
+
+.cv-bullet-list {
+  margin: 5px 0 0;
+  padding-left: 16px;
+}
+
+.cv-bullet-list li {
+  margin-top: 3px;
+}
+
+.cv-bullet-list li::marker {
+  color: var(--cv-theme-color);
+}
+
+.cv-hz-plain-list {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.cv-hz-plain-list li + li {
+  margin-top: 4px;
+}
+
+/* Side panel content */
+.cv-hz-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cv-hz-tag {
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--cv-theme-color) 30%, #e2e8f0);
+  color: #1e293b;
+  font-size: 0.8em;
+}
+
+.cv-hz-tag.matched {
+  background: var(--cv-theme-color);
+  border-color: var(--cv-theme-color);
+  color: #ffffff;
+}
+
+.cv-hz-side-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-hz-side-list li + li {
+  margin-top: 7px;
+}
+
+.cv-hz-side-list strong {
+  display: block;
+  color: #0f172a;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.cv-hz-side-list span {
+  display: block;
+  color: #64748b;
+  font-size: 0.82em;
+}
+
+/* Print (PDF) */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cv-document {
+    width: 210mm;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .cv-sheet {
+    display: block;
+    width: auto;
+    min-height: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  /* Side panel colour on every page, full height (fixed = repeated per page) */
+  .cv-hz-body {
+    position: relative;
+  }
+
+  .cv-hz-body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: var(--cv-sidebar-width);
+    background: color-mix(in srgb, var(--cv-theme-color) 7%, #ffffff);
+    z-index: 0;
+  }
+
+  .cv-hz-side {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+  }
+
+  /* The header band stays above the side-panel colour on page 1 */
+  .cv-hz-header {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Top and bottom margins on every page, not only the first */
+  .cv-hz-main,
+  .cv-hz-side {
+    position: relative;
+    z-index: 1;
+    padding-top: 12mm;
+    padding-bottom: 12mm;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .cv-hz-header,
+  .cv-entry,
+  .cv-entry-head,
+  .cv-hz-side-list li,
+  .cv-hz-plain-list li {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  .cv-hz-title {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+}

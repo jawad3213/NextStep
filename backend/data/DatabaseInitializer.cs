@@ -107,7 +107,7 @@ public static class DatabaseInitializer
 
                 // 2. Force Add Columns (Utilisateur)
 
-                string[] uCols = { "keycloak_id TEXT", "email TEXT", "nom TEXT", "prenom TEXT", "date_inscription TIMESTAMP", "titres_sections JSONB", "objectif TEXT", "niveau TEXT", "secteur TEXT", "onboarding_completed BOOLEAN DEFAULT FALSE", "onboarding_step INTEGER DEFAULT 0", "onboarding_data JSONB", "profile_score INTEGER DEFAULT 0", "ville TEXT", "pays TEXT", "titre_poste TEXT", "photo_url TEXT", "telephone TEXT", "resume_professionnel TEXT", "lien_linkedin TEXT", "lien_github TEXT", "lien_portfolio TEXT", "coordonnees TEXT" };
+                string[] uCols = { "keycloak_id TEXT", "email TEXT", "nom TEXT", "prenom TEXT", "date_inscription TIMESTAMP", "titres_sections JSONB", "objectif TEXT", "niveau TEXT", "secteur TEXT", "onboarding_completed BOOLEAN DEFAULT FALSE", "profile_completed BOOLEAN NOT NULL DEFAULT FALSE", "onboarding_step INTEGER DEFAULT 0", "onboarding_data JSONB", "profile_score INTEGER DEFAULT 0", "ville TEXT", "pays TEXT", "titre_poste TEXT", "photo_url TEXT", "telephone TEXT", "resume_professionnel TEXT", "lien_linkedin TEXT", "lien_github TEXT", "lien_portfolio TEXT", "coordonnees TEXT" };
                 foreach (var c in uCols) await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.utilisateur ADD COLUMN IF NOT EXISTS {c};");
 
                 // 3. Force Add Columns (Experience)
@@ -449,7 +449,17 @@ public static class DatabaseInitializer
                          '[""ITAndEngineering"",""EducationAndAcademic""]'::jsonb,
                          '[""MidLevel"",""SeniorExecutive""]'::jsonb,
                          'Traditional', 5, '#FFFFFF',
-                         '[""single-column"",""ATS-friendly"",""classic""]'::jsonb, 2);
+                         '[""single-column"",""ATS-friendly"",""classic""]'::jsonb, 2),
+                        ('executive', 'Executive', 'Elegant single-column serif layout with centred header, for corporate roles.', '/api/cv/templates/executive/thumbnail',
+                         '[""FinanceAndConsulting"",""BusinessAndManagement"",""ITAndEngineering""]'::jsonb,
+                         '[""MidLevel"",""SeniorExecutive""]'::jsonb,
+                         'Elegant', 5, '#FFFFFF',
+                         '[""single-column"",""ATS-friendly"",""serif""]'::jsonb, 3),
+                        ('horizon',   'Horizon',   'Colour header band, timeline experience and a skills side panel.', '/api/cv/templates/horizon/thumbnail',
+                         '[""ITAndEngineering"",""CreativeAndDesign"",""MarketingAndSales""]'::jsonb,
+                         '[""EntryLevel"",""MidLevel""]'::jsonb,
+                         'Modern', 6, '#FFFFFF',
+                         '[""two-column"",""timeline"",""header-band""]'::jsonb, 4);
                 ");
 
                 // Update thumbnail_url for existing templates that may have null
@@ -485,15 +495,6 @@ public static class DatabaseInitializer
                 string[] histCols = { "title VARCHAR(200)", "cv_data_json JSONB DEFAULT '{{}}'", "updated_at TIMESTAMP", "design_config_json JSONB NOT NULL DEFAULT '{{}}'::jsonb", "html_snapshot TEXT" };
                 foreach (var c in histCols)
                     await context.Database.ExecuteSqlRawAsync($"ALTER TABLE public.cv_history ADD COLUMN IF NOT EXISTS {c};");
-
-                // 8c. Seed the local dev user (Auth:Mode = "Dev").
-                // Matches DevAuthenticationHandler so [Authorize] endpoints and
-                // JIT user provisioning resolve to an existing user.
-                await context.Database.ExecuteSqlRawAsync(@"
-                    INSERT INTO public.utilisateur (id_utilisateur, keycloak_id, email, nom, prenom, date_inscription, onboarding_completed, profile_score)
-                    SELECT '00000000-0000-0000-0000-0000000000de', 'dev-user', 'dev@nextstep.local', 'User', 'Dev', NOW(), TRUE, 70
-                    WHERE NOT EXISTS (SELECT 1 FROM public.utilisateur WHERE keycloak_id = 'dev-user');
-                ");
 
                 logger.LogInformation("NUCLEAR REPAIR COMPLETED.");
 

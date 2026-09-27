@@ -53,8 +53,12 @@ export class StepResultsComponent implements OnInit, OnDestroy {
     return `${this.pipeline.finalCvTitle() ?? `CV_${this.pipeline.currentOfferId()}`}.pdf`;
   }
 
+  /** Id of the saved final PDF (the email attachment). Sending is blocked without it. */
+  resolvedCvHistoryId: string | null = null;
+
   get canSend(): boolean {
     return !this.isSendingEmail
+      && !!this.resolvedCvHistoryId
       && !!this.pipeline.currentOfferId()
       && !!this.recipientEmail.trim()
       && !!this.emailSubject.trim()
@@ -109,7 +113,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
 
     const payload: SendApplicationEmailRequest = {
       offerId,
-      cvHistoryId: this.pipeline.finalCvHistoryId(),
+      cvHistoryId: this.resolvedCvHistoryId,
       recipientEmail: this.recipientEmail.trim(),
       subject: this.emailSubject.trim(),
       body: this.emailBody.trim(),
@@ -241,9 +245,11 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       const targetId = this.pipeline.finalCvHistoryId();
       const target = targetId ? { id: targetId } : await this.findLatestCvForOffer(offerId);
       if (!target?.id) {
+        this.resolvedCvHistoryId = null;
         this.previewError = 'PDF final pas encore sauvegarde.';
         return;
       }
+      this.resolvedCvHistoryId = target.id;
 
       const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
       if (this.previewBlobUrl) {

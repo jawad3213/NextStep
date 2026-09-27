@@ -1,5 +1,5 @@
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=true; section>
+<@layout.registrationLayout customLayout=true displayMessage=true; section>
     <#if section = "header">
         ${msg("updatePasswordTitle")}
     <#elseif section = "form">

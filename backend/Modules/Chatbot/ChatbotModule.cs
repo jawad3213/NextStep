@@ -23,7 +23,7 @@ public static class ChatbotModule
                 ?? throw new InvalidOperationException("AgentsService:BaseUrl not configured");
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(60); // LLM peut prendre du temps
-        });
+        }).AddHttpMessageHandler<NextStep.Shared.Http.AgentApiKeyHandler>();
 
         // Services métier
         services.AddScoped<IArenaService, ArenaService>();

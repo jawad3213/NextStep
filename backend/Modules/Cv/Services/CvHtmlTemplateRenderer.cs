@@ -16,6 +16,37 @@ public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTe
     private readonly string _templateRoot = Path.Combine(environment.ContentRootPath, "Modules", "Cv", "Templates", "Html");
     private readonly FluidParser _parser = new();
 
+    /// <summary>
+    /// Every HTML template: folder name under Templates/Html and its default design.
+    /// To add a template: add its folder (template.liquid + template.css) and one entry here.
+    /// SidebarWidth "0%" = single-column template (no side column).
+    /// </summary>
+    private static readonly Dictionary<string, Func<CvDesignConfig>> TemplateDefaults = new()
+    {
+        ["modern"] = () => new CvDesignConfig
+        {
+            ThemeColor = "#2d3a8c", FontFamily = "Inter, 'Segoe UI', Arial, sans-serif",
+            FontSize = "14px", LineSpacing = "1.45", SectionSpacing = "1.2rem", SidebarWidth = "31%"
+        },
+        ["latex"] = () => new CvDesignConfig
+        {
+            ThemeColor = "#111827", FontFamily = "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
+            FontSize = "13px", LineSpacing = "1.38", SectionSpacing = "1rem", SidebarWidth = "0%"
+        },
+        ["executive"] = () => new CvDesignConfig
+        {
+            ThemeColor = "#b93317", FontFamily = "Georgia, 'Liberation Serif', 'Times New Roman', serif",
+            FontSize = "13.5px", LineSpacing = "1.45", SectionSpacing = "1.15rem", SidebarWidth = "0%"
+        },
+        ["horizon"] = () => new CvDesignConfig
+        {
+            ThemeColor = "#18a7a0", FontFamily = "'Segoe UI', 'Liberation Sans', Arial, sans-serif",
+            FontSize = "13.5px", LineSpacing = "1.45", SectionSpacing = "1.1rem", SidebarWidth = "34%"
+        },
+    };
+
+    public static IReadOnlyCollection<string> TemplateSlugs => TemplateDefaults.Keys;
+
     public async Task<CvRenderResponse> RenderAsync(string templateSlug, CvData data, CvDesignConfig? designConfig = null)
     {
         var normalizedTemplate = NormalizeTemplateSlug(templateSlug);
@@ -45,41 +76,16 @@ public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTe
         };
     }
 
-    public CvDesignConfig GetDefaultDesignConfig(string templateSlug)
-    {
-        var normalizedTemplate = NormalizeTemplateSlug(templateSlug);
-        return normalizedTemplate switch
-        {
-            "latex" => new CvDesignConfig
-            {
-                ThemeColor = "#111827",
-                FontFamily = "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
-                FontSize = "13px",
-                LineSpacing = "1.38",
-                SectionSpacing = "1rem",
-                SidebarWidth = "0%"
-            },
-            _ => new CvDesignConfig
-            {
-                ThemeColor = "#2d3a8c",
-                FontFamily = "Inter, 'Segoe UI', Arial, sans-serif",
-                FontSize = "14px",
-                LineSpacing = "1.45",
-                SectionSpacing = "1.2rem",
-                SidebarWidth = "31%"
-            }
-        };
-    }
+    public CvDesignConfig GetDefaultDesignConfig(string templateSlug) =>
+        TemplateDefaults[NormalizeTemplateSlug(templateSlug)]();
 
     private static string NormalizeTemplateSlug(string templateSlug)
     {
         var normalized = (templateSlug ?? string.Empty).Trim().ToLowerInvariant();
-        return normalized switch
-        {
-            "latex" or "tech-latex" or "tech_latex" => "latex",
-            "modern" => "modern",
-            _ => throw new ArgumentException($"Unsupported CV template '{templateSlug}'.")
-        };
+        if (normalized is "tech-latex" or "tech_latex") normalized = "latex";
+        return TemplateDefaults.ContainsKey(normalized)
+            ? normalized
+            : throw new ArgumentException($"Unsupported CV template '{templateSlug}'.");
     }
 
     private Dictionary<string, object?> BuildTemplateModel(string templateSlug, CvData data, CvDesignConfig designConfig)
@@ -165,27 +171,7 @@ public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTe
 
     private static CvDesignConfig SanitizeDesignConfig(CvDesignConfig? designConfig, string templateSlug)
     {
-        var defaults = templateSlug switch
-        {
-            "latex" => new CvDesignConfig
-            {
-                ThemeColor = "#111827",
-                FontFamily = "'IBM Plex Sans', 'Segoe UI', Arial, sans-serif",
-                FontSize = "13px",
-                LineSpacing = "1.38",
-                SectionSpacing = "1rem",
-                SidebarWidth = "0%"
-            },
-            _ => new CvDesignConfig
-            {
-                ThemeColor = "#2d3a8c",
-                FontFamily = "Inter, 'Segoe UI', Arial, sans-serif",
-                FontSize = "14px",
-                LineSpacing = "1.45",
-                SectionSpacing = "1.2rem",
-                SidebarWidth = "31%"
-            }
-        };
+        var defaults = TemplateDefaults[templateSlug]();
 
         if (designConfig is null) return defaults;
 
@@ -202,7 +188,7 @@ public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTe
 
     private static string BuildRootStyle(CvDesignConfig designConfig, string templateSlug)
     {
-        var sidebarWidth = templateSlug == "latex" ? "0%" : designConfig.SidebarWidth;
+        var sidebarWidth = TemplateDefaults[templateSlug]().SidebarWidth == "0%" ? "0%" : designConfig.SidebarWidth;
         return string.Join("; ", new[]
         {
             $"--cv-theme-color: {HtmlEncoder.Default.Encode(designConfig.ThemeColor)}",

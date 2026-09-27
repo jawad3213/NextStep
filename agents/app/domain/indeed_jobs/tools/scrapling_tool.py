@@ -22,7 +22,7 @@ def _get_fetcher():
     except ImportError as exc:
         raise RuntimeError(
             "Scrapling fetchers are unavailable. Install the agents dependencies so "
-            "`scrapling[fetchers]==0.4.8` is present before calling this agent."
+            "the scrapling packages from requirements.txt are installed before calling this agent."
         ) from exc
     return Fetcher
 

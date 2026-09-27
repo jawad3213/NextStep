@@ -1244,7 +1244,7 @@
     "auth" : "true",
     "envelopeFrom" : "",
     "ssl" : "false",
-    "password" : "CHANGE_ME_SMTP_PASSWORD",
+    "password" : "${SMTP_PASSWORD}",
     "port" : "587",
     "host" : "smtp.gmail.com",
     "replyTo" : "",
@@ -1276,11 +1276,11 @@
     "config" : {
       "hideOnLoginPage" : "false",
       "acceptsPromptNoneForwardFromClient" : "false",
-      "clientId" : "1094899055128-45to48a44tkh6dr37p6am2gc1tt23u2e.apps.googleusercontent.com",
+      "clientId" : "${GOOGLE_CLIENT_ID:412227625791-25ucp3qglm2fnjvvp2am7i9r4imvtoc3.apps.googleusercontent.com}",
       "disableUserInfo" : "false",
       "filteredByClaim" : "false",
       "syncMode" : "IMPORT",
-      "clientSecret" : "CHANGE_ME_GOOGLE_CLIENT_SECRET",
+      "clientSecret" : "${GOOGLE_CLIENT_SECRET}",
       "defaultScope" : "openid email profile"
     }
   } ],

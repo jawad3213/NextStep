@@ -181,13 +181,19 @@
     padding: 0;
   }
 
+  /* Keep single entries together; let whole sections flow (no half-empty pages) */
   .cv-latex-header,
-  .cv-section,
   .cv-entry,
   .cv-meta-block,
   .cv-section-title-row,
   .cv-entry-head {
     break-inside: avoid-page;
     page-break-inside: avoid;
+  }
+
+  /* A section title never ends a page alone */
+  .cv-section-title-row {
+    break-after: avoid-page;
+    page-break-after: avoid;
   }
 }

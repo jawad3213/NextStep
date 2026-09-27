@@ -1,109 +1,84 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { Router, ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree } from '@angular/router';
-import { of } from 'rxjs';
-import { AUTH_CONFIG } from '../core/auth/auth-config.token';
+import { Observable, firstValueFrom, of, throwError } from 'rxjs';
 import { onboardingGuard, alreadyOnboardedGuard } from '../core/guards/onboarding.guard';
-import { OnboardingService } from '../services/onboarding.service';
+import { OnboardingService, OnboardingStatus } from '../services/onboarding.service';
 
 describe('OnboardingGuards', () => {
-  let mockOnboardingService: any;
-  let mockRouter: any;
-  let dummyRoute: ActivatedRouteSnapshot;
-  let dummyState: RouterStateSnapshot;
+  let mockOnboardingService: { getStatus: ReturnType<typeof vi.fn> };
+  let mockRouter: { parseUrl: ReturnType<typeof vi.fn> };
+  const route = {} as ActivatedRouteSnapshot;
+
+  const status = (onboardingCompleted: boolean, profileCompleted: boolean): OnboardingStatus =>
+    ({ onboardingCompleted, profileCompleted, profileScore: 0, completionPercent: 0 });
+
+  const run = (guard: typeof onboardingGuard, url: string) => {
+    const result = TestBed.runInInjectionContext(() => guard(route, { url } as RouterStateSnapshot));
+    return firstValueFrom(result as Observable<boolean | UrlTree>);
+  };
 
   beforeEach(() => {
     localStorage.clear();
-
-    mockOnboardingService = {
-      getStatus: vi.fn()
-    };
-
-    mockRouter = {
-      parseUrl: vi.fn((url: string) => `UrlTree(${url})` as unknown as UrlTree)
-    };
+    mockOnboardingService = { getStatus: vi.fn() };
+    mockRouter = { parseUrl: vi.fn((url: string) => `UrlTree(${url})` as unknown as UrlTree) };
 
     TestBed.configureTestingModule({
       providers: [
-        // Force auth on so the actual onboarding logic is exercised.
-        { provide: AUTH_CONFIG, useValue: { authEnabled: true } },
         { provide: OnboardingService, useValue: mockOnboardingService },
-        { provide: Router, useValue: mockRouter }
-      ]
+        { provide: Router, useValue: mockRouter },
+      ],
     });
-
-    dummyRoute = {} as ActivatedRouteSnapshot;
-    dummyState = { url: '/dashboard' } as RouterStateSnapshot;
   });
 
   describe('onboardingGuard', () => {
-    it('devrait autoriser l\'accÃ¨s si l\'onboarding est complÃ©tÃ©', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true, profileScore: 100 }));
+    it('sends a new user to /onboarding', async () => {
+      mockOnboardingService.getStatus.mockReturnValue(of(status(false, false)));
+      expect(await run(onboardingGuard, '/dashboard')).toBe('UrlTree(/onboarding)');
+    });
+
+    it('forces the profile stepper until the server marks the profile completed', async () => {
+      mockOnboardingService.getStatus.mockReturnValue(of(status(true, false)));
+      expect(await run(onboardingGuard, '/offers')).toBe('UrlTree(/profile?step=coordonnees)');
+    });
+
+    it('allows the profile page while the profile is being completed', async () => {
+      mockOnboardingService.getStatus.mockReturnValue(of(status(true, false)));
+      expect(await run(onboardingGuard, '/profile?step=experience')).toBe(true);
+    });
+
+    it('ignores the legacy browser unlock flag', async () => {
       localStorage.setItem('nextstep_profile_unlocked', 'true');
-      dummyState.url = '/profile';
-      
-      const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
-      
-      // on s'abonne Ã  l'observable renvoyÃ© par le guard
-      if (typeof result$ !== 'boolean' && 'subscribe' in result$) {
-        result$.subscribe(res => {
-          expect(res).toBe(true);
-        });
-      }
+      mockOnboardingService.getStatus.mockReturnValue(of(status(true, false)));
+      expect(await run(onboardingGuard, '/dashboard')).toBe('UrlTree(/profile?step=coordonnees)');
     });
 
-    it('devrait rediriger vers /onboarding si l\'onboarding n\'est pas complÃ©tÃ©', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false, profileScore: 0 }));
-      
-      const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
-      
-      if (typeof result$ !== 'boolean' && 'subscribe' in result$) {
-        result$.subscribe(res => {
-          expect(mockRouter.parseUrl).toHaveBeenCalledWith('/onboarding');
-          expect(res).toBe(`UrlTree(/onboarding)`);
-        });
-      }
+    it('opens the application once onboarding and profile are completed', async () => {
+      mockOnboardingService.getStatus.mockReturnValue(of(status(true, true)));
+      expect(await run(onboardingGuard, '/dashboard')).toBe(true);
     });
 
-    it('devrait rediriger vers /onboarding si l\'onboarding est partiel', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false, profileScore: 35 }));
-      
-      const result$ = TestBed.runInInjectionContext(() => onboardingGuard(dummyRoute, dummyState));
-      
-      if (typeof result$ !== 'boolean' && 'subscribe' in result$) {
-        result$.subscribe(res => {
-          expect(mockRouter.parseUrl).toHaveBeenCalledWith('/onboarding');
-          expect(res).toBe(`UrlTree(/onboarding)`);
-        });
-      }
+    it('fails closed when the status cannot be loaded', async () => {
+      localStorage.setItem('nextstep_profile_unlocked', 'true');
+      mockOnboardingService.getStatus.mockReturnValue(throwError(() => new Error('network')));
+      expect(await run(onboardingGuard, '/dashboard')).toBe('UrlTree(/onboarding)');
     });
   });
 
   describe('alreadyOnboardedGuard', () => {
-    it('devrait autoriser l\'accÃ¨s (Ã  la page onboarding) si NON complÃ©tÃ©', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: false, profileScore: 0 }));
-      
-      const result$ = TestBed.runInInjectionContext(() => alreadyOnboardedGuard(dummyRoute, dummyState));
-      
-      if (typeof result$ !== 'boolean' && 'subscribe' in result$) {
-        result$.subscribe(res => {
-          expect(res).toBe(true);
-        });
-      }
+    it('shows the onboarding page to a new user', async () => {
+      mockOnboardingService.getStatus.mockReturnValue(of(status(false, false)));
+      expect(await run(alreadyOnboardedGuard, '/onboarding')).toBe(true);
     });
 
-    it('devrait rediriger vers /offers si DEJA complÃ©tÃ©', () => {
-      mockOnboardingService.getStatus.mockReturnValue(of({ onboardingCompleted: true, profileScore: 100 }));
-      
-      const result$ = TestBed.runInInjectionContext(() => alreadyOnboardedGuard(dummyRoute, dummyState));
-      
-      if (typeof result$ !== 'boolean' && 'subscribe' in result$) {
-        result$.subscribe(res => {
-          expect(mockRouter.parseUrl).toHaveBeenCalledWith('/offers');
-          expect(res).toBe(`UrlTree(/offers)`);
-        });
-      }
+    it('sends an onboarded user with an incomplete profile to the stepper', async () => {
+      mockOnboardingService.getStatus.mockReturnValue(of(status(true, false)));
+      expect(await run(alreadyOnboardedGuard, '/onboarding')).toBe('UrlTree(/profile?step=coordonnees)');
+    });
+
+    it('sends a fully completed user to /offers', async () => {
+      mockOnboardingService.getStatus.mockReturnValue(of(status(true, true)));
+      expect(await run(alreadyOnboardedGuard, '/onboarding')).toBe('UrlTree(/offers)');
     });
   });
 });
-

@@ -58,7 +58,47 @@ def _match_by_title(items: list[dict], title: Any) -> dict | None:
     return None
 
 
+def _squash(value: Any) -> str:
+    """Accent/case/punctuation-insensitive key: 'Node.js' == 'NodeJS'."""
+    return re.sub(r"[^a-z0-9#+]", "", _strip_accents(str(value or "")).lower())
+
+
+# Placeholder metrics the model may leave in bullets: [X]%, [nombre], <x>, XX%, X%...
+_PLACEHOLDER_RE = re.compile(r"\[[^\]]{0,20}\]|<[a-z]{1,3}>|\bX{1,3}\s?%|\bXX+\b", re.IGNORECASE)
+
+
+def _real_bullets(bullets: list[str], fallback: Any) -> list[str]:
+    """Drops bullets containing placeholders; falls back to the source tasks if none remain."""
+    kept = [b for b in bullets if not _PLACEHOLDER_RE.search(b)]
+    return kept or [b for b in _split_structured_bullets(fallback) if not _PLACEHOLDER_RE.search(b)]
+
+
+def _take_source(items: list[dict], used: set[int], title: Any, company: Any = "") -> dict | None:
+    """Finds the source entry an optimized entry comes from (same title, and same company if given)."""
+    wanted_title, wanted_company = _normalized_title(title), _squash(company)
+    if not wanted_title:
+        return None
+    for index, item in enumerate(items or []):
+        if index in used or _normalized_title(item.get("titre", "")) != wanted_title:
+            continue
+        source_company = _squash(item.get("entreprise"))
+        if wanted_company and source_company and wanted_company != source_company:
+            continue
+        used.add(index)
+        return item
+    return None
+
+
+def _source_tasks(source: dict) -> Any:
+    return source.get("taches") or source.get("tasks") or source.get("description") or source.get("missions")
+
+
 def _normalize_optimized_output(output_dict: dict, candidate_cv: dict) -> dict:
+    """
+    Keeps the optimizer's wording but never its facts: experiences, projects, skills,
+    education and certifications must exist in the candidate's profile. Invented entries
+    are dropped, real entries the model dropped are restored, placeholders are removed.
+    """
     if not isinstance(output_dict, dict):
         return output_dict
 
@@ -66,99 +106,108 @@ def _normalize_optimized_output(output_dict: dict, candidate_cv: dict) -> dict:
     normalized["resume_optimise"] = normalized.get("resume_optimise") or {}
     if not isinstance(normalized["resume_optimise"], dict):
         normalized["resume_optimise"] = {"contenu": str(normalized["resume_optimise"] or "").strip()}
-    normalized["resume_optimise"]["contenu"] = str(
-        normalized["resume_optimise"].get("contenu") or candidate_cv.get("resume") or "Non fourni"
-    ).strip() or "Non fourni"
+    summary = str(normalized["resume_optimise"].get("contenu") or "").strip()
+    if not summary or _PLACEHOLDER_RE.search(summary):
+        summary = str(candidate_cv.get("resume") or "").strip()
+    normalized["resume_optimise"]["contenu"] = summary
 
+    # --- Experiences: only real ones (title + company from the profile) ---
     original_experiences = candidate_cv.get("experiences", []) or []
+    used: set[int] = set()
     normalized_experiences = []
     for exp in normalized.get("experiences_optimisees") or []:
         if not isinstance(exp, dict):
             continue
-        source = _match_by_title(original_experiences, exp.get("titre"))
-        normalized_experiences.append(
-            {
-                "titre": str(exp.get("titre") or (source or {}).get("titre") or "").strip(),
-                "entreprise": str(
-                    exp.get("entreprise")
-                    or (source or {}).get("entreprise")
-                    or ""
-                ).strip(),
-                "description_optimisee": str(
-                    exp.get("description_optimisee")
-                    or (source or {}).get("description")
-                    or ""
-                ).strip(),
-                "taches_optimisees": _split_structured_bullets(
-                    exp.get("taches_optimisees")
-                    or (source or {}).get("taches")
-                    or (source or {}).get("tasks")
-                    or (source or {}).get("description")
-                ),
-                "mots_cles_cibles": _clean_list(exp.get("mots_cles_cibles")),
-                "niveau_pertinence": str(exp.get("niveau_pertinence") or "medium").strip().lower() or "medium",
-            }
-        )
+        source = _take_source(original_experiences, used, exp.get("titre"), exp.get("entreprise"))
+        if source is None:
+            logger.warning("CV optimizer: dropped experience not in the profile: %r", exp.get("titre"))
+            continue
+        normalized_experiences.append({
+            "titre": str(source.get("titre") or "").strip(),
+            "entreprise": str(source.get("entreprise") or "").strip(),
+            "description_optimisee": str(exp.get("description_optimisee") or source.get("description") or "").strip(),
+            "taches_optimisees": _real_bullets(_split_structured_bullets(exp.get("taches_optimisees")), _source_tasks(source)),
+            "mots_cles_cibles": _clean_list(exp.get("mots_cles_cibles")),
+            "niveau_pertinence": str(exp.get("niveau_pertinence") or "medium").strip().lower() or "medium",
+        })
+    for index, source in enumerate(original_experiences):
+        if index not in used:  # the model dropped or renamed it: restore the original
+            normalized_experiences.append({
+                "titre": str(source.get("titre") or "").strip(),
+                "entreprise": str(source.get("entreprise") or "").strip(),
+                "description_optimisee": str(source.get("description") or "").strip(),
+                "taches_optimisees": _real_bullets([], _source_tasks(source)),
+                "mots_cles_cibles": [],
+                "niveau_pertinence": "low",
+            })
     normalized["experiences_optimisees"] = normalized_experiences
 
+    # --- Projects: only real ones; technologies limited to the project's own ---
     original_projects = candidate_cv.get("projets", []) or []
+    used = set()
     normalized_projects = []
-    for proj in normalized.get("projets_optimises") or []:
-        if not isinstance(proj, dict):
-            continue
-        source = _match_by_title(original_projects, proj.get("titre"))
+
+    def project_entry(proj: dict, source: dict) -> dict:
+        source_technologies = _clean_list(source.get("technologies") or source.get("technologies_utilisees"))
+        if not source_technologies and isinstance(source.get("technologies"), str):
+            source_technologies = [t.strip() for t in re.split(r"[,;/|]", source["technologies"]) if t.strip()]
         technologies = proj.get("technologies")
         if isinstance(technologies, str):
             technologies = [part.strip() for part in re.split(r"[,;/|]", technologies) if part.strip()]
-        source_technologies = _clean_list(
-            (source or {}).get("technologies")
-            or (source or {}).get("technologies_utilisees")
-        )
-        source_tech_keys = {tech.lower() for tech in source_technologies}
-        clean_technologies = _clean_list(technologies)
-        if source_tech_keys:
-            clean_technologies = [tech for tech in clean_technologies if tech.lower() in source_tech_keys]
-            if not clean_technologies:
-                clean_technologies = source_technologies
-        normalized_projects.append(
-            {
-                "titre": str(proj.get("titre") or (source or {}).get("titre") or "").strip(),
-                "description_optimisee": str(
-                    proj.get("description_optimisee")
-                    or (source or {}).get("description")
-                    or ""
-                ).strip(),
-                "technologies": clean_technologies,
-                "taches_optimisees": _split_structured_bullets(
-                    proj.get("taches_optimisees")
-                    or (source or {}).get("taches")
-                    or (source or {}).get("tasks")
-                    or (source or {}).get("description")
-                ),
-                "mots_cles_cibles": _clean_list(proj.get("mots_cles_cibles")),
-                "niveau_pertinence": str(proj.get("niveau_pertinence") or "medium").strip().lower() or "medium",
-            }
-        )
+        allowed = {_squash(t) for t in source_technologies}
+        clean_technologies = [t for t in _clean_list(technologies) if _squash(t) in allowed] or source_technologies
+        return {
+            "titre": str(source.get("titre") or "").strip(),
+            "description_optimisee": str(proj.get("description_optimisee") or source.get("description") or "").strip(),
+            "technologies": clean_technologies,
+            "taches_optimisees": _real_bullets(_split_structured_bullets(proj.get("taches_optimisees")), _source_tasks(source)),
+            "mots_cles_cibles": _clean_list(proj.get("mots_cles_cibles")),
+            "niveau_pertinence": str(proj.get("niveau_pertinence") or "medium").strip().lower() or "medium",
+        }
+
+    for proj in normalized.get("projets_optimises") or []:
+        if not isinstance(proj, dict):
+            continue
+        source = _take_source(original_projects, used, proj.get("titre"))
+        if source is None:
+            logger.warning("CV optimizer: dropped project not in the profile: %r", proj.get("titre"))
+            continue
+        normalized_projects.append(project_entry(proj, source))
+    for index, source in enumerate(original_projects):
+        if index not in used:
+            normalized_projects.append({**project_entry({}, source), "niveau_pertinence": "low"})
     normalized["projets_optimises"] = normalized_projects
 
+    # --- Education and certifications are facts: taken from the profile as-is ---
     normalized["formations_optimisees"] = [
-        {
-            "diplome": str(form.get("diplome") or "").strip(),
-            "etablissement": str(form.get("etablissement") or "").strip(),
-        }
-        for form in (normalized.get("formations_optimisees") or [])
-        if isinstance(form, dict)
+        {"diplome": str(f.get("diplome") or "").strip(), "etablissement": str(f.get("etablissement") or "").strip()}
+        for f in candidate_cv.get("formations", []) or [] if isinstance(f, dict)
     ]
     normalized["certifications_optimisees"] = [
-        {
-            "nom": str(cert.get("nom") or "").strip(),
-            "organisme": str(cert.get("organisme") or "").strip(),
-        }
-        for cert in (normalized.get("certifications_optimisees") or [])
-        if isinstance(cert, dict)
+        {"nom": str(c.get("nom") or "").strip(), "organisme": str(c.get("organisme") or "").strip()}
+        for c in candidate_cv.get("certifications", []) or [] if isinstance(c, dict)
     ]
-    normalized["competences_reordonnees"] = _clean_list(normalized.get("competences_reordonnees"))
-    normalized["competences_mises_en_avant"] = _clean_list(normalized.get("competences_mises_en_avant"))
+
+    # --- Skills: only skills the candidate actually has ---
+    source_skills = [str(c.get("nom")).strip() for c in candidate_cv.get("competences", []) or []
+                     if isinstance(c, dict) and c.get("nom")]
+    by_key = {_squash(name): name for name in source_skills}
+
+    def real_skills(values: Any) -> list[str]:
+        result, seen = [], set()
+        for value in _clean_list(values):
+            key = _squash(value)
+            if key in by_key and key not in seen:
+                seen.add(key)
+                result.append(by_key[key])
+            elif key not in by_key:
+                logger.warning("CV optimizer: dropped skill not in the profile: %r", value)
+        return result
+
+    reordered = real_skills(normalized.get("competences_reordonnees"))
+    reordered += [name for key, name in by_key.items() if name not in reordered]  # keep every real skill
+    normalized["competences_reordonnees"] = reordered
+    normalized["competences_mises_en_avant"] = real_skills(normalized.get("competences_mises_en_avant"))
     return normalized
 
 

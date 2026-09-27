@@ -69,6 +69,10 @@ namespace NextStep.Modules.Identity.Models
         [Column("onboarding_completed")]
         public bool OnboardingCompleted { get; set; } = false;
 
+        /// <summary>Profile validated server-side (see UserService.CompleteProfileAsync). Unlocks the app.</summary>
+        [Column("profile_completed")]
+        public bool ProfileCompleted { get; set; } = false;
+
         [Column("onboarding_step")]
         public int OnboardingStep { get; set; } = 0;
 

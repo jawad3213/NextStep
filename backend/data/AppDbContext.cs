@@ -563,6 +563,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Niveau).HasColumnName("niveau");
             entity.Property(e => e.Secteur).HasColumnName("secteur");
             entity.Property(e => e.OnboardingCompleted).HasColumnName("onboarding_completed");
+            entity.Property(e => e.ProfileCompleted).HasColumnName("profile_completed");
             entity.Property(e => e.OnboardingStep).HasColumnName("onboarding_step");
             entity.Property(e => e.OnboardingData).HasColumnName("onboarding_data").HasColumnType("jsonb");
             entity.Property(e => e.ProfileScore).HasColumnName("profile_score");

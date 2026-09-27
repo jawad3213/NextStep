@@ -360,6 +360,13 @@
   margin: 0;
 }
 
+/*
+ * Print layout (PDF). The sidebar CONTENT is printed once, on page 1; a decorative
+ * colour band (fixed element = repeated on every page) keeps the two-column look on
+ * all pages without repeating the name/contact block. The main column gets its top
+ * and bottom padding on every page (box-decoration-break: clone), so continuation
+ * pages never start at the paper edge.
+ */
 @media print {
   html,
   body {
@@ -374,7 +381,7 @@
     width: 210mm;
     min-height: 0;
     margin: 0;
-    padding: 10mm 8mm 12mm;
+    padding: 0;
   }
 
   .cv-sheet {
@@ -382,30 +389,43 @@
     min-height: 0;
     box-shadow: none;
     overflow: visible;
+    background: transparent;
   }
 
   .cv-sheet-modern {
-    display: block;
-    background: #ffffff;
-    padding-left: 58mm;
+    display: grid;
+    grid-template-columns: 62mm minmax(0, 1fr);
+    background: transparent;
+  }
+
+  /* Colour band on every page, full height */
+  .cv-sheet-modern::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 62mm;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--cv-theme-color) 86%, #0f172a 14%) 0%, #0f172a 100%);
+    z-index: 0;
   }
 
   .cv-sidebar {
-    position: fixed;
-    top: 10mm;
-    bottom: 12mm;
-    left: 8mm;
-    width: 50mm;
-    padding: 8mm 6mm;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--cv-theme-color) 86%, #0f172a 14%) 0%, #0f172a 100%);
+    position: relative;
+    z-index: 1;
+    padding: 14mm 7mm 12mm;
+    background: transparent;
     color: #e2e8f0;
-    overflow: hidden;
   }
 
   .cv-main {
+    position: relative;
+    z-index: 1;
     min-height: 0;
-    padding: 0 0 0 8mm;
-    background: #ffffff;
+    padding: 14mm 12mm 12mm 10mm;
+    background: transparent;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 
   .cv-avatar,
@@ -418,12 +438,19 @@
 
   .cv-sidebar-name {
     font-size: 1.38rem;
-    line-height: 1.05;
+    line-height: 1.1;
   }
 
   .cv-sidebar-links li {
     font-size: 0.72rem;
-    line-height: 1.25;
+    line-height: 1.3;
+  }
+
+  /* Emails and links: never cut in the middle of a word when they fit on one line */
+  .cv-sidebar-links li,
+  .cv-sidebar-links li span {
+    word-break: normal;
+    overflow-wrap: anywhere;
   }
 
   .cv-sidebar-links li + li {
@@ -431,7 +458,7 @@
   }
 
   .cv-section-sidebar {
-    margin-top: 4.5mm;
+    margin-top: 5mm;
   }
 
   .cv-section-sidebar h2 {
@@ -439,37 +466,44 @@
   }
 
   .cv-section-sidebar .cv-pill-list li {
-    font-size: 0.68rem;
-    line-height: 1.25;
+    font-size: 0.7rem;
+    line-height: 1.3;
   }
 
   .cv-main .cv-section:first-child {
     margin-top: 0;
   }
 
-  .cv-section,
+  /* Keep single entries together; let sections flow across pages (no half-empty pages) */
   .cv-entry,
   .cv-stack-item,
   .cv-meta-block,
   .cv-entry-head,
-  .cv-skill-grid,
-  .cv-skill-summary {
+  .cv-skill-summary-row {
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
 
+  /* A section title never ends a page alone */
+  .cv-section h2,
+  .cv-rule {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  /* Sized from the document font (em), like the rest of the body text */
+  .cv-skill-summary {
+    gap: 5px;
+  }
+
   .cv-skill-summary-row {
-    grid-template-columns: 122px minmax(0, 1fr);
+    grid-template-columns: 30mm minmax(0, 1fr);
     gap: 8px;
-    font-size: 0.7rem;
+    font-size: 0.93em;
+    line-height: 1.4;
   }
 
   .cv-skill-summary-row strong {
-    font-size: 0.72rem;
-  }
-
-  .cv-section {
-    break-before: auto;
-    page-break-before: auto;
+    font-size: 1em;
   }
 }

@@ -1,4 +1,4 @@
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false showBackToLogin=false>
+<#macro registrationLayout bodyClass="" customLayout=false displayInfo=false displayMessage=true displayRequiredFields=false showBackToLogin=false>
 <!DOCTYPE html>
 <html lang="${properties.kcHtmlLanguage!}">
 <head>
@@ -20,7 +20,24 @@
                 <img src="${url.resourcesPath}/img/logo.png" alt="NextStep Logo" class="auth-logo-img" />
             </div>
 
-            <#nested "form">
+            <#-- Pages customised in this theme (customLayout=true) draw their own
+                 title and messages inside the "form" section. Every other page is
+                 inherited from the base Keycloak theme (account linking, Google
+                 profile review, re-authentication, errors...) and needs its header
+                 and message rendered here, otherwise it shows bare buttons. -->
+            <#if customLayout>
+                <#nested "form">
+            <#else>
+                <div class="auth-form-section kc-generic">
+                    <h1 class="auth-title"><#nested "header"></h1>
+                    <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
+                        <div class="alert alert-${message.type}">
+                            <span>${kcSanitize(message.summary)?no_esc}</span>
+                        </div>
+                    </#if>
+                    <#nested "form">
+                </div>
+            </#if>
 
             <#if displayInfo>
                 <#nested "info">

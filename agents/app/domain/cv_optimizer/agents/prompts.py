@@ -27,11 +27,10 @@ DIRECTIVES DE QUALITE :
    - Explique clairement la valeur, le scope ou l'impact du role/projet.
 
 2. taches_optimisees
-   - Fournis entre 2 et 5 puces par experience ou projet quand la source contient assez de matiere.
+   - Fournis au maximum 5 puces par experience ou projet, jamais plus que ce que la source justifie (une source courte donne peu de puces).
    - Chaque puce doit commencer par un verbe d'action fort comme Built, Implemented, Automated, Reduced, Improved, Designed, Deployed, Developed, Led.
-   - Chaque puce doit idealement montrer un resultat, un impact, une echelle, une amelioration de performance ou un indicateur mesurable.
-   - Si la source ne contient pas de chiffre, tu peux utiliser un placeholder avec moderation, seulement quand c'est vraiment utile.
-   - N'utilise pas un placeholder ou une metrique artificielle dans toutes les puces.
+   - Mets en avant un resultat ou un impact SEULEMENT s'il est dans la source. N'ajoute aucun chiffre, pourcentage ou metrique absent de la source.
+   - N'utilise JAMAIS de placeholder ([X], [X]%, XX%, <x>...) : le CV est envoye tel quel a un recruteur.
    - Ne repete pas exactement les memes mots-cles de l'offre dans chaque puce.
    - Evite les puces generiques comme "Worked on", "Participated in" ou "Responsible for".
 

@@ -3,11 +3,11 @@ import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
-import { AuthService } from '../../../core/auth/services/auth.service';
-import { ProfileService } from '../../../features/profile/profile.service';
-import { PipelineStateService } from '../../../services/pipeline-state.service';
-import { SafeHtmlPipe } from '../../pipe/safe-html.pipe';
-import { SidebarService } from '../../services/sidebar.service';
+import { AuthService } from '@core/auth/auth.service';
+import { ProfileService } from '@features/profile/data-access/profile.service';
+import { PipelineStateService } from '@features/offers/data-access/pipeline-state.service';
+import { SafeHtmlPipe } from '@shared/pipes/safe-html.pipe';
+import { SidebarService } from '../sidebar.service';
 import { SidebarWidgetComponent } from './app-sidebar-widget.component';
 
 type NavSubItem = {

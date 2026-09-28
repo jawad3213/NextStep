@@ -2,7 +2,7 @@ import { Component, inject, signal, ViewChild, ElementRef, AfterViewChecked, Hos
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { SnCopilotService, SnCardDto, SnStarterSuggestionItem, SnUiMessage } from '../../../services/sn-copilot.service';
+import { SnCopilotService, SnCardDto, SnStarterSuggestionItem, SnUiMessage } from '../../data-access/sn-copilot.service';
 
 @Component({
   selector: 'app-sn-drawer',

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace NextStep.Modules.Email.DTOs;
+namespace NextStep.Modules.Messaging.Application.Dtos;
 
 /// <summary>
 /// Request body for POST /api/emails/generate-follow-up.

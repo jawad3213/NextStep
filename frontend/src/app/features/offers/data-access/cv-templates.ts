@@ -1,4 +1,4 @@
-import { CvDesignConfig } from './services/offer-api.service';
+import { CvDesignConfig } from '@features/cv-builder/data-access/cv.models';
 
 /**
  * The HTML CV templates rendered by the backend (backend/Modules/Cv/Templates/Html/<slug>).

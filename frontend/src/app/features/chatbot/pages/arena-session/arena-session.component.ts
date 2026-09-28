@@ -5,11 +5,11 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ArenaService } from '../../services/arena.service';
+import { ArenaService } from '../../data-access/arena.service';
 import {
   ArenaConfig, ChatMessage, QuestionItem,
   FeedbackResult, SalaryResult, ActiveTab, SessionConfig
-} from '../../models/arena.models';
+} from '../../data-access/arena.models';
 
 @Component({
   selector: 'app-arena-session',

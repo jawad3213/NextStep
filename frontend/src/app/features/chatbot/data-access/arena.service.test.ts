@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { ArenaService } from '../features/chatbot/services/arena.service';
-import { ArenaConfig, ChatMessage } from '../features/chatbot/models/arena.models';
+import { ArenaService } from './arena.service';
+import { ArenaConfig, ChatMessage } from './arena.models';
 
 describe('ArenaService (Chatbot Testing)', () => {
   let service: ArenaService;

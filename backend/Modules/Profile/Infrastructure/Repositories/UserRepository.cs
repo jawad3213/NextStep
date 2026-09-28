@@ -1,9 +1,8 @@
-using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Profile.Domain;
 using Microsoft.EntityFrameworkCore;
-using NextStep.data;
+using NextStep.Modules.Profile.Infrastructure.Persistence;
 
-namespace NextStep.Modules.Identity.Repositories
-{
+namespace NextStep.Modules.Profile.Infrastructure.Repositories {
     public interface IUserRepository
     {
         Task<UserEntity?> GetByKeycloakIdAsync(string keycloakId);
@@ -13,9 +12,9 @@ namespace NextStep.Modules.Identity.Repositories
 
     public class UserRepository : IUserRepository
     {
-        private readonly AppDbContext _context;
+        private readonly ProfileDbContext _context;
 
-        public UserRepository(AppDbContext context)
+        public UserRepository(ProfileDbContext context)
         {
             _context = context;
         }

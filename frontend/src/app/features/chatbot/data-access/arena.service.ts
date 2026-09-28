@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { environment } from '../../../../environments/environment';
-import { ArenaConfig, QuestionItem, ChatMessage, FeedbackResult, SalaryResult, SessionSummary, SessionDetail, UserOfferSummary } from '../models/arena.models';
+import { ArenaConfig, QuestionItem, ChatMessage, FeedbackResult, SalaryResult, SessionSummary, SessionDetail, UserOfferSummary } from './arena.models';
+import { apiUrl } from '@core/http/api-url';
 
 const mapConfig = (c: ArenaConfig) => ({
   domain: c.domain,
@@ -16,7 +16,7 @@ const mapConfig = (c: ArenaConfig) => ({
 
 @Injectable({ providedIn: 'root' })
 export class ArenaService {
-  private readonly api = `${environment.apiBaseUrl}/arena`;
+  private readonly api = apiUrl('/arena');
 
   constructor(private http: HttpClient) { }
 

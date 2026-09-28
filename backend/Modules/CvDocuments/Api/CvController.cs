@@ -1,10 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NextStep.Modules.Cv.Models;
-using NextStep.Modules.Cv.Services;
-using NextStep.Modules.Identity.Services;
+using NextStep.Modules.CvDocuments.Domain;
+using NextStep.Modules.CvDocuments.Application.Services;
+using NextStep.Modules.CvDocuments.Infrastructure.Rendering;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Shared.Api;
+using NextStep.Shared.Pagination;
+using NextStep.Shared.ErrorHandling;
+using NextStep.Modules.CvDocuments.Application.Dtos;
 
-namespace NextStep.Modules.Cv.Controllers;
+namespace NextStep.Modules.CvDocuments.Api;
 
 [ApiController]
 [Route("api/cv")]
@@ -13,41 +18,41 @@ public class CvController : ControllerBase
 {
     private readonly ICvService _cvService;
     private readonly ICvTemplateService _templateService;
-    private readonly IUserService _userService;
+    private readonly IProfileApi _profile;
     private readonly ITemplateThumbnailService _thumbnailService;
 
     public CvController(
         ICvService cvService,
         ICvTemplateService templateService,
-        IUserService userService,
+        IProfileApi profile,
         ITemplateThumbnailService thumbnailService)
     {
         _cvService = cvService;
         _templateService = templateService;
-        _userService = userService;
+        _profile = profile;
         _thumbnailService = thumbnailService;
     }
 
     [HttpGet("templates")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetTemplates([FromQuery] CvTemplateFilterQuery filter)
+    public async Task<ActionResult<List<CvTemplateDto>>> GetTemplates([FromQuery] CvTemplateFilterQuery filter)
     {
         return Ok(await _templateService.GetTemplatesAsync(filter));
     }
 
     [HttpGet("templates/filters")]
     [AllowAnonymous]
-    public IActionResult GetFilterOptions()
+    public ActionResult<CvTemplateFilterOptions> GetFilterOptions()
     {
         return Ok(_templateService.GetFilterOptions());
     }
 
     [HttpPost("templates/generate-thumbnails")]
     [AllowAnonymous]
-    public async Task<IActionResult> GenerateThumbnails()
+    public async Task<ActionResult<MessageResponse>> GenerateThumbnails()
     {
         await _thumbnailService.GenerateAllThumbnailsAsync();
-        return Ok(new { message = "Thumbnails generated for all templates." });
+        return Ok(new MessageResponse("Thumbnails generated for all templates."));
     }
 
     [HttpGet("templates/{slug}/thumbnail")]
@@ -62,7 +67,7 @@ public class CvController : ControllerBase
             imageBytes = _thumbnailService.GetThumbnailPng(normalizedSlug);
         }
         if (imageBytes is null)
-            return NotFound(new { error = $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first." });
+            throw new NotFoundException(ThumbnailNotFound(slug));
 
         Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
         Response.Headers.Pragma = "no-cache";
@@ -76,7 +81,7 @@ public class CvController : ControllerBase
     {
         var pdfBytes = _thumbnailService.GetThumbnailPdf(slug.ToLowerInvariant());
         if (pdfBytes is null)
-            return NotFound(new { error = $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first." });
+            throw new NotFoundException(ThumbnailNotFound(slug));
 
         Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
         Response.Headers.Pragma = "no-cache";
@@ -85,15 +90,15 @@ public class CvController : ControllerBase
     }
 
     [HttpPost("preview")]
-    public async Task<IActionResult> Preview([FromQuery] string template = "modern", [FromQuery] Guid? offerId = null)
+    public async Task<ActionResult<CvPreviewResult>> Preview([FromQuery] string template = "modern", [FromQuery] Guid? offerId = null)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        return Ok(await _cvService.PreviewCvAsync(user.Id, template, offerId));
+        var userId = await _profile.EnsureUserIdAsync(User);
+        return Ok(await _cvService.PreviewCvAsync(userId, template, offerId));
     }
 
     [HttpPost("preview/render")]
     [AllowAnonymous]
-    public async Task<IActionResult> PreviewRender([FromBody] CvRenderRequest request)
+    public async Task<ActionResult<CvRenderResponse>> PreviewRender([FromBody] CvRenderRequest request)
     {
         return Ok(await _cvService.PreviewFromDataAsync(request));
     }
@@ -107,28 +112,28 @@ public class CvController : ControllerBase
     }
 
     [HttpPost("save")]
-    public async Task<IActionResult> Save([FromBody] CvSaveRequest request)
+    public async Task<ActionResult<CvSaveResult>> Save([FromBody] CvSaveRequest request)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        var result = await _cvService.SaveCvAsync(user.Id, request);
+        var userId = await _profile.EnsureUserIdAsync(User);
+        var result = await _cvService.SaveCvAsync(userId, request);
         result.FileUrl = BuildCvDownloadFileUrl(result.HistoryId);
         return Ok(result);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] CvSaveRequest request)
+    public async Task<ActionResult<CvSaveResult>> Update(Guid id, [FromBody] CvSaveRequest request)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        var result = await _cvService.UpdateCvAsync(user.Id, id, request);
+        var userId = await _profile.EnsureUserIdAsync(User);
+        var result = await _cvService.UpdateCvAsync(userId, id, request);
         result.FileUrl = BuildCvDownloadFileUrl(result.HistoryId);
         return Ok(result);
     }
 
     [HttpGet("history")]
-    public async Task<IActionResult> GetHistory()
+    public async Task<ActionResult<List<CvHistoryDto>>> GetHistory()
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        var history = await _cvService.GetHistoryAsync(user.Id);
+        var userId = await _profile.EnsureUserIdAsync(User);
+        var history = await _cvService.GetHistoryAsync(userId);
         foreach (var item in history)
         {
             item.FileUrl = BuildCvDownloadFileUrl(item.Id);
@@ -137,10 +142,10 @@ public class CvController : ControllerBase
     }
 
     [HttpGet("history/paged")]
-    public async Task<IActionResult> GetHistoryPaged([FromQuery] int offset = 0, [FromQuery] int limit = 10)
+    public async Task<ActionResult<PagedResponse<CvHistoryDto>>> GetHistoryPaged([FromQuery] int offset = 0, [FromQuery] int limit = 10)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        var page = await _cvService.GetHistoryPagedAsync(user.Id, offset, limit);
+        var userId = await _profile.EnsureUserIdAsync(User);
+        var page = await _cvService.GetHistoryPagedAsync(userId, offset, limit);
         foreach (var item in page.Items)
         {
             item.FileUrl = BuildCvDownloadFileUrl(item.Id);
@@ -149,37 +154,40 @@ public class CvController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> Load(Guid id)
+    public async Task<ActionResult<CvLoadResult>> Load(Guid id)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        var result = await _cvService.LoadCvAsync(user.Id, id);
+        var userId = await _profile.EnsureUserIdAsync(User);
+        var result = await _cvService.LoadCvAsync(userId, id);
         result.FileUrl = BuildCvDownloadFileUrl(result.HistoryId);
         return Ok(result);
     }
 
     [HttpGet("{id}/download")]
-    public async Task<IActionResult> Download(Guid id)
+    public async Task<ActionResult<CvDownloadResponse>> Download(Guid id)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        await _cvService.GetDownloadUrlAsync(user.Id, id);
-        return Ok(new { downloadUrl = BuildCvDownloadFileUrl(id) });
+        var userId = await _profile.EnsureUserIdAsync(User);
+        await _cvService.GetDownloadUrlAsync(userId, id);
+        return Ok(new CvDownloadResponse(BuildCvDownloadFileUrl(id)));
     }
 
     [HttpGet("{id}/download-file")]
     public async Task<IActionResult> DownloadFile(Guid id)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        var bytes = await _cvService.GetDownloadBytesAsync(user.Id, id);
+        var userId = await _profile.EnsureUserIdAsync(User);
+        var bytes = await _cvService.GetDownloadBytesAsync(userId, id);
         return File(bytes, "application/pdf", $"cv-{id}.pdf");
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        await _cvService.DeleteCvAsync(user.Id, id);
+        var userId = await _profile.EnsureUserIdAsync(User);
+        await _cvService.DeleteCvAsync(userId, id);
         return NoContent();
     }
+
+    private static string ThumbnailNotFound(string slug) =>
+        $"Thumbnail not found for '{slug}'. Call POST /api/cv/templates/generate-thumbnails first.";
 
     private string BuildCvDownloadFileUrl(Guid id)
     {

@@ -1,8 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NextStep.Modules.Identity.Models
-{
+namespace NextStep.Modules.Profile.Domain {
     [Table("utilisateur")]
     public class UserEntity
     {

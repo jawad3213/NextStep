@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
-import { OnboardingService } from '../../services/onboarding.service';
+import { OnboardingService } from '@core/auth/onboarding.service';
 import { catchError, map, of, take } from 'rxjs';
 
 /**

@@ -4,7 +4,7 @@
 -- The backend seeds a core subset at startup; this adds the full list.
 -- ============================================================
 
-INSERT INTO public.skill_keyword (mot, categorie)
+INSERT INTO profile.skill_keyword (mot, categorie)
 SELECT v.mot, v.categorie
 FROM (VALUES
     -- Languages
@@ -53,6 +53,6 @@ FROM (VALUES
     ('Gestion du temps', 'Soft Skill'), ('Adaptabilité', 'Soft Skill'), ('Créativité', 'Soft Skill')
 ) AS v(mot, categorie)
 WHERE NOT EXISTS (
-    SELECT 1 FROM public.skill_keyword sk
+    SELECT 1 FROM profile.skill_keyword sk
     WHERE lower(sk.mot) = lower(v.mot) AND sk.categorie = v.categorie
 );

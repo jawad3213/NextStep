@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace NextStep.Modules.Identity.Models
-{
+namespace NextStep.Modules.Profile.Domain {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum ObjectifEnum
     {

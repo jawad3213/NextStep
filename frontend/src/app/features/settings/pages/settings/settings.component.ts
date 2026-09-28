@@ -1,13 +1,12 @@
 import { Component, inject, signal, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import { AuthService } from '../../core/auth/services/auth.service';
-import { EmailService } from '../../services/email.service';
-import { ProfileService } from '../profile/profile.service';
+import { ProfileApiService } from '@features/profile/data-access/profile-api.service';
+import { AuthService } from '@core/auth/auth.service';
+import { ProfileService } from '@features/profile/data-access/profile.service';
+import { EmailService } from '@features/applications/data-access/email.service';
 
 @Component({
   selector: 'app-settings',
@@ -18,11 +17,10 @@ import { ProfileService } from '../profile/profile.service';
 })
 export class SettingsComponent implements OnInit {
   private authService = inject(AuthService);
-  private http = inject(HttpClient);
+  private profileApi = inject(ProfileApiService);
   private router = inject(Router);
   private emailService = inject(EmailService);
   private profileService = inject(ProfileService);
-  private baseUrl = environment.apiBaseUrl;
 
   gmailConnected = signal(false);
   gmailEmailAddress = signal<string | null>(null);
@@ -155,7 +153,7 @@ export class SettingsComponent implements OnInit {
   async clearData() {
     if (confirm('Etes-vous sur de vouloir effacer toutes vos donnees ? Cette action est irreversible.')) {
       try {
-        await firstValueFrom(this.http.delete(`${this.baseUrl}/profile/clear`));
+        await firstValueFrom(this.profileApi.clearProfile());
         window.location.reload();
       } catch (err) {
         console.error('Failed to clear profile data:', err);

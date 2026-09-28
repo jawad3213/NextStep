@@ -2,8 +2,8 @@ import { Component, OnInit, signal, computed, ViewChild, ElementRef, AfterViewCh
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ArenaService } from '../../services/arena.service';
-import { ArenaConfig, SalaryResult, ChatMessage } from '../../models/arena.models';
+import { ArenaService } from '../../data-access/arena.service';
+import { ArenaConfig, SalaryResult, ChatMessage } from '../../data-access/arena.models';
 
 @Component({
   selector: 'app-salary-coach',

@@ -1,18 +1,24 @@
-using NextStep.Modules.Candidature.DTOs;
-using NextStep.Modules.Candidature.Models;
-using NextStep.Modules.Candidature.Repositories;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Applications.Application.Dtos;
+using NextStep.Modules.Applications.Application.Mappings;
+using NextStep.Modules.Applications.Domain;
+using NextStep.Modules.Applications.Infrastructure.Repositories;
+using NextStep.Shared.ErrorHandling;
+using NextStep.Shared.Events;
 using NextStep.Shared.Pagination;
-using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
+using CandidatureEntity = NextStep.Modules.Applications.Domain.Candidature;
 
-namespace NextStep.Modules.Candidature.Services;
+namespace NextStep.Modules.Applications.Application.Services;
 
 public class CandidatureService : ICandidatureService
 {
     private readonly ICandidatureRepository _candidatureRepository;
+    private readonly IEventPublisher _events;
 
-    public CandidatureService(ICandidatureRepository candidatureRepository)
+    public CandidatureService(ICandidatureRepository candidatureRepository, IEventPublisher events)
     {
         _candidatureRepository = candidatureRepository;
+        _events = events;
     }
 
     public async Task<CandidatureDto> CreateAsync(
@@ -29,7 +35,7 @@ public class CandidatureService : ICandidatureService
 
             if (existing is not null)
             {
-                return MapToDto(existing);
+                return existing.ToDto();
             }
         }
 
@@ -62,7 +68,7 @@ public class CandidatureService : ICandidatureService
             CreatedAt = DateTime.UtcNow
         }, cancellationToken);
 
-        return MapToDto(entity);
+        return entity.ToDto();
     }
 
     public async Task<CandidatureDto?> GetByIdAsync(
@@ -75,27 +81,11 @@ public class CandidatureService : ICandidatureService
 
         if (entity is null) return null;
 
-        var dto = MapToDto(entity);
+        var dto = entity.ToDto();
         dto.CandidatureNotes = (await _candidatureRepository.GetNotesAsync(candidatureId, cancellationToken))
-            .Select(n => new CandidatureNoteDto
-            {
-                Id = n.Id,
-                CandidatureId = n.CandidatureId,
-                Contenu = n.Contenu,
-                Auteur = n.Auteur,
-                CreatedAt = n.CreatedAt
-            }).ToList();
+            .Select(n => n.ToDto()).ToList();
         dto.StatusHistoryEntries = (await _candidatureRepository.GetHistoryAsync(candidatureId, cancellationToken))
-            .Select(h => new CandidatureStatusHistoryDto
-            {
-                Id = h.Id,
-                CandidatureId = h.CandidatureId,
-                AncienStatut = h.AncienStatut,
-                NouveauStatut = h.NouveauStatut,
-                Source = h.Source,
-                Details = h.Details,
-                CreatedAt = h.CreatedAt
-            }).ToList();
+            .Select(h => h.ToDto()).ToList();
 
         return dto;
     }
@@ -105,7 +95,7 @@ public class CandidatureService : ICandidatureService
         CancellationToken cancellationToken = default)
     {
         var entities = await _candidatureRepository.GetByUserIdAsync(userId, cancellationToken);
-        return entities.Select(MapToDto).ToList();
+        return entities.Select(e => e.ToDto()).ToList();
     }
 
     public async Task<PagedResponse<CandidatureDto>> GetByUserIdPagedAsync(
@@ -125,7 +115,7 @@ public class CandidatureService : ICandidatureService
             interviewOnly,
             cancellationToken);
 
-        var mapped = items.Select(MapToDto).ToList();
+        var mapped = items.Select(e => e.ToDto()).ToList();
 
         return new PagedResponse<CandidatureDto>
         {
@@ -159,7 +149,7 @@ public class CandidatureService : ICandidatureService
             CreatedAt = DateTime.UtcNow
         }, cancellationToken);
 
-        return MapToDto(entity);
+        return entity.ToDto();
     }
 
     public async Task<CandidatureDto?> UpdateAsync(
@@ -179,7 +169,7 @@ public class CandidatureService : ICandidatureService
 
         await _candidatureRepository.UpdateAsync(entity, cancellationToken);
 
-        return MapToDto(entity);
+        return entity.ToDto();
     }
 
     public async Task<bool> DeleteAsync(
@@ -190,7 +180,25 @@ public class CandidatureService : ICandidatureService
         if (entity is null) return false;
 
         await _candidatureRepository.DeleteAsync(entity, cancellationToken);
+
+        // Other modules (email drafts, coaching sessions) clean up their own data.
+        await _events.PublishAsync(
+            new CandidaturesDeleted(entity.IdUtilisateur, [entity.IdCandidature]), cancellationToken);
         return true;
+    }
+
+    public async Task<CandidatureDto> GetOwnedAsync(
+        Guid userId,
+        Guid candidatureId,
+        CancellationToken cancellationToken = default)
+    {
+        var candidature = await GetByIdAsync(candidatureId, cancellationToken)
+            ?? throw new NotFoundException("Candidature introuvable.");
+
+        if (candidature.IdUtilisateur != userId)
+            throw new ForbiddenException("Accès refusé à cette candidature.");
+
+        return candidature;
     }
 
     public async Task<List<CandidatureNoteDto>> GetNotesAsync(
@@ -198,14 +206,7 @@ public class CandidatureService : ICandidatureService
         CancellationToken cancellationToken = default)
     {
         var notes = await _candidatureRepository.GetNotesAsync(candidatureId, cancellationToken);
-        return notes.Select(n => new CandidatureNoteDto
-        {
-            Id = n.Id,
-            CandidatureId = n.CandidatureId,
-            Contenu = n.Contenu,
-            Auteur = n.Auteur,
-            CreatedAt = n.CreatedAt
-        }).ToList();
+        return notes.Select(n => n.ToDto()).ToList();
     }
 
     public async Task<CandidatureNoteDto> AddNoteAsync(
@@ -223,14 +224,7 @@ public class CandidatureService : ICandidatureService
 
         await _candidatureRepository.AddNoteAsync(note, cancellationToken);
 
-        return new CandidatureNoteDto
-        {
-            Id = note.Id,
-            CandidatureId = note.CandidatureId,
-            Contenu = note.Contenu,
-            Auteur = note.Auteur,
-            CreatedAt = note.CreatedAt
-        };
+        return note.ToDto();
     }
 
     public async Task<List<CandidatureStatusHistoryDto>> GetHistoryAsync(
@@ -238,48 +232,6 @@ public class CandidatureService : ICandidatureService
         CancellationToken cancellationToken = default)
     {
         var history = await _candidatureRepository.GetHistoryAsync(candidatureId, cancellationToken);
-        return history.Select(h => new CandidatureStatusHistoryDto
-        {
-            Id = h.Id,
-            CandidatureId = h.CandidatureId,
-            AncienStatut = h.AncienStatut,
-            NouveauStatut = h.NouveauStatut,
-            Source = h.Source,
-            Details = h.Details,
-            CreatedAt = h.CreatedAt
-        }).ToList();
-    }
-
-    private static CandidatureDto MapToDto(CandidatureEntity entity)
-    {
-        return new CandidatureDto
-        {
-            IdCandidature           = entity.IdCandidature,
-            IdUtilisateur           = entity.IdUtilisateur,
-            IdOffre                 = entity.IdOffre,
-            DateCreation            = entity.DateCreation,
-            InclureLettreMotivation = entity.InclureLettreMotivation,
-            Statut                  = entity.Statut,
-            Channel                 = entity.Channel,
-            ChannelUrl              = entity.ChannelUrl,
-            ChannelContact          = entity.ChannelContact,
-            ApplicationDate         = entity.ApplicationDate,
-            AppliedManually         = entity.AppliedManually,
-            OfferSource             = entity.OfferSource,
-            Notes                   = entity.Notes,
-            Language                = entity.Language,
-            ResponseStatus          = entity.ResponseStatus,
-            HasResponse             = entity.HasResponse,
-            LastCheckedAtUtc        = entity.LastCheckedAtUtc,
-            LastResponseAtUtc       = entity.LastResponseAtUtc,
-            LastResponseFrom        = entity.LastResponseFrom,
-            LastResponseSnippet     = entity.LastResponseSnippet,
-            ResponseSummary         = entity.ResponseSummary,
-            RecommendedAction       = entity.RecommendedAction,
-            ResponseConfidence      = entity.ResponseConfidence,
-            ResponseClassifiedAtUtc = entity.ResponseClassifiedAtUtc,
-            FollowUpNeeded          = entity.FollowUpNeeded,
-            LastFollowUpAtUtc       = entity.LastFollowUpAtUtc,
-        };
+        return history.Select(h => h.ToDto()).ToList();
     }
 }

@@ -3,17 +3,14 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-import { PipelineStateService } from '../../../../services/pipeline-state.service';
-import {
-  CvHistoryItem,
-  EmailDraftResponse,
-  OfferApiService,
-  SendApplicationEmailRequest
-} from '../../services/offer-api.service';
-import { CandidatureService } from '../../../../services/candidature.service';
-import { EmailService } from '../../../../services/email.service';
+import { PipelineStateService } from '../../data-access/pipeline-state.service';
 import { Router } from '@angular/router';
-import { extractApiError } from '../../../../core/utils/extract-api-error';
+import { extractApiError } from '@core/http/extract-api-error';
+import { CandidatureService } from '@features/applications/data-access/candidature.service';
+import { EmailService } from '@features/applications/data-access/email.service';
+import { CvApiService } from '@features/cv-builder/data-access/cv-api.service';
+import { CvHistoryItem } from '@features/cv-builder/data-access/cv.models';
+import { EmailDraftDto, SendApplicationEmailRequest } from '@features/applications/data-access/email.models';
 
 @Component({
   selector: 'app-step-results',
@@ -24,7 +21,7 @@ import { extractApiError } from '../../../../core/utils/extract-api-error';
 })
 export class StepResultsComponent implements OnInit, OnDestroy {
   readonly pipeline = inject(PipelineStateService);
-  private readonly api = inject(OfferApiService);
+  private readonly cvApi = inject(CvApiService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly candidatureService = inject(CandidatureService);
   private readonly emailService = inject(EmailService);
@@ -43,7 +40,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   isGeneratingDraft = false;
   sendError: string | null = null;
   sendSuccessMessage: string | null = null;
-  lastSentDraft: EmailDraftResponse | null = null;
+  lastSentDraft: EmailDraftDto | null = null;
 
   get result() {
     return this.pipeline.pipelineResult();
@@ -94,7 +91,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         throw new Error('Le CV final n a pas encore ete sauvegarde.');
       }
 
-      const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
+      const fileBlob = await firstValueFrom(this.cvApi.downloadCvHistoryFile(target.id));
       this.downloadBlob(fileBlob, offerId);
     } catch (err: any) {
       this.previewError = extractApiError(err).message || 'Telechargement indisponible pour le moment.';
@@ -122,7 +119,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
     };
 
     try {
-      const sent = await firstValueFrom(this.api.sendApplicationEmail(payload));
+      const sent = await firstValueFrom(this.emailService.sendApplicationEmail(payload));
       this.lastSentDraft = sent;
       this.sendSuccessMessage = `Email envoye a ${sent.recipientEmail} avec le CV en piece jointe.`;
       this.pipeline.markStepDone(4);
@@ -251,7 +248,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       }
       this.resolvedCvHistoryId = target.id;
 
-      const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
+      const fileBlob = await firstValueFrom(this.cvApi.downloadCvHistoryFile(target.id));
       if (this.previewBlobUrl) {
         globalThis.URL.revokeObjectURL(this.previewBlobUrl);
       }
@@ -267,7 +264,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   }
 
   private async findLatestCvForOffer(offerId: string): Promise<CvHistoryItem | undefined> {
-    const history = await firstValueFrom(this.api.getCvHistory());
+    const history = await firstValueFrom(this.cvApi.getCvHistory());
     const expectedTitle = this.pipeline.finalCvTitle() ?? `CV_${offerId}`;
     return history
       .filter((item) => item.title === expectedTitle)

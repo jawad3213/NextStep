@@ -1,32 +1,17 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import { OfferService } from '../../services/offer.service';
-import { ToastService } from '../../core/notifications/toast.service';
+import { ToastService } from '@core/notifications/toast.service';
+import { CvApiService } from '../../data-access/cv-api.service';
+import { CvHistoryItem } from '../../data-access/cv.models';
+import { OfferApiService } from '@features/offers/data-access/offer-api.service';
 
-interface CvHistoryItem {
-  id: string;
-  title: string;
-  templateSlug: string;
-  templateName: string;
-  fileUrl: string;
-  fileSizeBytes: number;
-  createdAt: string;
-  updatedAt: string;
+/** A saved CV as shown in the list (targeted offer resolved client-side). */
+interface CvHistoryRow extends CvHistoryItem {
   targetedOfferId?: string | null;
   targetedOfferTitle?: string | null;
   targetedOfferCompany?: string | null;
-}
-
-interface PagedResponse<T> {
-  offset: number;
-  limit: number;
-  total: number;
-  hasMore: boolean;
-  items: T[];
 }
 
 @Component({
@@ -37,19 +22,18 @@ interface PagedResponse<T> {
   styleUrl: './cv-builder.component.scss'
 })
 export class CvBuilderComponent implements OnInit {
-  private readonly http = inject(HttpClient);
-  private readonly offerService = inject(OfferService);
+  private readonly cvApi = inject(CvApiService);
+  private readonly offerApi = inject(OfferApiService);
   private readonly toast = inject(ToastService);
-  private readonly baseUrl = environment.apiBaseUrl;
 
-  readonly historyItems = signal<CvHistoryItem[]>([]);
+  readonly historyItems = signal<CvHistoryRow[]>([]);
   readonly loadingHistory = signal(false);
   readonly loadingMoreHistory = signal(false);
   readonly historyOffset = signal(0);
   readonly historyLimit = 10;
   readonly hasMoreHistory = signal(false);
   private useLegacyHistoryEndpoint = false;
-  private legacyHistoryCache: CvHistoryItem[] = [];
+  private legacyHistoryCache: CvHistoryRow[] = [];
 
   ngOnInit(): void {
     this.loadHistory();
@@ -62,9 +46,7 @@ export class CvBuilderComponent implements OnInit {
     this.legacyHistoryCache = [];
     try {
       const page = await firstValueFrom(
-        this.http.get<PagedResponse<CvHistoryItem>>(
-          `${this.baseUrl}/cv/history/paged?offset=0&limit=${this.historyLimit}`
-        )
+this.cvApi.getCvHistoryPage(0, this.historyLimit)
       );
       const enriched = await this.enrichTargetOfferData(page.items);
       this.historyItems.set(enriched);
@@ -92,9 +74,7 @@ export class CvBuilderComponent implements OnInit {
 
       const offset = this.historyOffset();
       const page = await firstValueFrom(
-        this.http.get<PagedResponse<CvHistoryItem>>(
-          `${this.baseUrl}/cv/history/paged?offset=${offset}&limit=${this.historyLimit}`
-        )
+this.cvApi.getCvHistoryPage(offset, this.historyLimit)
       );
       const enriched = await this.enrichTargetOfferData(page.items);
       this.historyItems.update((items) => [...items, ...enriched]);
@@ -111,7 +91,7 @@ export class CvBuilderComponent implements OnInit {
 
   private async loadHistoryLegacyFallback(): Promise<void> {
     const all = await firstValueFrom(
-      this.http.get<CvHistoryItem[]>(`${this.baseUrl}/cv/history`)
+      this.cvApi.getCvHistory()
     );
     const enrichedAll = await this.enrichTargetOfferData(all);
     this.useLegacyHistoryEndpoint = true;
@@ -126,7 +106,7 @@ export class CvBuilderComponent implements OnInit {
   async downloadCv(id: string): Promise<void> {
     try {
       const blob = await firstValueFrom(
-        this.http.get(`${this.baseUrl}/cv/${id}/download-file`, { responseType: 'blob' })
+        this.cvApi.downloadCvHistoryFile(id)
       );
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
@@ -138,7 +118,7 @@ export class CvBuilderComponent implements OnInit {
 
   async deleteCv(id: string): Promise<void> {
     try {
-      await firstValueFrom(this.http.delete(`${this.baseUrl}/cv/${id}`));
+      await firstValueFrom(this.cvApi.deleteCv(id));
       this.historyItems.update((items) => items.filter((i) => i.id !== id));
       this.toast.success('CV supprimé.');
     } catch {
@@ -146,7 +126,7 @@ export class CvBuilderComponent implements OnInit {
     }
   }
 
-  getDisplayTitle(item: CvHistoryItem): string {
+  getDisplayTitle(item: CvHistoryRow): string {
     const raw = item.title?.trim();
     if (!raw) return item.templateName || 'CV genere';
 
@@ -158,8 +138,8 @@ export class CvBuilderComponent implements OnInit {
     return raw;
   }
 
-  private async enrichTargetOfferData(items: CvHistoryItem[]): Promise<CvHistoryItem[]> {
-    const enriched = items.map((item) => ({ ...item }));
+  private async enrichTargetOfferData(items: CvHistoryItem[]): Promise<CvHistoryRow[]> {
+    const enriched: CvHistoryRow[] = items.map((item) => ({ ...item }));
     const unresolved: Array<{ index: number; offerId: string }> = [];
 
     enriched.forEach((item, index) => {
@@ -182,7 +162,7 @@ export class CvBuilderComponent implements OnInit {
     await Promise.all(
       unresolved.map(async ({ index, offerId }) => {
         try {
-          const offer = await firstValueFrom(this.offerService.getOfferById(offerId));
+          const offer = await firstValueFrom(this.offerApi.getAnalysis(offerId));
           enriched[index].targetedOfferTitle = offer.titre;
           enriched[index].targetedOfferCompany = offer.entreprise ?? 'Entreprise non precisee';
         } catch {
@@ -195,7 +175,7 @@ export class CvBuilderComponent implements OnInit {
   }
 
   private parseTargetedOfferFromTitle(
-    title: string
+    title: string | null | undefined
   ): { offerTitle: string; offerCompany: string } | null {
     const value = title?.trim();
     if (!value) return null;
@@ -213,7 +193,7 @@ export class CvBuilderComponent implements OnInit {
     };
   }
 
-  private extractLegacyOfferId(title: string): string | null {
+  private extractLegacyOfferId(title: string | null | undefined): string | null {
     const value = title?.trim();
     if (!value) return null;
 

@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Cv.Models;
+namespace NextStep.Modules.CvDocuments.Domain;
 
 public class CvDesignConfig
 {
@@ -8,26 +8,4 @@ public class CvDesignConfig
     public string LineSpacing { get; set; } = "1.45";
     public string SectionSpacing { get; set; } = "1.2rem";
     public string SidebarWidth { get; set; } = "31%";
-}
-
-public class CvRenderRequest
-{
-    public string TemplateSlug { get; set; } = "modern";
-    public CvData Data { get; set; } = new();
-    public CvDesignConfig? DesignConfig { get; set; }
-}
-
-public class CvRenderResponse
-{
-    public string TemplateSlug { get; set; } = "modern";
-    public CvDesignConfig DesignConfig { get; set; } = new();
-    public string Html { get; set; } = string.Empty;
-}
-
-public class CvExportPdfRequest
-{
-    public string TemplateSlug { get; set; } = "modern";
-    public CvData Data { get; set; } = new();
-    public CvDesignConfig? DesignConfig { get; set; }
-    public string? HtmlSnapshot { get; set; }
 }

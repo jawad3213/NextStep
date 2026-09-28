@@ -1,10 +1,11 @@
-using NextStep.Modules.Cv.Models;
-using NextStep.Modules.Cv.Services;
+using NextStep.Modules.CvDocuments.Domain;
+using NextStep.Modules.CvDocuments.Application.Services;
+using NextStep.Modules.CvDocuments.Infrastructure.Rendering;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
-namespace NextStep.Modules.Cv.Templates;
+namespace NextStep.Modules.CvDocuments.Templates;
 
 /// <summary>
 /// Modern CV template: A4, full-width dark blue header, two-column body layout.
@@ -17,7 +18,7 @@ public class ModernCvDocument : IDocument, ICvTemplateStyle
 
     public ModernCvDocument(CvData data)
     {
-        _data = CvService.SanitizeCvData(data);
+        _data = CvDataSanitizer.Sanitize(data);
     }
 
     public string FontName => "Inter";

@@ -131,19 +131,6 @@ public class AgentHttpClient : IAgentHttpClient
     }
 
     /// <summary>Health check des agents Python.</summary>
-    public async Task<bool> IsHealthyAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _client.GetAsync("/health", ct);
-            return response.IsSuccessStatusCode;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     /// <summary>
     /// Generic POST method used by EmailService and others.
     /// </summary>

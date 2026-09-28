@@ -21,8 +21,9 @@ services:
       POSTGRES_MULTIPLE_DATABASES: ${KEYCLOAK_DB:-keycloak_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Only creates the Keycloak database. Application tables are created by the backend
+      # (EF migrations, one schema per module) and by the agents ("agents" schema).
       - ./init_config/postgres/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/00-create-multiple-postgresql-databases.sh:ro
-      - ./init_config/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

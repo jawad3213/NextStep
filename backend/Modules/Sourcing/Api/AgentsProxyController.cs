@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Shared.Http;
 using System.Text.Json;
+using NextStep.Modules.Sourcing.Application.Dtos;
 
-namespace NextStep.Modules.Agents.Controllers;
+namespace NextStep.Modules.Sourcing.Api;
 
 /// <summary>
 /// Proxy vers le service d'agents Python (FastAPI). Centralise les appels IA du
@@ -62,12 +63,8 @@ public class AgentsProxyController : ControllerBase
             // Le service d'agents est indisponible ou a renvoyé une erreur.
             // On garde un statut applicatif approprié (502 = passerelle amont).
             _logger.LogWarning(ex, "AgentsProxy — erreur amont sur {Path}.", path);
-            return StatusCode(502, new
-            {
-                error = "Le service IA est temporairement indisponible.",
-                detail = ex.Message,
-                path
-            });
+            return StatusCode(502, new AgentsProxyErrorResponse(
+                "Le service IA est temporairement indisponible.", ex.Message, path));
         }
     }
 }

@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Email.DTOs;
+namespace NextStep.Modules.Messaging.Application.Dtos;
 
 /// <summary>
 /// Result DTO returned by the send draft endpoint.

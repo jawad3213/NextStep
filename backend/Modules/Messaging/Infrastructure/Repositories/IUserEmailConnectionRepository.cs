@@ -1,6 +1,6 @@
-using NextStep.Modules.Email.Models;
+using NextStep.Modules.Messaging.Domain;
 
-namespace NextStep.Modules.Email.Repositories;
+namespace NextStep.Modules.Messaging.Infrastructure.Repositories;
 
 public interface IUserEmailConnectionRepository
 {

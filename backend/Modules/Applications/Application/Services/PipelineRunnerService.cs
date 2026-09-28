@@ -1,14 +1,13 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
-using NextStep.Modules.Offer.DTOs;
+using NextStep.Modules.Applications.Application.Dtos;
 using NextStep.Shared.Http;
-using NextStep.SignalR;
+using NextStep.Shared.Realtime;
 
-namespace NextStep.Modules.Offer.Services;
+namespace NextStep.Modules.Applications.Application.Services;
 
 public interface IPipelineRunnerService
 {
-    Task StartAnalysisAsync(Guid offerId, string rawText, string userId, int templateId, CancellationToken ct);
     Task StartGenerationAsync(Guid offerId, string userId, int templateId, CancellationToken ct);
 }
 
@@ -32,49 +31,6 @@ public class PipelineRunnerService : IPipelineRunnerService
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;
         _logger = logger;
-    }
-
-    public async Task StartAnalysisAsync(Guid offerId, string rawText, string userId, int templateId, CancellationToken ct)
-    {
-        _logger.LogInformation("PipelineRunner — [ANALYSIS] Starting for offer {OfferId}", offerId);
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMinutes(10));
-        var pipelineCt = cts.Token;
-
-        try
-        {
-            Guid userGuid = Guid.TryParse(userId, out var parsedUserId) ? parsedUserId : Guid.Empty;
-            if (userGuid == Guid.Empty)
-                throw new InvalidOperationException("Authenticated user id is missing or invalid.");
-
-            await SendProgress(offerId, "analyzing_offer", "running", 10, "Analyse initiale...", "offer_analyzer");
-            var keepAliveTask = SendKeepAliveAsync(offerId, "analysis", pipelineCt);
-
-            using var scope = _scopeFactory.CreateScope();
-            var agentClient = scope.ServiceProvider.GetRequiredService<IAgentHttpClient>();
-
-            // Part 1: ONLY Analysis
-            var result = await agentClient.RunPipelineAsync(rawText, userId, templateId, offerId, onlyAnalysis: true, ct: pipelineCt);
-
-            cts.Cancel();
-            try { await keepAliveTask; } catch (OperationCanceledException) { }
-
-            // Save to DB
-            var offerService = scope.ServiceProvider.GetRequiredService<IOfferService>();
-            await offerService.SavePipelineResultAsync(offerId, result, userGuid, CancellationToken.None);
-
-            var dto = await offerService.GetAnalysisAsync(userGuid, offerId, CancellationToken.None);
-            
-            await SendProgress(offerId, "analyzing_offer", "completed", 100, "Analyse terminée. Choisissez un template.", "db_persist");
-
-            var completedEvent = new PipelineCompletedDto { OfferId = offerId, Status = "completed", Result = dto };
-            await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", completedEvent, CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "PipelineRunner [ANALYSIS] — ❌ Error for {OfferId}", offerId);
-            await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", new PipelineCompletedDto { OfferId = offerId, Status = "error" });
-        }
     }
 
     public async Task StartGenerationAsync(Guid offerId, string userId, int templateId, CancellationToken ct)
@@ -232,102 +188,5 @@ public class PipelineRunnerService : IPipelineRunnerService
         };
 
         await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineProgress", dto);
-    }
-
-    private static OfferAnalysisDto MapToDto(Guid offerId, JsonElement root)
-    {
-        var dto = new OfferAnalysisDto { OfferId = offerId };
-
-        if (root.TryGetProperty("analyzed_offer", out var ao) && ao.ValueKind == JsonValueKind.Object)
-        {
-            dto.Titre = ao.GetStringOrDefault("titre") ?? "";
-            dto.Entreprise = ao.GetStringOrDefault("entreprise");
-            dto.TypeContrat = ao.GetStringOrDefault("type_contrat");
-            dto.Localisation = ao.GetStringOrDefault("localisation");
-            dto.DescriptionPoste = ao.GetStringOrDefault("description_poste");
-            dto.AnneesExperience = ao.GetStringAsIntOrDefault("annees_experience");
-            dto.NiveauEtudes = ao.GetStringOrDefault("niveau_etudes");
-            dto.ModeTravail = ao.GetStringOrDefault("mode_travail");
-            dto.CompetencesRequises = ao.GetStringList("competences_requises");
-            dto.CompetencesSouhaitees = ao.GetStringList("competences_souhaitees");
-            dto.KeywordsAts = ao.GetStringList("keywords_ats");
-        }
-
-        if (root.TryGetProperty("skill_gap_analysis", out var sga) && sga.ValueKind == JsonValueKind.Object)
-        {
-            dto.MatchResult = JsonSerializer.Deserialize<object>(sga.GetRawText());
-            dto.SkillGapAnalysis = JsonSerializer.Deserialize<object>(sga.GetRawText());
-            dto.ScoreMatching = sga.GetIntOrDefault("score_matching") ?? 0;
-            dto.ScoreAts = sga.GetIntOrDefault("score_ats") ?? 0;
-            dto.KeywordsPresents = sga.GetStringList("keywords_presents");
-            dto.KeywordsManquants = sga.GetStringList("keywords_manquants");
-            dto.Recommandations = sga.GetStringList("recommandations");
-            dto.CompetencesMatching = sga.GetStringList("competences_matching");
-            dto.CompetencesManquantes = sga.GetStringList("competences_manquantes");
-        }
-
-        if (root.TryGetProperty("match_result", out var mr) && mr.ValueKind == JsonValueKind.Object)
-        {
-            dto.MatchResult ??= JsonSerializer.Deserialize<object>(mr.GetRawText());
-            dto.SkillGapAnalysis ??= JsonSerializer.Deserialize<object>(mr.GetRawText());
-            dto.ScoreMatching = mr.GetIntOrDefault("score_matching") ?? 0;
-            dto.ScoreAts = mr.GetIntOrDefault("score_ats") ?? 0;
-            dto.KeywordsPresents = mr.GetStringList("keywords_presents");
-            dto.KeywordsManquants = mr.GetStringList("keywords_manquants");
-            dto.Recommandations = mr.GetStringList("recommandations");
-            dto.CompetencesMatching = mr.GetStringList("competences_matching");
-            dto.CompetencesManquantes = mr.GetStringList("competences_manquantes");
-        }
-
-        if (root.TryGetProperty("skill_gap", out var sg) && sg.ValueKind == JsonValueKind.Object)
-        {
-            dto.ScoreMatching = sg.GetIntOrDefault("score_matching") ?? dto.ScoreMatching;
-            dto.ScoreAts = sg.GetIntOrDefault("score_ats") ?? dto.ScoreAts;
-            dto.KeywordsPresents = sg.GetStringList("keywords_presents").Count > 0 ? sg.GetStringList("keywords_presents") : dto.KeywordsPresents;
-            dto.KeywordsManquants = sg.GetStringList("keywords_manquants").Count > 0 ? sg.GetStringList("keywords_manquants") : dto.KeywordsManquants;
-            dto.Recommandations = sg.GetStringList("recommandations").Count > 0 ? sg.GetStringList("recommandations") : dto.Recommandations;
-            dto.CompetencesMatching = sg.GetStringList("competences_matching").Count > 0 ? sg.GetStringList("competences_matching") : dto.CompetencesMatching;
-            dto.CompetencesManquantes = sg.GetStringList("competences_manquantes").Count > 0 ? sg.GetStringList("competences_manquantes") : dto.CompetencesManquantes;
-        }
-
-        if (root.TryGetProperty("company_intelligence", out var ci) && ci.ValueKind == JsonValueKind.Object)
-        {
-            var intelligence = ci.GetPropertyOrNull("intelligence");
-            if (intelligence.HasValue)
-            {
-                var culture = intelligence.Value.GetPropertyOrNull("culture");
-                if (culture.HasValue)
-                {
-                    dto.CompanyCultureScore = culture.Value.GetDoubleOrDefault("glassdoor_rating") ?? culture.Value.GetDoubleOrDefault("culture_score") ?? 0;
-                }
-
-                var salaries = intelligence.Value.GetPropertyOrNull("salaries");
-                if (salaries.HasValue && salaries.Value.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var s in salaries.Value.EnumerateArray())
-                    {
-                        dto.CompanySalaryMin = s.GetIntOrDefault("min_salary") ?? dto.CompanySalaryMin;
-                        dto.CompanySalaryMax = s.GetIntOrDefault("max_salary") ?? dto.CompanySalaryMax;
-                    }
-                }
-
-                var actualites = intelligence.Value.GetPropertyOrNull("actualites");
-                if (actualites.HasValue && actualites.Value.ValueKind == JsonValueKind.Array)
-                {
-                    dto.CompanyNews = [.. actualites.Value.EnumerateArray()
-                        .Where(a => a.ValueKind == JsonValueKind.String)
-                        .Select(a => new CompanyNewsItem { Title = a.GetString() ?? "", Date = "" })];
-                }
-            }
-        }
-
-        if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)
-        {
-            dto.Erreurs = [.. errors.EnumerateArray()
-                .Where(e => e.ValueKind == JsonValueKind.String)
-                .Select(e => e.GetString()!)];
-        }
-
-        return dto;
     }
 }

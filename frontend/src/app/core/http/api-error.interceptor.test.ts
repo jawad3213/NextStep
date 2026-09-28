@@ -3,8 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
-import { SUPPRESS_ERROR_TOAST, apiErrorInterceptor } from '../core/http/api-error.interceptor';
-import { ToastService } from '../core/notifications/toast.service';
+import { SUPPRESS_ERROR_TOAST, apiErrorInterceptor } from './api-error.interceptor';
+import { ToastService } from '@core/notifications/toast.service';
 
 vi.mock('ngx-sonner', () => ({
   toast: {

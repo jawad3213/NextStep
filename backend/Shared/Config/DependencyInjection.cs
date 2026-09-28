@@ -7,22 +7,16 @@ using Microsoft.Extensions.Options;
 using Amazon.S3;
 using Hangfire;
 using Hangfire.PostgreSql;
-using NextStep.data;
+using NextStep.Shared.Events;
 using NextStep.Shared.Http;
 using NextStep.Shared.Storage;
-using NextStep.Modules.Candidature.Repositories;
-using NextStep.Modules.Candidature.Services;
-using NextStep.Modules.Email.Repositories;
-using NextStep.Modules.Email.Services;
-using NextStep.Modules.Offer.Repositories;
-using NextStep.Modules.Offer.Services;
-using NextStep.Modules.Identity.Repositories;
-using NextStep.Modules.Identity.Services;
-using NextStep.Modules.Profile.Services;
-using NextStep.Modules.Cv.Services;
-using NextStep.Modules.Sourcing.Services;
-using NextStep.Modules.Chatbot;
-using NextStep.Jobs;
+using NextStep.Modules.Applications;
+using NextStep.Modules.Coaching;
+using NextStep.Modules.CvDocuments;
+using NextStep.Modules.Messaging;
+using NextStep.Modules.Profile;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Modules.Sourcing;
 
 namespace NextStep.Shared.Config;
 
@@ -75,16 +69,6 @@ public static class DependencyInjection
         return services;
     }
 
-    public static IServiceCollection AddAppDbContext(this IServiceCollection services, IConfiguration configuration)
-    {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-        services.AddDbContext<AppDbContext>(options => {
-            options.UseNpgsql(connectionString);
-            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-        });
-        return services;
-    }
-
     public static IServiceCollection AddAppAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
@@ -118,8 +102,8 @@ public static class DependencyInjection
                         var principal = context.Principal;
                         if (principal != null)
                         {
-                            var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                            try { await userService.EnsureUserCreatedAsync(principal); } catch { }
+                            var profile = context.HttpContext.RequestServices.GetRequiredService<IProfileApi>();
+                            try { await profile.EnsureUserIdAsync(principal); } catch { }
                         }
                     }
                 };
@@ -137,50 +121,21 @@ public static class DependencyInjection
                    ?? "http://localhost:8000";
             options.Url = url;
         });
-        services.Configure<SmtpEmailOptions>(configuration.GetSection("Email:Smtp"));
         services.AddTransient<AgentApiKeyHandler>();
         services.AddHttpClient("SharedAgentClient")
             .AddHttpMessageHandler<AgentApiKeyHandler>()
             .AddTypedClient<IAgentHttpClient, AgentHttpClient>();
-        
-        // Chatbot Module
-        services.AddChatbotModule(configuration);
 
-        // Core business services & repositories
-        services.AddScoped<IOfferRepository, OfferRepository>();
-        services.AddScoped<IOfferService, OfferService>();
-        services.AddScoped<IPipelineRunnerService, PipelineRunnerService>();
-        services.AddScoped<IPdfGenerationService, PdfGenerationService>();
-        services.AddScoped<ICandidatureRepository, CandidatureRepository>();
-        services.AddScoped<ICandidatureService, CandidatureService>();
-        services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
-        services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<IEmailSenderService, GmailEmailSenderService>();
-        services.AddScoped<IEmailConnectionService, EmailConnectionService>();
-        services.AddScoped<IUserEmailConnectionRepository, UserEmailConnectionRepository>();
-        services.AddScoped<IUserOAuthCredentialRepository, UserOAuthCredentialRepository>();
-        services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IProfileService, ProfileService>();
-        services.AddScoped<IGmailReplyMonitorService, GmailReplyMonitorService>();
-        services.AddScoped<IResponseClassificationService, ResponseClassificationService>();
-        services.AddScoped<CheckEmailRepliesJob>();
-        services.AddScoped<DetectFollowUpNeededJob>();
-        services.AddScoped<ICvService, CvService>();
-        services.AddScoped<ICvHtmlTemplateRenderer, CvHtmlTemplateRenderer>();
-        services.AddScoped<ICvPdfRenderer, CvPdfRenderer>();
-        services.AddScoped<ICvTemplateService, CvTemplateService>();
-        services.AddScoped<ITemplateThumbnailService, TemplateThumbnailService>();
-        services.AddScoped<ISourcedOfferService, SourcedOfferService>();
+        // Modules communicate through Contracts and integration events only
+        services.AddScoped<IEventPublisher, InProcessEventPublisher>();
 
-        // Google OAuth configuration
-        services.Configure<GoogleOAuthOptions>(
-            configuration.GetSection(GoogleOAuthOptions.SectionName));
-
-        // Email Follow-up configuration
-        services.Configure<EmailFollowUpOptions>(
-            configuration.GetSection(EmailFollowUpOptions.SectionName));
+        // Each module registers its own DbContext (own schema), services and event handlers
+        services.AddProfileModule(configuration);
+        services.AddApplicationsModule(configuration);
+        services.AddCvDocumentsModule(configuration);
+        services.AddMessagingModule(configuration);
+        services.AddCoachingModule(configuration);
+        services.AddSourcingModule(configuration);
 
         // ASP.NET Core Data Protection (encrypts Gmail tokens at rest)
         services.AddDataProtection();

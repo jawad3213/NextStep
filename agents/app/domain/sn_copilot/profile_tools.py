@@ -55,7 +55,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
                         titre_poste, resume_professionnel, objectif,
                         niveau, secteur, lien_linkedin, lien_github,
                         lien_portfolio, profile_score
-                    FROM public.utilisateur 
+                    FROM profile.utilisateur 
                     WHERE id_utilisateur::text = :uid
                     LIMIT 1
                 """),
@@ -85,7 +85,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
             comp_rows = (await session.execute(
                 text("""
                     SELECT nom, niveau, type_competence
-                    FROM public.competence
+                    FROM profile.competence
                     WHERE id_utilisateur::text = :uid
                     ORDER BY niveau DESC
                 """),
@@ -106,7 +106,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
                 text("""
                     SELECT etablissement, diplome, annee, annee_fin, 
                            ville, specialisation, mention
-                    FROM public.formation
+                    FROM profile.formation
                     WHERE id_utilisateur::text = :uid
                     ORDER BY annee DESC
                 """),
@@ -131,7 +131,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
                 text("""
                     SELECT entreprise, poste, date_debut, date_fin,
                            missions, ville, type_contrat, taches
-                    FROM public.experience
+                    FROM profile.experience
                     WHERE id_utilisateur::text = :uid
                     ORDER BY date_debut DESC NULLS LAST
                 """),
@@ -157,7 +157,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
                 text("""
                     SELECT titre_projet, description, technologies_utilisees,
                            date_realisation, lien_projet, is_university
-                    FROM public.projet
+                    FROM profile.projet
                     WHERE id_utilisateur::text = :uid
                     ORDER BY date_realisation DESC NULLS LAST
                 """),
@@ -180,7 +180,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
             cert_rows = (await session.execute(
                 text("""
                     SELECT titre, organisation, date_obtention
-                    FROM public.certification
+                    FROM profile.certification
                     WHERE id_utilisateur::text = :uid
                     ORDER BY date_obtention DESC NULLS LAST
                 """),

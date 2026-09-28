@@ -1,6 +1,7 @@
-namespace NextStep.Modules.Cv.Services;
+using NextStep.Modules.CvDocuments.Infrastructure.Rendering;
+namespace NextStep.Modules.CvDocuments.Application.Services;
 
-using NextStep.Modules.Cv.Models;
+using NextStep.Modules.CvDocuments.Domain;
 
 public static class SampleCvData
 {

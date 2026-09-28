@@ -1,13 +1,16 @@
+using NextStep.Modules.Coaching.Infrastructure.Agents;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
-using NextStep.Modules.Chatbot.Models;
-using NextStep.data;
-using NextStep.Modules.Offer.Models;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
+using NextStep.Modules.Coaching.Domain;
+using NextStep.Modules.Coaching.Infrastructure.Persistence;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Shared.ErrorHandling;
 
-namespace NextStep.Modules.Chatbot.Services;
+namespace NextStep.Modules.Coaching.Application.Services;
 
 /// <summary>
 /// Service métier du module Chatbot.
@@ -20,13 +23,22 @@ namespace NextStep.Modules.Chatbot.Services;
 public class ArenaService : IArenaService
 {
     private readonly IAgentHttpClient _agentClient;
-    private readonly AppDbContext _db;
+    private readonly CoachingDbContext _db;
+    private readonly IApplicationsApi _applications;
+    private readonly IProfileApi _profile;
     private readonly ILogger<ArenaService> _logger;
 
-    public ArenaService(IAgentHttpClient agentClient, AppDbContext db, ILogger<ArenaService> logger)
+    public ArenaService(
+        IAgentHttpClient agentClient,
+        CoachingDbContext db,
+        IApplicationsApi applications,
+        IProfileApi profile,
+        ILogger<ArenaService> logger)
     {
         _agentClient = agentClient;
         _db = db;
+        _applications = applications;
+        _profile = profile;
         _logger = logger;
     }
 
@@ -68,19 +80,17 @@ public class ArenaService : IArenaService
         {
             try
             {
-                var internalUser = await _db.Utilisateurs
-                    .FirstOrDefaultAsync(u => u.KeycloakId.ToLower() == request.UserId.ToLower() || u.Id.ToString().ToLower() == request.UserId.ToLower());
+                var internalUserId = await _profile.FindUserIdAsync(request.UserId);
 
-                if (internalUser != null)
+                if (internalUserId.HasValue)
                 {
                     var offerGuid = Guid.Parse(request.OfferId);
-                    
-                    // 1. S'assurer que l'offre existe dans la table moderne pour satisfaire la FK de candidature
-                    var offerExists = await CheckOfferExistsAsync(offerGuid);
+                    string? placeholderRawText = null;
 
-                    if (!offerExists)
+                    // 1. The offer may only exist in the agents' analysis: build its text from there
+                    if (!await _applications.OfferExistsAsync(offerGuid))
                     {
-                        // Récupérer les détails depuis public.offre_analysee pour créer l'entrée correspondante
+                        // Récupérer les détails depuis agents.offre_analysee pour créer l'entrée correspondante
                         var offerDetails = await QueryOffreAnalyseeAsync(offerGuid);
 
                         string title = "Offre de Stage";
@@ -93,40 +103,19 @@ public class ArenaService : IArenaService
                             location = offerDetails.Localisation ?? location;
                         }
 
-                        var placeholderRawText =
+                        placeholderRawText =
                             $"Auto-created from chat session{Environment.NewLine}" +
                             $"Title: {title}{Environment.NewLine}" +
                             $"Company: {company}{Environment.NewLine}" +
                             $"Location: {location}";
-
-                        _db.OffresEmploi.Add(new OffreEmploi
-                        {
-                            Id = offerGuid,
-                            UtilisateurId = internalUser.Id,
-                            TexteBrut = placeholderRawText,
-                            AnalyseJson = null,
-                            DateCreation = DateTime.UtcNow
-                        });
-                        await _db.SaveChangesAsync();
                     }
 
-                    // 2. S'assurer qu'une candidature existe pour cet utilisateur et cette offre
-                    var candExists = await _db.Candidatures
-                        .AnyAsync(c => c.IdUtilisateur == internalUser.Id && c.IdOffre == offerGuid);
-
-                    if (!candExists)
-                    {
-                        var newCand = new NextStep.Modules.Candidature.Models.Candidature
-                        {
-                            IdCandidature = Guid.NewGuid(),
-                            IdUtilisateur = internalUser.Id,
-                            IdOffre = offerGuid,
-                            Statut = "ENTRETIEN",
-                            DateCreation = DateTime.UtcNow
-                        };
-                        _db.Candidatures.Add(newCand);
-                        await _db.SaveChangesAsync();
-                    }
+                    // 2. Make sure the user has an application for this offer (owned by Applications)
+                    await _applications.EnsureApplicationForOfferAsync(
+                        internalUserId.Value,
+                        offerGuid,
+                        placeholderRawText ?? "Auto-created from chat session",
+                        "ENTRETIEN");
                 }
             }
             catch (Exception ex)
@@ -147,7 +136,15 @@ public class ArenaService : IArenaService
     public async Task<SendMessageResponse> SendMessageAsync(SendMessageRequest request)
     {
         // Python se charge de persister les messages dans chat_message
-        return await _agentClient.PostSendMessageAsync(request);
+        try
+        {
+            return await _agentClient.PostSendMessageAsync(request);
+        }
+        catch (Exception ex) when (ex is not AppException)
+        {
+            _logger.LogError(ex, "ArenaService — envoi du message échoué pour la session {SessionId}.", request.SessionId);
+            throw new OperationFailedException("Erreur lors de l'envoi du message. Veuillez réessayer.", ex);
+        }
     }
 
     /// <summary>
@@ -156,7 +153,15 @@ public class ArenaService : IArenaService
     public async Task<EndSessionResponse> EndSessionAsync(EndSessionRequest request)
     {
         // Python se charge d'évaluer et de mettre à jour la SessionCoaching
-        return await _agentClient.PostEndInterviewAsync(request);
+        try
+        {
+            return await _agentClient.PostEndInterviewAsync(request);
+        }
+        catch (Exception ex) when (ex is not AppException)
+        {
+            _logger.LogError(ex, "ArenaService — fin de session échouée pour {SessionId}.", request.SessionId);
+            throw new OperationFailedException("Erreur lors de la fin de session. Veuillez réessayer.", ex);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -206,15 +211,14 @@ public class ArenaService : IArenaService
     {
         if (string.IsNullOrEmpty(userId)) return new List<SessionSummaryDto>();
 
-        // 1. Fetch sessions
-        var query = from s in _db.SessionCoachings
-                    join u in _db.Utilisateurs on s.IdUtilisateur equals u.Id
-                    where u.KeycloakId.ToLower() == userId.ToLower() || u.Id.ToString().ToLower() == userId.ToLower()
-                    where s.Status != "pending"
-                    orderby s.DateSession descending
-                    select s;
+        var internalUserId = await _profile.FindUserIdAsync(userId);
+        if (!internalUserId.HasValue) return new List<SessionSummaryDto>();
 
-        var dbSessions = await query.ToListAsync();
+        // 1. Fetch sessions
+        var dbSessions = await _db.SessionCoachings
+            .Where(s => s.IdUtilisateur == internalUserId.Value && s.Status != "pending")
+            .OrderByDescending(s => s.DateSession)
+            .ToListAsync();
         var result = new List<SessionSummaryDto>();
 
         foreach (var s in dbSessions)
@@ -224,36 +228,21 @@ public class ArenaService : IArenaService
 
             if (s.Mode == "offer")
             {
-                var candId = s.IdCandidature;
-                if (!candId.HasValue)
+                var cand = await ResolveSessionApplicationAsync(s);
+                if (cand?.OfferId is not null)
                 {
-                    // Fallback : Trouver la première candidature de l'utilisateur
-                    var candRow = await _db.Candidatures
-                        .FirstOrDefaultAsync(c => c.IdUtilisateur == s.IdUtilisateur);
-                    if (candRow != null)
+                    try
                     {
-                        candId = candRow.IdCandidature;
+                        var row = await QueryOffreAnalyseeAsync(cand.OfferId.Value);
+                        if (row != null)
+                        {
+                            jobTitle = row.TitrePoste;
+                            company = row.Entreprise;
+                        }
                     }
-                }
-
-                if (candId.HasValue)
-                {
-                    var cand = await _db.Candidatures.FindAsync(candId.Value);
-                    if (cand != null)
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            var row = await QueryOffreAnalyseeAsync(cand.IdOffre!.Value);
-                            if (row != null)
-                            {
-                                jobTitle = row.TitrePoste;
-                                company = row.Entreprise;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogDebug(ex, "ArenaService — enrichissement offre ignoré pour {CandidatureId}.", cand.IdCandidature);
-                        }
+                        _logger.LogDebug(ex, "ArenaService — enrichissement offre ignoré pour {CandidatureId}.", cand.CandidatureId);
                     }
                 }
             }
@@ -282,7 +271,7 @@ public class ArenaService : IArenaService
         var session = await _db.SessionCoachings
             .FindAsync(Guid.Parse(sessionId));
 
-        if (session == null) throw new KeyNotFoundException();
+        if (session == null) throw new NotFoundException("Session introuvable.");
 
         // Le FeedbackDto doit être désérialisé en tenant compte du format snake_case de Python
         var options = new JsonSerializerOptions 
@@ -300,35 +289,21 @@ public class ArenaService : IArenaService
 
         if (session.Mode == "offer")
         {
-            var candId = session.IdCandidature;
-            if (!candId.HasValue)
+            var cand = await ResolveSessionApplicationAsync(session);
+            if (cand?.OfferId is not null)
             {
-                var candRow = await _db.Candidatures
-                    .FirstOrDefaultAsync(c => c.IdUtilisateur == session.IdUtilisateur);
-                if (candRow != null)
+                try
                 {
-                    candId = candRow.IdCandidature;
+                    var row = await QueryOffreAnalyseeAsync(cand.OfferId.Value);
+                    if (row != null)
+                    {
+                        jobTitle = row.TitrePoste;
+                        company = row.Entreprise;
+                    }
                 }
-            }
-
-            if (candId.HasValue)
-            {
-                var cand = await _db.Candidatures.FindAsync(candId.Value);
-                if (cand != null)
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        var row = await QueryOffreAnalyseeAsync(cand.IdOffre!.Value);
-                        if (row != null)
-                        {
-                            jobTitle = row.TitrePoste;
-                            company = row.Entreprise;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "ArenaService — détail offre ignoré pour le détail de session.");
-                    }
+                    _logger.LogDebug(ex, "ArenaService — détail offre ignoré pour le détail de session.");
                 }
             }
         }
@@ -361,10 +336,9 @@ public class ArenaService : IArenaService
         var session = await _db.SessionCoachings.FindAsync(sessionGuid);
         if (session == null) return false;
 
-        var internalUser = await _db.Utilisateurs
-            .FirstOrDefaultAsync(u => u.KeycloakId.ToLower() == userId.ToLower() || u.Id.ToString().ToLower() == userId.ToLower());
+        var internalUserId = await _profile.FindUserIdAsync(userId);
 
-        if (internalUser == null || session.IdUtilisateur != internalUser.Id)
+        if (internalUserId == null || session.IdUtilisateur != internalUserId.Value)
         {
             return false;
         }
@@ -381,16 +355,12 @@ public class ArenaService : IArenaService
     public async Task<List<UserOfferSummaryDto>> GetUserOffersAsync(string userId)
     {
         // Resolve Keycloak sub → internal UUID
-        var internalUser = await _db.Utilisateurs
-            .FirstOrDefaultAsync(u => u.KeycloakId.ToLower() == userId.ToLower() || u.Id.ToString().ToLower() == userId.ToLower());
+        var internalUserId = await _profile.FindUserIdAsync(userId);
 
-        if (internalUser == null) return [];
+        if (internalUserId == null) return [];
 
-        // Get all candidatures for this user, with their associated analyzed offer
-        var candidatureIds = await _db.Candidatures
-            .Where(c => c.IdUtilisateur == internalUser.Id && c.IdOffre.HasValue)
-            .Select(c => c.IdOffre!.Value)
-            .ToListAsync();
+        // Offers the user applied to (owned by Applications), enriched with the agents' analysis
+        var candidatureIds = await _applications.ListAppliedOfferIdsAsync(internalUserId.Value);
 
         if (candidatureIds.Count == 0) return [];
 
@@ -415,7 +385,7 @@ public class ArenaService : IArenaService
             }
 
             // Get matching score from resultat_matching
-            int? matchScore = await QueryMatchScoreAsync(offreId, internalUser.Id);
+            int? matchScore = await QueryMatchScoreAsync(offreId, internalUserId.Value);
 
             result.Add(new UserOfferSummaryDto(
                 OfferId         : r.IdOffre.ToString(),
@@ -433,33 +403,12 @@ public class ArenaService : IArenaService
         return result;
     }
 
-    private async Task<bool> CheckOfferExistsAsync(Guid offerId)
+    /// <summary>The session's application, or the user's first one for sessions started without it.</summary>
+    private async Task<ApplicationSnapshot?> ResolveSessionApplicationAsync(SessionCoaching session)
     {
-        var conn = _db.Database.GetDbConnection();
-        var wasOpen = conn.State == System.Data.ConnectionState.Open;
-        if (!wasOpen) await conn.OpenAsync();
-        try
-        {
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = "SELECT 1 FROM public.offres_emploi WHERE id = @idOffre LIMIT 1";
-                var p = cmd.CreateParameter();
-                p.ParameterName = "@idOffre";
-                p.Value = offerId;
-                cmd.Parameters.Add(p);
-                var val = await cmd.ExecuteScalarAsync();
-                return val != null && val != DBNull.Value;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "ArenaService — vérification d'existence de l'offre {OfferId} échouée.", offerId);
-        }
-        finally
-        {
-            if (!wasOpen) await conn.CloseAsync();
-        }
-        return false;
+        return session.IdCandidature.HasValue
+            ? await _applications.GetApplicationAsync(session.IdCandidature.Value)
+            : await _applications.FindFirstApplicationAsync(session.IdUtilisateur);
     }
 
     private async Task<OffreAnalyseeRaw?> QueryOffreAnalyseeAsync(Guid idOffre)
@@ -473,7 +422,7 @@ public class ArenaService : IArenaService
             {
                 cmd.CommandText = """
                     SELECT id, id_offre, titre_poste, entreprise, localisation, type_contrat, competences_requises::text, annees_experience, date_analyse 
-                    FROM public.offre_analysee 
+                    FROM agents.offre_analysee 
                     WHERE id_offre = @idOffre 
                     LIMIT 1
                 """;
@@ -523,7 +472,7 @@ public class ArenaService : IArenaService
             using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandText = """
-                    SELECT score_global FROM public.resultat_matching 
+                    SELECT score_global FROM agents.resultat_matching 
                     WHERE id_offre = @idOffre AND id_utilisateur = @idUtilisateur 
                     LIMIT 1
                 """;
@@ -571,7 +520,3 @@ public class OffreAnalyseeRaw
     public DateTime DateAnalyse { get; set; }
 }
 
-public class MatchScoreRaw
-{
-    public int? ScoreGlobal { get; set; }
-}

@@ -2,9 +2,10 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
-import { CandidatureService } from '../../services/candidature.service';
-import { OfferService } from '../../services/offer.service';
-import { EmailDraftDto, EmailService } from '../../services/email.service';
+import { CandidatureService } from '../../data-access/candidature.service';
+import { EmailDraftDto } from '../../data-access/email.models';
+import { EmailService } from '../../data-access/email.service';
+import { OfferApiService } from '@features/offers/data-access/offer-api.service';
 
 type DraftRow = {
   candidatureId: string;
@@ -29,7 +30,7 @@ type FlatDraft = EmailDraftDto & {
 })
 export class LettersComponent implements OnInit {
   private readonly candidatureService = inject(CandidatureService);
-  private readonly offerService = inject(OfferService);
+  private readonly offerApi = inject(OfferApiService);
   private readonly emailService = inject(EmailService);
   private readonly router = inject(Router);
 
@@ -70,7 +71,7 @@ export class LettersComponent implements OnInit {
 
         const perCandidature = candidatures.map((c) =>
           forkJoin({
-            offer: c.idOffre ? this.offerService.getOfferById(c.idOffre).pipe(catchError(() => of(null))) : of(null),
+            offer: c.idOffre ? this.offerApi.getAnalysis(c.idOffre).pipe(catchError(() => of(null))) : of(null),
             drafts: this.emailService.getDraftsByCandidature(c.idCandidature).pipe(
               catchError(() => of([] as EmailDraftDto[]))
             ),

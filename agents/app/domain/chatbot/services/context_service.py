@@ -68,7 +68,7 @@ async def get_internal_user_id(keycloak_id: str | None, db: AsyncSession) -> uui
         from sqlalchemy import text
         # 1. Priorité absolue : chercher par keycloak_id
         r = await db.execute(
-            text("SELECT id_utilisateur FROM utilisateur WHERE keycloak_id = :k"),
+            text("SELECT id_utilisateur FROM profile.utilisateur WHERE keycloak_id = :k"),
             {"k": keycloak_id}
         )
         found_id = r.scalar()
@@ -77,7 +77,7 @@ async def get_internal_user_id(keycloak_id: str | None, db: AsyncSession) -> uui
 
         # 2. Chercher par id_utilisateur (UUID)
         r = await db.execute(
-            text("SELECT id_utilisateur FROM utilisateur WHERE id_utilisateur::text = :k"),
+            text("SELECT id_utilisateur FROM profile.utilisateur WHERE id_utilisateur::text = :k"),
             {"k": keycloak_id}
         )
         found_id = r.scalar()
@@ -106,7 +106,7 @@ async def get_candidature_id(offer_id: str | None, user_id: str | None, db: Asyn
             return None
         from sqlalchemy import text
         r = await db.execute(
-            text("SELECT id_candidature FROM candidature WHERE id_offre = :o AND id_utilisateur = :u LIMIT 1"),
+            text("SELECT id_candidature FROM applications.candidature WHERE id_offre = :o AND id_utilisateur = :u LIMIT 1"),
             {"o": uuid.UUID(offer_id), "u": internal_uid}
         )
         return r.scalar()
@@ -163,7 +163,7 @@ async def get_offer_context_from_db(
         # if not offre_row and not intel_row:
         #     from sqlalchemy import text
         #     r_emploi = await db.execute(
-        #         text("SELECT analyse_json FROM offres_emploi WHERE id = :o"),
+        #         text("SELECT analyse_json FROM applications.offres_emploi WHERE id = :o"),
         #         {"o": offer_uuid}
         #     )
         #     row_emploi = r_emploi.scalar_one_or_none()

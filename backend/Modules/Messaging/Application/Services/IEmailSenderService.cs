@@ -1,4 +1,5 @@
-namespace NextStep.Modules.Email.Services;
+using NextStep.Modules.Messaging.Infrastructure.Gmail;
+namespace NextStep.Modules.Messaging.Application.Services;
 
 /// <summary>
 /// Abstraction for sending emails through an email provider.

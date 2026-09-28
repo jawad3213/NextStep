@@ -1,10 +1,11 @@
+using NextStep.Modules.Messaging.Infrastructure.Gmail;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
-using NextStep.Modules.Email.Models;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Messaging.Domain;
 using NextStep.Shared.Http;
 
-namespace NextStep.Modules.Email.Services;
+namespace NextStep.Modules.Messaging.Application.Services;
 
 /// <summary>
 /// Calls the Python email agent's /email/classify-response endpoint to classify a recruiter reply.
@@ -46,7 +47,8 @@ public class ResponseClassificationService : IResponseClassificationService
     }
 
     public async Task<ClassificationResult> ClassifyAsync(
-        CandidatureEntity candidature,
+        ApplicationSnapshot application,
+        string?           offerAnalysisJson,
         EmailDraft?       draft,
         ReplyCheckResult  reply,
         CancellationToken ct = default)
@@ -57,11 +59,11 @@ public class ResponseClassificationService : IResponseClassificationService
             string? jobTitle    = null;
             string? companyName = null;
 
-            if (candidature.Offre?.AnalyseJson is not null)
+            if (offerAnalysisJson is not null)
             {
                 try
                 {
-                    using var doc = JsonDocument.Parse(candidature.Offre.AnalyseJson);
+                    using var doc = JsonDocument.Parse(offerAnalysisJson);
                     var root = doc.RootElement;
                     if (root.TryGetProperty("job_title",    out var jt)) jobTitle    = jt.GetString();
                     if (root.TryGetProperty("company_name", out var cn)) companyName = cn.GetString();
@@ -70,7 +72,7 @@ public class ResponseClassificationService : IResponseClassificationService
                 {
                     _logger.LogWarning(parseEx,
                         "ResponseClassificationService — could not parse AnalyseJson for candidature {CandidatureId}",
-                        candidature.IdCandidature);
+                        application.CandidatureId);
                 }
             }
 
@@ -82,7 +84,7 @@ public class ResponseClassificationService : IResponseClassificationService
 
             var payload = new
             {
-                candidature_id         = candidature.IdCandidature.ToString(),
+                candidature_id         = application.CandidatureId.ToString(),
                 job_title              = jobTitle,
                 company_name           = companyName,
                 previous_email_subject = draft?.Subject,
@@ -96,7 +98,7 @@ public class ResponseClassificationService : IResponseClassificationService
 
             _logger.LogInformation(
                 "ResponseClassificationService — calling /email/classify-response for candidature {CandidatureId}",
-                candidature.IdCandidature);
+                application.CandidatureId);
 
             // ── 3. Call Python agent ──────────────────────────────────────────────
             var pyResult = await _agentHttpClient
@@ -108,7 +110,7 @@ public class ResponseClassificationService : IResponseClassificationService
                 _logger.LogWarning(
                     "ResponseClassificationService — invalid/missing response_type '{Type}' " +
                     "for candidature {CandidatureId}; using fallback",
-                    pyResult?.ResponseType, candidature.IdCandidature);
+                    pyResult?.ResponseType, application.CandidatureId);
                 return Fallback;
             }
 
@@ -118,7 +120,7 @@ public class ResponseClassificationService : IResponseClassificationService
             _logger.LogInformation(
                 "ResponseClassificationService — result: type={Type}, confidence={Confidence:F2} " +
                 "for candidature {CandidatureId}",
-                pyResult.ResponseType, confidence, candidature.IdCandidature);
+                pyResult.ResponseType, confidence, application.CandidatureId);
 
             return new ClassificationResult(
                 ResponseType:             pyResult.ResponseType!,
@@ -132,7 +134,7 @@ public class ResponseClassificationService : IResponseClassificationService
         {
             _logger.LogError(ex,
                 "ResponseClassificationService — classification failed for candidature {CandidatureId}; using fallback",
-                candidature.IdCandidature);
+                application.CandidatureId);
             return Fallback;
         }
     }

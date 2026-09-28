@@ -3,8 +3,8 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
-import { environment } from '../environments/environment';
-import { apiErrorInterceptor } from './core/http/api-error.interceptor';
+import { environment } from '@env/environment';
+import { apiErrorInterceptor } from '@core/http/api-error.interceptor';
 import {
   provideKeycloak,
   withAutoRefreshToken,
@@ -15,8 +15,9 @@ import {
   INCLUDE_BEARER_TOKEN_INTERCEPTOR_CONFIG,
   includeBearerTokenInterceptor,
 } from 'keycloak-angular';
+import { API_BASE_URL } from '@core/http/api-url';
 
-const escapedApiBaseUrl = environment.apiBaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapedApiBaseUrl = API_BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const apiTokenCondition = createInterceptorCondition<IncludeBearerTokenCondition>({
   urlPattern: new RegExp(`^${escapedApiBaseUrl}/.*`, 'i'),
   bearerPrefix: 'Bearer',

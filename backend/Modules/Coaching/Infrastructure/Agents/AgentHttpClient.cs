@@ -1,9 +1,9 @@
+using NextStep.Modules.Coaching.Application.Services;
 using System.Net.Http.Json;
 using System.Text.Json;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
+using NextStep.Modules.Coaching.Application.Dtos;
 
-namespace NextStep.Modules.Chatbot.Services;
+namespace NextStep.Modules.Coaching.Infrastructure.Agents;
 
 /// <summary>
 /// Proxy HTTP pur vers Python FastAPI (LangGraph agents).

@@ -1,4 +1,5 @@
-namespace NextStep.Modules.Email.Services;
+using NextStep.Modules.Messaging.Infrastructure.Gmail;
+namespace NextStep.Modules.Messaging.Application.Services;
 
 /// <summary>
 /// Checks a Gmail thread for replies using the Gmail threads API (metadata format).

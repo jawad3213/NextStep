@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { Router, ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree } from '@angular/router';
 import { Observable, firstValueFrom, of, throwError } from 'rxjs';
-import { onboardingGuard, alreadyOnboardedGuard } from '../core/guards/onboarding.guard';
-import { OnboardingService, OnboardingStatus } from '../services/onboarding.service';
+import { onboardingGuard, alreadyOnboardedGuard } from './onboarding.guard';
+import { OnboardingService, OnboardingStatus } from '@core/auth/onboarding.service';
 
 describe('OnboardingGuards', () => {
   let mockOnboardingService: { getStatus: ReturnType<typeof vi.fn> };

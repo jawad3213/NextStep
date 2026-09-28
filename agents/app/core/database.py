@@ -8,6 +8,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# PostgreSQL schemas. The agents own "agents"; the others belong to backend modules,
+# which create them (EF migrations). Tables are always referenced schema-qualified.
+AGENTS_SCHEMA = "agents"
+COACHING_SCHEMA = "coaching"      # sessions + questions (written here too)
+PROFILE_SCHEMA = "profile"        # read-only here
+APPLICATIONS_SCHEMA = "applications"
+
 def get_engine():
     # Convertir l'URL postgres:// en postgresql+asyncpg://
     url = settings.DATABASE_URL.replace(

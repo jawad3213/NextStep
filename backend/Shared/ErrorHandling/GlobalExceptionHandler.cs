@@ -32,6 +32,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     {
         var (statusCode, error, type) = exception switch
         {
+            // Expected business failures: status and message chosen by the service.
+            AppException app
+                => (app.Status, app.Message, app.Type),
+
             KeyNotFoundException
                 => (HttpStatusCode.NotFound, "Resource not found", "NotFound"),
 
@@ -61,9 +65,13 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
 
-        _logger.LogError(exception,
-            "Unhandled exception {ExceptionType} → {StatusCode} (trace={TraceId})",
-            exception.GetType().Name, (int)statusCode, traceId);
+        if (exception is AppException && (int)statusCode < 500)
+            _logger.LogWarning("{ExceptionType} → {StatusCode}: {Message} (trace={TraceId})",
+                exception.GetType().Name, (int)statusCode, exception.Message, traceId);
+        else
+            _logger.LogError(exception,
+                "Unhandled exception {ExceptionType} → {StatusCode} (trace={TraceId})",
+                exception.GetType().Name, (int)statusCode, traceId);
 
         httpContext.Response.StatusCode = (int)statusCode;
         httpContext.Response.ContentType = "application/json; charset=utf-8";

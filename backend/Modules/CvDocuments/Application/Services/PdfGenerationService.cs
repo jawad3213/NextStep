@@ -1,10 +1,12 @@
+using NextStep.Modules.CvDocuments.Infrastructure.Rendering;
 using Microsoft.AspNetCore.SignalR;
-using NextStep.Modules.Cv.Services;
-using NextStep.Modules.Offer.DTOs;
-using NextStep.Modules.Offer.Models;
-using NextStep.SignalR;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.CvDocuments.Domain;
+using NextStep.Shared.Realtime;
+using NextStep.Modules.CvDocuments.Application.Dtos;
+using NextStep.Shared.ErrorHandling;
 
-namespace NextStep.Modules.Offer.Services;
+namespace NextStep.Modules.CvDocuments.Application.Services;
 
 public interface IPdfGenerationService
 {
@@ -19,20 +21,20 @@ public class PdfGenerationService : IPdfGenerationService
     private readonly ICvService _cvService;
     private readonly IHubContext<PipelineHub> _hubContext;
     private readonly ILogger<PdfGenerationService> _logger;
-    private readonly IOfferService _offerService;
+    private readonly IApplicationsApi _applications;
     private readonly IConfiguration _configuration;
 
     public PdfGenerationService(
         ICvService cvService,
         IHubContext<PipelineHub> hubContext,
         ILogger<PdfGenerationService> logger,
-        IOfferService offerService,
+        IApplicationsApi applications,
         IConfiguration configuration)
     {
         _cvService = cvService;
         _hubContext = hubContext;
         _logger = logger;
-        _offerService = offerService;
+        _applications = applications;
         _configuration = configuration;
     }
 
@@ -49,9 +51,9 @@ public class PdfGenerationService : IPdfGenerationService
 
             await SendProgress(offerId, 50, "Generation du PDF HTML/CSS...");
 
-            var analysis = await _offerService.GetAnalysisAsync(userId, offerId, ct);
-            string cvTitle = analysis != null 
-                ? $"CV - {analysis.Titre} - {analysis.Entreprise}" 
+            var offer = await _applications.GetOfferSummaryAsync(userId, offerId, ct);
+            string cvTitle = offer != null
+                ? $"CV - {offer.Title} - {offer.Company}"
                 : $"CV_{offerId}";
 
             var saveResult = await _cvService.SaveCvAsync(userId, new CvSaveRequest
@@ -98,7 +100,7 @@ public class PdfGenerationService : IPdfGenerationService
                     Status = "error"
                 }, CancellationToken.None);
 
-            throw;
+            throw new OperationFailedException("La génération du PDF a échoué. Veuillez réessayer.", ex);
         }
     }
 

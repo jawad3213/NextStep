@@ -36,7 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Modules\Cv\Templates\Html\**\*.*">
+    <Content Include="Modules\CvDocuments\Templates\Html\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="thumbnails\**\*.*">

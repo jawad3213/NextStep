@@ -2,8 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NextStep.Modules.Profile.Models
-{
+namespace NextStep.Modules.Profile.Domain {
     [Table("skill_keyword")]
     public class Keyword
     {

@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using NextStep.data;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Messaging.Infrastructure.Persistence;
 using NextStep.Shared.Config;
 
-namespace NextStep.Jobs;
+namespace NextStep.Modules.Messaging.Application.Jobs;
 
 /// <summary>
 /// Hangfire job that detects candidatures where no reply has been received 
@@ -11,16 +12,19 @@ namespace NextStep.Jobs;
 /// </summary>
 public class DetectFollowUpNeededJob
 {
-    private readonly AppDbContext _db;
+    private readonly MessagingDbContext _db;
+    private readonly IApplicationsApi _applications;
     private readonly EmailFollowUpOptions _options;
     private readonly ILogger<DetectFollowUpNeededJob> _logger;
 
     public DetectFollowUpNeededJob(
-        AppDbContext db,
+        MessagingDbContext db,
+        IApplicationsApi applications,
         IOptions<EmailFollowUpOptions> options,
         ILogger<DetectFollowUpNeededJob> logger)
     {
         _db      = db;
+        _applications = applications;
         _options = options.Value;
         _logger  = logger;
     }
@@ -39,36 +43,40 @@ public class DetectFollowUpNeededJob
         // - ResponseStatus is NOT REPONSE_RECUE, RELANCE_NECESSAIRE, or RELANCE_GENEREE
         // - At least one sent email exists
         // - No unsent relance draft already exists
-        var candidatures = await _db.Candidatures
-            .Include(c => c.EmailDrafts)
-            .Where(c => 
-                !c.HasResponse && 
-                c.ResponseStatus != "REPONSE_RECUE" &&
-                c.ResponseStatus != "RELANCE_NECESSAIRE" &&
-                c.ResponseStatus != "RELANCE_GENEREE" &&
-                c.EmailDrafts.Any(d => d.IsSent && d.SentAtUtc != null))
-            .ToListAsync(ct);
+        // The application state is owned by Applications; the drafts are Messaging's own data.
+        var awaiting = await _applications.ListAwaitingFollowUpCheckAsync(ct);
+        var awaitingIds = awaiting.Select(c => c.CandidatureId).ToList();
+
+        var draftsByCandidature = (await _db.EmailDrafts
+                .AsNoTracking()
+                .Where(d => awaitingIds.Contains(d.CandidatureId))
+                .ToListAsync(ct))
+            .ToLookup(d => d.CandidatureId);
+
+        var candidatures = awaiting
+            .Where(c => draftsByCandidature[c.CandidatureId].Any(d => d.IsSent && d.SentAtUtc != null))
+            .ToList();
 
         int markedCount = 0;
 
         foreach (var candidature in candidatures)
         {
             // Count sent relances
-            var sentRelanceCount = candidature.EmailDrafts
+            var sentRelanceCount = draftsByCandidature[candidature.CandidatureId]
                 .Count(d => d.EmailType == "relance" && d.IsSent);
 
             if (sentRelanceCount >= maxFollowUps)
                 continue;
 
             // Check if any unsent relance draft exists
-            var hasUnsentRelance = candidature.EmailDrafts
+            var hasUnsentRelance = draftsByCandidature[candidature.CandidatureId]
                 .Any(d => d.EmailType == "relance" && !d.IsSent);
 
             if (hasUnsentRelance)
                 continue;
 
             // Get latest sent email
-            var latestSent = candidature.EmailDrafts
+            var latestSent = draftsByCandidature[candidature.CandidatureId]
                 .Where(d => d.IsSent && d.SentAtUtc != null)
                 .OrderByDescending(d => d.SentAtUtc)
                 .FirstOrDefault();
@@ -83,27 +91,18 @@ public class DetectFollowUpNeededJob
             {
                 _logger.LogInformation(
                     "DetectFollowUpNeededJob — marking candidature {CandidatureId} as RELANCE_NECESSAIRE (sentRelances: {Count})",
-                    candidature.IdCandidature, sentRelanceCount);
-
-                candidature.ResponseStatus = "RELANCE_NECESSAIRE";
-                candidature.Statut         = "RELANCE_NECESSAIRE";
-                candidature.FollowUpNeeded = true;
+                    candidature.CandidatureId, sentRelanceCount);
 
                 // Record the last time a relance was actually sent (for display context in frontend)
-                var lastRelanceSent = candidature.EmailDrafts
+                var lastRelanceSent = draftsByCandidature[candidature.CandidatureId]
                     .Where(d => d.EmailType == "relance" && d.IsSent && d.SentAtUtc != null)
                     .OrderByDescending(d => d.SentAtUtc)
                     .FirstOrDefault();
-                if (lastRelanceSent is not null)
-                    candidature.LastFollowUpAtUtc = lastRelanceSent.SentAtUtc;
+
+                await _applications.MarkFollowUpNeededAsync(candidature.CandidatureId, lastRelanceSent?.SentAtUtc, ct);
 
                 markedCount++;
             }
-        }
-
-        if (markedCount > 0)
-        {
-            await _db.SaveChangesAsync(ct);
         }
 
         _logger.LogInformation(

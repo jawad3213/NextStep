@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using NextStep.Modules.Identity.DTOs;
-using NextStep.Modules.Identity.Models;
-using NextStep.Modules.Identity.Repositories;
-using NextStep.data;
+using NextStep.Modules.Profile.Application.Dtos;
+using NextStep.Modules.Profile.Domain;
+using NextStep.Modules.Profile.Infrastructure.Repositories;
+using NextStep.Shared.ErrorHandling;
+using NextStep.Modules.Profile.Infrastructure.Persistence;
 
-namespace NextStep.Modules.Identity.Services
-{
+namespace NextStep.Modules.Profile.Application.Services {
     public interface IUserService
     {
         Task SyncUserFromKeycloakAsync(UserSyncDto syncDto);
@@ -20,10 +20,10 @@ namespace NextStep.Modules.Identity.Services
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
-        private readonly AppDbContext _context;
+        private readonly ProfileDbContext _context;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(IUserRepository userRepository, AppDbContext context, ILogger<UserService> logger)
+        public UserService(IUserRepository userRepository, ProfileDbContext context, ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _context = context;
@@ -32,6 +32,9 @@ namespace NextStep.Modules.Identity.Services
 
         public async Task SyncUserFromKeycloakAsync(UserSyncDto syncDto)
         {
+            if (string.IsNullOrEmpty(syncDto.KeycloakId) || string.IsNullOrEmpty(syncDto.Email))
+                throw new BadRequestException("Payload invalide : KeycloakId et Email sont requis.");
+
             var existingUser = await _userRepository.GetByKeycloakIdAsync(syncDto.KeycloakId);
             
             if (existingUser != null)
@@ -61,7 +64,7 @@ namespace NextStep.Modules.Identity.Services
 
             if (string.IsNullOrEmpty(keycloakId))
             {
-                throw new UnauthorizedAccessException("Impossible d'extraire l'identifiant Keycloak du token.");
+                throw new UnauthorizedException("Impossible d'extraire l'identifiant Keycloak du token.");
             }
 
             var existingUser = await _userRepository.GetByKeycloakIdAsync(keycloakId);
@@ -91,7 +94,7 @@ namespace NextStep.Modules.Identity.Services
         public async Task<UserEntity> UpdateSoftOnboardingAsync(string keycloakId, SoftOnboardingDto dto)
         {
             var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
-            if (user == null) throw new KeyNotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
 
             user.Objectif = dto.Objectif.ToString();
             user.Niveau = dto.Niveau.ToString();
@@ -105,7 +108,7 @@ namespace NextStep.Modules.Identity.Services
         public async Task<ProfileStatusDto> GetProfileStatusAsync(string keycloakId)
         {
             var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
-            if (user == null) throw new KeyNotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
 
             var missingSections = new List<string>();
             
@@ -144,7 +147,7 @@ namespace NextStep.Modules.Identity.Services
         public async Task<CompleteProfileResult> CompleteProfileAsync(string keycloakId)
         {
             var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
-            if (user == null) throw new KeyNotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
 
             var percent = await ComputeCompletionPercentAsync(user);
             var result = new CompleteProfileResult { CompletionPercent = percent, RequiredPercent = RequiredCompletionPercent };

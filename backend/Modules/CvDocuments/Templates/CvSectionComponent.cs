@@ -1,8 +1,8 @@
-using NextStep.Modules.Cv.Models;
+using NextStep.Modules.CvDocuments.Domain;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
 
-namespace NextStep.Modules.Cv.Templates;
+namespace NextStep.Modules.CvDocuments.Templates;
 
 public class CvSectionComponent : IComponent
 {

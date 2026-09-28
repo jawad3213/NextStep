@@ -1,7 +1,6 @@
-using NextStep.Modules.Email.Models;
-using NextStep.Modules.Offer.Models;
+using NextStep.Modules.Applications.Domain;
 
-namespace NextStep.Modules.Candidature.Models;
+namespace NextStep.Modules.Applications.Domain;
 
 public class Candidature
 {
@@ -86,8 +85,6 @@ public class Candidature
     /// Null until a relance has been sent.
     /// </summary>
     public DateTime? LastFollowUpAtUtc { get; set; }
-
-    public ICollection<EmailDraft> EmailDrafts { get; set; } = new List<EmailDraft>();
 
     public ICollection<CandidatureNote> CandidatureNotes { get; set; } = new List<CandidatureNote>();
 

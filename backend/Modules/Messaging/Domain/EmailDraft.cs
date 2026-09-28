@@ -1,11 +1,10 @@
-using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
-
-namespace NextStep.Modules.Email.Models;
+namespace NextStep.Modules.Messaging.Domain;
 
 public class EmailDraft
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>Application (Applications module) this email belongs to — referenced by id only.</summary>
     public Guid CandidatureId { get; set; }
 
     public string EmailType { get; set; } = "application";
@@ -40,6 +39,4 @@ public class EmailDraft
 
     /// <summary>Number of send attempts made (incremented on each real attempt).</summary>
     public int SendAttemptCount { get; set; } = 0;
-
-    public CandidatureEntity? Candidature { get; set; }
 }

@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/auth/services/auth.service';
-import { ProfileService } from '../../../features/profile/profile.service';
+import { AuthService } from '@core/auth/auth.service';
+import { ProfileService } from '@features/profile/data-access/profile.service';
 
 @Component({
   selector: 'app-sidebar-widget',

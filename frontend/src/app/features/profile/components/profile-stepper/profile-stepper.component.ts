@@ -2,8 +2,8 @@ import { Component, inject, computed, Output, EventEmitter } from '@angular/core
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { ProfileService } from '../profile.service';
-import { ProfileStepId } from '../profile.types';
+import { ProfileService } from '../../data-access/profile.service';
+import { ProfileStepId } from '../../data-access/profile.models';
 
 @Component({
   selector: 'app-profile-stepper',

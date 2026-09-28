@@ -1,9 +1,10 @@
+using NextStep.Modules.CvDocuments.Infrastructure.Rendering;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-using NextStep.Modules.Cv.Models;
+using NextStep.Modules.CvDocuments.Domain;
 
-namespace NextStep.Modules.Cv.Services;
+namespace NextStep.Modules.CvDocuments.Application.Services;
 
 public static class CvSectionMapper
 {

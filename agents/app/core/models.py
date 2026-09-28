@@ -2,11 +2,12 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from app.core.database import Base
+from app.core.database import AGENTS_SCHEMA, Base
 
 class OffreAnalysee(Base):
     """Output Agent 2."""
     __tablename__ = "offre_analysee"
+    __table_args__ = {"schema": AGENTS_SCHEMA}
 
     id                   = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     id_offre             = Column(UUID(as_uuid=True), nullable=False)
@@ -26,6 +27,7 @@ class OffreAnalysee(Base):
 class IntelEntreprise(Base):
     """Output Agent 3."""
     __tablename__ = "intel_entreprise"
+    __table_args__ = {"schema": AGENTS_SCHEMA}
 
     id                    = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nom_entreprise        = Column(String(200), nullable=False)
@@ -44,6 +46,7 @@ class IntelEntreprise(Base):
 class ResultatMatching(Base):
     """Output Agent 4."""
     __tablename__ = "resultat_matching"
+    __table_args__ = {"schema": AGENTS_SCHEMA}
 
     id                       = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     id_offre                 = Column(UUID(as_uuid=True), nullable=False)

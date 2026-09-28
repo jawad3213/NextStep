@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
-using NextStep.data;
-using NextStep.Modules.Email.Models;
+using NextStep.Modules.Messaging.Infrastructure.Persistence;
+using NextStep.Modules.Messaging.Domain;
 
-namespace NextStep.Modules.Email.Repositories;
+namespace NextStep.Modules.Messaging.Infrastructure.Repositories;
 
 public class UserEmailConnectionRepository : IUserEmailConnectionRepository
 {
-    private readonly AppDbContext _db;
+    private readonly MessagingDbContext _db;
 
-    public UserEmailConnectionRepository(AppDbContext db)
+    public UserEmailConnectionRepository(MessagingDbContext db)
     {
         _db = db;
     }

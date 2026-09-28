@@ -1,15 +1,15 @@
 using Microsoft.EntityFrameworkCore;
-using NextStep.data;
-using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
-using NextStep.Modules.Candidature.Models;
+using NextStep.Modules.Applications.Infrastructure.Persistence;
+using CandidatureEntity = NextStep.Modules.Applications.Domain.Candidature;
+using NextStep.Modules.Applications.Domain;
 
-namespace NextStep.Modules.Candidature.Repositories;
+namespace NextStep.Modules.Applications.Infrastructure.Repositories;
 
 public class CandidatureRepository : ICandidatureRepository
 {
-    private readonly AppDbContext _db;
+    private readonly ApplicationsDbContext _db;
 
-    public CandidatureRepository(AppDbContext db)
+    public CandidatureRepository(ApplicationsDbContext db)
     {
         _db = db;
     }

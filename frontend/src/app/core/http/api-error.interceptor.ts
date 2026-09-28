@@ -2,8 +2,8 @@ import { HttpContextToken, HttpInterceptorFn } from '@angular/common/http';
 import { throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { inject } from '@angular/core';
-import { ToastService } from '../notifications/toast.service';
-import { extractApiError } from '../utils/extract-api-error';
+import { ToastService } from '@core/notifications/toast.service';
+import { extractApiError } from './extract-api-error';
 
 /**
  * Jeton à passer via HttpContext pour supprimer le toast automatique d'erreur

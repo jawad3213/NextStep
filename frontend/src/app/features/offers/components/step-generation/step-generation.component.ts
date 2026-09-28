@@ -2,19 +2,19 @@ import { Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/c
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, firstValueFrom, timeout } from 'rxjs';
-import { PipelineStateService } from '../../../../services/pipeline-state.service';
+import { PipelineStateService } from '../../data-access/pipeline-state.service';
 import { ResumeEditorComponent } from '../resume-editor/resume-editor.component';
-import {
-  CvDesignConfig,
-  CvRenderResponse,
-  CvSaveResponse,
-  OfferApiService
-} from '../../services/offer-api.service';
-import { environment } from '../../../../../environments/environment';
-import { SignalRService } from '../../../../services/signalr.service';
-import { ProfileService } from '../../../profile/profile.service';
-import { extractApiError } from '../../../../core/utils/extract-api-error';
-import { CV_TEMPLATES, CV_TEMPLATE_SLUGS, defaultCvDesignConfig } from '../../cv-templates';
+import { SignalRService } from '../../data-access/signalr.service';
+import { ProfileService } from '@features/profile/data-access/profile.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { CV_TEMPLATES, CV_TEMPLATE_SLUGS, defaultCvDesignConfig } from '../../data-access/cv-templates';
+import { CvApiService } from '@features/cv-builder/data-access/cv-api.service';
+import { CvDesignConfig } from '@features/cv-builder/data-access/cv.models';
+import { OfferApiService } from '../../data-access/offer-api.service';
+import { CvRenderResponse, CvSaveResponse } from '@features/cv-builder/data-access/cv.models';
+import { backendOrigin } from '@core/http/api-url';
+import { getCandidateSource, normalizeCvForBackend, unwrapCvPayload } from './cv-payload.normalizer';
+import { cleanText, firstArray } from '../../utils/cv-json.utils';
 
 interface RealCvTemplate {
   slug: string;
@@ -37,6 +37,7 @@ interface CvEditorDraft {
 })
 export class StepGenerationComponent implements OnInit, OnDestroy {
   pipeline = inject(PipelineStateService);
+  private readonly cvApi = inject(CvApiService);
   private readonly offerApi = inject(OfferApiService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly signalR = inject(SignalRService);
@@ -71,12 +72,6 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
   isGeneratingHighQualityPdf = false;
   isReoptimizingCv = false;
   private savedDraftHash = '';
-  private readonly activitySignals = [
-    'hackathon', 'club', 'association', 'organisateur', 'organizer',
-    'membre', 'member', 'volunteer', 'benevole', 'benevole', 'event',
-    'community', 'communaut', 'it day', 'prize', 'prix', 'participant',
-    'formateur', 'trainer', 'formation', 'solihackathon', 'itwave', 'ids'
-  ];
 
   readonly realTemplates: RealCvTemplate[] = CV_TEMPLATES.map(({ slug, label, tone }) => ({ slug, label, tone }));
 
@@ -132,19 +127,19 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
   private hasRenderableCvData(data: any | null | undefined): boolean {
     if (!data || typeof data !== 'object') return false;
-    const normalized = this.unwrapCvPayload(data);
-    const candidate = this.getCandidateSource(normalized);
-    const hasIdentity = !!this.cleanText(candidate?.name)
-      || !!this.cleanText(candidate?.nomComplet)
-      || !!this.cleanText(candidate?.fullName)
-      || !!this.cleanText(candidate?.email)
-      || !!this.cleanText(normalized?.summary)
-      || !!this.cleanText(normalized?.resume)
-      || !!this.cleanText(normalized?.resumeProfessionnel);
-    const hasSections = this.firstArray(normalized, ['experience', 'experiences', 'experiences_optimisees']).length > 0
-      || this.firstArray(normalized, ['education', 'formations', 'formations_optimisees']).length > 0
-      || this.firstArray(normalized, ['skills', 'competences', 'competences_reordonnees', 'competences_mises_en_avant']).length > 0
-      || this.firstArray(normalized, ['projects', 'projets', 'projets_optimises']).length > 0;
+    const normalized = unwrapCvPayload(data);
+    const candidate = getCandidateSource(normalized);
+    const hasIdentity = !!cleanText(candidate?.name)
+      || !!cleanText(candidate?.nomComplet)
+      || !!cleanText(candidate?.fullName)
+      || !!cleanText(candidate?.email)
+      || !!cleanText(normalized?.summary)
+      || !!cleanText(normalized?.resume)
+      || !!cleanText(normalized?.resumeProfessionnel);
+    const hasSections = firstArray(normalized, ['experience', 'experiences', 'experiences_optimisees']).length > 0
+      || firstArray(normalized, ['education', 'formations', 'formations_optimisees']).length > 0
+      || firstArray(normalized, ['skills', 'competences', 'competences_reordonnees', 'competences_mises_en_avant']).length > 0
+      || firstArray(normalized, ['projects', 'projets', 'projets_optimises']).length > 0;
     return hasIdentity || hasSections;
   }
 
@@ -319,7 +314,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     const cached = this.thumbnailUrlCache.get(slug);
     if (cached) return cached;
 
-    const origin = new URL(environment.apiBaseUrl).origin;
+    const origin = backendOrigin();
     const url = `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.thumbnailNonce}`;
     this.thumbnailUrlCache.set(slug, url);
     return url;
@@ -372,7 +367,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.pipeline.setLoading(true, 'Sauvegarde du PDF final...');
     try {
       const saved = await firstValueFrom(
-        this.offerApi.saveFinalCv({
+        this.cvApi.saveFinalCv({
           templateSlug: this.selectedTemplate,
           title: finalTitle,
           offerId,
@@ -406,7 +401,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
       this.isGeneratingHighQualityPdf = true;
       this.pipeline.pipelineError.set(null);
-      const blob = await firstValueFrom(this.offerApi.exportCvPdf({
+      const blob = await firstValueFrom(this.cvApi.exportCvPdf({
         templateSlug: this.selectedTemplate,
         data,
         designConfig: this.currentDesignConfig,
@@ -459,7 +454,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     this.isRenderingPreview = true;
     this.previewError = null;
 
-    this.previewRequestSub = this.offerApi.renderCvPreview({
+    this.previewRequestSub = this.cvApi.renderCvPreview({
       templateSlug: this.selectedTemplate,
       data,
       designConfig: this.currentDesignConfig
@@ -530,7 +525,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
 
     if (!this.currentOfferId) return;
 
-    this.loadDraftSub = this.offerApi.getCvDraft(this.currentOfferId).subscribe({
+    this.loadDraftSub = this.cvApi.getCvDraft(this.currentOfferId).subscribe({
       next: (draft) => {
         if (!draft?.data || this.hasUserEditedDraft) return;
         const parsedDraft = this.asEditorDraft(draft.data);
@@ -618,7 +613,7 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
       htmlSnapshot: this.renderedHtmlSnapshot
     };
 
-    this.autosaveSub = this.offerApi.saveCvDraft(offerId, payload).subscribe({
+    this.autosaveSub = this.cvApi.saveCvDraft(offerId, payload).subscribe({
       next: (draft) => {
         this.draftStatus = 'saved';
         this.draftVersion = draft?.version ?? this.draftVersion;
@@ -683,496 +678,38 @@ export class StepGenerationComponent implements OnInit, OnDestroy {
     return err?.message || fallback;
   }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   private normalizeCvForBackend(data: any): any {
-    data = this.unwrapCvPayload(data);
-    const { fontFamily, sections, ...rawWithoutFontFamily } = data ?? {};
-    void fontFamily;
-    void sections;
-    const pipelineResult: any = this.pipeline.pipelineResult();
-    const profileSource = pipelineResult?.profileData?.data
-      ?? pipelineResult?.profileData?.profile
-      ?? pipelineResult?.profileData
-      ?? {};
-    const profilePersonal = profileSource?.personalInfo
-      ?? profileSource?.personal_info
-      ?? profileSource?.personal
-      ?? {};
-    const liveProfilePersonal = this.profileService.profile()?.personal ?? {};
-    const candidate = this.getCandidateSource(data);
-    const activities = this.normalizeActivities(this.firstArray(data, ['activities', 'extracurricular', 'activites', 'activitÃ©s']));
-    const highlightedSkills = new Set(
-      this.firstArray(data, ['competences_mises_en_avant'])
-        .map((skill: any) => this.normalizeKey(typeof skill === 'string' ? skill : skill?.name ?? skill?.nom ?? skill?.label))
-        .filter(Boolean)
-    );
-    const experience = this.firstArray(data, ['experience', 'experiences', 'experiences_optimisees'])
-      .map((exp: any) => ({
-        role: this.cleanText(exp?.role ?? exp?.title ?? exp?.poste ?? exp?.titre),
-        company: this.cleanText(exp?.company ?? exp?.entreprise),
-        start: this.toMonthValue(exp?.start ?? exp?.dateDebut ?? exp?.date_debut),
-        end: this.toMonthValue(exp?.end ?? exp?.dateFin ?? exp?.date_fin),
-        bullets: this.dedupeStrings(this.asStringArray(exp?.bullets ?? exp?.taches_optimisees ?? exp?.missions ?? exp?.taches ?? exp?.description_optimisee ?? exp?.description)),
-        relevance: this.cleanText(exp?.niveau_pertinence ?? exp?.relevance),
-        keywords: this.dedupeStrings(this.asStringArray(exp?.mots_cles_cibles ?? exp?.keywords)),
-      }))
-      .filter((exp: any) => {
-        if (!exp.role && !exp.company) return false;
-        if (!this.looksLikeActivity(exp)) return true;
-        activities.push({
-          title: exp.role || exp.company,
-          role: exp.company || null,
-          description: exp.bullets[0] ?? '',
-          startDate: exp.start ?? null,
-          endDate: exp.end ?? null,
-        });
-        return false;
-      });
-    const rawProjects = this.firstArray(data, ['projects', 'projets', 'projets_optimises']);
-    const normalizedSections = this.normalizeSections(data?.sections);
-    const projects = this.mergeNormalizedProjects(
-      this.normalizeProjects(rawProjects),
-      this.extractProjectsFromSections(normalizedSections)
-    );
-
-    return {
-      ...rawWithoutFontFamily,
-      candidate: {
-        name: this.resolvePreferredCandidateName(candidate, profilePersonal, liveProfilePersonal),
-        email: this.cleanText(candidate?.email ?? candidate?.mail ?? profilePersonal?.email ?? profilePersonal?.mail ?? liveProfilePersonal?.email),
-        phone: this.cleanText(candidate?.phone ?? candidate?.telephone ?? profilePersonal?.phone ?? profilePersonal?.telephone ?? liveProfilePersonal?.phone),
-        location: this.resolvePreferredLocation(candidate, profilePersonal, liveProfilePersonal),
-        title: this.cleanText(candidate?.title ?? candidate?.titrePoste ?? candidate?.poste ?? profilePersonal?.title ?? profilePersonal?.titrePoste ?? profilePersonal?.poste ?? liveProfilePersonal?.jobTitle),
-        photoUrl: this.extractCandidatePhotoUrl(candidate, profilePersonal, liveProfilePersonal),
-        linkedIn: candidate?.linkedIn ?? candidate?.linkedin ?? candidate?.lienLinkedin ?? profilePersonal?.linkedIn ?? profilePersonal?.linkedin ?? profilePersonal?.lienLinkedin ?? liveProfilePersonal?.linkedinUrl ?? null,
-        gitHub: candidate?.gitHub ?? candidate?.github ?? candidate?.lienGithub ?? profilePersonal?.gitHub ?? profilePersonal?.github ?? profilePersonal?.lienGithub ?? liveProfilePersonal?.githubUrl ?? null,
-        portfolio: candidate?.portfolio ?? candidate?.lienPortfolio ?? profilePersonal?.portfolio ?? profilePersonal?.lienPortfolio ?? liveProfilePersonal?.portfolioUrl ?? null,
-      },
-      summary: this.cleanText(data?.summary ?? data?.resume ?? data?.resumeProfessionnel ?? candidate?.resumeProfessionnel),
-      experience,
-      education: this.firstArray(data, ['education', 'formations', 'formations_optimisees']).map((edu: any) => ({
-        degree: this.cleanText(edu?.degree ?? edu?.diplome ?? edu?.titre),
-        institution: this.cleanText(edu?.institution ?? edu?.etablissement ?? edu?.ecole),
-        year: this.cleanText(edu?.year ?? edu?.annee ?? edu?.anneeFin ?? edu?.dateFin),
-        startYear: this.cleanText(edu?.startYear ?? edu?.anneeDebut ?? edu?.dateDebut),
-        endYear: this.cleanText(edu?.endYear ?? edu?.anneeFin ?? edu?.dateFin),
-      })),
-      skills: [
-        ...this.firstArray(data, ['skills', 'technicalSkills', 'technical_skills', 'competences', 'competences_reordonnees']),
-        ...this.firstArray(data, ['softSkills', 'soft_skills', 'softskills', 'competences_comportementales'])
-          .map((skill: any) => ({
-            ...((skill && typeof skill === 'object') ? skill : { name: skill }),
-            category: skill?.category ?? skill?.categorie ?? skill?.typeCompetence ?? skill?.type_competence ?? 'Soft Skills',
-            typeCompetence: skill?.typeCompetence ?? skill?.type_competence ?? skill?.category ?? skill?.categorie ?? 'Soft Skills',
-          })),
-      ].map((skill: any) => {
-        const name = typeof skill === 'string' ? skill : this.cleanText(skill?.name ?? skill?.nom ?? skill?.label);
-        return {
-          name: this.cleanText(name),
-          level: this.toSkillLevel(skill?.level ?? skill?.niveau ?? skill?.score ?? 3),
-          isMatched: !!(skill?.isMatched ?? skill?.matched ?? skill?.statut === 'correspond'),
-          isHighlighted: highlightedSkills.has(this.normalizeKey(name)),
-          category: this.cleanText(skill?.category ?? skill?.categorie ?? skill?.typeCompetence),
-          typeCompetence: this.cleanText(skill?.typeCompetence ?? skill?.type_competence),
-        };
-      }).filter((skill: any) => !!skill.name),
-      projects,
-      certifications: this.dedupeStrings(this.asStringArray(this.firstArray(data, ['certifications', 'certificats', 'certifications_optimisees']))),
-      languages: this.dedupeStrings(this.asStringArray(this.firstArray(data, ['languages', 'langues']))),
-      activities: this.dedupeActivities(activities),
-      sections: this.normalizeSections(data?.sections, projects),
-      atsScore: Number(data?.atsScore ?? data?.ats_score ?? 0),
-      matchingScore: Number(data?.matchingScore ?? data?.matching_score ?? 0),
-      atsCoveragePct: Number(data?.atsCoveragePct ?? data?.ats_coverage_pct ?? data?.atsScore ?? data?.ats_score ?? 0),
-    };
-  }
-
-  private normalizeSections(value: any, normalizedProjects: any[] = []): any[] {
-    const projectTechByTitle = new Map<string, string>();
-    normalizedProjects.forEach((project) => {
-      const key = this.normalizeKey(project?.title);
-      const tech = this.dedupeStrings(this.asStringArray(project?.technologies)).join(', ');
-      if (key && tech) {
-        projectTechByTitle.set(key, tech);
-      }
+    return normalizeCvForBackend(data, {
+      pipelineResult: this.pipeline.pipelineResult(),
+      liveProfilePersonal: this.profileService.profile()?.personal ?? {},
+      signedProfilePhotoUrl: this.signedProfilePhotoUrl,
     });
-
-    return this.asArray(value)
-      .map((section: any, index: number) => {
-        const normalizedId = this.normalizeSectionId(section?.id ?? section?.type);
-        const sectionItems = this.asArray(section?.items);
-        return {
-        id: normalizedId || `section-${index + 1}`,
-        type: normalizedId || this.cleanText(section?.type) || 'custom',
-        title: this.cleanText(section?.title),
-        placement: section?.placement === 'sidebar' ? 'sidebar' : 'main',
-        isVisible: section?.isVisible !== false,
-        order: Number.isFinite(Number(section?.order)) ? Number(section.order) : index,
-        text: this.cleanText(section?.text) || null,
-        items: sectionItems
-          .map((item: any, itemIndex: number) => {
-            const rawPrimaryText = this.stringifySectionText(item?.primaryText ?? item?.primary_text);
-            const rawSecondaryText = this.stringifySectionText(item?.secondaryText ?? item?.secondary_text);
-            const projectTechByName = normalizedId === 'projects'
-              ? (projectTechByTitle.get(this.normalizeKey(rawPrimaryText)) ?? '')
-              : '';
-            const projectFallbackTech = normalizedId === 'projects'
-              ? this.dedupeStrings(this.asStringArray(
-                  item?.technologies
-                  ?? item?.technologies_utilisees
-                  ?? item?.technologiesUtilisees
-                  ?? item?.technologiesUsed
-                  ?? item?.tech_stack
-                  ?? item?.techStack
-                  ?? item?.stack
-                  ?? projectTechByName
-                  ?? normalizedProjects[itemIndex]?.technologies
-                )).join(', ')
-              : '';
-            return {
-            primaryText: rawPrimaryText,
-            secondaryText: rawSecondaryText || projectFallbackTech,
-            startDate: this.cleanText(item?.startDate ?? item?.start_date) || null,
-            endDate: this.cleanText(item?.endDate ?? item?.end_date) || null,
-            location: this.cleanText(item?.location) || null,
-            description: this.cleanText(item?.description) || null,
-            level: item?.level == null ? null : Math.min(5, Math.max(1, Number(item.level))),
-            isMatched: !!(item?.isMatched ?? item?.is_matched),
-            bullets: this.dedupeStrings(this.asStringArray(item?.bullets ?? item?.bullet_points)),
-          };
-          })
-          .filter((item: any) =>
-            !!item.primaryText ||
-            !!item.secondaryText ||
-            !!item.description ||
-            item.bullets.length > 0
-          ),
-      };
-      })
-      .filter((section: any) => !!section.title || !!section.text || section.items.length > 0);
-  }
-
-  private stringifySectionText(value: any): string {
-    if (typeof value === 'string') return this.cleanText(value);
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-    if (value && typeof value === 'object') {
-      return this.cleanText(
-        value.name
-        ?? value.label
-        ?? value.title
-        ?? value.value
-        ?? value.primaryText
-        ?? ''
-      );
-    }
-    return '';
-  }
-
-  private normalizeActivities(value: any): any[] {
-    return this.asArray(value)
-      .map((activity: any) => {
-        if (typeof activity === 'string') {
-          return {
-            title: this.cleanText(activity),
-            role: null,
-            description: '',
-            startDate: null,
-            endDate: null,
-          };
-        }
-        return {
-          title: this.cleanText(activity?.title ?? activity?.name),
-          role: this.cleanText(activity?.role) || null,
-          description: this.cleanText(activity?.description),
-          startDate: this.toMonthValue(activity?.startDate ?? activity?.start ?? activity?.dateDebut ?? activity?.date_debut),
-          endDate: this.toMonthValue(activity?.endDate ?? activity?.end ?? activity?.dateFin ?? activity?.date_fin),
-        };
-      })
-      .filter((activity: any) => !!activity.title || !!activity.description);
-  }
-
-  private normalizeProjects(value: any): any[] {
-    const seen = new Set<string>();
-    return this.asArray(value)
-      .map((project: any) => {
-        const description = this.cleanText(project?.description ?? project?.description_optimisee);
-        const bullets = this.dedupeStrings(this.asStringArray(project?.bullets ?? project?.taches_optimisees ?? project?.taches ?? project?.missions))
-          .filter((bullet) => !this.isSameMeaning(bullet, description));
-        return {
-          title: this.cleanText(project?.title ?? project?.name ?? project?.titreProjet ?? project?.titre),
-          description,
-          technologies: this.dedupeStrings(this.asStringArray(
-            project?.technologies
-            ?? project?.technologies_utilisees
-            ?? project?.technologiesUtilisees
-            ?? project?.technologiesUsed
-            ?? project?.stack
-            ?? project?.techStack
-            ?? project?.outils
-          )),
-          dateRealisation: this.toMonthValue(project?.dateRealisation ?? project?.date_realisation),
-          relevance: this.cleanText(project?.niveau_pertinence ?? project?.relevance),
-          keywords: this.dedupeStrings(this.asStringArray(project?.mots_cles_cibles ?? project?.keywords)),
-          bullets,
-        };
-      })
-      .filter((project: any) => {
-        if (!project.title && !project.description && project.bullets.length === 0) return false;
-        const key = this.normalizeKey(`${project.title}|${project.description ?? ''}`);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-  }
-
-  private extractProjectsFromSections(sections: any[]): any[] {
-    return this.asArray(sections)
-      .filter((section: any) => this.normalizeSectionId(section?.id ?? section?.type) === 'projects')
-      .flatMap((section: any) => this.asArray(section?.items))
-      .map((item: any) => ({
-        title: this.cleanText(item?.primaryText ?? item?.primary_text),
-        description: this.cleanText(item?.description),
-        technologies: this.dedupeStrings(this.asStringArray(
-          item?.secondaryText
-          ?? item?.secondary_text
-          ?? item?.technologies
-          ?? item?.technologies_utilisees
-          ?? item?.technologiesUsed
-          ?? item?.tech_stack
-          ?? item?.techStack
-          ?? item?.stack
-        )),
-        dateRealisation: this.toMonthValue(item?.startDate ?? item?.start_date),
-        relevance: '',
-        keywords: [],
-        bullets: this.dedupeStrings(this.asStringArray(item?.bullets ?? item?.bullet_points)),
-      }))
-      .filter((project: any) => !!project.title || !!project.description || project.bullets.length > 0);
-  }
-
-  private mergeNormalizedProjects(primary: any[], fallback: any[]): any[] {
-    const merged = new Map<string, any>();
-
-    for (const project of fallback) {
-      const key = this.normalizeKey(project?.title);
-      if (!key) continue;
-      merged.set(key, project);
-    }
-
-    for (const project of primary) {
-      const key = this.normalizeKey(project?.title);
-      if (!key) continue;
-      const existing = merged.get(key);
-      merged.set(key, {
-        ...existing,
-        ...project,
-        technologies: (project?.technologies?.length ? project.technologies : existing?.technologies) ?? [],
-        bullets: (project?.bullets?.length ? project.bullets : existing?.bullets) ?? [],
-        description: project?.description || existing?.description || '',
-        dateRealisation: project?.dateRealisation || existing?.dateRealisation || '',
-      });
-    }
-
-    return Array.from(merged.values());
-  }
-
-  private unwrapCvPayload(value: any): any {
-    if (!value || typeof value !== 'object') return value;
-    return value.cvData
-      ?? value.cv_data
-      ?? value.cvGeneratedContent
-      ?? value.cv_optimized_content
-      ?? value.cvOptimizedContent
-      ?? value.data
-      ?? value;
-  }
-
-  private getCandidateSource(data: any): any {
-    return data?.candidate
-      ?? data?.personal
-      ?? data?.personalInfo
-      ?? data?.personal_info
-      ?? data?.informations_personnelles
-      ?? {};
-  }
-
-  private resolvePreferredCandidateName(candidate: any, profilePersonal: any, liveProfilePersonal: any): string {
-    const candidateName = this.extractCandidateName(candidate);
-    const profileName = this.extractCandidateName(profilePersonal);
-    const liveName = this.extractCandidateName(liveProfilePersonal);
-    if (candidateName && !this.isGenericCandidateName(candidateName)) {
-      return candidateName;
-    }
-    return profileName || liveName || candidateName;
-  }
-
-  private resolvePreferredLocation(candidate: any, profilePersonal: any, liveProfilePersonal: any): string {
-    const candidateLocation = this.cleanText(
-      candidate?.location ?? [candidate?.ville ?? candidate?.city, candidate?.pays ?? candidate?.country].filter(Boolean).join(', ')
-    );
-    const profileLocation = this.cleanText(
-      profilePersonal?.location ?? [profilePersonal?.ville ?? profilePersonal?.city, profilePersonal?.pays ?? profilePersonal?.country].filter(Boolean).join(', ')
-    );
-    const liveLocation = this.cleanText(
-      [liveProfilePersonal?.city, liveProfilePersonal?.country].filter(Boolean).join(', ')
-    );
-    return candidateLocation || profileLocation || liveLocation;
-  }
-
-  private extractCandidateName(source: any): string {
-    return this.cleanText(
-      source?.name
-      ?? source?.nomComplet
-      ?? source?.fullName
-      ?? [source?.firstName, source?.lastName].filter(Boolean).join(' ')
-      ?? [source?.prenom ?? source?.firstName, source?.nom ?? source?.lastName].filter(Boolean).join(' ')
-    );
-  }
-
-  private extractCandidatePhotoUrl(candidate: any, profilePersonal: any, liveProfilePersonal: any): string | null {
-    const candidates = [
-      candidate?.photoUrl,
-      candidate?.photo_url,
-      candidate?.profilePhoto,
-      candidate?.profile_photo,
-      candidate?.avatar,
-      profilePersonal?.photoUrl,
-      profilePersonal?.photo_url,
-      profilePersonal?.profilePhoto,
-      profilePersonal?.profile_photo,
-      profilePersonal?.avatar,
-      liveProfilePersonal?.photoUrl,
-      liveProfilePersonal?.photo_url,
-      liveProfilePersonal?.profilePhoto,
-      liveProfilePersonal?.profile_photo,
-      liveProfilePersonal?.avatar,
-      this.signedProfilePhotoUrl,
-    ];
-
-    for (const value of candidates) {
-      const clean = this.cleanText(value);
-      if (clean) return clean;
-    }
-
-    return null;
-  }
-
-  private normalizeSectionId(sectionId: any): string {
-    const normalized = this.cleanText(sectionId).toLowerCase();
-    const aliases: Record<string, string> = {
-      summary: 'summary',
-      resume: 'summary',
-      experience: 'experience',
-      experiences: 'experience',
-      project: 'projects',
-      projects: 'projects',
-      education: 'education',
-      skill: 'skills',
-      skills: 'skills',
-      softskills: 'softskills',
-      'soft-skills': 'softskills',
-      soft_skills: 'softskills',
-      certification: 'certifications',
-      certifications: 'certifications',
-      language: 'languages',
-      languages: 'languages',
-      activity: 'activities',
-      activities: 'activities',
-      achievement: 'accomplishments',
-      achievements: 'accomplishments',
-      accomplishments: 'accomplishments',
-    };
-    return aliases[normalized] ?? normalized;
-  }
-
-  private isGenericCandidateName(value: string): boolean {
-    const normalized = this.cleanText(value).toLowerCase();
-    return normalized === 'candidat' || normalized === 'candidate';
-  }
-
-  private firstArray(source: any, keys: string[]): any[] {
-    for (const key of keys) {
-      const value = source?.[key];
-      if (Array.isArray(value)) return value;
-    }
-    return [];
-  }
-
-  private dedupeActivities(activities: any[]): any[] {
-    const seen = new Set<string>();
-    return activities.filter((activity) => {
-      const key = this.normalizeKey(`${activity.role ?? ''}|${activity.title ?? ''}`);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
-  private looksLikeActivity(exp: any): boolean {
-    const text = this.normalizeKey(`${exp?.role ?? ''} ${exp?.company ?? ''} ${this.asStringArray(exp?.bullets).join(' ')}`);
-    if (!text) return false;
-    if (text.includes('stage') || text.includes('intern')) return false;
-    return this.activitySignals.some(signal => text.includes(this.normalizeKey(signal)));
-  }
-
-  private isSameMeaning(left: string, right: string): boolean {
-    const a = this.normalizeKey(left);
-    const b = this.normalizeKey(right);
-    if (!a || !b) return false;
-    return a === b || a.includes(b) || b.includes(a);
-  }
-
-  private dedupeStrings(values: string[]): string[] {
-    const seen = new Set<string>();
-    return values.filter((value) => {
-      const clean = this.cleanText(value);
-      const key = this.normalizeKey(clean);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
-  private cleanText(value: any): string {
-    return String(value ?? '').trim().replace(/\s+/g, ' ');
-  }
-
-  private normalizeKey(value: any): string {
-    return this.cleanText(value)
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim();
-  }
-
-  private asArray(value: any): any[] {
-    return Array.isArray(value) ? value : [];
-  }
-
-  private asStringArray(value: any): string[] {
-    const values = Array.isArray(value) ? value : [value];
-    return values.map((item: any) => {
-      if (typeof item === 'string') return item.trim();
-      if (typeof item === 'number' || typeof item === 'boolean') return String(item);
-      if (item && typeof item === 'object')
-        return this.cleanText(item.name ?? item.nom ?? item.label ?? item.title ?? item.titre ?? item.description ?? '');
-      return String(item ?? '').trim();
-    }).filter(Boolean);
-  }
-
-  private toSkillLevel(value: any): number {
-    if (typeof value === 'number') return Math.min(5, Math.max(1, Math.round(value)));
-    const normalized = this.normalizeKey(value);
-    if (['expert', 'avance', 'advanced', 'proficient', 'native', 'maternelle'].includes(normalized)) return 5;
-    if (['intermediaire', 'intermediate', 'courant', 'upper intermediate'].includes(normalized)) return 4;
-    if (['elementaire', 'elementary', 'debutant', 'beginner'].includes(normalized)) return 2;
-    return 3;
-  }
-
-  private toMonthValue(value: any): string {
-    const text = String(value ?? '').trim();
-    const match = text.match(/^(\d{4})-(\d{2})/);
-    return match ? `${match[1]}-${match[2]}` : '';
   }
 
   private finishReoptimization(): void {

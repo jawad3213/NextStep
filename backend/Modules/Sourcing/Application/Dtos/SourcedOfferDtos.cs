@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Sourcing.DTOs;
+namespace NextStep.Modules.Sourcing.Application.Dtos;
 
 public static class PostedWindowValues
 {

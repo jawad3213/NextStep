@@ -1,10 +1,10 @@
 // ============================================================
-// Modules/Offer/DTOs/OfferSubmitDto.cs
+// Modules/Applications/DTOs/OfferSubmitDto.cs
 // Payload reçu d'Angular pour soumettre une offre
 // ============================================================
 using System.ComponentModel.DataAnnotations;
 
-namespace NextStep.Modules.Offer.DTOs;
+namespace NextStep.Modules.Applications.Application.Dtos;
 
 public class OfferSubmitDto
 {

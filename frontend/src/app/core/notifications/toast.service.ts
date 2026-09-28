@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { toast } from 'ngx-sonner';
-import { extractApiError } from '../utils/extract-api-error';
+import { extractApiError } from '@core/http/extract-api-error';
 
 /**
  * Couche d'abstraction sur ngx-sonner, affiché en haut à droite.

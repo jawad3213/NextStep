@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Email.Models;
+namespace NextStep.Modules.Messaging.Domain;
 
 /// <summary>
 /// Stores encrypted Gmail OAuth tokens per user.

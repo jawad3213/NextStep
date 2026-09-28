@@ -1,11 +1,11 @@
 // ============================================================
-// Modules/Offer/Models/OffreEmploi.cs
+// Modules/Applications/Models/OffreEmploi.cs
 // Entité EF Core — table offres_emploi
 // ============================================================
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NextStep.Modules.Offer.Models;
+namespace NextStep.Modules.Applications.Domain;
 
 [Table("offres_emploi")]
 public class OffreEmploi

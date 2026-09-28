@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
-import { environment } from '../../environments/environment';
+import { API_BASE_URL } from '@core/http/api-url';
 
 export interface SnChatMessage {
   role: 'user' | 'assistant';
@@ -60,7 +60,7 @@ export interface SnUiMessage {
 })
 export class SnCopilotService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = environment.apiBaseUrl || 'http://localhost:5000/api';
+  private readonly baseUrl = API_BASE_URL;
 
   // ── Reactive Drawer & Chat State ──────────────────────────────────────────
   readonly isOpen = signal<boolean>(false);

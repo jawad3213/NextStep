@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace NextStep.Modules.Chatbot.DTOs;
+namespace NextStep.Modules.Coaching.Application.Dtos;
 
 // ─────────────────────────────────────────────
 // Shared sub-objects
@@ -268,3 +268,6 @@ public record UserOfferSummaryDto(
     List<string> RequiredSkills,
     DateTime DateAnalysed
 );
+
+/// <summary>GET /api/arena/health</summary>
+public sealed record ArenaHealthResponse(string Status, string Module);

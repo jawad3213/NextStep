@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
 using NextStep.Shared.ErrorHandling;
 
-namespace NextStep.Modules.Chatbot.Controllers;
+namespace NextStep.Modules.Coaching.Api;
 
 [ApiController]
 [Route("api/arena")]
@@ -35,8 +35,8 @@ public class ArenaController : ControllerBase
     /// <summary>GET /api/arena/health</summary>
     [HttpGet("health")]
     [AllowAnonymous]
-    public IActionResult HealthCheck()
-        => Ok(new { status = "ok", module = "chatbot" });
+    public ActionResult<ArenaHealthResponse> HealthCheck()
+        => Ok(new ArenaHealthResponse("ok", "chatbot"));
 
     // ─────────────────────────────────────────────────────────────────────────
     // Tab 1 — Questions
@@ -48,7 +48,7 @@ public class ArenaController : ControllerBase
     /// Offer : OfferId requis, ArenaConfig null.
     /// </summary>
     [HttpPost("questions")]
-    public async Task<IActionResult> GenerateQuestions([FromBody] QuestionsRequest request)
+    public async Task<ActionResult<QuestionsResponse>> GenerateQuestions([FromBody] QuestionsRequest request)
     {
         request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
         var result = await _arenaService.GenerateQuestionsAsync(request);
@@ -60,7 +60,7 @@ public class ArenaController : ControllerBase
     /// Chat libre de préparation (tab Questions).
     /// </summary>
     [HttpPost("chat")]
-    public async Task<IActionResult> FreeChat([FromBody] FreeChatRequest request)
+    public async Task<ActionResult<FreeChatResponse>> FreeChat([FromBody] FreeChatRequest request)
     {
         request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
         var result = await _arenaService.FreeChatAsync(request);
@@ -76,7 +76,7 @@ public class ArenaController : ControllerBase
     /// Crée la session en DB + retourne le message d'ouverture du recruteur IA.
     /// </summary>
     [HttpPost("session/start")]
-    public async Task<IActionResult> StartSession([FromBody] StartSessionRequest request)
+    public async Task<ActionResult<StartSessionResponse>> StartSession([FromBody] StartSessionRequest request)
     {
         request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
         var result = await _arenaService.StartSessionAsync(request);
@@ -88,18 +88,10 @@ public class ArenaController : ControllerBase
     /// Envoie un message et retourne la réponse du recruteur IA.
     /// </summary>
     [HttpPost("session/message")]
-    public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
+    public async Task<ActionResult<SendMessageResponse>> SendMessage([FromBody] SendMessageRequest request)
     {
-        try
-        {
-            request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
-            var result = await _arenaService.SendMessageAsync(request);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return ApiResult.Error("Erreur lors de l'envoi du message. Veuillez réessayer.");
-        }
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        return Ok(await _arenaService.SendMessageAsync(request));
     }
 
     /// <summary>
@@ -107,18 +99,10 @@ public class ArenaController : ControllerBase
     /// Termine l'interview et retourne l'évaluation complète (score + 5 dimensions).
     /// </summary>
     [HttpPost("session/end")]
-    public async Task<IActionResult> EndSession([FromBody] EndSessionRequest request)
+    public async Task<ActionResult<EndSessionResponse>> EndSession([FromBody] EndSessionRequest request)
     {
-        try
-        {
-            request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
-            var result = await _arenaService.EndSessionAsync(request);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return ApiResult.Error("Erreur lors de la fin de session. Veuillez réessayer.");
-        }
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        return Ok(await _arenaService.EndSessionAsync(request));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -130,7 +114,7 @@ public class ArenaController : ControllerBase
     /// Analyse salariale + script de négociation.
     /// </summary>
     [HttpPost("salary")]
-    public async Task<IActionResult> GetSalary([FromBody] SalaryRequest request)
+    public async Task<ActionResult<SalaryResponse>> GetSalary([FromBody] SalaryRequest request)
     {
         request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
         var result = await _arenaService.GetSalaryAsync(request);
@@ -142,7 +126,7 @@ public class ArenaController : ControllerBase
     /// Chat interactif pour la négociation salariale.
     /// </summary>
     [HttpPost("salary-coach")]
-    public async Task<IActionResult> SalaryCoach([FromBody] SalaryCoachRequest request)
+    public async Task<ActionResult<SalaryCoachResponse>> SalaryCoach([FromBody] SalaryCoachRequest request)
     {
         request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
         var result = await _arenaService.SalaryCoachAsync(request);
@@ -159,7 +143,7 @@ public class ArenaController : ControllerBase
     /// Sécurité : L'ID est extrait du token JWT pour éviter l'usurpation.
     /// </summary>
     [HttpGet("sessions")]
-    public async Task<IActionResult> GetSessions()
+    public async Task<ActionResult<List<SessionSummaryDto>>> GetSessions()
     {
         var userId = GetUserId();
         if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("Utilisateur non authentifié.");
@@ -170,7 +154,7 @@ public class ArenaController : ControllerBase
 
     // GET /api/arena/sessions/{sessionId}
     [HttpGet("sessions/{sessionId}")]
-    public async Task<IActionResult> GetSessionDetail([FromRoute] string sessionId)
+    public async Task<ActionResult<SessionDetailDto>> GetSessionDetail([FromRoute] string sessionId)
     {
         if (string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Identifiant de session invalide.");
         var result = await _arenaService.GetSessionDetailAsync(sessionId);
@@ -199,7 +183,7 @@ public class ArenaController : ControllerBase
     /// Retourne les offres analysées de l'utilisateur courant pour la page Offers.
     /// </summary>
     [HttpGet("my-offers")]
-    public async Task<IActionResult> GetMyOffers()
+    public async Task<ActionResult<List<UserOfferSummaryDto>>> GetMyOffers()
     {
         var userId = GetUserId();
         if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("Utilisateur non authentifié.");

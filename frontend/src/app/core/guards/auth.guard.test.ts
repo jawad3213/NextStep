@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { RouterStateSnapshot, ActivatedRouteSnapshot } from '@angular/router';
 import Keycloak from 'keycloak-js';
-import { authGuard } from '../core/guards/auth.guard';
+import { authGuard } from './auth.guard';
 
 describe('AuthGuard', () => {
   let mockKeycloak: any;

@@ -24,8 +24,7 @@ on:
   push:
     branches:
       - main
-      - dev
-      - zakariae
+        - dev
       - "feature-*"
       - "fix/*"
   pull_request:

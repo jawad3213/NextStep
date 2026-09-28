@@ -85,7 +85,7 @@ async def _resolve_user_id(session, user_id: Optional[str]) -> str:
     uid_str = str(user_id or "").strip()
     if uid_str:
         res = (await session.execute(
-            text("SELECT id_utilisateur::text FROM public.utilisateur WHERE id_utilisateur::text = :uid OR keycloak_id = :uid LIMIT 1"),
+            text("SELECT id_utilisateur::text FROM profile.utilisateur WHERE id_utilisateur::text = :uid OR keycloak_id = :uid LIMIT 1"),
             {"uid": uid_str}
         )).scalar()
         if res:
@@ -120,13 +120,13 @@ async def get_recent_candidatures(user_id: str, limit: int = 10) -> List[Dict[st
                     c.follow_up_needed,
                     c.notes,
                     o.analyse_json
-                FROM public.candidature c
-                LEFT JOIN public.offres_emploi o ON c.id_offre = o.id
+                FROM applications.candidature c
+                LEFT JOIN applications.offres_emploi o ON c.id_offre = o.id
                 WHERE (
                     c.id_utilisateur::text = :uid 
                     OR :uid IS NULL
                     OR c.id_utilisateur IN (
-                        SELECT id_utilisateur FROM public.utilisateur 
+                        SELECT id_utilisateur FROM profile.utilisateur 
                         WHERE keycloak_id = :uid OR id_utilisateur::text = :uid
                     )
                 )
@@ -211,14 +211,14 @@ async def update_candidature_status(user_id: str, query: str, new_status: str) -
 
             # Update candidature
             await session.execute(
-                text("UPDATE public.candidature SET statut = :statut WHERE id_candidature::text = :cid"),
+                text("UPDATE applications.candidature SET statut = :statut WHERE id_candidature::text = :cid"),
                 {"statut": normalized_status, "cid": cid}
             )
 
             # Insert status history
             await session.execute(
                 text("""
-                    INSERT INTO public.candidature_status_history (
+                    INSERT INTO applications.candidature_status_history (
                         id, id_candidature, ancien_statut, nouveau_statut, source, details, created_at
                     ) VALUES (
                         gen_random_uuid(), CAST(:cid AS uuid), :old_s, :new_s, 'ai_sn', 'Mis à jour par SN Copilot', now()
@@ -266,7 +266,7 @@ async def add_candidature_note(user_id: str, query: str, note_text: str) -> Dict
             cid = matched["id"]
             await session.execute(
                 text("""
-                    INSERT INTO public.candidature_note (id, id_candidature, contenu, auteur, created_at)
+                    INSERT INTO applications.candidature_note (id, id_candidature, contenu, auteur, created_at)
                     VALUES (gen_random_uuid(), CAST(:cid AS uuid), :content, 'ai', now())
                 """),
                 {"cid": cid, "content": note_text.strip()}
@@ -274,7 +274,7 @@ async def add_candidature_note(user_id: str, query: str, note_text: str) -> Dict
             # Also append to notes column for quick search
             await session.execute(
                 text("""
-                    UPDATE public.candidature 
+                    UPDATE applications.candidature 
                     SET notes = COALESCE(notes, '') || E'\n[Note IA]: ' || :note
                     WHERE id_candidature::text = :cid
                 """),
@@ -318,7 +318,7 @@ async def create_candidature(
             # Insert candidature
             res = await session.execute(
                 text("""
-                    INSERT INTO public.candidature (
+                    INSERT INTO applications.candidature (
                         id_candidature, id_utilisateur, statut, channel, application_date,
                         applied_manually, notes, date_creation, response_status, has_response
                     ) VALUES (
@@ -337,7 +337,7 @@ async def create_candidature(
             # Insert initial status history
             await session.execute(
                 text("""
-                    INSERT INTO public.candidature_status_history (
+                    INSERT INTO applications.candidature_status_history (
                         id, id_candidature, ancien_statut, nouveau_statut, source, details, created_at
                     ) VALUES (
                         gen_random_uuid(), CAST(:cid AS uuid), NULL, 'ENVOYE', 'ai_sn', 'Créée via SN Copilot (Action Postuler)', now()

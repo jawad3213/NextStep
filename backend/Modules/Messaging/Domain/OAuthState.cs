@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Email.Models;
+namespace NextStep.Modules.Messaging.Domain;
 
 /// <summary>
 /// Short-lived, single-use CSRF-protection record for OAuth flows.

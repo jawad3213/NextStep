@@ -1,12 +1,12 @@
-using NextStep.data;
 using NextStep.Shared.Config;
 using NextStep.Shared.Http;
 using NextStep.Shared.ErrorHandling;
+using NextStep.Shared.Persistence;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Diagnostics;
 using QuestPDF.Infrastructure;
 using Hangfire;
-using NextStep.Jobs;
+using NextStep.Modules.Messaging.Application.Jobs;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -30,11 +30,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// Database & Auth
-builder.Services.AddAppDbContext(builder.Configuration);
+// Auth
 builder.Services.AddAppAuthentication(builder.Configuration);
 
-// Application Business Services, Storage & Background Jobs
+// Modules (each with its own DbContext and schema), Storage & Background Jobs
 builder.Services.AddAppBusinessServices(builder.Configuration);
 builder.Services.AddAppStorageAndJobs(builder.Configuration, builder.Environment);
 
@@ -74,7 +73,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" }));
 
 app.MapControllers();
-app.MapHub<NextStep.SignalR.PipelineHub>("/hubs/pipeline");
+app.MapHub<NextStep.Shared.Realtime.PipelineHub>("/hubs/pipeline");
 
 // Hangfire Dashboard (Development only) + Recurring Jobs
 if (app.Environment.IsDevelopment())
@@ -97,7 +96,7 @@ recurringJobManager.AddOrUpdate<DetectFollowUpNeededJob>(
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
 
-// Initialize DB schema checks, seed tables, & MinIO storage checks
+// Apply each module's migrations, then seed reference data (skill keywords, CV templates, storage)
 await app.InitializeDatabaseAsync();
 
 await app.RunAsync();

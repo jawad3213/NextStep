@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NextStep.Modules.Sourcing.Models;
+namespace NextStep.Modules.Sourcing.Domain;
 
 [Table("scrape_session")]
 public class ScrapeSession

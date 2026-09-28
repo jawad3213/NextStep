@@ -1,6 +1,6 @@
-using NextStep.Modules.Chatbot.DTOs;
+using NextStep.Modules.Coaching.Application.Dtos;
 
-namespace NextStep.Modules.Chatbot.Interfaces;
+namespace NextStep.Modules.Coaching.Application.Services;
 
 /// <summary>
 /// Contrat HTTP vers Python FastAPI.

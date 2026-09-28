@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
-using NextStep.data;
-using NextStep.Modules.Email.Models;
+using NextStep.Modules.Messaging.Infrastructure.Persistence;
+using NextStep.Modules.Messaging.Domain;
 
-namespace NextStep.Modules.Email.Repositories;
+namespace NextStep.Modules.Messaging.Infrastructure.Repositories;
 
 public class UserOAuthCredentialRepository : IUserOAuthCredentialRepository
 {
-    private readonly AppDbContext _db;
+    private readonly MessagingDbContext _db;
 
-    public UserOAuthCredentialRepository(AppDbContext db)
+    public UserOAuthCredentialRepository(MessagingDbContext db)
     {
         _db = db;
     }

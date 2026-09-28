@@ -1,37 +1,55 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using NextStep.data;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
-using NextStep.Modules.Chatbot.Models;
-using NextStep.Modules.Chatbot.Services;
-using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Coaching.Infrastructure.Persistence;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
+using NextStep.Modules.Coaching.Domain;
+using NextStep.Modules.Coaching.Infrastructure.Agents;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Shared.ErrorHandling;
+using System.Net.Http;
 using Xunit;
 
 namespace NextStep.Tests;
 
 public class ArenaServiceTests : IDisposable
 {
-    private readonly AppDbContext _db;
+    private readonly CoachingDbContext _db;
     private readonly Mock<IAgentHttpClient> _mockAgentClient;
+    private readonly Mock<IProfileApi> _mockProfile;
     private readonly ArenaService _service;
 
     public ArenaServiceTests()
     {
         // Use a unique name for each In-Memory Database to isolate tests
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+        var options = new DbContextOptionsBuilder<CoachingDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _db = new AppDbContext(options);
+        _db = new CoachingDbContext(options);
         _mockAgentClient = new Mock<IAgentHttpClient>();
-        _service = new ArenaService(_mockAgentClient.Object, _db, NullLogger<ArenaService>.Instance);
+        // Users belong to the Profile module: resolved through its contract
+        _mockProfile = new Mock<IProfileApi>();
+        _service = new ArenaService(
+            _mockAgentClient.Object,
+            _db,
+            new Mock<IApplicationsApi>().Object,
+            _mockProfile.Object,
+            NullLogger<ArenaService>.Instance);
+    }
+
+    private void GivenUser(Guid userId, string keycloakId)
+    {
+        _mockProfile.Setup(p => p.FindUserIdAsync(keycloakId, It.IsAny<CancellationToken>())).ReturnsAsync(userId);
+        _mockProfile.Setup(p => p.FindUserIdAsync(userId.ToString(), It.IsAny<CancellationToken>())).ReturnsAsync(userId);
     }
 
     public void Dispose()
@@ -114,6 +132,24 @@ public class ArenaServiceTests : IDisposable
         result.SessionId.Should().Be("session-123");
         result.OpeningMessage.Should().Be("Welcome to your interview!");
         _mockAgentClient.Verify(c => c.PostStartInterviewAsync(request), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_Should_Report_Agent_Failures_As_A_User_Safe_500()
+    {
+        // Arrange
+        var request = new SendMessageRequest("session-123", "Here is my answer", new List<MessageTurnDto>());
+        _mockAgentClient
+            .Setup(c => c.PostSendMessageAsync(request))
+            .ThrowsAsync(new HttpRequestException("agents down"));
+
+        // Act
+        var act = () => _service.SendMessageAsync(request);
+
+        // Assert
+        var error = await act.Should().ThrowAsync<OperationFailedException>();
+        error.Which.Status.Should().Be(System.Net.HttpStatusCode.InternalServerError);
+        error.Which.Message.Should().Be("Erreur lors de l'envoi du message. Veuillez réessayer.");
     }
 
     [Fact]
@@ -235,13 +271,7 @@ public class ArenaServiceTests : IDisposable
     {
         // Arrange
         var userGuid = Guid.NewGuid();
-        var user = new UserEntity
-        {
-            Id = userGuid,
-            KeycloakId = "keycloak-sub-123",
-            Email = "john.doe@example.com"
-        };
-        await _db.Utilisateurs.AddAsync(user);
+        GivenUser(userGuid, "keycloak-sub-123");
 
         var activeSession = new SessionCoaching
         {
@@ -358,12 +388,7 @@ public class ArenaServiceTests : IDisposable
         var userGuid = Guid.NewGuid();
         var sessionGuid = Guid.NewGuid();
 
-        var user = new UserEntity
-        {
-            Id = userGuid,
-            KeycloakId = "keycloak-123",
-            Email = "user@test.com"
-        };
+        GivenUser(userGuid, "keycloak-123");
 
         var session = new SessionCoaching
         {
@@ -373,7 +398,6 @@ public class ArenaServiceTests : IDisposable
             Status = "started"
         };
 
-        await _db.Utilisateurs.AddAsync(user);
         await _db.SessionCoachings.AddAsync(session);
         await _db.SaveChangesAsync();
 

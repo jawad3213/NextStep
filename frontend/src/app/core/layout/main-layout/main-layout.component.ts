@@ -2,17 +2,17 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { catchError, filter, map, of, startWith, switchMap } from 'rxjs';
-import { AuthService } from '../../auth/services/auth.service';
-import { ProfileService } from '../../../features/profile/profile.service';
-import { PipelineStateService } from '../../../services/pipeline-state.service';
-import { OnboardingService } from '../../../services/onboarding.service';
-import { AppSidebarComponent } from '../../../shared/layout/app-sidebar/app-sidebar.component';
-import { SidebarService } from '../../../shared/services/sidebar.service';
-import { ThemeService } from '../../../shared/services/theme.service';
-import { OfferStepId } from '../../../features/offers/offers.types';
-import { OffersStepperComponent } from '../../../features/offers/stepper/offers-stepper.component';
-import { SnDrawerComponent } from '../sn-drawer/sn-drawer.component';
-import { SnCopilotService } from '../../../services/sn-copilot.service';
+import { AuthService } from '@core/auth/auth.service';
+import { ProfileService } from '@features/profile/data-access/profile.service';
+import { PipelineStateService } from '@features/offers/data-access/pipeline-state.service';
+import { OnboardingService } from '@core/auth/onboarding.service';
+import { AppSidebarComponent } from '../app-sidebar/app-sidebar.component';
+import { SidebarService } from '../sidebar.service';
+import { ThemeService } from '../theme.service';
+import { OfferStepId } from '@features/offers/data-access/offers.models';
+import { OffersStepperComponent } from '@features/offers/components/offers-stepper/offers-stepper.component';
+import { SnDrawerComponent } from '@features/sn-copilot/components/sn-drawer/sn-drawer.component';
+import { SnCopilotService } from '@features/sn-copilot/data-access/sn-copilot.service';
 
 type HeaderState = {
   eyebrow: string;
@@ -169,39 +169,6 @@ export class MainLayoutComponent {
       queryParams: { step: 'coordonnees' }
     });
   }
-
-  menuSections = [
-    {
-      title: 'Core',
-      items: [
-        { path: '/dashboard', label: 'Dashboard', iconName: 'layout' },
-        { path: '/profile', label: 'My Profile', iconName: 'user' },
-        { path: '/offers', label: 'Jobs', iconName: 'briefcase' },
-      ]
-    },
-    {
-      title: 'Tools',
-      items: [
-        { path: '/cv', label: 'CV Builder', iconName: 'file-text' },
-        { path: '/letters', label: 'Email & Letter', iconName: 'mail' },
-        { path: '/applications', label: 'Applications', iconName: 'kanban' },
-      ]
-    },
-    {
-      title: 'AI Insights',
-      items: [
-        { path: '/company-intel', label: 'Company Intel', iconName: 'search-analytics' },
-        { path: '/chatbot', label: 'AI Chatbot', iconName: 'cpu' },
-      ]
-    },
-    {
-      title: 'System',
-      items: [
-        { path: '/email/settings', label: 'Gmail Settings', iconName: 'send' },
-        { path: '/settings', label: 'Settings', iconName: 'settings' },
-      ]
-    }
-  ];
 
   isActive(path: string): boolean {
     return this.router.url === path || this.router.url.startsWith(path + '/');

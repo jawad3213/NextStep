@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Cv.Models;
+namespace NextStep.Modules.CvDocuments.Domain;
 
 /// <summary>
 /// Root data object consumed by all CV templates.

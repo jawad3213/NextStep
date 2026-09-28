@@ -1,5 +1,9 @@
 # Backend Database Schema And Class Diagram
 
+> **Obsolète pour la couche données** : ce document décrit l'ancien `AppDbContext` unique et le schéma `public`.
+> Depuis la séparation en modules, chaque module a son propre `DbContext` et son propre schéma PostgreSQL :
+> voir [backend-modules.md](backend-modules.md).
+
 Ce document se base sur le backend .NET actuel et distingue deux couches de donnees :
 
 1. le schema principal pilote par `AppDbContext`

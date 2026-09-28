@@ -1,9 +1,11 @@
+using NextStep.Modules.CvDocuments.Application.Services;
 using System.Globalization;
 using System.Text.Encodings.Web;
 using Fluid;
-using NextStep.Modules.Cv.Models;
+using NextStep.Modules.CvDocuments.Domain;
+using NextStep.Modules.CvDocuments.Application.Dtos;
 
-namespace NextStep.Modules.Cv.Services;
+namespace NextStep.Modules.CvDocuments.Infrastructure.Rendering;
 
 public interface ICvHtmlTemplateRenderer
 {
@@ -13,7 +15,7 @@ public interface ICvHtmlTemplateRenderer
 
 public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTemplateRenderer
 {
-    private readonly string _templateRoot = Path.Combine(environment.ContentRootPath, "Modules", "Cv", "Templates", "Html");
+    private readonly string _templateRoot = Path.Combine(environment.ContentRootPath, "Modules", "CvDocuments", "Templates", "Html");
     private readonly FluidParser _parser = new();
 
     /// <summary>
@@ -50,7 +52,7 @@ public class CvHtmlTemplateRenderer(IWebHostEnvironment environment) : ICvHtmlTe
     public async Task<CvRenderResponse> RenderAsync(string templateSlug, CvData data, CvDesignConfig? designConfig = null)
     {
         var normalizedTemplate = NormalizeTemplateSlug(templateSlug);
-        var safeData = CvService.SanitizeCvData(data);
+        var safeData = CvDataSanitizer.Sanitize(data);
         var safeDesign = SanitizeDesignConfig(designConfig, normalizedTemplate);
         var templateHtml = await File.ReadAllTextAsync(Path.Combine(_templateRoot, normalizedTemplate, "template.liquid"));
         var templateCss = await File.ReadAllTextAsync(Path.Combine(_templateRoot, normalizedTemplate, "template.css"));

@@ -1,8 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
-import { OfferCard } from './offers-data';
-import { OfferApiService } from './services/offer-api.service';
+import { OfferCard } from '../../data-access/offers-data';
+import { OfferApiService } from '../../data-access/offer-api.service';
 
 @Component({
   selector: 'app-offer-detail',

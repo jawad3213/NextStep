@@ -1,32 +1,4 @@
-namespace NextStep.Modules.Cv.Models;
-
-/// <summary>
-/// Industry sectors for CV template recommendations.
-/// </summary>
-public enum CvIndustry
-{
-    AdministrativeAndOffice,
-    BusinessAndManagement,
-    CreativeAndDesign,
-    CustomerServiceAndRetail,
-    EducationAndAcademic,
-    FinanceAndAccounting,
-    FoodServiceAndHospitality,
-    HealthcareAndMedical,
-    ITAndEngineering,
-    MarketingAndSales,
-    Other
-}
-
-/// <summary>
-/// Career experience level for template targeting.
-/// </summary>
-public enum CvExperienceLevel
-{
-    StudentEntryLevel,
-    MidLevel,
-    SeniorExecutive
-}
+namespace NextStep.Modules.CvDocuments.Domain;
 
 /// <summary>
 /// Visual style of the CV template.

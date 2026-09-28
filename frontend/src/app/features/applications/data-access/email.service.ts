@@ -1,93 +1,31 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
-
-// ── DTOs matching backend ────────────────────────────────────────────────────
-
-export interface EmailDraftDto {
-  id: string;
-  candidatureId: string;
-  emailType: string;
-  recipientEmail: string | null;
-  subject: string;
-  body: string;
-  language: string;
-  isApproved: boolean;
-  isSent: boolean;
-  createdAtUtc: string;
-  updatedAtUtc: string | null;
-  approvedAtUtc: string | null;
-  sentAtUtc: string | null;
-  errorMessage: string | null;
-  providerMessageId: string | null;
-  sendAttemptCount: number;
-}
-
-export interface GenerateDraftPayload {
-  candidatureId: string;
-  emailType: string;
-  language: string;
-  tone?: string;
-  cvHistoryId?: string | null;
-}
-
-export interface GenerateFollowUpDraftPayload {
-  candidatureId: string;
-  language: string;
-  tone: string;
-}
-
-export interface GenerateReplyDraftPayload {
-  candidatureId: string;
-  language: string;
-  tone: string;
-  userInstructions?: string;
-}
-
-export interface UpdateDraftPayload {
-  recipientEmail?: string;
-  subject?: string;
-  body?: string;
-}
-
-export interface SendEmailResultDto {
-  success: boolean;
-  draftId: string;
-  providerMessageId: string | null;
-  errorMessage: string | null;
-  sentAtUtc: string | null;
-}
-
-export interface EmailConnectionStatusDto {
-  isConnected: boolean;
-  isTokenValid: boolean;
-  hasCustomClientCredentials?: boolean;
-  errorMessage: string | null;
-  emailAddress: string | null;
-  provider: string;
-}
-
-export interface SaveGoogleClientCredentialsPayload {
-  clientId: string;
-  clientSecret: string;
-  redirectUri?: string | null;
-}
-
-export interface GoogleClientCredentialsSummaryDto {
-  hasCredentials: boolean;
-  clientIdMasked: string | null;
-  usesCustomRedirectUri: boolean;
-  redirectUri: string | null;
-  updatedAtUtc: string | null;
-}
+import {
+  EmailDraftDto,
+  GenerateDraftPayload,
+  GenerateFollowUpDraftPayload,
+  GenerateReplyDraftPayload,
+  UpdateDraftPayload,
+  SendEmailResultDto,
+  EmailConnectionStatusDto,
+  SaveGoogleClientCredentialsPayload,
+  GoogleClientCredentialsSummaryDto,
+  SendApplicationEmailRequest,
+} from './email.models';
+import { API_BASE_URL } from '@core/http/api-url';
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class EmailService {
   private readonly http = inject(HttpClient);
-  private readonly base = environment.apiBaseUrl;
+  private readonly base = API_BASE_URL;
+
+  /** Sends the application email with the final CV attached (Gmail, SMTP fallback). */
+  sendApplicationEmail(payload: SendApplicationEmailRequest): Observable<EmailDraftDto> {
+    return this.http.post<EmailDraftDto>(`${this.base}/emails/send`, payload);
+  }
 
   // Email Drafts
   getDraftsByCandidature(candidatureId: string): Observable<EmailDraftDto[]> {

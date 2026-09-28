@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HttpErrorResponse } from '@angular/common/http';
-import { extractApiError } from '../core/utils/extract-api-error';
+import { extractApiError } from './extract-api-error';
 
 describe('extractApiError', () => {
   it('extrait le contrat backend { error, type, details }', () => {

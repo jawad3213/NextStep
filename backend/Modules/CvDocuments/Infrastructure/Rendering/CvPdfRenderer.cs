@@ -1,6 +1,7 @@
+using NextStep.Modules.CvDocuments.Application.Services;
 using PuppeteerSharp;
 
-namespace NextStep.Modules.Cv.Services;
+namespace NextStep.Modules.CvDocuments.Infrastructure.Rendering;
 
 public interface ICvPdfRenderer
 {

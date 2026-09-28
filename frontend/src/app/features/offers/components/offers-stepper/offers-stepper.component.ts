@@ -1,8 +1,8 @@
 import { Component, input, output, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { OfferStepId } from '../offers.types';
-import { PipelineStateService } from '../../../services/pipeline-state.service';
+import { OfferStepId } from '../../data-access/offers.models';
+import { PipelineStateService } from '../../data-access/pipeline-state.service';
 
 @Component({
   selector: 'app-offers-stepper',

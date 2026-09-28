@@ -1,7 +1,7 @@
 using QuestPDF.Infrastructure;
-using NextStep.Modules.Cv.Models;
+using NextStep.Modules.CvDocuments.Domain;
 
-namespace NextStep.Modules.Cv.Templates;
+namespace NextStep.Modules.CvDocuments.Templates;
 
 /// <summary>
 /// Creates the correct IDocument based on the chosen template ID.

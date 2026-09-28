@@ -1,16 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { PipelineStateService, PipelineStep } from '../../services/pipeline-state.service';
-import { StepAnalysisComponent } from './components/step-analysis/step-analysis.component';
-import { StepGenerationComponent } from './components/step-generation/step-generation.component';
-import { StepResultsComponent } from './components/step-results/step-results.component';
-import { StepSubmitComponent } from './components/step-submit/step-submit.component';
-import { StepTemplateComponent } from './components/step-template/step-template.component';
-import { OfferApiService } from './services/offer-api.service';
-import { OfferStepId } from './offers.types';
+import { PipelineStateService, PipelineStep } from '../../data-access/pipeline-state.service';
+import { StepAnalysisComponent } from '../../components/step-analysis/step-analysis.component';
+import { StepGenerationComponent } from '../../components/step-generation/step-generation.component';
+import { StepResultsComponent } from '../../components/step-results/step-results.component';
+import { StepSubmitComponent } from '../../components/step-submit/step-submit.component';
+import { StepTemplateComponent } from '../../components/step-template/step-template.component';
+import { OfferStepId } from '../../data-access/offers.models';
 import { timeout } from 'rxjs';
-import { extractApiError } from '../../core/utils/extract-api-error';
+import { extractApiError } from '@core/http/extract-api-error';
+import { OfferApiService } from '../../data-access/offer-api.service';
 
 @Component({
   selector: 'app-offer-pipeline',

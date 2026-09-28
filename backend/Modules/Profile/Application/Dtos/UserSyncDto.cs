@@ -1,7 +1,6 @@
-using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Profile.Domain;
 
-namespace NextStep.Modules.Identity.DTOs
-{
+namespace NextStep.Modules.Profile.Application.Dtos {
     public class UserSyncDto
     {
         public string KeycloakId { get; set; } = string.Empty;

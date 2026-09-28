@@ -2,21 +2,21 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { ProfileService } from '../services/profile.service';
+import { ProfileApiService } from './profile-api.service';
 
 describe('ProfileService', () => {
-  let service: ProfileService;
+  let service: ProfileApiService;
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        ProfileService,
+        ProfileApiService,
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
     });
-    service = TestBed.inject(ProfileService);
+    service = TestBed.inject(ProfileApiService);
     httpMock = TestBed.inject(HttpTestingController);
   });
 

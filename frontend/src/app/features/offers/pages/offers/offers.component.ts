@@ -4,9 +4,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-import { ANALYSIS_STEPS, OfferCard } from './offers-data';
-import { OfferApiService } from './services/offer-api.service';
-import { ToastService } from '../../core/notifications/toast.service';
+import { ANALYSIS_STEPS, OfferCard } from '../../data-access/offers-data';
+import { ToastService } from '@core/notifications/toast.service';
+import { OfferApiService } from '../../data-access/offer-api.service';
 
 @Component({
   selector: 'app-offers',

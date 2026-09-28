@@ -1,8 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NextStep.Modules.Profile.Models
-{
+namespace NextStep.Modules.Profile.Domain {
     [Table("formation")]
     public class Formation
     {

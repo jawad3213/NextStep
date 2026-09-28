@@ -9,25 +9,26 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { map } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
-import { ProfileService } from './profile.service';
-import { ProfileStepId, Profile, Education, Experience, Project, Certification } from './profile.types';
-import { ToastService } from '../../core/notifications/toast.service';
-import { extractApiError } from '../../core/utils/extract-api-error';
-import { OnboardingService } from '../../services/onboarding.service';
+import { ProfileService } from '../../data-access/profile.service';
+import { ProfileStepId, Profile, Education, Experience, Project, Certification } from '../../data-access/profile.models';
+import { ToastService } from '@core/notifications/toast.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { OnboardingService } from '@core/auth/onboarding.service';
 import { firstValueFrom } from 'rxjs';
 
 type SectionTitleKey = keyof NonNullable<Profile['sectionTitles']>;
 
 // Sub-components
-import { ProfileStepperComponent } from './stepper/profile-stepper.component';
-import { PersonalInfoComponent } from './components/personal-info/personal-info.component';
+import { ProfileStepperComponent } from '../../components/profile-stepper/profile-stepper.component';
+import { PersonalInfoComponent } from '../../components/personal-info/personal-info.component';
 
-import { CertificationsComponent } from './components/certifications/certifications.component';
-import { ExperienceComponent } from './components/experience/experience.component';
-import { FormationComponent } from './components/formation/formation.component';
-import { SkillsComponent } from './components/skills/skills.component';
-import { ProjectsComponent } from './components/projects/projects.component';
-import { ResumeComponent } from './components/resume/resume.component';
+import { CertificationsComponent } from '../../components/certifications/certifications.component';
+import { ExperienceComponent } from '../../components/experience/experience.component';
+import { FormationComponent } from '../../components/formation/formation.component';
+import { SkillsComponent } from '../../components/skills/skills.component';
+import { ProjectsComponent } from '../../components/projects/projects.component';
+import { ResumeComponent } from '../../components/resume/resume.component';
+import { ProfileExportModalComponent } from '../../components/profile-export-modal/profile-export-modal.component';
 
 
 @Component({
@@ -47,6 +48,7 @@ import { ResumeComponent } from './components/resume/resume.component';
     SkillsComponent,
     ProjectsComponent,
     ResumeComponent,
+    ProfileExportModalComponent,
     FormsModule,
     ReactiveFormsModule
   ],
@@ -105,35 +107,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   showExportModal = signal(false);
   exportJsonString = signal('');
   exportFilename = signal('');
-  isExportCopied = signal(false);
-  exportViewMode = signal<'code' | 'visual'>('code');
 
-  exportStats = computed(() => {
-    const p = this.profile();
-    return {
-      experiences: p.experience?.length || 0,
-      education: p.education?.length || 0,
-      skills: p.skills?.length || 0,
-      languages: p.languages?.length || 0,
-      projects: p.projets?.length || 0,
-      certifications: p.certifications?.length || 0,
-      hasResume: !!(p.resume && p.resume.length > 20),
-      totalItems: (p.experience?.length || 0) + (p.education?.length || 0) + (p.skills?.length || 0) + (p.languages?.length || 0) + (p.projets?.length || 0) + (p.certifications?.length || 0)
-    };
-  });
-
-  jsonSizeKb = computed(() => {
-    const str = this.exportJsonString();
-    if (!str) return '0.0';
-    const bytes = new Blob([str]).size;
-    return (bytes / 1024).toFixed(1);
-  });
-
-  jsonLines = computed(() => {
-    const s = this.exportJsonString();
-    return s ? s.split('\n') : [];
-  });
-  // Section States
   isAddingFormation = signal(false);
   isAddingExperience = signal(false);
   isAddingProject = signal(false);
@@ -472,7 +446,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     const result = this.profileService.exportProfileJson();
     this.exportJsonString.set(result.jsonContent);
     this.exportFilename.set(result.filename);
-    this.isExportCopied.set(false);
     this.showExportModal.set(true);
   }
 
@@ -488,18 +461,6 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.showToast.set(false);
       this.toastMessage.set('Changes saved');
     }, 3000);
-  }
-
-  async copyExportJson() {
-    try {
-      await navigator.clipboard.writeText(this.exportJsonString());
-      this.isExportCopied.set(true);
-      setTimeout(() => {
-        this.isExportCopied.set(false);
-      }, 2500);
-    } catch (err) {
-      console.error('Failed to copy JSON to clipboard', err);
-    }
   }
 
   async executeLinkedInImport() {

@@ -1,12 +1,9 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  EmailService,
-  EmailConnectionStatusDto,
-  GoogleClientCredentialsSummaryDto
-} from '../../../services/email.service';
-import { extractApiError } from '../../../core/utils/extract-api-error';
+import { extractApiError } from '@core/http/extract-api-error';
+import { EmailConnectionStatusDto, GoogleClientCredentialsSummaryDto } from '@features/applications/data-access/email.models';
+import { EmailService } from '@features/applications/data-access/email.service';
 
 @Component({
   selector: 'app-gmail-settings',

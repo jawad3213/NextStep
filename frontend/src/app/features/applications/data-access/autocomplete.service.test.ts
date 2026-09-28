@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { of, throwError } from 'rxjs';
-import { AutocompleteService, CompanySuggestion, JobTitleSuggestion } from '../services/autocomplete.service';
+import { AutocompleteService, CompanySuggestion, JobTitleSuggestion } from './autocomplete.service';
 
 describe('AutocompleteService', () => {
   let service: AutocompleteService;

@@ -87,3 +87,8 @@ output "sns_topic_arn" {
   description = "SNS topic ARN for alarms"
   value       = module.monitoring.sns_topic_arn
 }
+
+output "github_actions_role_arn" {
+  description = "IAM Role ARN to configure in GitHub Actions variables (AWS_ROLE_ARN)"
+  value       = aws_iam_role.github_actions_fargate_deploy.arn
+}

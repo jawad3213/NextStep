@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace NextStep.Modules.Chatbot.DTOs;
+namespace NextStep.Modules.Coaching.Application.Dtos;
 
 public record SnChatMessageDto(
     [property: JsonPropertyName("role")] string Role,

@@ -1,7 +1,9 @@
-using NextStep.Modules.Email.Repositories;
-using NextStep.Modules.Email.Services;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Messaging.Infrastructure.Repositories;
+using NextStep.Modules.Messaging.Application.Services;
+using NextStep.Modules.Messaging.Infrastructure.Gmail;
 
-namespace NextStep.Jobs;
+namespace NextStep.Modules.Messaging.Application.Jobs;
 
 /// <summary>
 /// Hangfire recurring job that polls Gmail threads for recruiter replies
@@ -30,17 +32,20 @@ public class CheckEmailRepliesJob
         };
 
     private readonly IEmailDraftRepository            _draftRepository;
+    private readonly IApplicationsApi                  _applications;
     private readonly IGmailReplyMonitorService         _replyMonitor;
     private readonly IResponseClassificationService    _classifier;
     private readonly ILogger<CheckEmailRepliesJob>     _logger;
 
     public CheckEmailRepliesJob(
         IEmailDraftRepository         draftRepository,
+        IApplicationsApi              applications,
         IGmailReplyMonitorService      replyMonitor,
         IResponseClassificationService classifier,
         ILogger<CheckEmailRepliesJob>  logger)
     {
         _draftRepository = draftRepository;
+        _applications    = applications;
         _replyMonitor    = replyMonitor;
         _classifier      = classifier;
         _logger          = logger;
@@ -51,7 +56,15 @@ public class CheckEmailRepliesJob
         _logger.LogInformation("CheckEmailRepliesJob — started");
 
         // ── 1. Load all sent drafts pending reply check ─────────────────────────
-        var drafts = await _draftRepository.GetPendingReplyCheckAsync(ct);
+        var sentDrafts = await _draftRepository.GetPendingReplyCheckAsync(ct);
+
+        var applications = (await _applications.GetApplicationsAsync(
+                sentDrafts.Select(d => d.CandidatureId).Distinct().ToList(), ct))
+            .ToDictionary(a => a.CandidatureId);
+
+        var drafts = sentDrafts
+            .Where(d => applications.TryGetValue(d.CandidatureId, out var a) && AwaitsReplyCheck(a))
+            .ToList();
 
         _logger.LogInformation(
             "CheckEmailRepliesJob — {Count} draft(s) pending reply check", drafts.Count);
@@ -63,9 +76,7 @@ public class CheckEmailRepliesJob
         // ── 2. Process each draft ───────────────────────────────────────────────
         foreach (var draft in drafts)
         {
-            var candidature = draft.Candidature;
-
-            if (candidature is null)
+            if (!applications.TryGetValue(draft.CandidatureId, out var candidature))
             {
                 _logger.LogWarning(
                     "CheckEmailRepliesJob — draft {DraftId} has no related candidature, skipping",
@@ -74,21 +85,16 @@ public class CheckEmailRepliesJob
             }
 
             // ── 2a. Cooldown check ─────────────────────────────────────────────
-            var needsReclassification =
-                candidature.HasResponse &&
-                string.Equals(candidature.ResponseStatus, "REPONSE_RECUE", StringComparison.OrdinalIgnoreCase) &&
-                (!candidature.ResponseConfidence.HasValue || candidature.ResponseConfidence.Value <= 0.01);
-
             // We no longer skip based on CooldownPeriod so that manual "Trigger Now"
             // always works. The automated frequency is controlled by the Hangfire cron schedule.
 
             _logger.LogInformation(
                 "CheckEmailRepliesJob — checking thread {ThreadId} for candidature {CandidatureId}",
-                draft.ProviderThreadId, candidature.IdCandidature);
+                draft.ProviderThreadId, candidature.CandidatureId);
 
             // ── 2b. Check Gmail thread ─────────────────────────────────────────
             var result = await _replyMonitor.CheckThreadForReplyAsync(
-                localUserId: candidature.IdUtilisateur,
+                localUserId: candidature.UserId,
                 threadId:    draft.ProviderThreadId!,
                 sentAtUtc:   draft.SentAtUtc!.Value,
                 ct:          ct);
@@ -100,7 +106,7 @@ public class CheckEmailRepliesJob
             {
                 _logger.LogWarning(
                     "CheckEmailRepliesJob — error checking candidature {CandidatureId}: {Error}",
-                    candidature.IdCandidature, result.ErrorMessage);
+                    candidature.CandidatureId, result.ErrorMessage);
                 errors++;
                 // Do not update LastCheckedAtUtc on error — let it retry next run
                 continue;
@@ -112,53 +118,52 @@ public class CheckEmailRepliesJob
                 _logger.LogInformation(
                     "CheckEmailRepliesJob — reply detected for candidature {CandidatureId}: " +
                     "from={ReplyFrom}, date={ReplyDate}, subject={ReplySubject}",
-                    candidature.IdCandidature, result.ReplyFrom, result.ReplyDateUtc, result.ReplySubject);
+                    candidature.CandidatureId, result.ReplyFrom, result.ReplyDateUtc, result.ReplySubject);
 
-                // STEP 1 — Always persist baseline fields first.
-                //          These are GUARANTEED to be saved even if classification fails.
-                candidature.HasResponse         = true;
-                candidature.ResponseStatus      = "REPONSE_RECUE";
-                candidature.Statut              = "REPONSE_RECUE";
-                candidature.LastResponseAtUtc   = result.ReplyDateUtc;
-                candidature.LastCheckedAtUtc    = DateTime.UtcNow;
-                candidature.LastResponseFrom    = result.ReplyFrom;
-                candidature.LastResponseSnippet = result.Snippet;
                 repliesFound++;
 
-                // STEP 2 — Attempt AI classification (never throws).
-                var classification = await _classifier.ClassifyAsync(candidature, draft, result, ct);
+                // STEP 1 — Attempt AI classification (never throws).
+                var offer = candidature.OfferId.HasValue
+                    ? await _applications.GetOfferContentAsync(candidature.OfferId.Value, ct)
+                    : null;
+                var classification = await _classifier.ClassifyAsync(candidature, offer?.AnalysisJson, draft, result, ct);
 
-                // STEP 3 — Apply classification result.
-                //          Only override ResponseStatus/Statut when the LLM returned a
-                //          specific classified type (not the "REPONSE_RECUE" fallback).
-                if (ClassifiableTypes.Contains(classification.ResponseType))
-                {
-                    candidature.ResponseStatus = classification.ResponseType;
-                    candidature.Statut         = classification.ResponseType;
-                }
-                // else: keep REPONSE_RECUE set in STEP 1
+                // STEP 2 — Only override the status when the LLM returned a specific
+                //          classified type (not the "REPONSE_RECUE" fallback).
+                var status = ClassifiableTypes.Contains(classification.ResponseType)
+                    ? classification.ResponseType
+                    : "REPONSE_RECUE";
 
-                // Always store analysis metadata (fallback values are still meaningful).
-                candidature.ResponseSummary         = classification.Summary;
-                candidature.RecommendedAction       = classification.RecommendedAction;
-                candidature.ResponseConfidence      = classification.Confidence;
-                candidature.ResponseClassifiedAtUtc = DateTime.UtcNow;
+                // STEP 3 — Persist the reply and its analysis (fallback values are still meaningful).
+                await _applications.RecordRecruiterReplyAsync(candidature.CandidatureId, new RecruiterReply(
+                    Status:            status,
+                    CheckedAtUtc:      DateTime.UtcNow,
+                    ReplyAtUtc:        result.ReplyDateUtc,
+                    From:              result.ReplyFrom,
+                    Snippet:           result.Snippet,
+                    Summary:           classification.Summary,
+                    RecommendedAction: classification.RecommendedAction,
+                    Confidence:        classification.Confidence,
+                    ClassifiedAtUtc:   DateTime.UtcNow), ct);
             }
             else
             {
                 _logger.LogDebug(
                     "CheckEmailRepliesJob — no reply yet for candidature {CandidatureId}",
-                    candidature.IdCandidature);
+                    candidature.CandidatureId);
 
-                candidature.LastCheckedAtUtc = DateTime.UtcNow;
+                await _applications.RecordReplyCheckAsync(candidature.CandidatureId, DateTime.UtcNow, ct);
             }
         }
-
-        // ── 3. Persist all changes at once ──────────────────────────────────────
-        await _draftRepository.SaveChangesAsync(ct);
 
         _logger.LogInformation(
             "CheckEmailRepliesJob — completed. Checked: {Checked}, Replies found: {Replies}, Errors: {Errors}",
             checked_, repliesFound, errors);
     }
+
+    /// <summary>No reply yet, or a reply whose classification failed and should be retried.</summary>
+    private static bool AwaitsReplyCheck(ApplicationSnapshot application) =>
+        !application.HasResponse ||
+        (string.Equals(application.ResponseStatus, "REPONSE_RECUE", StringComparison.OrdinalIgnoreCase) &&
+         (!application.ResponseConfidence.HasValue || application.ResponseConfidence.Value <= 0.01));
 }

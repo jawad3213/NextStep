@@ -1,12 +1,13 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NextStep.Modules.Identity.Services;
-using NextStep.Modules.Sourcing.DTOs;
-using NextStep.Modules.Sourcing.Services;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Modules.Sourcing.Application.Dtos;
+using NextStep.Modules.Sourcing.Application.Services;
+using NextStep.Modules.Sourcing.Infrastructure.JobBoards;
 using NextStep.Shared.ErrorHandling;
 
-namespace NextStep.Modules.Sourcing.Controllers;
+namespace NextStep.Modules.Sourcing.Api;
 
 [ApiController]
 [Route("api/sourced-offers")]
@@ -14,7 +15,7 @@ namespace NextStep.Modules.Sourcing.Controllers;
 [Produces("application/json")]
 public class SourcedOffersController(
     ISourcedOfferService sourcedOfferService,
-    IUserService userService) : ControllerBase
+    IProfileApi profile) : ControllerBase
 {
     private async Task<Guid> GetUserIdAsync()
     {
@@ -23,8 +24,8 @@ public class SourcedOffersController(
 
         if (!string.IsNullOrEmpty(keycloakId))
         {
-            var user = await userService.EnsureUserCreatedAsync(User);
-            return user.Id;
+            var userId = await profile.EnsureUserIdAsync(User);
+            return userId;
         }
 
         if (Request.Headers.TryGetValue("X-User-Id", out var uid) && Guid.TryParse(uid, out var parsedGuid))
@@ -73,35 +74,21 @@ public class SourcedOffersController(
     public async Task<ActionResult<SourcedOfferDetailDto>> GetById(Guid id, CancellationToken ct)
     {
         var userId = await GetUserIdAsync();
-        var result = await sourcedOfferService.GetByIdAsync(userId, id, ct);
-        return result is null ? ApiResult.NotFound("Offre sourcée introuvable.") : Ok(result);
+        return Ok(await sourcedOfferService.GetByIdAsync(userId, id, ct)
+                  ?? throw new NotFoundException("Offre sourcée introuvable."));
     }
 
     [HttpPatch("{id:guid}")]
     public async Task<ActionResult<SourcedOfferDetailDto>> Update(Guid id, [FromBody] SourcedOfferUpdateRequest request, CancellationToken ct)
     {
         var userId = await GetUserIdAsync();
-        try
-        {
-            return Ok(await sourcedOfferService.UpdateAsync(userId, id, request, ct));
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
+        return Ok(await sourcedOfferService.UpdateAsync(userId, id, request, ct));
     }
 
     [HttpPost("{id:guid}/promote")]
     public async Task<ActionResult<PromoteSourcedOfferResponse>> Promote(Guid id, CancellationToken ct)
     {
         var userId = await GetUserIdAsync();
-        try
-        {
-            return Ok(await sourcedOfferService.PromoteAsync(userId, id, ct));
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
+        return Ok(await sourcedOfferService.PromoteAsync(userId, id, ct));
     }
 }

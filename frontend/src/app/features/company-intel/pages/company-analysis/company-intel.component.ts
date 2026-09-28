@@ -1,12 +1,11 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { CompanyIntelApiService } from '../../data-access/company-intel-api.service';
 import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
-import { PipelineStateService } from '../../services/pipeline-state.service';
-import { extractApiError } from '../../core/utils/extract-api-error';
+import { PipelineStateService } from '@features/offers/data-access/pipeline-state.service';
+import { extractApiError } from '@core/http/extract-api-error';
 
 interface SalaryInfo {
   jobTitle: string;
@@ -46,7 +45,7 @@ interface CompanyIntel {
   styleUrl: './company-intel.component.scss'
 })
 export class CompanyIntelComponent implements OnInit {
-  private http = inject(HttpClient);
+  private companyIntelApi = inject(CompanyIntelApiService);
   private router = inject(Router);
   private pipeline = inject(PipelineStateService);
 
@@ -135,7 +134,7 @@ export class CompanyIntelComponent implements OnInit {
     this.loading.set(true);
     this.apiError.set(null);
     try {
-      const res = await firstValueFrom(this.http.post<any>(`${environment.apiBaseUrl}/agents/company/analyze`, {
+      const res = await firstValueFrom(this.companyIntelApi.analyzeCompany({
         company_name: this.companyName(),
         user_id: 0,
         profile_data: {},

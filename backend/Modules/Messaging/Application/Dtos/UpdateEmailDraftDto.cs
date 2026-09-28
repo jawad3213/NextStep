@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace NextStep.Modules.Email.DTOs;
+namespace NextStep.Modules.Messaging.Application.Dtos;
 
 /// <summary>
 /// DTO for updating an existing email draft's editable fields.

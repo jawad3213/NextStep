@@ -1,13 +1,11 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
-using NextStep.Modules.Identity.Models;
-using NextStep.Modules.Identity.Repositories;
-using NextStep.Modules.Identity.Services;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
+using NextStep.Modules.Profile.Contracts;
 
-namespace NextStep.Modules.Chatbot.Controllers;
+namespace NextStep.Modules.Coaching.Api;
 
 [ApiController]
 [Route("api/sn")]
@@ -15,19 +13,16 @@ namespace NextStep.Modules.Chatbot.Controllers;
 public class SnCopilotController : ControllerBase
 {
     private readonly ISnCopilotService _snCopilotService;
-    private readonly IUserService _userService;
-    private readonly IUserRepository _userRepository;
+    private readonly IProfileApi _profile;
     private readonly ILogger<SnCopilotController> _logger;
 
     public SnCopilotController(
         ISnCopilotService snCopilotService,
-        IUserService userService,
-        IUserRepository userRepository,
+        IProfileApi profile,
         ILogger<SnCopilotController> logger)
     {
         _snCopilotService = snCopilotService;
-        _userService = userService;
-        _userRepository = userRepository;
+        _profile = profile;
         _logger = logger;
     }
 
@@ -40,14 +35,10 @@ public class SnCopilotController : ControllerBase
         [FromBody] SnUserChatRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Message))
-        {
-            return BadRequest(new { error = "Le message ne peut pas être vide." });
-        }
-
-        var localUser = await ResolveLocalUserAsync();
-        var userId = localUser?.Id ?? Guid.Empty;
-        var userName = localUser != null ? $"{localUser.Prenom} {localUser.Nom}".Trim() : "Candidat";
+        var localUserId = await _profile.TryResolveUserIdAsync(User);
+        var localUser = localUserId.HasValue ? await _profile.GetUserAsync(localUserId.Value, cancellationToken) : null;
+        var userId = localUserId ?? Guid.Empty;
+        var userName = localUser?.FullName ?? "Candidat";
 
         if (userId == Guid.Empty)
         {
@@ -63,16 +54,7 @@ public class SnCopilotController : ControllerBase
             }
         }
 
-        try
-        {
-            var response = await _snCopilotService.ChatAsync(userId, userName, request, cancellationToken);
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erreur lors de l'interaction avec SN Copilot.");
-            return StatusCode(500, new { error = "Erreur de communication avec le copilote SN." });
-        }
+        return Ok(await _snCopilotService.ChatAsync(userId, userName, request, cancellationToken));
     }
 
     /// <summary>
@@ -84,25 +66,5 @@ public class SnCopilotController : ControllerBase
     {
         var suggestions = await _snCopilotService.GetStarterSuggestionsAsync();
         return Ok(suggestions);
-    }
-
-    private async Task<UserEntity?> ResolveLocalUserAsync()
-    {
-        try
-        {
-            return await _userService.EnsureUserCreatedAsync(User);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "EnsureUserCreatedAsync failed, falling back to direct Keycloak lookup");
-            var keycloakId = User.FindFirstValue("sub")
-                          ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-                          ?? User.FindFirstValue("uid");
-
-            if (string.IsNullOrWhiteSpace(keycloakId))
-                return null;
-
-            return await _userRepository.GetByKeycloakIdAsync(keycloakId);
-        }
     }
 }

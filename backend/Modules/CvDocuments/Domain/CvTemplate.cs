@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace NextStep.Modules.Cv.Models;
+namespace NextStep.Modules.CvDocuments.Domain;
 
 /// <summary>
 /// Database entity representing a CV template with its filterable metadata.

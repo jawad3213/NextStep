@@ -3,16 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { forkJoin, catchError, of } from 'rxjs';
-import { CandidatureService, CandidatureDto } from '../../../services/candidature.service';
-import { OfferService, OfferDto } from '../../../services/offer.service';
-import {
-  EmailService,
-  EmailDraftDto,
-  EmailConnectionStatusDto,
-  GenerateReplyDraftPayload
-} from '../../../services/email.service';
-import { ToastService } from '../../../core/notifications/toast.service';
-import { extractApiError } from '../../../core/utils/extract-api-error';
+import { ToastService } from '@core/notifications/toast.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { CandidatureDto } from '../../data-access/candidature.models';
+import { CandidatureService } from '../../data-access/candidature.service';
+import { EmailConnectionStatusDto, EmailDraftDto, GenerateReplyDraftPayload } from '../../data-access/email.models';
+import { EmailService } from '../../data-access/email.service';
+import { OfferApiService } from '@features/offers/data-access/offer-api.service';
+import { OfferAnalysisResponse } from '@features/offers/data-access/offers.models';
 
 @Component({
   selector: 'app-email-workspace',
@@ -25,14 +23,14 @@ export class EmailWorkspaceComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly candidatureService = inject(CandidatureService);
-  private readonly offerService = inject(OfferService);
+  private readonly offerApi = inject(OfferApiService);
   private readonly emailService = inject(EmailService);
   private readonly toast = inject(ToastService);
 
   // ── State ────────────────────────────────────────────────────────────────
   candidatureId = '';
   candidature = signal<CandidatureDto | null>(null);
-  offer = signal<OfferDto | null>(null);
+  offer = signal<OfferAnalysisResponse | null>(null);
   drafts = signal<EmailDraftDto[]>([]);
   selectedDraft = signal<EmailDraftDto | null>(null);
   showAllDrafts = signal<boolean>(false);
@@ -126,7 +124,7 @@ export class EmailWorkspaceComponent implements OnInit {
 
       // Load offer details
       if (candidature.idOffre) {
-        this.offerService.getOfferById(candidature.idOffre).pipe(catchError(() => of(null)))
+        this.offerApi.getAnalysis(candidature.idOffre).pipe(catchError(() => of(null)))
           .subscribe(offer => this.offer.set(offer));
       }
 

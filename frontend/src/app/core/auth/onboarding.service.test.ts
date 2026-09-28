@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { OnboardingService } from '../services/onboarding.service';
-import { SoftOnboardingPayload } from '../core/auth/models/user-profile.model';
+import { OnboardingService } from './onboarding.service';
+import { SoftOnboardingPayload } from './user-profile.model';
 
 describe('OnboardingService', () => {
   let service: OnboardingService;

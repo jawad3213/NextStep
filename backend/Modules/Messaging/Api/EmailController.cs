@@ -1,170 +1,98 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NextStep.Modules.Email.DTOs;
-using NextStep.Modules.Email.Services;
-using NextStep.Modules.Identity.Repositories;
-using NextStep.Modules.Identity.Services;
+using NextStep.Modules.Messaging.Application.Dtos;
+using NextStep.Modules.Messaging.Application.Services;
+using NextStep.Modules.Messaging.Infrastructure.Gmail;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Shared.ErrorHandling;
 
-namespace NextStep.Modules.Email.Controllers;
+namespace NextStep.Modules.Messaging.Api;
 
 [ApiController]
 [Route("api/emails")]
 [Authorize]
-public class EmailController : ControllerBase
+public class EmailController(
+    IEmailDraftService drafts,
+    IEmailSendingService sending,
+    IFollowUpEmailService followUps,
+    IReplyEmailService replies,
+    IProfileApi profile) : ControllerBase
 {
-    private readonly IEmailService _emailService;
-    private readonly IUserRepository _userRepository;
-    private readonly IUserService _userService;
-
-    public EmailController(IEmailService emailService, IUserRepository userRepository, IUserService userService)
-    {
-        _emailService     = emailService;
-        _userRepository   = userRepository;
-        _userService      = userService;
-    }
-
-    // ── Existing: Generate draft ──────────────────────────────────────────────────
+    // ── Drafts ──────────────────────────────────────────────────────────────
 
     [HttpPost("generate")]
     public async Task<ActionResult<EmailDraftDto>> GenerateDraft(
         [FromBody] GenerateEmailDraftDto dto,
-        CancellationToken cancellationToken)
-    {
-        var result = await _emailService.GenerateDraftAsync(dto, cancellationToken);
-        return Ok(result);
-    }
+        CancellationToken cancellationToken) =>
+        Ok(await drafts.GenerateDraftAsync(await RequireLocalUserIdAsync(), dto, cancellationToken));
+
+    [HttpGet("candidature/{candidatureId:guid}")]
+    public async Task<ActionResult<List<EmailDraftDto>>> GetByCandidature(
+        Guid candidatureId,
+        CancellationToken cancellationToken) =>
+        Ok(await drafts.GetDraftsByCandidatureAsync(candidatureId, await RequireLocalUserIdAsync(), cancellationToken));
+
+    [HttpGet("drafts/{draftId:guid}")]
+    public async Task<ActionResult<EmailDraftDto>> GetDraftById(
+        Guid draftId,
+        CancellationToken cancellationToken) =>
+        Ok(await drafts.GetDraftByIdAsync(draftId, await RequireLocalUserIdAsync(), cancellationToken));
+
+    [HttpPut("drafts/{draftId:guid}")]
+    public async Task<ActionResult<EmailDraftDto>> UpdateDraft(
+        Guid draftId,
+        [FromBody] UpdateEmailDraftDto dto,
+        CancellationToken cancellationToken) =>
+        Ok(await drafts.UpdateDraftAsync(draftId, await RequireLocalUserIdAsync(), dto, cancellationToken));
+
+    [HttpPost("drafts/{draftId:guid}/approve")]
+    public async Task<ActionResult<EmailDraftDto>> ApproveDraft(
+        Guid draftId,
+        CancellationToken cancellationToken) =>
+        Ok(await drafts.ApproveDraftAsync(draftId, await RequireLocalUserIdAsync(), cancellationToken));
+
+    // ── Follow-ups and replies ──────────────────────────────────────────────
+
+    [HttpPost("generate-follow-up")]
+    public async Task<ActionResult<EmailDraftDto>> GenerateFollowUpDraft(
+        [FromBody] GenerateFollowUpDraftDto dto,
+        CancellationToken cancellationToken) =>
+        Ok(await followUps.GenerateFollowUpDraftAsync(dto, await RequireLocalUserIdAsync(), cancellationToken));
+
+    [HttpPost("generate-reply")]
+    public async Task<ActionResult<EmailDraftDto>> GenerateReplyDraft(
+        [FromBody] GenerateReplyDraftDto dto,
+        CancellationToken cancellationToken) =>
+        Ok(await replies.GenerateReplyDraftAsync(dto, await RequireLocalUserIdAsync(), cancellationToken));
+
+    // ── Sending ─────────────────────────────────────────────────────────────
 
     [HttpPost("send")]
     public async Task<ActionResult<EmailDraftDto>> SendApplicationEmail(
         [FromBody] SendApplicationEmailDto dto,
         CancellationToken cancellationToken)
     {
-        var user = await _userService.EnsureUserCreatedAsync(User);
-        var result = await _emailService.SendApplicationEmailAsync(user.Id, dto, cancellationToken);
-        return Ok(result);
+        var userId = await profile.EnsureUserIdAsync(User);
+        return Ok(await sending.SendApplicationEmailAsync(userId, dto, cancellationToken));
     }
 
-    // ── Existing: Get drafts by candidature ───────────────────────────────────────
-
-    [HttpGet("candidature/{candidatureId:guid}")]
-    public async Task<ActionResult<List<EmailDraftDto>>> GetByCandidature(
-        Guid candidatureId,
-        CancellationToken cancellationToken)
-    {
-        var result = await _emailService.GetDraftsByCandidatureAsync(
-            candidatureId, cancellationToken);
-        return Ok(result);
-    }
-
-    // ── Existing: Get draft by ID ───────────────────────────────────────
-    [HttpGet("drafts/{draftId:guid}")]
-    public async Task<ActionResult<EmailDraftDto>> GetDraftById(
-        Guid draftId,
-        CancellationToken cancellationToken)
-    {
-        var localUserId = await ResolveLocalUserIdAsync();
-        if (localUserId is null)
-            return Unauthorized(new { error = "User not found in local database." });
-
-        var result = await _emailService.GetDraftByIdAsync(draftId, localUserId.Value, cancellationToken);
-        return Ok(result);
-    }
-
-    // ── POST /api/emails/generate-follow-up ──────────────────────────────────────
-    [HttpPost("generate-follow-up")]
-    public async Task<ActionResult<EmailDraftDto>> GenerateFollowUpDraft(
-        [FromBody] GenerateFollowUpDraftDto dto,
-        CancellationToken cancellationToken)
-    {
-        var localUserId = await ResolveLocalUserIdAsync();
-        if (localUserId is null)
-            return Unauthorized(new { error = "User not found in local database." });
-
-        var result = await _emailService.GenerateFollowUpDraftAsync(dto, localUserId.Value, cancellationToken);
-        return Ok(result);
-    }
-
-    // ── POST /api/emails/generate-reply ──────────────────────────────────────────
-
-    [HttpPost("generate-reply")]
-    public async Task<ActionResult<EmailDraftDto>> GenerateReplyDraft(
-        [FromBody] GenerateReplyDraftDto dto,
-        CancellationToken cancellationToken)
-    {
-        var localUserId = await ResolveLocalUserIdAsync();
-        if (localUserId is null)
-            return Unauthorized(new { error = "User not found in local database." });
-
-        var result = await _emailService.GenerateReplyDraftAsync(dto, localUserId.Value, cancellationToken);
-        return Ok(result);
-    }
-
-    // ── PUT /api/emails/drafts/{draftId} — Update draft ──────────────────────────
-
-    [HttpPut("drafts/{draftId:guid}")]
-    public async Task<ActionResult<EmailDraftDto>> UpdateDraft(
-        Guid draftId,
-        [FromBody] UpdateEmailDraftDto dto,
-        CancellationToken cancellationToken)
-    {
-        var localUserId = await ResolveLocalUserIdAsync();
-        if (localUserId is null)
-            return StatusCode(403, new { error = "User not found in local database." });
-
-        var result = await _emailService.UpdateDraftAsync(
-            draftId, localUserId.Value, dto, cancellationToken);
-        return Ok(result);
-    }
-
-    // ── POST /api/emails/drafts/{draftId}/approve — Approve draft ────────────────
-
-    [HttpPost("drafts/{draftId:guid}/approve")]
-    public async Task<ActionResult<EmailDraftDto>> ApproveDraft(
-        Guid draftId,
-        CancellationToken cancellationToken)
-    {
-        var localUserId = await ResolveLocalUserIdAsync();
-        if (localUserId is null)
-            return StatusCode(403, new { error = "User not found in local database." });
-
-        var result = await _emailService.ApproveDraftAsync(
-            draftId, localUserId.Value, cancellationToken);
-        return Ok(result);
-    }
-
-    // ── POST /api/emails/drafts/{draftId}/send — Send approved draft ──────────────
-
+    /// <summary>
+    /// Returns 200 regardless of success/failure — the result contains the status.
+    /// The caller must check result.Success.
+    /// </summary>
     [HttpPost("drafts/{draftId:guid}/send")]
     public async Task<ActionResult<SendEmailResultDto>> SendDraft(
         Guid draftId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        Ok(await sending.SendDraftAsync(draftId, await RequireLocalUserIdAsync(), cancellationToken));
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private async Task<Guid> RequireLocalUserIdAsync()
     {
-        var localUserId = await ResolveLocalUserIdAsync();
-        if (localUserId is null)
-            return StatusCode(403, new { error = "User not found in local database." });
-
-        var result = await _emailService.SendDraftAsync(
-            draftId, localUserId.Value, cancellationToken);
-
-        // Return 200 regardless of success/failure — the result contains the status.
-        // The caller must check result.Success.
-        return Ok(result);
-    }
-
-    // ── Private helpers ───────────────────────────────────────────────────────────
-
-    private async Task<Guid?> ResolveLocalUserIdAsync()
-    {
-        // Try 'sub' first, then NameIdentifier
         var keycloakId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
-        if (string.IsNullOrWhiteSpace(keycloakId))
-        {
-            return null;
-        }
-
-        var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
-        return user?.Id;
+        var userId = string.IsNullOrWhiteSpace(keycloakId) ? null : await profile.FindUserIdAsync(keycloakId);
+        return userId ?? throw new ForbiddenException("User not found in local database.");
     }
 }

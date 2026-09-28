@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Offer.DTOs;
+namespace NextStep.Modules.Applications.Application.Dtos;
 
 public class ResumePipelineDto
 {

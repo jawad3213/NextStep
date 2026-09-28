@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Candidature.Models;
+namespace NextStep.Modules.Applications.Domain;
 
 public class CandidatureStatusHistory
 {

@@ -5,16 +5,22 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Moq;
-using NextStep.Modules.Chatbot.Controllers;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
+using NextStep.Modules.Coaching.Api;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
+using NextStep.Shared.ErrorHandling;
 using Xunit;
 
 namespace NextStep.Tests;
 
 public class ArenaControllerTests
 {
+    /// <summary>Typed actions return ActionResult&lt;T&gt;; assertions look at the underlying IActionResult.</summary>
+    private static IActionResult Unwrap(object result) =>
+        result is IConvertToActionResult typed ? typed.Convert() : (IActionResult)result;
+
     private readonly Mock<IArenaService> _mockArenaService;
     private readonly ArenaController _controller;
 
@@ -43,7 +49,7 @@ public class ArenaControllerTests
         var result = _controller.HealthCheck();
 
         // Assert
-        result.Should().BeOfType<OkObjectResult>();
+        Unwrap(result).Should().BeOfType<OkObjectResult>();
     }
 
     [Fact]
@@ -62,7 +68,7 @@ public class ArenaControllerTests
         var result = await _controller.GenerateQuestions(request);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
         _mockArenaService.Verify(s => s.GenerateQuestionsAsync(expectedServiceRequest), Times.Once);
     }
@@ -83,7 +89,7 @@ public class ArenaControllerTests
         var result = await _controller.FreeChat(request);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
@@ -103,7 +109,7 @@ public class ArenaControllerTests
         var result = await _controller.StartSession(request);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
@@ -123,25 +129,25 @@ public class ArenaControllerTests
         var result = await _controller.SendMessage(request);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
     [Fact]
-    public async Task SendMessage_Should_Return500_On_Exception()
+    public async Task SendMessage_Should_Let_Service_Errors_Reach_The_Global_Handler()
     {
-        // Arrange
+        // Arrange — the service turns failures into OperationFailedException (500);
+        // the controller no longer catches, GlobalExceptionHandler renders the error.
         var request = new SendMessageRequest("session-1", "User text", new List<MessageTurnDto>());
         _mockArenaService
             .Setup(s => s.SendMessageAsync(It.IsAny<SendMessageRequest>()))
-            .ThrowsAsync(new Exception("Network failure"));
+            .ThrowsAsync(new OperationFailedException("Erreur lors de l'envoi du message. Veuillez réessayer."));
 
         // Act
-        var result = await _controller.SendMessage(request);
+        var act = () => _controller.SendMessage(request);
 
         // Assert
-        var errorResult = result.Should().BeOfType<ObjectResult>().Subject;
-        errorResult.StatusCode.Should().Be(500);
+        await act.Should().ThrowAsync<OperationFailedException>();
     }
 
     [Fact]
@@ -161,7 +167,7 @@ public class ArenaControllerTests
         var result = await _controller.EndSession(request);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
@@ -181,7 +187,7 @@ public class ArenaControllerTests
         var result = await _controller.GetSalary(request);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
@@ -202,7 +208,7 @@ public class ArenaControllerTests
         var result = await _controller.SalaryCoach(request);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
@@ -219,7 +225,7 @@ public class ArenaControllerTests
         var result = await _controller.GetSessions();
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
@@ -242,7 +248,8 @@ public class ArenaControllerTests
         var result = await emptyController.GetSessions();
 
         // Assert
-        result.Should().BeOfType<UnauthorizedResult>();
+        // ApiResult errors are ObjectResults carrying a message body
+        Unwrap(result).Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(401);
     }
 
     [Fact]
@@ -258,7 +265,7 @@ public class ArenaControllerTests
         var result = await _controller.GetSessionDetail("session-1");
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 
@@ -269,7 +276,7 @@ public class ArenaControllerTests
         var result = await _controller.GetSessionDetail("");
 
         // Assert
-        result.Should().BeOfType<BadRequestResult>();
+        Unwrap(result).Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(400);
     }
 
     [Fact]
@@ -284,7 +291,7 @@ public class ArenaControllerTests
         var result = await _controller.DeleteSession("session-1");
 
         // Assert
-        result.Should().BeOfType<OkResult>();
+        Unwrap(result).Should().BeOfType<OkResult>();
     }
 
     [Fact]
@@ -299,7 +306,7 @@ public class ArenaControllerTests
         var result = await _controller.DeleteSession("session-1");
 
         // Assert
-        result.Should().BeOfType<NotFoundResult>();
+        Unwrap(result).Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(404);
     }
 
     [Fact]
@@ -315,7 +322,7 @@ public class ArenaControllerTests
         var result = await _controller.GetMyOffers();
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
     }
 }

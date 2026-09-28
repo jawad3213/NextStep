@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 
-namespace NextStep.Modules.Profile.DTOs
-{
+namespace NextStep.Modules.Profile.Application.Dtos {
     public class ExperienceDto
     {
         public Guid? Id { get; set; }

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { Project, Experience } from '../../profile.types';
+import { Project, Experience } from '../../data-access/profile.models';
 
 @Component({
   selector: 'app-projects',

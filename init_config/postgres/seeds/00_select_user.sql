@@ -16,7 +16,7 @@ SELECT set_config('nextstep.seed_email', :'user_email', false);
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM public.utilisateur u
+        SELECT 1 FROM profile.utilisateur u
         WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
     ) THEN
         RAISE EXCEPTION 'No NextStep user with email "%". Register in Keycloak and log in once, then re-run.',

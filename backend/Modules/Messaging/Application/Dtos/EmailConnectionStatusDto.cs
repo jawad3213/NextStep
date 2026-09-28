@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Email.DTOs;
+namespace NextStep.Modules.Messaging.Application.Dtos;
 
 /// <summary>
 /// Represents the Gmail OAuth connection status for the current user.

@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { OnboardingService } from '../../services/onboarding.service';
+import { OnboardingService } from '@core/auth/onboarding.service';
 import { FormsModule } from '@angular/forms';
 import { 
   ObjectifEnum, 
@@ -11,7 +11,7 @@ import {
   NIVEAU_LABELS, 
   SECTEUR_LABELS,
   SoftOnboardingPayload
-} from '../../core/auth/models/user-profile.model';
+} from '@core/auth/user-profile.model';
 
 @Component({
   selector: 'app-onboarding',

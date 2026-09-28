@@ -21,3 +21,8 @@ output "bootstrap_log_command" {
   description = "Follow the first-boot progress (run inside the session)"
   value       = "sudo tail -f /var/log/nextstep-bootstrap.log"
 }
+
+output "github_actions_role_arn" {
+  description = "IAM Role ARN to configure in GitHub Actions variables (AWS_ROLE_ARN)"
+  value       = aws_iam_role.github_actions_deploy.arn
+}

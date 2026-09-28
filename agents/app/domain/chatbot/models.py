@@ -17,7 +17,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.core.database import COACHING_SCHEMA, Base
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -26,6 +26,7 @@ from app.core.database import Base
 
 class SessionCoaching(Base):
     __tablename__ = "session_coaching"
+    __table_args__ = {"schema": COACHING_SCHEMA}  # owned by the backend Coaching module
 
     id_session = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
@@ -58,9 +59,10 @@ class SessionCoaching(Base):
 
 class QuestionEntrainement(Base):
     __tablename__ = "question_entrainement"
+    __table_args__ = {"schema": COACHING_SCHEMA}  # owned by the backend Coaching module
 
     id_question = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id_session  = Column(UUID(as_uuid=True), ForeignKey("session_coaching.id_session", ondelete="CASCADE"), nullable=False)
+    id_session  = Column(UUID(as_uuid=True), ForeignKey(f"{COACHING_SCHEMA}.session_coaching.id_session", ondelete="CASCADE"), nullable=False)
 
     texte_question      = Column(Text,       nullable=False)
     type_question       = Column(String(20), default="behavioral")

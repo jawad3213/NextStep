@@ -1,8 +1,8 @@
 // ============================================================
-// Modules/Offer/DTOs/OfferAnalysisDto.cs
+// Modules/Applications/DTOs/OfferAnalysisDto.cs
 // Résultat de l'analyse IA retourné à Angular
 // ============================================================
-namespace NextStep.Modules.Offer.DTOs;
+namespace NextStep.Modules.Applications.Application.Dtos;
 
 /// <summary>
 /// Résultat complet retourné après le lancement du pipeline IA.

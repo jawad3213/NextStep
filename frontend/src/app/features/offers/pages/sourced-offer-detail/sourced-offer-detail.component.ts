@@ -1,21 +1,22 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { OfferApiService, SourcedOfferDetailDto } from './services/offer-api.service';
-import { extractApiError } from '../../core/utils/extract-api-error';
-import { ToastService } from '../../core/notifications/toast.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { ToastService } from '@core/notifications/toast.service';
+import { SourcedOffersApiService } from '../../data-access/sourced-offers-api.service';
+import { SourcedOfferDetailDto } from '../../data-access/sourced-offers.models';
 
 @Component({
   selector: 'app-sourced-offer-detail',
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './sourced-offer-detail.component.html',
-  styleUrl: './offer-detail.component.scss',
+  styleUrl: '../offer-detail/offer-detail.component.scss',
 })
 export class SourcedOfferDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly sourcedOffersApi = inject(SourcedOffersApiService);
   private readonly router = inject(Router);
-  private readonly offerApi = inject(OfferApiService);
   private readonly toast = inject(ToastService);
 
   readonly offer = signal<SourcedOfferDetailDto | null>(null);
@@ -30,7 +31,7 @@ export class SourcedOfferDetailComponent implements OnInit {
       return;
     }
 
-    this.offerApi.getSourcedOffer(id).subscribe({
+    this.sourcedOffersApi.getSourcedOffer(id).subscribe({
       next: (offer) => {
         this.offer.set(offer);
         this.isLoading.set(false);
@@ -73,7 +74,7 @@ export class SourcedOfferDetailComponent implements OnInit {
     if (!offer || this.actionBusy()) return;
 
     this.actionBusy.set(true);
-    this.offerApi.promoteSourcedOffer(offer.id).subscribe({
+    this.sourcedOffersApi.promoteSourcedOffer(offer.id).subscribe({
       next: (promotion) => {
         this.actionBusy.set(false);
         this.toast.success('Analyse lancée.');
@@ -116,7 +117,7 @@ export class SourcedOfferDetailComponent implements OnInit {
     const offer = this.offer();
     if (!offer) return;
     this.actionBusy.set(true);
-    this.offerApi.updateSourcedOffer(offer.id, payload).subscribe({
+    this.sourcedOffersApi.updateSourcedOffer(offer.id, payload).subscribe({
       next: (updated) => {
         this.offer.set({ ...updated, similarOffers: offer.similarOffers, sourceQuery: offer.sourceQuery });
         this.actionBusy.set(false);

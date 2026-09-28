@@ -2,16 +2,11 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import {
-  NormalizedContractType,
-  OfferApiService,
-  PostedWindow,
-  ScrapeProvider,
-  ScrapeSessionDto,
-  SourcedOfferListItemDto,
-} from './services/offer-api.service';
-import { extractApiError } from '../../core/utils/extract-api-error';
-import { ToastService } from '../../core/notifications/toast.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { ToastService } from '@core/notifications/toast.service';
+import { NormalizedContractType, PostedWindow, ScrapeProvider, ScrapeSessionDto } from '../../data-access/sourced-offers.models';
+import { SourcedOffersApiService } from '../../data-access/sourced-offers-api.service';
+import { SourcedOfferListItemDto } from '../../data-access/sourced-offers.models';
 
 type ProviderSummary = {
   key: ScrapeProvider;
@@ -24,11 +19,11 @@ type ProviderSummary = {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './offers-recent.component.html',
-  styleUrl: './offers.component.scss',
+  styleUrl: '../offers/offers.component.scss',
 })
 export class OffersRecentComponent implements OnInit {
-  private readonly offerApi = inject(OfferApiService);
   private readonly toast = inject(ToastService);
+  private readonly sourcedOffersApi = inject(SourcedOffersApiService);
   private readonly router = inject(Router);
 
   readonly providers: ProviderSummary[] = [
@@ -165,7 +160,7 @@ export class OffersRecentComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set('');
 
-    this.offerApi.getSourcedOffers({
+    this.sourcedOffersApi.getSourcedOffers({
       keywords: this.keywords(),
       location: this.location(),
       providers: this.selectedProviders(),
@@ -210,7 +205,7 @@ export class OffersRecentComponent implements OnInit {
     this.errorMessage.set('');
     this.warnings.set([]);
 
-    this.offerApi.searchSourcedOffers({
+    this.sourcedOffersApi.searchSourcedOffers({
       keywords: this.keywords(),
       location: this.location(),
       providers: this.selectedProviders(),
@@ -274,7 +269,7 @@ export class OffersRecentComponent implements OnInit {
     this.actionOfferId.set(offer.id);
     this.errorMessage.set('');
 
-    this.offerApi.promoteSourcedOffer(offer.id).subscribe({
+    this.sourcedOffersApi.promoteSourcedOffer(offer.id).subscribe({
       next: (promotion) => {
         this.actionOfferId.set(null);
         this.router.navigate(['/offers/analyze'], {
@@ -329,7 +324,7 @@ export class OffersRecentComponent implements OnInit {
 
   private patchOfferState(id: string, payload: { isSaved?: boolean; isShortlisted?: boolean; isArchived?: boolean }): void {
     this.actionOfferId.set(id);
-    this.offerApi.updateSourcedOffer(id, payload).subscribe({
+    this.sourcedOffersApi.updateSourcedOffer(id, payload).subscribe({
       next: (updated) => {
         this.offers.update((current) => current.map((offer) => offer.id === id ? { ...offer, ...updated } : offer));
         this.actionOfferId.set(null);

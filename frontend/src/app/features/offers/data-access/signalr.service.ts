@@ -1,8 +1,8 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import Keycloak from 'keycloak-js';
-import { environment } from '../../environments/environment';
 import { PipelineStateService } from './pipeline-state.service';
+import { backendOrigin } from '@core/http/api-url';
 
 export interface PipelineProgress {
   offerId: string;
@@ -57,7 +57,7 @@ export class SignalRService {
     if (this.connectionPromise) return this.connectionPromise;
 
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${environment.apiBaseUrl.replace('/api', '')}/hubs/pipeline`, {
+      .withUrl(`${backendOrigin()}/hubs/pipeline`, {
         withCredentials: true,
         accessTokenFactory: () => this.keycloak.token ?? ''
       })

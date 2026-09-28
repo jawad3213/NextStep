@@ -1,10 +1,11 @@
 import { Component, effect, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PipelineStateService, PipelineResult } from '../../../../services/pipeline-state.service';
-import { OfferApiService, OfferAnalysisResponse } from '../../services/offer-api.service';
-import { SidebarService } from '../../../../shared/services/sidebar.service';
-import { extractApiError } from '../../../../core/utils/extract-api-error';
+import { PipelineStateService, PipelineResult } from '../../data-access/pipeline-state.service';
+import { SidebarService } from '@core/layout/sidebar.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { OfferApiService } from '../../data-access/offer-api.service';
+import { OfferAnalysisResponse } from '../../data-access/offers.models';
 
 @Component({
   selector: 'app-step-submit',

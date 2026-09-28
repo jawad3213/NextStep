@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
-import { PipelineResult, PipelineStateService } from '../../../../services/pipeline-state.service';
-import { ProfileService } from '../../../../services/profile.service';
-import { OfferApiService } from '../../services/offer-api.service';
-import { extractApiError } from '../../../../core/utils/extract-api-error';
+import { PipelineResult, PipelineStateService } from '../../data-access/pipeline-state.service';
+import { ProfileApiService } from '@features/profile/data-access/profile-api.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { CompanyIntelApiService } from '@features/company-intel/data-access/company-intel-api.service';
 
 type SkillStatus = 'matched' | 'partial' | 'missing';
 type SkillCategory = 'technical' | 'soft';
@@ -46,9 +46,9 @@ interface RecommendationInsight {
 })
 export class StepAnalysisComponent {
   readonly pipeline = inject(PipelineStateService);
+  private readonly companyIntelApi = inject(CompanyIntelApiService);
   private readonly router = inject(Router);
-  private readonly profileService = inject(ProfileService);
-  private readonly offerApi = inject(OfferApiService);
+  private readonly profileApi = inject(ProfileApiService);
 
   skillsOpen = true;
   softSkillsOpen = true;
@@ -554,7 +554,7 @@ export class StepAnalysisComponent {
     this.pipeline.setLoading(true, "Recherche detaillee de l'entreprise en cours...");
 
     try {
-      const fullProfile = await firstValueFrom(this.profileService.getFullProfile());
+      const fullProfile = await firstValueFrom(this.profileApi.getFullProfile());
       const payload = {
         company_name: company,
         user_id: 0,
@@ -578,7 +578,7 @@ export class StepAnalysisComponent {
       };
 
       const apiRes = await firstValueFrom(
-        this.offerApi.analyzeCompanyIntel(payload)
+        this.companyIntelApi.analyzeCompany(payload)
       );
 
       this.companyIntelProgressPercent = 100;

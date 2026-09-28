@@ -86,7 +86,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                            lien_linkedin AS linkedin,
                            lien_github AS github,
                            lien_portfolio AS portfolio
-                    FROM utilisateur
+                    FROM profile.utilisateur
                     WHERE keycloak_id = :uid OR id_utilisateur::text = :uid
                     LIMIT 1
                 """),
@@ -104,7 +104,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             # ── Compétences ─────────────────────────────────
             try:
                 comps = (await db.execute(
-                    text("SELECT nom, type_competence, niveau FROM competence WHERE id_utilisateur = :pid"),
+                    text("SELECT nom, type_competence, niveau FROM profile.competence WHERE id_utilisateur = :pid"),
                     {"pid": pid},
                 )).mappings().all()
             except Exception as e:
@@ -120,7 +120,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                                missions AS description,
                                type_contrat AS type,
                                taches
-                        FROM experience WHERE id_utilisateur = :pid
+                        FROM profile.experience WHERE id_utilisateur = :pid
                         ORDER BY date_debut DESC
                     """),
                     {"pid": pid},
@@ -155,7 +155,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             # ── Formations ──────────────────────────────────
             try:
                 forms = (await db.execute(
-                    text("SELECT diplome, etablissement, annee FROM formation WHERE id_utilisateur = :pid"),
+                    text("SELECT diplome, etablissement, annee FROM profile.formation WHERE id_utilisateur = :pid"),
                     {"pid": pid},
                 )).mappings().all()
             except Exception as e:
@@ -165,7 +165,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
             # ── Certifications ──────────────────────────────
             try:
                 certs = (await db.execute(
-                    text("SELECT titre AS nom, organisation AS organisme FROM certification WHERE id_utilisateur = :pid"),
+                    text("SELECT titre AS nom, organisation AS organisme FROM profile.certification WHERE id_utilisateur = :pid"),
                     {"pid": pid},
                 )).mappings().all()
             except Exception as e:
@@ -180,7 +180,7 @@ async def get_user_profile_from_db(user_id: str) -> dict:
                                 description,
                                 technologies_utilisees AS technologies,
                                 taches
-                        FROM projet WHERE id_utilisateur = :pid
+                        FROM profile.projet WHERE id_utilisateur = :pid
                     """),
                     {"pid": pid},
                 )).mappings().all()

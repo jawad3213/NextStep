@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace NextStep.Modules.Cv.Models;
+namespace NextStep.Modules.CvDocuments.Domain;
 
 /// <summary>
 /// Tracks every saved CV. Each record links to the final PDF stored in MinIO

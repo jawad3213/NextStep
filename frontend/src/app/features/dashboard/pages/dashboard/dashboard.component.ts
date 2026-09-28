@@ -3,12 +3,15 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { AuthService } from '../../core/auth/services/auth.service';
-import { CandidatureDto, CandidatureService } from '../../services/candidature.service';
-import { OfferDto, OfferHistoryItemDto, OfferService } from '../../services/offer.service';
-import { OfferApiService, SourcedOfferListItemDto } from '../offers/services/offer-api.service';
-import { OnboardingService } from '../../services/onboarding.service';
-import { ProfileService } from '../profile/profile.service';
+import { AuthService } from '@core/auth/auth.service';
+import { OnboardingService } from '@core/auth/onboarding.service';
+import { ProfileService } from '@features/profile/data-access/profile.service';
+import { CandidatureDto } from '@features/applications/data-access/candidature.models';
+import { CandidatureService } from '@features/applications/data-access/candidature.service';
+import { OfferApiService } from '@features/offers/data-access/offer-api.service';
+import { OfferAnalysisResponse, OfferHistoryItem } from '@features/offers/data-access/offers.models';
+import { SourcedOffersApiService } from '@features/offers/data-access/sourced-offers-api.service';
+import { SourcedOfferListItemDto } from '@features/offers/data-access/sourced-offers.models';
 
 interface Application {
   candidatureId: string;
@@ -73,9 +76,9 @@ interface OfferOverview {
 })
 export class DashboardComponent {
   private readonly authService = inject(AuthService);
+  private readonly sourcedOffersApi = inject(SourcedOffersApiService);
   private readonly onboardingService = inject(OnboardingService);
   private readonly candidatureService = inject(CandidatureService);
-  private readonly offerService = inject(OfferService);
   private readonly offerApi = inject(OfferApiService);
   private readonly profileService = inject(ProfileService);
 
@@ -98,8 +101,8 @@ export class DashboardComponent {
   });
 
   private readonly candidaturesData = signal<CandidatureDto[]>([]);
-  private readonly offerHistoryData = signal<OfferHistoryItemDto[]>([]);
-  private readonly offerMapSignal = signal<Map<string, OfferHistoryItemDto>>(new Map());
+  private readonly offerHistoryData = signal<OfferHistoryItem[]>([]);
+  private readonly offerMapSignal = signal<Map<string, OfferHistoryItem>>(new Map());
 
   /** Sources du dashboard qui ont échoué au dernier chargement (message + réessayer). */
   readonly failedSections = signal<string[]>([]);
@@ -237,8 +240,8 @@ export class DashboardComponent {
     forkJoin({
       onboarding: this.onboardingService.getStatus().pipe(catchError(() => { markFailed('onboarding'); return of(null); })),
       candidatures: this.candidatureService.getMyCandidatures().pipe(catchError(() => { markFailed('candidatures'); return of([] as CandidatureDto[]); })),
-      history: this.offerService.getMyOfferHistory().pipe(catchError(() => { markFailed('historique'); return of([] as OfferHistoryItemDto[]); })),
-      scrapedOffers: this.offerApi.getSourcedOffers({ limit: 6, postedWindow: '24h', location: 'Casablanca' }).pipe(catchError(() => { markFailed('offres'); return of([] as SourcedOfferListItemDto[]); })),
+      history: this.offerApi.getOffersHistory().pipe(catchError(() => { markFailed('historique'); return of([] as OfferHistoryItem[]); })),
+      scrapedOffers: this.sourcedOffersApi.getSourcedOffers({ limit: 6, postedWindow: '24h', location: 'Casablanca' }).pipe(catchError(() => { markFailed('offres'); return of([] as SourcedOfferListItemDto[]); })),
     }).subscribe({
       next: ({ candidatures, history, scrapedOffers }) => {
         if (failures.length) this.failedSections.set(failures);
@@ -271,7 +274,7 @@ export class DashboardComponent {
 
         forkJoin(
           topOffers.map(h =>
-            this.offerService.getOfferById(h.offerId).pipe(catchError(() => of(null)))
+            this.offerApi.getAnalysis(h.offerId).pipe(catchError(() => of(null)))
           )
         ).subscribe({
           next: (details) => {
@@ -298,7 +301,7 @@ export class DashboardComponent {
     this.refreshing.set(false);
   }
 
-  private toOfferOverview(history: OfferHistoryItemDto, detail: OfferDto | null): OfferOverview {
+  private toOfferOverview(history: OfferHistoryItem, detail: OfferAnalysisResponse | null): OfferOverview {
     return {
       company: detail?.entreprise || history.entreprise || 'Entreprise',
       poste: detail?.titre || history.titre || 'Poste',
@@ -309,7 +312,7 @@ export class DashboardComponent {
     };
   }
 
-  private toApplication(candidature: CandidatureDto, offerMap: Map<string, OfferHistoryItemDto>): Application {
+  private toApplication(candidature: CandidatureDto, offerMap: Map<string, OfferHistoryItem>): Application {
     const offer = offerMap.get(candidature.idOffre ?? '');
     const meta = this.getStatusMeta(candidature);
     return {
@@ -325,7 +328,7 @@ export class DashboardComponent {
 
   private buildInterviews(
     candidatures: CandidatureDto[],
-    offerMap: Map<string, OfferHistoryItemDto>
+    offerMap: Map<string, OfferHistoryItem>
   ): Interview[] {
     return candidatures
       .filter(c => this.statusString(c).includes('ENTRETIEN'))
@@ -393,8 +396,8 @@ export class DashboardComponent {
 
   private buildActivities(
     candidatures: CandidatureDto[],
-    offers: OfferHistoryItemDto[],
-    offerMap: Map<string, OfferHistoryItemDto>
+    offers: OfferHistoryItem[],
+    offerMap: Map<string, OfferHistoryItem>
   ): Activity[] {
     const activityFromCandidatures: Activity[] = candidatures.slice(0, 3).map(c => {
       const meta = this.getStatusMeta(c);

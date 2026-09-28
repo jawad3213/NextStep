@@ -87,3 +87,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "github_repo" {
+  description = "GitHub repository (owner/repo) allowed to deploy via OIDC"
+  type        = string
+  default     = "said101112/Next-Step-v2"
+}
+
+variable "create_oidc_provider" {
+  description = "Whether to create the GitHub OIDC provider (set to false if already created in the AWS account)"
+  type        = bool
+  default     = true
+}

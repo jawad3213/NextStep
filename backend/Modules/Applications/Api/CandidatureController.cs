@@ -1,33 +1,21 @@
-using NextStep.Modules.Identity.Repositories;
-using NextStep.Modules.Identity.Models;
-using NextStep.Modules.Identity.Services;
-using System.Security.Claims;
-using NextStep.Modules.Candidature.DTOs;
-using NextStep.Modules.Candidature.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NextStep.Modules.Applications.Application.Dtos;
+using NextStep.Modules.Applications.Application.Services;
+using NextStep.Modules.Profile.Contracts;
 using NextStep.Shared.ErrorHandling;
+using NextStep.Shared.Pagination;
 
-namespace NextStep.Modules.Candidature.Controllers;
+namespace NextStep.Modules.Applications.Api;
 
 [ApiController]
 [Route("api/candidatures")]
 [Authorize]
-public class CandidatureController : ControllerBase
+public class CandidatureController(ICandidatureService candidatureService, IProfileApi profile) : ControllerBase
 {
-    private readonly ICandidatureService _candidatureService;
-    private readonly IUserRepository _userRepository;
-    private readonly IUserService _userService;
-
-    public CandidatureController(
-        ICandidatureService candidatureService,
-        IUserRepository userRepository,
-        IUserService userService)
-    {
-        _candidatureService = candidatureService;
-        _userRepository = userRepository;
-        _userService = userService;
-    }
+    private async Task<Guid> RequireUserIdAsync() =>
+        await profile.TryResolveUserIdAsync(User)
+        ?? throw new ForbiddenException("Utilisateur introuvable.");
 
     // ── POST /api/candidatures — Create ─────────────────────────────────────────
 
@@ -36,70 +24,38 @@ public class CandidatureController : ControllerBase
         [FromBody] CreateCandidatureDto dto,
         CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var result = await _candidatureService.CreateAsync(localUser.Id, dto, cancellationToken);
-
+        var userId = await RequireUserIdAsync();
+        var result = await candidatureService.CreateAsync(userId, dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.IdCandidature }, result);
     }
 
     // ── GET /api/candidatures — List current user's candidatures ─────────────────
 
     [HttpGet]
-    public async Task<ActionResult<List<CandidatureDto>>> GetMyCandidatures(
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<List<CandidatureDto>>> GetMyCandidatures(CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var results = await _candidatureService.GetByUserIdAsync(localUser.Id, cancellationToken);
-        return Ok(results);
+        var userId = await RequireUserIdAsync();
+        return Ok(await candidatureService.GetByUserIdAsync(userId, cancellationToken));
     }
 
     [HttpGet("paged")]
-    public async Task<ActionResult> GetMyCandidaturesPaged(
+    public async Task<ActionResult<PagedResponse<CandidatureDto>>> GetMyCandidaturesPaged(
         [FromQuery] int offset = 0,
         [FromQuery] int limit = 10,
         [FromQuery] bool interviewOnly = false,
         CancellationToken cancellationToken = default)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var page = await _candidatureService.GetByUserIdPagedAsync(
-            localUser.Id,
-            offset,
-            limit,
-            interviewOnly,
-            cancellationToken);
-
-        return Ok(page);
+        var userId = await RequireUserIdAsync();
+        return Ok(await candidatureService.GetByUserIdPagedAsync(userId, offset, limit, interviewOnly, cancellationToken));
     }
 
     // ── GET /api/candidatures/{id} — Get by ID with ownership check ──────────────
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<CandidatureDto>> GetById(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<CandidatureDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var result = await _candidatureService.GetByIdAsync(id, cancellationToken);
-
-        if (result is null)
-            return ApiResult.NotFound("Candidature introuvable.");
-
-        if (result.IdUtilisateur != localUser.Id)
-            return ApiResult.Forbidden("Accès refusé à cette candidature.");
-
-        return Ok(result);
+        var userId = await RequireUserIdAsync();
+        return Ok(await candidatureService.GetOwnedAsync(userId, id, cancellationToken));
     }
 
     // ── PATCH /api/candidatures/{id}/statut — Change status ─────────────────────
@@ -110,19 +66,9 @@ public class CandidatureController : ControllerBase
         [FromBody] UpdateStatutDto dto,
         CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
-        if (existing.IdUtilisateur != localUser.Id)
-            return ApiResult.Forbidden("Accès refusé à cette candidature.");
-
-        var result = await _candidatureService.UpdateStatutAsync(id, dto, cancellationToken);
-        if (result is null) return ApiResult.NotFound("Candidature introuvable.");
-
-        return Ok(result);
+        await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
+        return Ok(await candidatureService.UpdateStatutAsync(id, dto, cancellationToken)
+                  ?? throw new NotFoundException("Candidature introuvable."));
     }
 
     // ── PUT /api/candidatures/{id} — Update candidature fields ──────────────────
@@ -133,39 +79,19 @@ public class CandidatureController : ControllerBase
         [FromBody] UpdateCandidatureDto dto,
         CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
-        if (existing.IdUtilisateur != localUser.Id)
-            return ApiResult.Forbidden("Accès refusé à cette candidature.");
-
-        var result = await _candidatureService.UpdateAsync(id, dto, cancellationToken);
-        if (result is null) return ApiResult.NotFound("Candidature introuvable.");
-
-        return Ok(result);
+        await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
+        return Ok(await candidatureService.UpdateAsync(id, dto, cancellationToken)
+                  ?? throw new NotFoundException("Candidature introuvable."));
     }
 
     // ── DELETE /api/candidatures/{id} — Delete candidature ──────────────────────
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
-        if (existing.IdUtilisateur != localUser.Id)
-            return ApiResult.Forbidden("Accès refusé à cette candidature.");
-
-        var deleted = await _candidatureService.DeleteAsync(id, cancellationToken);
-        if (!deleted) return ApiResult.NotFound("Candidature introuvable.");
+        await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
+        if (!await candidatureService.DeleteAsync(id, cancellationToken))
+            throw new NotFoundException("Candidature introuvable.");
 
         return NoContent();
     }
@@ -178,78 +104,26 @@ public class CandidatureController : ControllerBase
         [FromBody] AddNoteDto dto,
         CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
-        if (existing.IdUtilisateur != localUser.Id)
-            return ApiResult.Forbidden("Accès refusé à cette candidature.");
-
-        var note = await _candidatureService.AddNoteAsync(id, dto, cancellationToken);
-
+        await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
+        var note = await candidatureService.AddNoteAsync(id, dto, cancellationToken);
         return CreatedAtAction(nameof(GetNotes), new { id }, note);
     }
 
     // ── GET /api/candidatures/{id}/notes — List notes ──────────────────────────
 
     [HttpGet("{id:guid}/notes")]
-    public async Task<ActionResult<List<CandidatureNoteDto>>> GetNotes(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<List<CandidatureNoteDto>>> GetNotes(Guid id, CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
-        if (existing.IdUtilisateur != localUser.Id)
-            return ApiResult.Forbidden("Accès refusé à cette candidature.");
-
-        var notes = await _candidatureService.GetNotesAsync(id, cancellationToken);
-        return Ok(notes);
+        await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
+        return Ok(await candidatureService.GetNotesAsync(id, cancellationToken));
     }
 
     // ── GET /api/candidatures/{id}/history — Status change history ──────────────
 
     [HttpGet("{id:guid}/history")]
-    public async Task<ActionResult<List<CandidatureStatusHistoryDto>>> GetHistory(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<List<CandidatureStatusHistoryDto>>> GetHistory(Guid id, CancellationToken cancellationToken)
     {
-        var localUser = await ResolveLocalUserAsync();
-        if (localUser is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
-
-        var existing = await _candidatureService.GetByIdAsync(id, cancellationToken);
-        if (existing is null) return ApiResult.NotFound("Candidature introuvable.");
-        if (existing.IdUtilisateur != localUser.Id)
-            return ApiResult.Forbidden("Accès refusé à cette candidature.");
-
-        var history = await _candidatureService.GetHistoryAsync(id, cancellationToken);
-        return Ok(history);
-    }
-
-    // ── Private helpers ──────────────────────────────────────────────────────────
-
-    private async Task<UserEntity?> ResolveLocalUserAsync()
-    {
-        try
-        {
-            return await _userService.EnsureUserCreatedAsync(User);
-        }
-        catch
-        {
-            var keycloakId = User.FindFirstValue("sub")
-                          ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-                          ?? User.FindFirstValue("uid");
-
-            if (string.IsNullOrWhiteSpace(keycloakId))
-                return null;
-
-            return await _userRepository.GetByKeycloakIdAsync(keycloakId);
-        }
+        await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
+        return Ok(await candidatureService.GetHistoryAsync(id, cancellationToken));
     }
 }

@@ -2,16 +2,15 @@ import { Component, signal, computed, OnInit, inject, PLATFORM_ID } from '@angul
 import { isPlatformBrowser } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, map } from 'rxjs';
-import { ArenaService } from '../../services/arena.service';
-import { AuthService } from '../../../../core/auth/services/auth.service';
-import { SidebarService } from '../../../../shared/services/sidebar.service';
+import { ArenaService } from '../../data-access/arena.service';
+import { AuthService } from '@core/auth/auth.service';
+import { SidebarService } from '@core/layout/sidebar.service';
 import {
   ArenaConfig, DOMAINS, LEVELS, DURATIONS, LANGUAGES,
   FOCUS_BY_DOMAIN, InterviewLevel, SessionSummary, SessionDetail
-} from '../../models/arena.models';
+} from '../../data-access/arena.models';
 
 type View = 'selector' | 'arena';
 type ArenaStep = 'domain' | 'level' | 'duration' | 'language' | 'focus' | 'ready';
@@ -33,7 +32,6 @@ const STEPS: { key: ArenaStep; label: string }[] = [
   styleUrls: ['./mode-selector.component.scss'],
 })
 export class ModeSelectorComponent implements OnInit {
-  private http = inject(HttpClient);
   private router = inject(Router);
   private arenaService = inject(ArenaService);
   private authService = inject(AuthService);

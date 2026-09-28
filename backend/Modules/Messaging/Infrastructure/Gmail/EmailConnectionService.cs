@@ -1,3 +1,4 @@
+using NextStep.Modules.Messaging.Application.Services;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
@@ -5,12 +6,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
-using NextStep.Modules.Email.DTOs;
-using NextStep.Modules.Email.Models;
-using NextStep.Modules.Email.Repositories;
+using NextStep.Modules.Messaging.Application.Dtos;
+using NextStep.Modules.Messaging.Domain;
+using NextStep.Modules.Messaging.Infrastructure.Repositories;
 using NextStep.Shared.Config;
+using NextStep.Shared.ErrorHandling;
 
-namespace NextStep.Modules.Email.Services;
+namespace NextStep.Modules.Messaging.Infrastructure.Gmail;
 
 /// <summary>
 /// Manages the Gmail OAuth 2.0 connection lifecycle:
@@ -68,11 +70,11 @@ public class EmailConnectionService : IEmailConnectionService
             : dto.RedirectUri.Trim();
 
         if (string.IsNullOrWhiteSpace(clientId))
-            throw new InvalidOperationException("Google Client ID is required.");
+            throw new BadRequestException("Google Client ID is required.");
         if (string.IsNullOrWhiteSpace(clientSecret))
-            throw new InvalidOperationException("Google Client Secret is required.");
+            throw new BadRequestException("Google Client Secret is required.");
         if (redirectUri is not null && !Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
-            throw new InvalidOperationException("Redirect URI must be a valid absolute URL.");
+            throw new BadRequestException("Redirect URI must be a valid absolute URL.");
 
         var credential = new UserOAuthCredential
         {
@@ -144,7 +146,16 @@ public class EmailConnectionService : IEmailConnectionService
         Guid localUserId,
         CancellationToken ct = default)
     {
-        var oauthConfig = await ResolveOAuthConfigAsync(localUserId, ct);
+        ResolvedOAuthConfig oauthConfig;
+        try
+        {
+            oauthConfig = await ResolveOAuthConfigAsync(localUserId, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "EmailConnectionService — failed to build Google login URL for user {UserId}", localUserId);
+            throw new OperationFailedException($"Erreur de configuration : {ex.Message}", ex);
+        }
 
         // 1. Generate cryptographically random raw state token (32 bytes → 43 chars base64url)
         var rawStateBytes = RandomNumberGenerator.GetBytes(32);

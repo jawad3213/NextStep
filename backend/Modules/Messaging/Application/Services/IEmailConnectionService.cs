@@ -1,6 +1,7 @@
-using NextStep.Modules.Email.DTOs;
+using NextStep.Modules.Messaging.Infrastructure.Gmail;
+using NextStep.Modules.Messaging.Application.Dtos;
 
-namespace NextStep.Modules.Email.Services;
+namespace NextStep.Modules.Messaging.Application.Services;
 
 /// <summary>
 /// Service for managing Gmail OAuth connections: login, callback, and status.

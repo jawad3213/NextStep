@@ -1,27 +1,9 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
-import { ProfileService } from '../profile/profile.service';
-import { ToastService } from '../../core/notifications/toast.service';
+import { SkillGapApiService, SkillGapResult } from '../../data-access/skill-gap-api.service';
+import { ToastService } from '@core/notifications/toast.service';
 import { firstValueFrom } from 'rxjs';
-
-interface SkillGapResult {
-  candidateName: string;
-  jobTitle: string;
-  relevanceScore: number;
-  matchedSkills: { name: string; category: string }[];
-  missingSkills: { name: string; category: string; priority: string }[];
-  requiredCerts: string[];
-  certMatch: boolean;
-  experienceYears: number;
-  requiredYears: number;
-  experienceGapYears: number;
-  flag: 'PERFECT' | 'MINOR' | 'CRITICAL';
-  recommendations: { type: string; title: string; description: string; priority: string }[];
-  revisionHints: string[];
-}
 
 @Component({
   selector: 'app-skill-gap',
@@ -173,10 +155,8 @@ interface SkillGapResult {
   `]
 })
 export class SkillGapComponent {
-  private http = inject(HttpClient);
-  private profileService = inject(ProfileService);
+  private skillGapApi = inject(SkillGapApiService);
   private toast = inject(ToastService);
-  private baseUrl = environment.apiBaseUrl;
 
   offerText = signal('');
   loading = signal(false);
@@ -186,16 +166,8 @@ export class SkillGapComponent {
     if (!this.offerText()) return;
     this.loading.set(true);
     this.result.set(null);
-    const profile = this.profileService.profile();
     try {
-      const res = await firstValueFrom(this.http.post<SkillGapResult>(`${this.baseUrl.replace('/api', '')}/offer/match`, {
-        offer_text: this.offerText(),
-        profile: {
-          skills: profile.skills.map(s => ({ name: s.name, category: s.category || 'Technical' })),
-          experience_years: profile.experience.length,
-          certifications: profile.certifications.map(c => c.name)
-        }
-      }));
+      const res = await firstValueFrom(this.skillGapApi.match({ offerText: this.offerText() }));
       this.result.set(res);
       this.toast.success('Analyse des écarts de compétences terminée.');
     } catch {

@@ -4,9 +4,10 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { signal } from '@angular/core';
 
-import { ProfileService } from '../features/profile/profile.service';
-import { AuthService } from '../core/auth/services/auth.service';
-import { Experience, Education, Skill, Project, Certification, PersonalInfo } from '../features/profile/profile.types';
+import { ProfileService } from './profile.service';
+import { normalizeImportedPayload } from './profile-import.normalizer';
+import { AuthService } from '@core/auth/auth.service';
+import { Experience, Education, Skill, Project, Certification, PersonalInfo } from './profile.models';
 
 describe('ProfileFeatureService (State & Signals)', () => {
   let service: ProfileService;
@@ -136,9 +137,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
   });
 
   it('devrait normaliser une reponse d import stringifiee sans dupliquer les langues', () => {
-    const serviceAny = service as any;
-
-    const normalized = serviceAny.normalizeImportedPayload(JSON.stringify({
+    const normalized = normalizeImportedPayload(JSON.stringify({
       personal: {
         prenom: 'Jane',
         nom: 'Doe',

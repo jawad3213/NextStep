@@ -1,7 +1,7 @@
-using NextStep.Modules.Candidature.DTOs;
+using NextStep.Modules.Applications.Application.Dtos;
 using NextStep.Shared.Pagination;
 
-namespace NextStep.Modules.Candidature.Services;
+namespace NextStep.Modules.Applications.Application.Services;
 
 public interface ICandidatureService
 {
@@ -11,6 +11,15 @@ public interface ICandidatureService
         CancellationToken cancellationToken = default);
 
     Task<CandidatureDto?> GetByIdAsync(
+        Guid candidatureId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The user's application; throws <c>NotFoundException</c> when it does not exist and
+    /// <c>ForbiddenException</c> when it belongs to another user.
+    /// </summary>
+    Task<CandidatureDto> GetOwnedAsync(
+        Guid userId,
         Guid candidatureId,
         CancellationToken cancellationToken = default);
 

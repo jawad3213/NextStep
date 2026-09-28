@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NextStep.Modules.Chatbot.Models;
+namespace NextStep.Modules.Coaching.Domain;
 
 [Table("question_entrainement")]
 public class QuestionEntrainement

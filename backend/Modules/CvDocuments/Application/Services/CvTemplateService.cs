@@ -1,8 +1,10 @@
+using NextStep.Modules.CvDocuments.Infrastructure.Rendering;
 using Microsoft.EntityFrameworkCore;
-using NextStep.data;
-using NextStep.Modules.Cv.Models;
+using NextStep.Modules.CvDocuments.Infrastructure.Persistence;
+using NextStep.Modules.CvDocuments.Domain;
+using NextStep.Modules.CvDocuments.Application.Dtos;
 
-namespace NextStep.Modules.Cv.Services;
+namespace NextStep.Modules.CvDocuments.Application.Services;
 
 public interface ICvTemplateService
 {
@@ -17,28 +19,11 @@ public interface ICvTemplateService
     CvTemplateFilterOptions GetFilterOptions();
 }
 
-/// <summary>
-/// Describes all available filter options for the frontend dropdowns.
-/// </summary>
-public class CvTemplateFilterOptions
-{
-    public List<FilterOption> Industries { get; set; } = new();
-    public List<FilterOption> ExperienceLevels { get; set; } = new();
-    public List<FilterOption> Styles { get; set; } = new();
-    public List<FilterOption> Layouts { get; set; } = new();
-}
-
-public class FilterOption
-{
-    public string Value { get; set; } = string.Empty;
-    public string Label { get; set; } = string.Empty;
-}
-
 public class CvTemplateService : ICvTemplateService
 {
-    private readonly AppDbContext _db;
+    private readonly CvDocumentsDbContext _db;
 
-    public CvTemplateService(AppDbContext db)
+    public CvTemplateService(CvDocumentsDbContext db)
     {
         _db = db;
     }

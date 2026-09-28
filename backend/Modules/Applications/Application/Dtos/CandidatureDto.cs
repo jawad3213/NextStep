@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Candidature.DTOs;
+namespace NextStep.Modules.Applications.Application.Dtos;
 
 public class CandidatureDto
 {

@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Offer.DTOs;
+namespace NextStep.Modules.CvDocuments.Application.Dtos;
 
 public class PdfGenerateDto
 {

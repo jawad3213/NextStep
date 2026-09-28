@@ -1,27 +1,29 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
-import { onboardingGuard, alreadyOnboardedGuard }from './core/guards/onboarding.guard';
-import { MainLayoutComponent } from './core/layout/main-layout/main-layout.component';
+import { authGuard } from '@core/guards/auth.guard';
+import { onboardingGuard, alreadyOnboardedGuard } from '@core/guards/onboarding.guard';
+import { MainLayoutComponent } from '@core/layout/main-layout/main-layout.component';
 
-// Features (Shells)
-import { DashboardComponent } from './features/dashboard/dashboard.component';
-import { OnboardingComponent } from './features/onboarding/onboarding.component';
-import { CvBuilderComponent } from './features/cv-builder/cv-builder.component';
-
+/**
+ * Every page is lazy-loaded. Features with several pages own their routes
+ * (offers, applications, chatbot); single-page features are loaded directly.
+ */
 export const routes: Routes = [
+  // ── Public ────────────────────────────────────────────────────────────────
   {
     path: '',
     pathMatch: 'full',
-    loadComponent: () => import('./features/landing/landing.component').then(m => m.LandingComponent),
+    loadComponent: () => import('@features/landing/pages/landing/landing.component').then(m => m.LandingComponent),
   },
   {
     path: 'landing',
-    loadComponent: () => import('./features/landing/landing.component').then(m => m.LandingComponent),
+    loadComponent: () => import('@features/landing/pages/landing/landing.component').then(m => m.LandingComponent),
   },
   {
     path: 'signup',
-    loadComponent: () => import('./features/signup/signup.component').then(m => m.SignupComponent),
+    loadComponent: () => import('@features/signup/pages/signup/signup.component').then(m => m.SignupComponent),
   },
+
+  // ── Authenticated app shell ───────────────────────────────────────────────
   {
     path: '',
     component: MainLayoutComponent,
@@ -29,127 +31,87 @@ export const routes: Routes = [
     children: [
       {
         path: 'onboarding',
-        component: OnboardingComponent,
         canActivate: [alreadyOnboardedGuard],
+        loadComponent: () =>
+          import('@features/onboarding/pages/onboarding/onboarding.component').then(m => m.OnboardingComponent),
       },
       {
         path: 'profile',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/profile/profile.component').then(m => m.UserProfileComponent)
-      },
-      { path: 'dashboard', component: DashboardComponent, canActivate: [onboardingGuard] },
-      {
-        path: 'offers/analyze',
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/offer-pipeline.component').then(m => m.OfferPipelineComponent)
+        loadComponent: () => import('@features/profile/pages/profile/profile.component').then(m => m.UserProfileComponent),
       },
       {
-        path: 'offers/company-analysis',
+        path: 'dashboard',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent)
+        loadComponent: () =>
+          import('@features/dashboard/pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
       },
-      {
-        path: 'offers/:id',
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/offer-detail.component').then(m => m.OfferDetailComponent)
-      },
-      { 
-        path: 'offers', 
-        pathMatch: 'full',
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/offers.component').then(m => m.OffersComponent) 
-      },
-      {
-        path: 'offers/analyze',
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/offer-pipeline.component').then(m => m.OfferPipelineComponent)
-      },
+      // Must stay before "offers" so it is not captured by offers/:id
       {
         path: 'offers/company-analysis',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/company-intel/company-intel.component').then(m => m.CompanyIntelComponent)
+        loadComponent: () =>
+          import('@features/company-intel/pages/company-analysis/company-intel.component').then(m => m.CompanyIntelComponent),
       },
       {
-        path: 'offers/:id',
+        path: 'offers',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/offer-detail.component').then(m => m.OfferDetailComponent)
-      },
-      { 
-        path: 'offers-recent', 
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/offers-recent.component').then(m => m.OffersRecentComponent) 
+        loadChildren: () => import('@features/offers/offers.routes').then(m => m.OFFERS_ROUTES),
       },
       {
-        path: 'offers-recent/:id',
+        path: 'offers-recent',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/sourced-offer-detail.component').then(m => m.SourcedOfferDetailComponent)
-      },
-      { 
-        path: 'cv', 
-        canActivate: [onboardingGuard],
-        component: CvBuilderComponent
-      },
-      { 
-        path: 'letters', 
-        pathMatch: 'full',
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/letters/letters.component').then(m => m.LettersComponent) 
+        loadChildren: () => import('@features/offers/offers.routes').then(m => m.SOURCED_OFFERS_ROUTES),
       },
       {
-        path: 'letters/:candidatureId',
+        path: 'cv',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/candidatures/email-workspace/email-workspace.component').then(m => m.EmailWorkspaceComponent)
-      },
-      { 
-        path: 'applications', 
-        canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/applications/applications.component').then(m => m.ApplicationsComponent) 
+        loadComponent: () =>
+          import('@features/cv-builder/pages/cv-builder/cv-builder.component').then(m => m.CvBuilderComponent),
       },
       {
-        path: 'applications/:candidatureId',
+        path: 'letters',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/candidatures/candidature-detail/candidature-detail.component').then(m => m.CandidatureDetailComponent)
+        loadChildren: () => import('@features/applications/applications.routes').then(m => m.LETTERS_ROUTES),
       },
       {
-        path: 'applications/:candidatureId/email',
-        pathMatch: 'full',
-        redirectTo: '/letters/:candidatureId'
+        path: 'applications',
+        canActivate: [onboardingGuard],
+        loadChildren: () => import('@features/applications/applications.routes').then(m => m.APPLICATIONS_ROUTES),
       },
       {
-        path: 'applications/:candidatureId/emails',
-        pathMatch: 'full',
-        redirectTo: '/letters/:candidatureId'
-      },
-      { 
-        path: 'company-intel', 
+        path: 'company-intel',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/offers/offers-company.component').then(m => m.OffersCompanyComponent) 
+        loadComponent: () =>
+          import('@features/company-intel/pages/company-overview/offers-company.component').then(m => m.OffersCompanyComponent),
       },
-      { 
-        path: 'skill-gap', 
+      {
+        path: 'skill-gap',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/skill-gap/skill-gap.component').then(m => m.SkillGapComponent) 
+        loadComponent: () => import('@features/skill-gap/pages/skill-gap/skill-gap.component').then(m => m.SkillGapComponent),
       },
-      { 
-        path: 'chatbot', 
+      {
+        path: 'chatbot',
         canActivate: [onboardingGuard],
-        loadChildren: () => import('./features/chatbot/chatbot.routes').then(m => m.CHATBOT_ROUTES) 
+        loadChildren: () => import('@features/chatbot/chatbot.routes').then(m => m.CHATBOT_ROUTES),
       },
-      { 
-        path: 'notifications', 
+      {
+        path: 'notifications',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/notifications/notifications.component').then(m => m.NotificationsComponent) 
+        loadComponent: () =>
+          import('@features/notifications/pages/notifications/notifications.component').then(m => m.NotificationsComponent),
       },
-      { 
-        path: 'settings', 
+      {
+        path: 'settings',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) 
+        loadComponent: () => import('@features/settings/pages/settings/settings.component').then(m => m.SettingsComponent),
       },
-      { 
-        path: 'email/settings', 
+      {
+        path: 'email/settings',
         canActivate: [onboardingGuard],
-        loadComponent: () => import('./features/settings/gmail-settings/gmail-settings.component').then(m => m.GmailSettingsComponent) 
+        loadComponent: () =>
+          import('@features/settings/pages/gmail-settings/gmail-settings.component').then(m => m.GmailSettingsComponent),
       },
-    ]
+    ],
   },
 ];

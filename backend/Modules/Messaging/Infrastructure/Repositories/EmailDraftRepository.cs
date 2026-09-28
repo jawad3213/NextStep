@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
-using NextStep.data;
-using NextStep.Modules.Email.Models;
+using NextStep.Modules.Messaging.Infrastructure.Persistence;
+using NextStep.Modules.Messaging.Domain;
 
-namespace NextStep.Modules.Email.Repositories;
+namespace NextStep.Modules.Messaging.Infrastructure.Repositories;
 
 public class EmailDraftRepository : IEmailDraftRepository
 {
-    private readonly AppDbContext _db;
+    private readonly MessagingDbContext _db;
 
-    public EmailDraftRepository(AppDbContext db)
+    public EmailDraftRepository(MessagingDbContext db)
     {
         _db = db;
     }
@@ -46,20 +46,10 @@ public class EmailDraftRepository : IEmailDraftRepository
         CancellationToken cancellationToken = default)
     {
         return await _db.EmailDrafts
-            .Include(d => d.Candidature)               // tracked — job will update candidature
             .Where(d =>
                 d.IsSent &&
                 d.ProviderThreadId != null &&
-                d.SentAtUtc != null &&
-                d.Candidature != null &&
-                (
-                    !d.Candidature.HasResponse ||
-                    (
-                        d.Candidature.HasResponse &&
-                        d.Candidature.ResponseStatus == "REPONSE_RECUE" &&
-                        (d.Candidature.ResponseConfidence == null || d.Candidature.ResponseConfidence <= 0.01)
-                    )
-                ))
+                d.SentAtUtc != null)
             .ToListAsync(cancellationToken);
     }
 

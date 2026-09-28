@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 
-namespace NextStep.SignalR;
+namespace NextStep.Shared.Realtime;
 
 [Authorize]
 public class PipelineHub : Hub

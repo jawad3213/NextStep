@@ -2,8 +2,9 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { CandidatureService, CandidatureDto, CandidatureNoteDto, CandidatureStatusHistoryDto } from '../../../services/candidature.service';
-import { OfferService } from '../../../services/offer.service';
+import { CandidatureDto, CandidatureNoteDto, CandidatureStatusHistoryDto } from '../../data-access/candidature.models';
+import { CandidatureService } from '../../data-access/candidature.service';
+import { OfferApiService } from '@features/offers/data-access/offer-api.service';
 
 @Component({
   selector: 'app-candidature-detail',
@@ -16,7 +17,7 @@ export class CandidatureDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly candidatureService = inject(CandidatureService);
-  private readonly offerService = inject(OfferService);
+  private readonly offerApi = inject(OfferApiService);
 
   candidature = signal<CandidatureDto | null>(null);
   offer = signal<any>(null);
@@ -61,7 +62,7 @@ export class CandidatureDetailComponent implements OnInit {
       next: (c) => {
         this.candidature.set(c);
         if (c.idOffre) {
-          this.offerService.getOfferById(c.idOffre).subscribe({
+          this.offerApi.getAnalysis(c.idOffre).subscribe({
             next: (o) => this.offer.set(o),
             error: () => this.offer.set(null),
           });

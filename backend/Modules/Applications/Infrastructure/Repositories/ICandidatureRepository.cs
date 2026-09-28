@@ -1,7 +1,7 @@
-using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
-using NextStep.Modules.Candidature.Models;
+using CandidatureEntity = NextStep.Modules.Applications.Domain.Candidature;
+using NextStep.Modules.Applications.Domain;
 
-namespace NextStep.Modules.Candidature.Repositories;
+namespace NextStep.Modules.Applications.Infrastructure.Repositories;
 
 public interface ICandidatureRepository
 {

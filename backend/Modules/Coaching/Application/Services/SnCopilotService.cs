@@ -1,8 +1,10 @@
+using NextStep.Modules.Coaching.Infrastructure.Agents;
 using Microsoft.Extensions.Logging;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
+using NextStep.Shared.ErrorHandling;
 
-namespace NextStep.Modules.Chatbot.Services;
+namespace NextStep.Modules.Coaching.Application.Services;
 
 public class SnCopilotService : ISnCopilotService
 {
@@ -21,6 +23,9 @@ public class SnCopilotService : ISnCopilotService
         SnUserChatRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Message))
+            throw new BadRequestException("Le message ne peut pas être vide.");
+
         _logger.LogInformation("SN Copilot chat initiated for user {UserId} ({UserName})", userId, userName);
 
         var agentRequest = new SnChatAgentRequest(
@@ -30,7 +35,15 @@ public class SnCopilotService : ISnCopilotService
             History: request.History
         );
 
-        return await _agentClient.PostSnChatAsync(agentRequest);
+        try
+        {
+            return await _agentClient.PostSnChatAsync(agentRequest);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de l'interaction avec SN Copilot.");
+            throw new OperationFailedException("Erreur de communication avec le copilote SN.", ex);
+        }
     }
 
     public Task<List<SnStarterSuggestionItem>> GetStarterSuggestionsAsync()

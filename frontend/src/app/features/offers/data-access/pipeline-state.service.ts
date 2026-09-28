@@ -1,5 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { GenerationProgress } from './signalr.service';
+import { OfferAnalysisResponse } from './offers.models';
 
 export type PipelineStep = 1 | 2 | 3 | 4 | 5;
 
@@ -211,7 +212,7 @@ export class PipelineStateService {
     this.persistToStorage();
   }
 
-  hydrateFromAnalysis(offerId: string, dto: any): void {
+  hydrateFromAnalysis(offerId: string, dto: OfferAnalysisResponse): void {
     this.currentOfferId.set(offerId);
     this.setResult({
       offerTitle: dto.titre ?? '',

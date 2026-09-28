@@ -1,7 +1,8 @@
-using CandidatureEntity = NextStep.Modules.Candidature.Models.Candidature;
-using NextStep.Modules.Email.Models;
+using NextStep.Modules.Messaging.Infrastructure.Gmail;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Messaging.Domain;
 
-namespace NextStep.Modules.Email.Services;
+namespace NextStep.Modules.Messaging.Application.Services;
 
 /// <summary>
 /// Holds the result of LLM-based recruiter reply classification.
@@ -23,7 +24,8 @@ public interface IResponseClassificationService
     /// ResponseType = "REPONSE_RECUE") on any failure.
     /// </summary>
     Task<ClassificationResult> ClassifyAsync(
-        CandidatureEntity candidature,
+        ApplicationSnapshot application,
+        string?           offerAnalysisJson,
         EmailDraft?       draft,
         ReplyCheckResult  reply,
         CancellationToken ct = default);

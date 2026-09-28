@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 import {
   ProfileStatus,
   SoftOnboardingPayload,
-} from '../core/auth/models/user-profile.model';
-import { environment } from '../../environments/environment';
+} from './user-profile.model';
+import { apiUrl } from '@core/http/api-url';
 
 export interface OnboardingStatus {
   /** The onboarding questions (objective, level, sector) were answered. */
@@ -14,6 +14,12 @@ export interface OnboardingStatus {
   profileCompleted: boolean;
   profileScore: number;
   completionPercent: number;
+}
+
+/** POST /api/identity/soft-onboarding */
+export interface SoftOnboardingResponse {
+  message: string;
+  data: { onboardingCompleted: boolean };
 }
 
 export interface CompleteProfileResult {
@@ -28,7 +34,7 @@ export interface CompleteProfileResult {
 })
 export class OnboardingService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = `${environment.apiBaseUrl}/identity`;
+  private readonly baseUrl = apiUrl('/identity');
 
   constructor() {
     // Legacy browser-only unlock flags: access is now decided by the backend.
@@ -45,8 +51,8 @@ export class OnboardingService {
     return this.http.post<CompleteProfileResult>(`${this.baseUrl}/complete-profile`, {});
   }
 
-  submitSoftOnboarding(data: SoftOnboardingPayload): Observable<any> {
-    return this.http.post(`${this.baseUrl}/soft-onboarding`, data);
+  submitSoftOnboarding(data: SoftOnboardingPayload): Observable<SoftOnboardingResponse> {
+    return this.http.post<SoftOnboardingResponse>(`${this.baseUrl}/soft-onboarding`, data);
   }
 
   getProfileStatus(): Observable<ProfileStatus> {

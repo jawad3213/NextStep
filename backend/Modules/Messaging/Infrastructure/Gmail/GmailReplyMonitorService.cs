@@ -1,3 +1,4 @@
+using NextStep.Modules.Messaging.Application.Services;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -5,11 +6,11 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
-using NextStep.Modules.Email.Models;
-using NextStep.Modules.Email.Repositories;
+using NextStep.Modules.Messaging.Domain;
+using NextStep.Modules.Messaging.Infrastructure.Repositories;
 using NextStep.Shared.Config;
 
-namespace NextStep.Modules.Email.Services;
+namespace NextStep.Modules.Messaging.Infrastructure.Gmail;
 
 /// <summary>
 /// Checks Gmail threads for recruiter replies.

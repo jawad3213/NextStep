@@ -6,9 +6,9 @@
 -- ============================================================
 
 -- Skills
-INSERT INTO public.competence (id_competence, id_utilisateur, nom, niveau, type_competence, is_valid)
+INSERT INTO profile.competence (id_competence, id_utilisateur, nom, niveau, type_competence, is_valid)
 SELECT v.id::uuid, u.id_utilisateur, v.nom, v.niveau, 'TECHNIQUE', TRUE
-FROM public.utilisateur u
+FROM profile.utilisateur u
 CROSS JOIN (VALUES
     ('5eed0002-0000-4000-8000-000000000001', 'Angular',    5),
     ('5eed0002-0000-4000-8000-000000000002', 'TypeScript', 4),
@@ -20,9 +20,9 @@ WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;
 
 -- Experiences
-INSERT INTO public.experience (id_experience, id_utilisateur, entreprise, poste, date_debut, date_fin, missions, ville, type_contrat, is_valid)
+INSERT INTO profile.experience (id_experience, id_utilisateur, entreprise, poste, date_debut, date_fin, missions, ville, type_contrat, is_valid)
 SELECT v.id::uuid, u.id_utilisateur, v.entreprise, v.poste, v.debut::date, v.fin::date, v.missions, v.ville, 'CDI', TRUE
-FROM public.utilisateur u
+FROM profile.utilisateur u
 CROSS JOIN (VALUES
     ('5eed0002-0000-4000-8000-000000000101', 'TechCorp', 'Senior Frontend Developer', '2022-01-01', NULL,
      'Lead developer for modern enterprise SPAs. Architecting high performance applications using Angular and Tailwind CSS.', 'Paris'),
@@ -33,9 +33,9 @@ WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;
 
 -- Education
-INSERT INTO public.formation (id_formation, id_utilisateur, etablissement, diplome, specialisation, annee, annee_fin, ville)
+INSERT INTO profile.formation (id_formation, id_utilisateur, etablissement, diplome, specialisation, annee, annee_fin, ville)
 SELECT '5eed0002-0000-4000-8000-000000000201'::uuid, u.id_utilisateur,
        'Université Claude Bernard Lyon 1', 'Master', 'Génie Logiciel', 2017, 2019, 'Lyon'
-FROM public.utilisateur u
+FROM profile.utilisateur u
 WHERE lower(u.email) = lower(current_setting('nextstep.seed_email'))
 ON CONFLICT DO NOTHING;

@@ -1,9 +1,9 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using NextStep.Modules.Cv.Models;
+using NextStep.Modules.CvDocuments.Domain;
 
-namespace NextStep.Modules.Cv.Templates;
+namespace NextStep.Modules.CvDocuments.Templates;
 
 /// <summary>
 /// Executive CV — four-quadrant salmon/peach/white layout.

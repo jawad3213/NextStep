@@ -1,4 +1,4 @@
-namespace NextStep.Modules.Email.Models;
+namespace NextStep.Modules.Messaging.Domain;
 
 /// <summary>
 /// Stores per-user OAuth client credentials (BYO app) encrypted at rest.

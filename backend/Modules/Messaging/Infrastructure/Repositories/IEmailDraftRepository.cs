@@ -1,6 +1,6 @@
-using NextStep.Modules.Email.Models;
+using NextStep.Modules.Messaging.Domain;
 
-namespace NextStep.Modules.Email.Repositories;
+namespace NextStep.Modules.Messaging.Infrastructure.Repositories;
 
 public interface IEmailDraftRepository
 {
@@ -17,12 +17,12 @@ public interface IEmailDraftRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns tracked EmailDraft entities (with related Candidature loaded) that:
+    /// Returns tracked EmailDraft entities that:
     /// - are sent (IsSent = true)
     /// - have a Gmail thread ID stored
     /// - have a SentAtUtc value
-    /// - belong to a candidature that has not yet received a reply (HasResponse = false)
-    /// Used by the reply-checking background job.
+    /// The reply-checking job then keeps those whose application has no reply yet
+    /// (the application state is owned by the Applications module).
     /// </summary>
     Task<List<EmailDraft>> GetPendingReplyCheckAsync(
         CancellationToken cancellationToken = default);

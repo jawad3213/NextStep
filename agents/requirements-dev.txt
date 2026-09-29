@@ -1,0 +1,5 @@
+# Test dependencies for the agents service.
+# Install with:  pip install -r requirements.txt -r requirements-dev.txt
+# Then run:       python -m pytest tests
+pytest==9.1.1
+pytest-asyncio==1.4.0

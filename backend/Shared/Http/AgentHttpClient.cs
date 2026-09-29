@@ -18,8 +18,11 @@ public class AgentHttpClient : IAgentHttpClient
 
     // Per-call time limits (the HttpClient itself has no global timeout).
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(120);
-    // The full pipeline (analysis, CV optimisation, company intel, email) can take several
-    // minutes; PipelineRunnerService cancels the whole run after 10 minutes.
+    // Full pipeline (analysis, CV optimisation, company intel, email) runs the 6 agents in
+    // sequence and can take several minutes. This call is backend -> Python on the internal
+    // network, never browser -> backend, so it is unaffected by proxy idle timeouts.
+    // PipelineRunnerService still bounds the whole run after 10 minutes and sends
+    // progress over SignalR while waiting.
     private static readonly TimeSpan PipelineTimeout = TimeSpan.FromMinutes(9);
 
     private static readonly JsonSerializerOptions JsonOptions = new()

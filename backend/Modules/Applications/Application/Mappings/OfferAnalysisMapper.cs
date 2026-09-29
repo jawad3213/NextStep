@@ -15,6 +15,8 @@ public static class OfferAnalysisMapper
     {
         var dto = new OfferAnalysisDto { OfferId = offerId, TexteBrut = rawText };
 
+        dto.RunId = root.GetStringOrDefault("analysis_run_id") ?? root.GetStringOrDefault("analysisRunId");
+
         // 1. Try to get data from AI Agent format ("analyzed_offer" property)
         // OR fallback to the root level (Manual Submission format)
         var source = root.TryGetProperty("analyzed_offer", out var ao) ? ao : root;

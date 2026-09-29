@@ -36,7 +36,12 @@ export const appConfig: ApplicationConfig = {
         clientId: 'nextstep-frontend',
       },
       initOptions: {
-        onLoad: 'login-required',
+        // The landing page is public, so Keycloak must not force a login at bootstrap.
+        // 'login-required' sent every visitor to the sign-in page before any route could
+        // render, so the marketing page was unreachable. 'check-sso' restores an existing
+        // session silently and otherwise continues anonymously; routes that need a user are
+        // protected by authGuard, which starts the login flow with the correct redirect.
+        onLoad: 'check-sso',
         checkLoginIframe: false,
         pkceMethod: false,
         silentCheckSsoRedirectUri: globalThis.location.origin + '/silent-check-sso.html',

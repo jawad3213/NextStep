@@ -163,6 +163,7 @@ this.cvApi.getCvHistoryPage(offset, this.historyLimit)
       unresolved.map(async ({ index, offerId }) => {
         try {
           const offer = await firstValueFrom(this.offerApi.getAnalysis(offerId));
+          if (!offer) return;
           enriched[index].targetedOfferTitle = offer.titre;
           enriched[index].targetedOfferCompany = offer.entreprise ?? 'Company not specified';
         } catch {

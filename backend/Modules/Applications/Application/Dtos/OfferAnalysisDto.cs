@@ -46,6 +46,14 @@ public class OfferAnalysisDto
     public DateTime DateAnalyse { get; set; } = DateTime.UtcNow;
     public List<string> Erreurs { get; set; } = [];
 
+    /// <summary>
+    /// Identifies the run that produced the stored analysis. DateAnalyse is the read time,
+    /// so it cannot tell a fresh result from the one already on the offer; this lets a
+    /// client waiting on a background run detect the new result even when the outcome
+    /// is identical to the previous one.
+    /// </summary>
+    public string? RunId { get; set; }
+
     // Agents CV Optimizer + CV Engine
     // This is the canonical generated CV payload used by the editor,
     // live backend PDF preview, final save and download.

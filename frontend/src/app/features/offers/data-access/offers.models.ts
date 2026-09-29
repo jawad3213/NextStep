@@ -51,6 +51,8 @@ export interface KeywordPondere {
 /** GET /api/offers/{id}/analysis — the offer analysis (and the generated CV data once available). */
 export interface OfferAnalysisResponse {
   offerId: string;
+  /** Identifies the run that produced this analysis; null for results stored before it existed. */
+  runId?: string | null;
   titre: string;
   entreprise: string | null;
   typeContrat: string | null;

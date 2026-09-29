@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Applications.Application.Dtos;
 using NextStep.Modules.Applications.Application.Services;
 using NextStep.Modules.Profile.Contracts;
-using NextStep.Shared.ErrorHandling;
 
 namespace NextStep.Modules.Applications.Api;
 
@@ -57,15 +56,31 @@ public class OfferController(
     public Task<ActionResult<DeleteOffersResponseDto>> DeletePost([FromBody] BulkDeleteOffersDto dto, CancellationToken ct) =>
         DeleteOffersAsync(dto, ct);
 
+    /// <summary>
+    /// Starts the three-agent analysis and returns immediately (202 Accepted).
+    /// The analysis is persisted on the offer, so the client polls it until it appears;
+    /// progress is also pushed over SignalR. The analysis can take minutes, longer than the
+    /// idle timeout of any reverse proxy, so keeping the HTTP request open would have the
+    /// connection dropped mid-run.
+    /// </summary>
     [HttpPost("{id:guid}/analyze-sync")]
-    [ProducesResponseType(typeof(OfferAnalysisDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<OfferAnalysisDto>> AnalyzeSync(Guid id, [FromBody] ResumePipelineDto dto, CancellationToken ct)
+    public async Task<IActionResult> AnalyzeSync(Guid id, [FromBody] ResumePipelineDto dto)
     {
         var userId = await GetUserIdAsync();
-        logger.LogInformation("POST /api/offers/{OfferId}/analyze-sync - user={UserId}", id, userId);
-        return Ok(await analysisService.AnalyzeAsync(userId, id, ct));
+        logger.LogInformation("POST /api/offers/{OfferId}/analyze-sync (async) - user={UserId}", id, userId);
+
+        // The run happens in the background, so ownership has to be checked up front:
+        // otherwise an unknown or foreign offer would be acknowledged with 202 and the
+        // caller would only learn about it through a timeout.
+        if (!await offerService.OfferBelongsToUserAsync(userId, id))
+        {
+            return NotFound(new { error = "Offer not found." });
+        }
+
+        analysisService.StartAnalysisInBackground(userId, id);
+        return Accepted(new { offerId = id, status = "analysis_started" });
     }
 
     [HttpPost("{id:guid}/resume")]
@@ -93,9 +108,15 @@ public class OfferController(
     [HttpGet("{id:guid}/analysis")]
     [ProducesResponseType(typeof(OfferAnalysisDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<OfferAnalysisDto>> GetAnalysis(Guid id, CancellationToken ct) =>
-        Ok(await offerService.GetAnalysisAsync(await GetUserIdAsync(), id, ct)
-           ?? throw new NotFoundException("Analysis not found."));
+    public async Task<ActionResult<OfferAnalysisDto>> GetAnalysis(Guid id, CancellationToken ct)
+    {
+        // GetAnalysisAsync throws NotFound when the offer is unknown or belongs to somebody
+        // else, so reaching this point means the caller owns the offer. A null analysis is
+        // then a normal state, not a failure: the agents store their result only when they
+        // are done. Answering 200 with no body lets polling clients wait for the result
+        // instead of treating "not ready yet" as an error.
+        return Ok(await offerService.GetAnalysisAsync(await GetUserIdAsync(), id, ct));
+    }
 
     private async Task<ActionResult<DeleteOffersResponseDto>> DeleteOffersAsync(BulkDeleteOffersDto dto, CancellationToken ct)
     {

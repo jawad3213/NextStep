@@ -233,7 +233,7 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
       timeout(15000)
     ).subscribe({
       next: (analysis) => {
-        this.pipeline.hydrateFromAnalysis(offerId, analysis);
+        if (analysis) this.pipeline.hydrateFromAnalysis(offerId, analysis);
         this.applyRequestedStep(requestedStep);
         this.pipeline.setLoading(false);
         this.pipeline.currentAgentProgress.set(null);

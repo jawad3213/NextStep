@@ -41,6 +41,16 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var app = builder.Build();
 
+// Schema ownership: a web container never migrates. Several replicas booting together would run
+// the same DDL at the same time and deadlock on each other's locks, so migrations belong to a
+// step that runs once, before the rollout. `--migrate` is that step: it applies the schema and
+// seeds reference data, then exits without ever serving a request.
+if (args.Any(a => string.Equals(a, "--migrate", StringComparison.OrdinalIgnoreCase)))
+{
+    await app.InitializeDatabaseAsync();
+    return;
+}
+
 // Configure Middleware Pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -96,7 +106,12 @@ recurringJobManager.AddOrUpdate<DetectFollowUpNeededJob>(
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
 
-// Apply each module's migrations, then seed reference data (skill keywords, CV templates, storage)
-await app.InitializeDatabaseAsync();
+// Local convenience: one command brings up an empty database. Outside development the web task
+// only checks that the schema matches this build and refuses to start if it does not, which is
+// read-only and therefore safe to run on every replica at the same time.
+if (app.Environment.IsDevelopment())
+    await app.InitializeDatabaseAsync();
+else
+    await app.VerifySchemaIsUpToDateAsync();
 
 await app.RunAsync();

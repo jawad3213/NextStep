@@ -106,6 +106,10 @@ frontend/vitest-output.txt
 scratch_*.sql
 reset_candidatures.sql
 
+# --- Sauvegardes de bases locales (jamais versionnees) ---
+backups/
+*.dump
+
 # --- Fichiers de test locaux (Brouillons) ---
 offer.txt
 offer copy.txt

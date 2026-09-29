@@ -8,16 +8,6 @@ namespace NextStep.Modules.CvDocuments.Templates;
 /// </summary>
 public static class CvDocumentFactory
 {
-    public static IDocument Create(string templateId, CvData data)
-        => templateId.ToLowerInvariant() switch
-        {
-            "modern"                                      => new ModernCvDocument(data),
-            "latex" or "tech-latex" or "tech_latex"       => new TechLatexCvDocument(data),
-            _ => throw new ArgumentException($"Unknown CV template: '{templateId}'. Valid: modern, latex.")
-        };
-}   
-
-
-
-
+    public static IDocument Create(string templateId, CvData data) => QuestPdfTemplates.Create(templateId, data);
+}
 

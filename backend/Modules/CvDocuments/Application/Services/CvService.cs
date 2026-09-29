@@ -375,9 +375,22 @@ public class CvService : ICvService
             _logger.LogWarning(ex, "Puppeteer PDF render failed for template {Template}. Falling back to QuestPDF.", templateSlug);
         }
 
-        var document = CvDocumentFactory.Create(templateSlug, data);
-        QuestPDF.Settings.License = LicenseType.Community;
-        return document.GeneratePdf();
+        // The fallback is the last resort, so it must not be able to fail the request on its
+        // own account. Anything wrong here, an unmapped template or a layout fault, is a bug
+        // rather than a user error, and the honest response is a log entry, not a 500 that
+        // hides the render failure that sent us down this path.
+        try
+        {
+            var document = CvDocumentFactory.Create(templateSlug, data);
+            QuestPDF.Settings.License = LicenseType.Community;
+            return document.GeneratePdf();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "QuestPDF fallback failed for template {Template}. No PDF could be produced.", templateSlug);
+            throw new InvalidOperationException(
+                $"PDF rendering failed for template '{templateSlug}'.", ex);
+        }
     }
 
     /// <summary>Response of the agents' /prepare-cv endpoint.</summary>

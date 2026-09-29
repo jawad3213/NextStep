@@ -71,6 +71,11 @@ fi
 set_env PUBLIC_URL "$PUBLIC_URL"
 
 echo "==> [5/7] Build and start the stack (first build takes several minutes)"
+$COMPOSE build backend
+$COMPOSE up -d db keycloak --wait
+# Schema first: the web task only verifies the schema in Production and exits
+# if it does not match this build, so migrations must land before it starts.
+$COMPOSE run --rm --no-deps -T backend --migrate
 $COMPOSE up -d --build --wait
 
 echo "==> [6/7] Register $PUBLIC_URL as a Keycloak login redirect"

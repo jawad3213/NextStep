@@ -1,0 +1,83 @@
+# ============================================================
+# NextStep — DEVELOPMENT overrides (use with docker-compose.yml)
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   (add --build only after changing a Dockerfile, requirements.txt or package.json)
+#
+# - Every service is reachable from your machine (see ports below)
+# - Backend, agents and frontend reload on code changes (source mounted)
+# - Keycloak runs in dev mode
+# ============================================================
+
+services:
+  db:
+    ports:
+      - "127.0.0.1:5433:5432"          # psql -h localhost -p 5433
+
+  keycloak:
+    command: start-dev --db-schema=keycloak_schema --import-realm
+    ports:
+      - "8080:8080"                    # http://localhost:8080
+
+  backend:
+    # SDK image + `dotnet watch`: code changes hot-reload, no image rebuild.
+    # The image is built once (only rebuilt if backend/Dockerfile changes).
+    build:
+      target: dev
+    image: nextstep/backend-dev
+    volumes:
+      - ./backend:/src
+      - /src/bin                       # keep Linux build output out of your
+      - /src/obj                       # Windows folder (anonymous volumes)
+      - backend_storage:/src/storage
+      - nuget_packages:/root/.nuget/packages
+    healthcheck:
+      start_period: 180s               # first `dotnet watch` restores + compiles
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Keycloak__Authority: http://keycloak:8080/realms/Next-Step
+      Keycloak__RequireHttpsMetadata: "false"
+      App__PublicBaseUrl: http://localhost:5000
+      App__FrontendBaseUrl: http://localhost:4200
+      Minio__PublicUrl: http://localhost:9000
+    ports:
+      - "5000:5000"                    # http://localhost:5000/swagger
+
+  agents:
+    # Same image as prod (dependencies baked in); code is mounted for live reload.
+    # After changing requirements.txt, rebuild: add --build to `up`.
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+    volumes:
+      - ./agents:/app
+    ports:
+      - "127.0.0.1:8000:8000"          # http://localhost:8000/docs
+
+  frontend:
+    # Angular dev server instead of the production nginx image.
+    build: !reset null
+    image: node:22-alpine
+    working_dir: /app
+    # npm prints nothing until it finishes: the first run downloads ~500 MB.
+    # Later starts are quick (node_modules and the npm cache are volumes).
+    command: >
+      sh -c "echo '[frontend] npm install (first run can take several minutes, no output until done)...'
+      && npm install --legacy-peer-deps --prefer-offline --no-audit --no-fund
+      && echo '[frontend] starting ng serve on http://localhost:4200 ...'
+      && npx ng serve --host 0.0.0.0 --port 4200 --poll 2000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - npm_cache:/root/.npm
+    ports:
+      - "4200:4200"                    # http://localhost:4200
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"                    # console
+
+volumes:
+  frontend_node_modules:
+  nuget_packages:
+  npm_cache:

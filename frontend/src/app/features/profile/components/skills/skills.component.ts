@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { Skill, Language } from '../../profile.types';
+import { Skill, Language } from '../../data-access/profile.models';
 
 @Component({
   selector: 'app-skills',

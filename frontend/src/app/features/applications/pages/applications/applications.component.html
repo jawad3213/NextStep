@@ -1,0 +1,652 @@
+<div class="min-h-0 flex-1 overflow-y-auto">
+  <div class="p-3 md:p-4 lg:p-5 pt-1 md:pt-2 lg:pt-3">
+
+    <!-- KPI Cards -->
+    <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Total</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().total }}</h3>
+          <span class="material-symbols-outlined text-lg text-brand-500 opacity-40">work</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Sent</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().envoyees }}</h3>
+          <span class="material-symbols-outlined text-lg text-brand-500 opacity-40">send</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Pending</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().enAttente }}</h3>
+          <span class="material-symbols-outlined text-lg text-amber-500 opacity-40">schedule</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Accepted</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().acceptees }}</h3>
+          <span class="material-symbols-outlined text-lg text-green-600 opacity-40">verified</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Responses</p>
+        <div class="flex items-center justify-between">
+          <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().avecReponse }}</h3>
+          <span class="material-symbols-outlined text-lg text-purple-500 opacity-40">forum</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base text-gray-400">search</span>
+          <input type="text" class="h-9 w-56 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-xs font-medium text-gray-900 placeholder-gray-400 outline-none transition-all focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10"
+            placeholder="Search company or role..."
+            [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+        </div>
+        <div class="flex overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+          <button class="flex items-center gap-1 rounded-md px-3 py-1.5 text-[11px] font-bold transition-all"
+            [class]="viewMode() === 'kanban' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            (click)="setView('kanban')">
+            <span class="material-symbols-outlined text-sm">view_kanban</span> Kanban
+          </button>
+          <button class="flex items-center gap-1 rounded-md px-3 py-1.5 text-[11px] font-bold transition-all"
+            [class]="viewMode() === 'liste' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            (click)="setView('liste')">
+            <span class="material-symbols-outlined text-sm">format_list_bulleted</span> List
+          </button>
+        </div>
+      </div>
+      <button (click)="openNewApplicationModal()"
+        class="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600">
+        <span class="material-symbols-outlined text-sm">add</span> New application
+      </button>
+      <button (click)="exportCsv()"
+        class="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-all hover:border-brand-300 hover:text-brand-600">
+        <span class="material-symbols-outlined text-sm">download</span> Export CSV
+      </button>
+    </div>
+
+    <!-- Filter Pills -->
+    <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <button class="flex-shrink-0 rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all"
+        [class]="filterStatut() === 'All' ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-500 hover:border-brand-300 hover:text-brand-500'"
+        (click)="setFilter('All')">All</button>
+      @for (col of columns; track col.key) {
+        <button class="flex-shrink-0 rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all"
+          [class]="filterStatut() === col.key ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-500 hover:border-brand-300 hover:text-brand-500'"
+          (click)="setFilter(col.key)">{{ col.label }}</button>
+      }
+    </div>
+
+    <!-- Loading state -->
+    @if (loading()) {
+      <div class="flex items-center justify-center py-16">
+        <div class="flex flex-col items-center gap-3">
+          <div class="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500"></div>
+          <p class="text-xs font-medium text-gray-400">Loading...</p>
+        </div>
+      </div>
+    }
+
+    @if (error()) {
+      <div class="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+        <span class="material-symbols-outlined text-base">error</span>
+        {{ error() }}
+      </div>
+    }
+
+    <!-- Kanban Board -->
+    @if (!loading() && viewMode() === 'kanban') {
+      <div class="mb-6 flex gap-4 overflow-x-auto pb-4">
+        @for (col of columns; track col.key) {
+          <div class="flex min-w-[272px] max-w-[272px] flex-col gap-3">
+            <div class="flex items-center justify-between px-1">
+              <h5 class="text-[10px] font-black uppercase tracking-widest" [style.color]="col.color">{{ col.label }}</h5>
+              <span class="flex items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-500">{{ getColumnCards(col.key).length }}</span>
+            </div>
+            <div class="flex min-h-[100px] flex-col gap-3 rounded-lg p-1 transition-colors"
+              [ngClass]="{'bg-brand-50': dragOverCol() === col.key}"
+              (dragover)="onDragOver($event, col.key)"
+              (dragleave)="onDragLeave()"
+              (drop)="onDrop($event, col.key)">
+              @for (card of getColumnCards(col.key); track card.id) {
+                <div class="group cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
+                  [class]="col.key === 'entretien' ? 'border-2 border-brand-500 shadow-sm ring-4 ring-brand-500/10' : 'border-gray-200'"
+                  draggable="true"
+                  (dragstart)="onDragStart(card)"
+                  (click)="openDetails(card.id)">
+
+                  <!-- Card header: channel chip + contract type badge + status menu -->
+                  <div class="mb-2.5 flex items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <!-- Channel chip with icon and readable label -->
+                      <span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs"
+                        [style.background]="getChannelColor(card.channel)">
+                        <span class="material-symbols-outlined text-[11px] leading-none">{{ getChannelIcon(card.channel) }}</span>
+                        <span>{{ getChannelLabel(card.channel) }}</span>
+                      </span>
+
+                      <!-- Dynamic contract type badge -->
+                      <span [class]="'rounded-md px-2 py-0.5 text-[10px] font-bold ' + getTypeBadgeClass(card.type)">
+                        {{ card.type }}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-1 relative">
+                      @if (card.hasResponse) {
+                        <span class="flex items-center gap-0.5 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 border border-purple-200/80">
+                          <span class="material-symbols-outlined text-[10px]">mark_email_read</span>
+                          Reply
+                        </span>
+                      }
+                      @if (!card.hasResponse && card.followUpNeeded) {
+                        <span class="flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200/80">
+                          <span class="material-symbols-outlined text-[10px]">notification_important</span>
+                          Follow-up
+                        </span>
+                      }
+                      <!-- Quick status change button -->
+                      <button class="flex h-5 w-5 items-center justify-center rounded text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-600"
+                        (click)="toggleStatusMenu(card.id, $event)" title="Change status">
+                        <span class="material-symbols-outlined text-[11px]">more_vert</span>
+                      </button>
+                      @if (activeStatusMenu() === card.id) {
+                        <div class="absolute right-0 top-full z-50 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg" (click)="$event.stopPropagation()">
+                          @for (cCol of columns; track cCol.key) {
+                            <button class="flex w-full items-center gap-2 px-2.5 py-1.5 text-[10px] font-medium transition-colors hover:bg-gray-50"
+                              [class]="card.statut === cCol.key ? 'bg-brand-50 text-brand-600 font-bold' : 'text-gray-600'"
+                              (click)="quickChangeStatut(card, cCol.key, $event)">
+                              <span class="h-2 w-2 rounded-full" [style.background]="cCol.color"></span>
+                              {{ cCol.label }}
+                            </button>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Company & role -->
+                  <h4 class="mb-0.5 text-sm font-bold text-gray-900 leading-snug group-hover:text-brand-600 transition-colors">{{ card.entreprise }}</h4>
+                  <p class="mb-2.5 text-[11px] font-medium text-gray-500 leading-normal">{{ card.role }}</p>
+
+                  <!-- Application date & elapsed duration -->
+                  <div class="mb-2.5 flex items-center justify-between rounded-lg bg-gray-50/90 px-2.5 py-1.5 border border-gray-100 text-gray-600">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      <span class="material-symbols-outlined text-[13px] text-gray-400 shrink-0">calendar_today</span>
+                      <span class="truncate text-[10px] font-medium text-gray-700">Applied on {{ formatDateShort(card.applicationDate) }}</span>
+                    </div>
+                    <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-gray-600 border border-gray-200 shadow-2xs">
+                      {{ formatRelativeDate(card.applicationDate) }}
+                    </span>
+                  </div>
+
+                  <!-- Proactive follow-up recommendation alert -->
+                  @if (isFollowUpSuggested(card)) {
+                    <div class="mb-2.5 flex items-center justify-between rounded-lg bg-amber-50/90 border border-amber-200/90 px-2.5 py-1.5 text-amber-900">
+                      <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[13px] text-amber-600 shrink-0">alarm</span>
+                        <span class="text-[9px] font-bold">Follow-up suggested ({{ getDaysSince(card.applicationDate) }}d without reply)</span>
+                      </div>
+                    </div>
+                  }
+
+                  <!-- AI response summary -->
+                  @if (card.hasResponse && card.responseSummary) {
+                    <p class="mb-2 line-clamp-2 rounded-lg bg-purple-50 px-2.5 py-1.5 text-[10px] font-medium text-purple-700 border border-purple-100">
+                      <span class="font-bold">AI:</span> {{ card.responseSummary }}
+                    </p>
+                  }
+
+                  <!-- Recommended action chip -->
+                  @if (card.hasResponse && card.recommendedAction) {
+                    <p class="mb-2 flex items-center gap-1 text-[10px] font-semibold text-brand-600">
+                      <span class="material-symbols-outlined text-[11px]">lightbulb</span>
+                      {{ card.recommendedAction }}
+                    </p>
+                  }
+
+                  <!-- Action buttons row -->
+                  <div class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+                    @if (card.hasResponse) {
+                      <button
+                        class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-[10px] font-bold text-white transition-all hover:bg-purple-700 shadow-2xs"
+                        (click)="openEmailWorkspace(card.id); $event.stopPropagation()">
+                        <span class="material-symbols-outlined text-xs">reply</span>
+                        Reply
+                      </button>
+                      @if (card.responseStatus === 'ENTRETIEN_PROPOSE') {
+                        <button
+                          class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-[10px] font-bold text-white transition-all hover:bg-brand-600 shadow-2xs"
+                          (click)="prepareForInterview(card); $event.stopPropagation()">
+                          <span class="material-symbols-outlined text-xs">smart_toy</span>
+                          Interview prep
+                        </button>
+                      }
+                    } @else {
+                      <button
+                        class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[10px] font-bold text-gray-700 transition-all hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/20"
+                        (click)="openEmailWorkspace(card.id); $event.stopPropagation()">
+                        <span class="material-symbols-outlined text-xs text-brand-500">mail</span>
+                        Email
+                      </button>
+                      <button
+                        class="flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[10px] font-bold text-gray-600 transition-all hover:border-gray-300 hover:bg-gray-50"
+                        (click)="openDetails(card.id); $event.stopPropagation()" title="View details">
+                        <span class="material-symbols-outlined text-xs">visibility</span>
+                      </button>
+                    }
+                    <button
+                      class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 transition-all hover:bg-red-50 hover:text-red-500"
+                      (click)="deleteCandidature(card); $event.stopPropagation()"
+                      title="Delete">
+                      <span class="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
+
+                </div>
+              }
+              @if (getColumnCards(col.key).length === 0) {
+                <div class="py-6 text-center">
+                  <p class="text-[11px] font-medium text-gray-400">No applications</p>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- List View -->
+    @if (!loading() && viewMode() === 'liste') {
+      <div class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <table class="w-full text-left">
+          <thead class="border-b border-gray-100 bg-gray-50">
+            <tr>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Company</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Role & Contract</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Channel</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Status</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Applied on</th>
+              <th class="px-5 py-2.5 text-right text-[9px] font-bold uppercase tracking-wider text-gray-400">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            @for (card of filteredCards(); track card.id) {
+              <tr class="cursor-pointer transition-colors hover:bg-gray-50/50" (click)="openDetails(card.id)">
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center gap-2.5">
+                    <div class="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-bold text-white shadow-2xs" [style.background]="getCompanyColor(card.entreprise)">
+                      {{ getInitials(card.entreprise) }}
+                    </div>
+                    <span class="text-sm font-bold text-gray-900">{{ card.entreprise }}</span>
+                  </div>
+                </td>
+                <td class="px-5 py-3.5">
+                  <div class="flex flex-col gap-1">
+                    <span class="text-xs font-medium text-gray-800">{{ card.role }}</span>
+                    <span [class]="'inline-flex w-fit rounded px-1.5 py-0.2 text-[9px] font-bold ' + getTypeBadgeClass(card.type)">
+                      {{ card.type }}
+                    </span>
+                  </div>
+                </td>
+                <td class="px-5 py-3.5">
+                  <span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs"
+                    [style.background]="getChannelColor(card.channel)">
+                    <span class="material-symbols-outlined text-[11px] leading-none">{{ getChannelIcon(card.channel) }}</span>
+                    <span>{{ getChannelLabel(card.channel) }}</span>
+                  </span>
+                </td>
+                <td class="px-5 py-3.5">
+                  <span class="inline-block rounded-full px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase"
+                    [class]="card.statut === 'accepte' ? 'bg-green-50 text-green-700' : card.statut === 'refuse' ? 'bg-red-50 text-red-600' : card.statut === 'entretien' ? 'bg-purple-50 text-purple-600' : 'bg-gray-100 text-gray-600'">
+                    {{ card.statut }}
+                  </span>
+                </td>
+                <td class="px-5 py-3.5">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="font-mono text-xs text-gray-700 font-medium">{{ formatDateShort(card.applicationDate) }}</span>
+                    <span class="text-[10px] font-bold text-gray-400">{{ formatRelativeDate(card.applicationDate) }}</span>
+                  </div>
+                </td>
+                <td class="px-5 py-3.5 text-right">
+                  <div class="flex items-center justify-end gap-1" (click)="$event.stopPropagation()">
+                    <button class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500"
+                      (click)="openEmailWorkspace(card.id)" title="Email">
+                      <span class="material-symbols-outlined text-sm">mail</span>
+                    </button>
+                    <button class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                      (click)="openDetails(card.id)" title="Details">
+                      <span class="material-symbols-outlined text-sm">visibility</span>
+                    </button>
+                    <button class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                      (click)="deleteCandidature(card)" title="Delete">
+                      <span class="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (filteredCards().length === 0) {
+              <tr>
+                <td colspan="6" class="px-5 py-8 text-center text-sm font-medium text-gray-400">No applications found</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (!loading() && hasMore()) {
+      <div class="mb-6 flex justify-center">
+        <button
+          class="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-xs font-bold text-brand-600 transition-all hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+          (click)="loadMore()"
+          [disabled]="loadingMore()">
+          @if (loadingMore()) { Loading... } @else { Load more }
+        </button>
+      </div>
+    }
+
+    <!-- New Form Modal -->
+    @if (showNewForm()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" (click)="closeNewApplicationModal()">
+        <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+          <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <h3 class="text-lg font-bold text-gray-900">New application</h3>
+            <button (click)="closeNewApplicationModal()" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+          </div>
+          <div class="flex flex-col gap-4 p-6">
+            <!-- Row 1: Company + Role (with smart autocomplete) -->
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Company Field -->
+              <div class="flex flex-col gap-1.5 relative">
+                <div class="flex items-center justify-between">
+                  <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                    <span>Company *</span>
+                    @if (selectedCompanyMeta()?.domain) {
+                      <span class="rounded bg-blue-50 px-1 py-0.2 text-[8px] font-bold text-blue-600 border border-blue-100">
+                        Verified
+                      </span>
+                    }
+                  </label>
+                  @if (isSearchingCompany()) {
+                    <span class="text-[9px] font-medium text-brand-600 flex items-center gap-1">
+                      <span class="h-1.5 w-1.5 animate-ping rounded-full bg-brand-500"></span>
+                      Searching...
+                    </span>
+                  }
+                </div>
+
+                <div class="relative flex items-center">
+                  <!-- Logo or icon on the left -->
+                  <div class="absolute left-2.5 flex h-5 w-5 items-center justify-center shrink-0 pointer-events-none">
+                    @if (selectedCompanyMeta()?.logo) {
+                      <img [src]="selectedCompanyMeta()!.logo" (error)="selectedCompanyMeta()!.logo = undefined"
+                        class="h-4 w-4 rounded object-contain" [alt]="newForm().entreprise" />
+                    } @else if (newForm().entreprise && selectedCompanyMeta()?.domain) {
+                      <span class="flex h-4 w-4 items-center justify-center rounded bg-brand-50 text-[8px] font-black text-brand-600 border border-brand-200">
+                        {{ getCompanyInitials(newForm().entreprise) }}
+                      </span>
+                    } @else {
+                      <span class="material-symbols-outlined text-[15px] text-gray-400">domain</span>
+                    }
+                  </div>
+
+                  <input type="text"
+                    class="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-8 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/10 placeholder:text-gray-400"
+                    placeholder="e.g. Google, Stripe, Microsoft..."
+                    [ngModel]="newForm().entreprise"
+                    (ngModelChange)="onEntrepriseInput($event)"
+                    (keydown)="onCompanyKeydown($event)"
+                    autocomplete="off" />
+
+                  <!-- Search spinner or clear button -->
+                  <div class="absolute right-2.5 flex items-center">
+                    @if (isSearchingCompany()) {
+                      <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"></div>
+                    } @else if (newForm().entreprise) {
+                      <button type="button" (click)="clearCompany()" class="text-gray-300 hover:text-gray-500 transition-colors" title="Clear">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <!-- Dropdown suggestions Company -->
+                @if (companySuggestions().length > 0) {
+                  <div class="absolute left-0 top-full z-40 mt-1.5 w-full rounded-xl border border-gray-200 bg-white shadow-2xl py-1 overflow-hidden divide-y divide-gray-50 max-h-60 overflow-y-auto">
+                    <div class="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between bg-gray-50/70">
+                      <span class="flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[11px] text-brand-500">travel_explore</span>
+                        Company suggestions
+                      </span>
+                      <span class="text-[8px] font-normal text-gray-400">↑↓ navigate · ↵ select</span>
+                    </div>
+                    @for (comp of companySuggestions(); track comp.name; let idx = $index) {
+                      <button type="button"
+                        class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-brand-50/60"
+                        [class.bg-brand-50]="activeCompanyIndex() === idx"
+                        [class.border-l-2]="activeCompanyIndex() === idx"
+                        [class.border-brand-500]="activeCompanyIndex() === idx"
+                        (click)="selectCompany(comp)">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                          <div class="flex h-6 w-6 items-center justify-center rounded border border-gray-100 bg-white p-0.5 shadow-xs shrink-0">
+                            @if (comp.logo) {
+                              <img [src]="comp.logo" (error)="comp.logo = undefined" class="h-full w-full object-contain" [alt]="comp.name" />
+                            } @else {
+                              <span class="text-[9px] font-black text-gray-600">{{ getCompanyInitials(comp.name) }}</span>
+                            }
+                          </div>
+                          <div class="flex flex-col min-w-0">
+                            <span class="truncate text-xs font-bold text-gray-900">{{ comp.name }}</span>
+                            @if (comp.domain) {
+                              <span class="truncate text-[10px] text-gray-400 font-mono">{{ comp.domain }}</span>
+                            }
+                          </div>
+                        </div>
+                        <div class="shrink-0 flex items-center">
+                          @if (comp.alreadyApplied) {
+                            <span class="rounded bg-amber-50 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 border border-amber-200">
+                              Already applied
+                            </span>
+                          } @else if (comp.source === 'clearbit') {
+                            <span class="rounded bg-blue-50 px-1.5 py-0.5 text-[8px] font-bold text-blue-600 border border-blue-100 flex items-center gap-0.5">
+                              <span class="material-symbols-outlined text-[10px]">verified</span>
+                              Verified
+                            </span>
+                          } @else {
+                            <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[8px] font-medium text-gray-500">
+                              Directory
+                            </span>
+                          }
+                        </div>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+
+              <!-- Role Field -->
+              <div class="flex flex-col gap-1.5 relative">
+                <div class="flex items-center justify-between">
+                  <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Role / Job Title *</label>
+                  @if (jobSuggestions().length > 0) {
+                    <span class="text-[9px] font-medium text-gray-400">
+                      {{ jobSuggestions().length }} suggestion{{ jobSuggestions().length > 1 ? 's' : '' }}
+                    </span>
+                  }
+                </div>
+
+                <div class="relative flex items-center">
+                  <!-- Icon on the left -->
+                  <div class="absolute left-2.5 flex h-5 w-5 items-center justify-center shrink-0 pointer-events-none">
+                    <span class="material-symbols-outlined text-[15px] text-gray-400">work</span>
+                  </div>
+
+                  <input type="text"
+                    class="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-8 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/10 placeholder:text-gray-400"
+                    placeholder="e.g. Full Stack Engineer, DevOps..."
+                    [ngModel]="newForm().poste"
+                    (ngModelChange)="onPosteInput($event)"
+                    (keydown)="onJobKeydown($event)"
+                    autocomplete="off" />
+
+                  <!-- Clear button -->
+                  @if (newForm().poste) {
+                    <div class="absolute right-2.5 flex items-center">
+                      <button type="button" (click)="clearPoste()" class="text-gray-300 hover:text-gray-500 transition-colors" title="Clear">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+
+                <!-- Dropdown suggestions Role -->
+                @if (jobSuggestions().length > 0) {
+                  <div class="absolute left-0 top-full z-40 mt-1.5 w-full rounded-xl border border-gray-200 bg-white shadow-2xl py-1 overflow-hidden divide-y divide-gray-50 max-h-60 overflow-y-auto">
+                    <div class="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between bg-gray-50/70">
+                      <span class="flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[11px] text-brand-500">lightbulb</span>
+                        Recommended roles
+                      </span>
+                      <span class="text-[8px] font-normal text-gray-400">↑↓ navigate · ↵ select</span>
+                    </div>
+                    @for (job of jobSuggestions(); track job.title; let idx = $index) {
+                      <button type="button"
+                        class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-brand-50/60"
+                        [class.bg-brand-50]="activeJobIndex() === idx"
+                        [class.border-l-2]="activeJobIndex() === idx"
+                        [class.border-brand-500]="activeJobIndex() === idx"
+                        (click)="selectJob(job)">
+                        <div class="flex items-center gap-2 min-w-0">
+                          <span class="material-symbols-outlined text-xs text-gray-400 shrink-0">badge</span>
+                          <span class="truncate text-xs font-bold text-gray-900">{{ job.title }}</span>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-1">
+                          <span class="rounded px-1.5 py-0.5 text-[8px] font-bold" [ngClass]="getJobCategoryBadgeClass(job.category)">
+                            {{ job.category }}
+                          </span>
+                          @if (job.alreadyApplied) {
+                            <span class="rounded bg-amber-50 px-1 py-0.2 text-[8px] font-bold text-amber-700 border border-amber-200">
+                              Already applied
+                            </span>
+                          }
+                        </div>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Row 2: Type + Channel -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Contract type</label>
+                <select class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                  [ngModel]="newForm().type" (ngModelChange)="updateForm('type', $event)">
+                  <option value="CDI">Full-time (CDI)</option>
+                  <option value="CDD">Fixed-term (CDD)</option>
+                  <option value="Stage">Internship</option>
+                  <option value="Alternance">Apprenticeship</option>
+                  <option value="Freelance">Freelance</option>
+                  <option value="Stage PFA">Mid-term Internship</option>
+                  <option value="Stage PFE">Graduation Internship</option>
+                </select>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Application channel</label>
+                <select class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                  [ngModel]="newForm().channel" (ngModelChange)="updateForm('channel', $event)">
+                  <option value="EMAIL">Email</option>
+                  <option value="LINKEDIN">LinkedIn</option>
+                  <option value="INDEED">Indeed</option>
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="WEBSITE">Careers site</option>
+                  <option value="PHONE">Phone</option>
+                  <option value="AUTRE">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Row 3: Date + Already applied -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Application date</label>
+                <input type="date" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                  [ngModel]="newForm().applicationDate" (ngModelChange)="updateForm('applicationDate', $event)" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Already applied?</label>
+                <div class="flex h-10 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                      [ngModel]="newForm().appliedManually" (ngModelChange)="updateForm('appliedManually', $event)" />
+                    <span class="text-xs font-medium text-gray-700">Yes, already sent</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 4: URL + Contact -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Job offer URL</label>
+                <input type="url" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                  placeholder="https://..."
+                  [ngModel]="newForm().channelUrl" (ngModelChange)="updateForm('channelUrl', $event)" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Recruiter contact</label>
+                <input type="text" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
+                  placeholder="Email or profile"
+                  [ngModel]="newForm().channelContact" (ngModelChange)="updateForm('channelContact', $event)" />
+              </div>
+            </div>
+
+            <!-- Row 5: Notes -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Personal notes</label>
+              <textarea class="h-20 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10 resize-none"
+                placeholder="Additional notes, interviewer names, compensation..."
+                [ngModel]="newForm().notes" (ngModelChange)="updateForm('notes', $event)"></textarea>
+            </div>
+
+            <!-- Row 6: Cover letter -->
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="inclure-lettre" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                [ngModel]="newForm().inclureLettreMotivation" (ngModelChange)="updateForm('inclureLettreMotivation', $event)" />
+              <label for="inclure-lettre" class="text-xs font-medium text-gray-700">Include a cover letter</label>
+            </div>
+
+            <div class="mt-2 flex justify-end gap-3">
+              <button (click)="closeNewApplicationModal()"
+                class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-500 transition-all hover:bg-gray-50">
+                Cancel
+              </button>
+              <button (click)="createCandidature()"
+                [disabled]="!newForm().entreprise || !newForm().poste"
+                class="rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60">
+                Create application
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+  </div>
+</div>
+
+<!-- Click outside to close status menu -->
+@if (activeStatusMenu()) {
+  <div class="fixed inset-0 z-40" (click)="activeStatusMenu.set(null)"></div>
+}

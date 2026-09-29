@@ -18,10 +18,10 @@ async def glassdoor_search(company_name: str) -> dict:
         
         # Lancer les recherches en parallèle
         r1, r2, r3, r4 = await asyncio.gather(
-            smart_search(q1), 
-            smart_search(q2), 
-            smart_search(q3),
-            smart_search(q4)
+            smart_search(q1, must_mention=company_name), 
+            smart_search(q2, must_mention=company_name), 
+            smart_search(q3, must_mention=company_name),
+            smart_search(q4, must_mention=company_name)
         )
         all_results = r1 + r2 + r3 + r4
         

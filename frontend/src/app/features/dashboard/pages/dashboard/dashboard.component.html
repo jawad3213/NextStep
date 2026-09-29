@@ -1,0 +1,273 @@
+<div class="min-h-0 flex-1 overflow-y-auto">
+  <div class="mx-auto max-w-[1400px] p-3 pt-1 md:p-4 md:pt-2 lg:p-5 lg:pt-3">
+
+    <!-- Load errors -->
+    @if (errorMessage()) {
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <span>{{ errorMessage() }}</span>
+        <button (click)="refresh()" class="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100">Retry</button>
+      </div>
+    }
+    @if (failedSections().length) {
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <span>
+          <span class="font-semibold">Some data could not be loaded:</span>
+          {{ failedSections().join(', ') }}
+        </span>
+        <button (click)="refresh()" class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">Retry</button>
+      </div>
+    }
+
+    <!-- Header -->
+    <header class="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div class="min-w-0">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-brand-500">{{ currentDateLabel() }}</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
+          Hello{{ userName() ? ', ' + userName() : '' }}
+        </h1>
+        <p class="mt-1 text-sm text-gray-500">
+          @if (loading()) { Loading your dashboard… } @else { {{ summaryLine() }} }
+        </p>
+      </div>
+      <a routerLink="/offers/analyze" [queryParams]="{ new: 1 }"
+        class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600">
+        <span class="material-symbols-outlined text-lg">add</span>
+        Analyze an offer
+      </a>
+    </header>
+
+    <!-- Shortcuts -->
+    <nav class="mb-6 flex flex-wrap gap-2" aria-label="Shortcuts">
+      @for (shortcut of shortcuts; track shortcut.route) {
+        <a [routerLink]="shortcut.route"
+          class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:border-brand-300 hover:text-brand-600">
+          <span class="material-symbols-outlined text-base text-gray-400">{{ shortcut.icon }}</span>
+          {{ shortcut.label }}
+        </a>
+      }
+    </nav>
+
+    <!-- Key figures -->
+    <section class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Key figures">
+      <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+          <span class="material-symbols-outlined">send</span>
+        </span>
+        <div class="min-w-0">
+          <p class="text-2xl font-bold leading-none text-gray-900">{{ loading() ? '–' : kpis().total }}</p>
+          <p class="mt-1 truncate text-xs font-medium text-gray-500">Applications</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-500">
+          <span class="material-symbols-outlined">schedule</span>
+        </span>
+        <div class="min-w-0">
+          <p class="text-2xl font-bold leading-none text-gray-900">{{ loading() ? '–' : kpis().waiting }}</p>
+          <p class="mt-1 truncate text-xs font-medium text-gray-500">Awaiting response</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600">
+          <span class="material-symbols-outlined">mark_email_read</span>
+        </span>
+        <div class="min-w-0">
+          <p class="text-2xl font-bold leading-none text-gray-900">{{ loading() ? '–' : kpis().responseRate + ' %' }}</p>
+          <p class="mt-1 truncate text-xs font-medium text-gray-500">Response rate</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+          <span class="material-symbols-outlined">event</span>
+        </span>
+        <div class="min-w-0">
+          <p class="text-2xl font-bold leading-none text-gray-900">{{ loading() ? '–' : kpis().interviews }}</p>
+          <p class="mt-1 truncate text-xs font-medium text-gray-500">Interviews</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+      <!-- Main column -->
+      <div class="min-w-0 space-y-6 lg:col-span-8">
+
+        <!-- Recent applications -->
+        <section>
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-gray-900">Recent Applications</h2>
+            <a routerLink="/applications" class="text-xs font-semibold text-brand-500 hover:underline">See all</a>
+          </div>
+          <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            @if (loading()) {
+              @for (i of [1, 2, 3]; track i) {
+                <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0">
+                  <div class="h-9 w-9 animate-pulse rounded-lg bg-gray-100"></div>
+                  <div class="flex-1 space-y-1.5">
+                    <div class="h-3 w-1/3 animate-pulse rounded bg-gray-100"></div>
+                    <div class="h-3 w-1/2 animate-pulse rounded bg-gray-100"></div>
+                  </div>
+                </div>
+              }
+            } @else {
+              @for (app of recentApplications(); track app.id) {
+                <a [routerLink]="['/applications', app.id]"
+                  class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-gray-50">
+                  <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-600">
+                    {{ companyInitials(app.company) }}
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-semibold text-gray-900">{{ app.company }}</p>
+                    <p class="truncate text-xs text-gray-500">{{ app.role }}</p>
+                  </div>
+                  <span class="hidden shrink-0 text-xs text-gray-400 sm:block">{{ formatShortDate(app.sentAt) }}</span>
+                  <span class="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                    [style.color]="app.stage.color" [style.background-color]="app.stage.color + '1A'">
+                    {{ app.stage.label }}
+                  </span>
+                  <span class="material-symbols-outlined hidden shrink-0 text-lg text-gray-300 sm:block">chevron_right</span>
+                </a>
+              } @empty {
+                <div class="flex flex-col items-center gap-3 px-4 py-10 text-center">
+                  <span class="material-symbols-outlined text-3xl text-gray-300">work_outline</span>
+                  <p class="text-sm text-gray-500">You don't have any applications yet.</p>
+                  <a routerLink="/offers/analyze" [queryParams]="{ new: 1 }"
+                    class="rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-600">Analyze an offer</a>
+                </div>
+              }
+            }
+          </div>
+        </section>
+
+        <!-- Sourced offers -->
+        <section>
+          <div class="mb-3 flex items-end justify-between gap-2">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900">Jobs for you</h2>
+              <p class="text-xs text-gray-500">Casablanca · posted in the last 24h</p>
+            </div>
+            <a routerLink="/offers-recent" class="text-xs font-semibold text-brand-500 hover:underline">See all</a>
+          </div>
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+            @if (loading()) {
+              @for (i of [1, 2, 3]; track i) {
+                <div class="h-[132px] animate-pulse rounded-xl border border-gray-200 bg-white"></div>
+              }
+            } @else {
+              @for (offer of sourcedOffers(); track offer.id) {
+                <a [routerLink]="['/offers-recent', offer.id]"
+                  class="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-300 hover:shadow-md">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <span class="truncate text-sm font-bold text-gray-900">{{ offer.company || 'Hidden company' }}</span>
+                    <span class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold capitalize text-gray-600">{{ offer.provider }}</span>
+                  </div>
+                  <p class="mb-3 line-clamp-2 text-xs text-gray-600">{{ offer.title }}</p>
+                  <div class="mt-auto">
+                    <p class="mb-2 flex items-center gap-1 text-[11px] text-gray-500">
+                      <span class="material-symbols-outlined text-sm">location_on</span>
+                      <span class="truncate">{{ offer.location || 'Location not specified' }}</span>
+                    </p>
+                    <div class="flex flex-wrap gap-1">
+                      @for (tag of offer.matchedItTerms.slice(0, 3); track tag) {
+                        <span class="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">{{ tag }}</span>
+                      }
+                    </div>
+                  </div>
+                </a>
+              } @empty {
+                <div class="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-8 text-center md:col-span-3">
+                  <p class="text-sm text-gray-500">No new offers in the last 24h.</p>
+                  <a routerLink="/offers-recent"
+                    class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-brand-300 hover:text-brand-600">Search jobs</a>
+                </div>
+              }
+            }
+          </div>
+        </section>
+      </div>
+
+      <!-- Side column -->
+      <div class="min-w-0 space-y-6 lg:col-span-4">
+
+        <!-- To do -->
+        <section>
+          <h2 class="mb-3 text-lg font-bold text-gray-900">To do</h2>
+          <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            @if (loading()) {
+              <div class="space-y-3 p-4">
+                <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
+                <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
+              </div>
+            } @else {
+              @for (todo of visibleTodos(); track todo.kind + todo.applicationId) {
+                <a [routerLink]="todo.link"
+                  class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-gray-50">
+                  <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" [class]="todoStyle[todo.kind].classes">
+                    <span class="material-symbols-outlined text-lg">{{ todoStyle[todo.kind].icon }}</span>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-semibold text-gray-900">{{ todo.title }}</p>
+                    <p class="truncate text-xs text-gray-500">{{ todo.detail }}</p>
+                  </div>
+                  <span class="material-symbols-outlined shrink-0 text-lg text-gray-300">chevron_right</span>
+                </a>
+              } @empty {
+                <div class="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                  <span class="material-symbols-outlined text-3xl text-green-500">task_alt</span>
+                  <p class="text-sm font-semibold text-gray-800">Nothing to do right now</p>
+                  <p class="text-xs text-gray-500">Follow-ups and interviews will appear here.</p>
+                </div>
+              }
+              @if (hiddenTodoCount()) {
+                <a routerLink="/applications" class="block border-t border-gray-100 px-4 py-2.5 text-center text-xs font-semibold text-brand-500 hover:bg-gray-50">
+                  + {{ hiddenTodoCount() }} more
+                </a>
+              }
+            }
+          </div>
+        </section>
+
+        <!-- Pipeline -->
+        <section>
+          <h2 class="mb-3 text-lg font-bold text-gray-900">Application Pipeline</h2>
+          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            @if (loading()) {
+              <div class="h-2.5 animate-pulse rounded-full bg-gray-100"></div>
+            } @else if (pipeline().total === 0) {
+              <p class="text-center text-sm text-gray-500">Your applications will appear here by stage.</p>
+            } @else {
+              <div class="mb-1 flex items-baseline justify-between">
+                <span class="text-2xl font-bold text-gray-900">{{ pipeline().total }}</span>
+                <span class="text-xs text-gray-500">application{{ pipeline().total > 1 ? 's' : '' }}</span>
+              </div>
+              <div class="mb-4 flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-gray-100">
+                @for (segment of pipeline().segments; track segment.column.key) {
+                  <div class="h-full transition-all" [style.width.%]="segment.pct" [style.background-color]="segment.column.color"
+                    [attr.title]="segment.column.label + ' : ' + segment.count"></div>
+                }
+              </div>
+              <ul class="space-y-2">
+                @for (segment of pipeline().segments; track segment.column.key) {
+                  <li class="flex items-center justify-between text-sm">
+                    <span class="flex items-center gap-2 text-gray-600">
+                      <span class="h-2.5 w-2.5 rounded-sm" [style.background-color]="segment.column.color"></span>
+                      {{ segment.column.label }}
+                    </span>
+                    <span class="font-semibold text-gray-900">{{ segment.count }}</span>
+                  </li>
+                }
+              </ul>
+              <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-sm">
+                <span class="text-gray-500">Replies received</span>
+                <span class="font-semibold text-gray-900">
+                  {{ pipeline().repliesReceived }} / {{ pipeline().sent }}
+                  <span class="font-normal text-gray-500">({{ pipeline().replyRate }} %)</span>
+                </span>
+              </div>
+            }
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>

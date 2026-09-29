@@ -3,12 +3,12 @@
   <div class="flex items-center gap-4 p-5 mb-6 bg-red-50 rounded-2xl border border-red-200">
     <span class="material-symbols-outlined text-red-500 text-lg">error</span>
     <div class="flex-1">
-      <div class="font-bold text-sm text-red-800">Erreur pendant l'analyse</div>
+      <div class="font-bold text-sm text-red-800">Error during analysis</div>
       <div class="text-xs text-red-600 mt-1">{{ error }}</div>
     </div>
     <div class="flex gap-2">
-      <button class="px-4 py-2 text-xs font-bold text-slate-600 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors" (click)="goBack()">Retour</button>
-      <button class="px-4 py-2 text-xs font-bold text-white bg-brand-500 rounded-xl hover:bg-brand-600 transition-colors" (click)="retry()">Réessayer</button>
+      <button class="px-4 py-2 text-xs font-bold text-slate-600 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors" (click)="goBack()">Back</button>
+      <button class="px-4 py-2 text-xs font-bold text-white bg-brand-500 rounded-xl hover:bg-brand-600 transition-colors" (click)="retry()">Retry</button>
     </div>
   </div>
   }
@@ -17,8 +17,8 @@
     @if (companyIntelLoading) {
       <div class="generation-waiting animate-fade-in">
         <div class="generation-waiting-card">
-          <p class="waiting-eyebrow">Pipeline IA active</p>
-          <h3>Intelligence entreprise en cours...</h3>
+          <p class="waiting-eyebrow">Active AI Pipeline</p>
+          <h3>Company Intelligence in progress...</h3>
           <div class="waiting-progress-track">
             <div class="waiting-progress-fill" [style.width.%]="companyIntelProgressPercent"></div>
           </div>
@@ -42,13 +42,13 @@
     } @else {
       <div class="generation-waiting animate-fade-in">
         <div class="generation-waiting-card">
-          <p class="waiting-eyebrow">Pipeline IA active</p>
-          <h3>Analyse de l'offre en cours...</h3>
+          <p class="waiting-eyebrow">Active AI Pipeline</p>
+          <h3>Analyzing job offer...</h3>
           <div class="waiting-progress-track">
             <div class="waiting-progress-fill" [style.width.%]="progress?.progressPercent ?? 5"></div>
           </div>
           <div class="waiting-progress-meta">
-            <span>{{ progress?.label ?? 'Analyse en cours...' }}</span>
+            <span>{{ progress?.label ?? 'Analysis in progress...' }}</span>
             <strong>{{ progress?.progressPercent ?? 5 }}%</strong>
           </div>
 
@@ -97,7 +97,7 @@
                   <span class="text-slate-300">•</span>
                   <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">
                     <span class="material-symbols-outlined text-[14px]">check_circle</span>
-                    <span class="font-medium">Analysée</span>
+                    <span class="font-medium">Analyzed</span>
                   </div>
                 </div>
               </div>
@@ -108,30 +108,30 @@
           <!-- Column 1: Contract & Experience -->
           <div class="flex flex-col gap-3">
             <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
-              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Type de contrat</p>
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Contract Type</p>
               <p class="font-bold text-sm text-slate-800">{{ contractType }}</p>
             </div>
             <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
-              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Expérience</p>
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Experience</p>
               <p class="font-bold text-sm text-slate-800">{{ experienceLabel }}</p>
             </div>
           </div>
 
           <!-- Column 2: Education (Full Height) -->
           <div class="bg-slate-50 p-5 rounded-xl text-center flex flex-col justify-center min-h-[140px]">
-            <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-3">Études</p>
-            <p class="font-bold text-sm text-slate-800 leading-relaxed">{{ educationLabel || 'Non spécifié' }}</p>
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-3">Education</p>
+            <p class="font-bold text-sm text-slate-800 leading-relaxed">{{ educationLabel || 'Not specified' }}</p>
           </div>
 
           <!-- Column 3: Work Mode & Salary -->
           <div class="flex flex-col gap-3">
             <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
-              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Mode de travail</p>
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Work Mode</p>
               <p class="font-bold text-sm text-slate-800">{{ workModeLabel }}</p>
             </div>
             <div class="bg-slate-50 p-4 rounded-xl text-center flex-1 flex flex-col justify-center">
-              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Salaire</p>
-              <p class="font-bold text-sm text-slate-800">{{ salaryLabel || 'Non spécifié' }}</p>
+              <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Salary</p>
+              <p class="font-bold text-sm text-slate-800">{{ salaryLabel || 'Not specified' }}</p>
             </div>
           </div>
         </div>
@@ -170,14 +170,14 @@
           </div>
           <div class="flex flex-col">
             <strong class="text-lg font-extrabold text-slate-900">{{ partialSkillsCount }}</strong>
-            <span class="text-[9px] font-bold text-slate-400 uppercase">Partiel</span>
+            <span class="text-[9px] font-bold text-slate-400 uppercase">Partial</span>
           </div>
         </div>
 
         <div class="flex flex-col gap-3 text-left mb-5">
           <div>
             <div class="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
-              <span>Couverture</span>
+              <span>Coverage</span>
               <span>{{ matchingSkillsCount }}/{{ totalSkillCount }}</span>
             </div>
             <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -186,7 +186,7 @@
           </div>
           <div>
             <div class="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
-              <span>ATS pour les données du profil actuel</span>
+              <span>ATS score for current profile data</span>
               <span>{{ atsScore }}%</span>
             </div>
             <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -203,9 +203,9 @@
       <div class="bg-gradient-to-br from-brand-500/10 to-transparent p-6 rounded-2xl border border-brand-500/20">
         <div class="flex items-center gap-3 mb-4">
           <span class="material-symbols-outlined text-brand-500">auto_awesome</span>
-          <h3 class="font-outfit text-lg font-bold text-slate-900">Analyse Intelligence Artificielle</h3>
+          <h3 class="font-outfit text-lg font-bold text-slate-900">Artificial Intelligence Analysis</h3>
         </div>
-        <h4 class="font-bold text-[10px] text-brand-500 uppercase tracking-wider mb-2">Résumé de l'IA</h4>
+        <h4 class="font-bold text-[10px] text-brand-500 uppercase tracking-wider mb-2">AI Summary</h4>
         <p class="text-slate-700 leading-relaxed italic text-sm">
           {{ analysisSummary }}
         </p>
@@ -218,7 +218,7 @@
       <div class="bg-amber-50/50 p-6 rounded-2xl border border-amber-200/50">
         <div class="flex items-center gap-2 mb-4">
           <span class="material-symbols-outlined text-amber-600 text-lg">star</span>
-          <h4 class="font-bold text-sm text-amber-800">Forces de votre profil</h4>
+          <h4 class="font-bold text-sm text-amber-800">Profile Strengths</h4>
         </div>
         <ul class="m-0 p-0 list-none flex flex-col gap-2">
           @for (strength of profileStrengthsList; track strength) {
@@ -240,7 +240,7 @@
           class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
           <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-brand-500 text-lg">terminal</span>
-            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Compétences Techniques</h4>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Technical Skills</h4>
             <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ technicalSkills.length }}</span>
           </div>
           <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="skillsOpen">expand_more</span>
@@ -265,7 +265,7 @@
                   </div>
                   }
                   @if (matchedTechnicalSkills.length === 0) {
-                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence technique correspondante</p>
+                  <p class="text-xs text-slate-400 italic text-center py-4">No matching technical skills</p>
                   }
                 </div>
               </div>
@@ -274,7 +274,7 @@
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-amber-600 text-base">change_history</span>
-                    <span class="text-sm font-extrabold text-amber-800">Partiel</span>
+                    <span class="text-sm font-extrabold text-amber-800">Partial</span>
                   </div>
                   <span class="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ partialTechnicalSkills.length }}</span>
                 </div>
@@ -285,7 +285,7 @@
                   </div>
                   }
                   @if (partialTechnicalSkills.length === 0) {
-                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence technique partielle</p>
+                  <p class="text-xs text-slate-400 italic text-center py-4">No partial technical skills</p>
                   }
                 </div>
               </div>
@@ -294,7 +294,7 @@
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-red-600 text-base">cancel</span>
-                    <span class="text-sm font-extrabold text-red-800">Manquant</span>
+                    <span class="text-sm font-extrabold text-red-800">Missing</span>
                   </div>
                   <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ missingTechnicalSkills.length }}</span>
                 </div>
@@ -305,7 +305,7 @@
                   </div>
                   }
                   @if (missingTechnicalSkills.length === 0) {
-                  <p class="text-xs text-slate-400 italic text-center py-4">Aucune compétence technique manquante</p>
+                  <p class="text-xs text-slate-400 italic text-center py-4">No missing technical skills</p>
                   }
                 </div>
               </div>
@@ -348,7 +348,7 @@
                     </div>
                     }
                     @if (matchedSoftSkills.length === 0) {
-                    <p class="text-xs text-slate-400 italic text-center py-4">Aucun soft skill correspondant</p>
+                    <p class="text-xs text-slate-400 italic text-center py-4">No matching soft skills</p>
                     }
                   </div>
                 </div>
@@ -357,7 +357,7 @@
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                       <span class="material-symbols-outlined text-amber-600 text-base">change_history</span>
-                      <span class="text-sm font-extrabold text-amber-800">Partiel</span>
+                      <span class="text-sm font-extrabold text-amber-800">Partial</span>
                     </div>
                     <span class="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ partialSoftSkills.length }}</span>
                   </div>
@@ -368,7 +368,7 @@
                     </div>
                     }
                     @if (partialSoftSkills.length === 0) {
-                    <p class="text-xs text-slate-400 italic text-center py-4">Aucun soft skill partiel</p>
+                    <p class="text-xs text-slate-400 italic text-center py-4">No partial soft skills</p>
                     }
                   </div>
                 </div>
@@ -377,7 +377,7 @@
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                       <span class="material-symbols-outlined text-red-600 text-base">cancel</span>
-                      <span class="text-sm font-extrabold text-red-800">Manquant</span>
+                      <span class="text-sm font-extrabold text-red-800">Missing</span>
                     </div>
                     <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ missingSoftSkills.length }}</span>
                   </div>
@@ -388,7 +388,7 @@
                     </div>
                     }
                     @if (missingSoftSkills.length === 0) {
-                    <p class="text-xs text-slate-400 italic text-center py-4">Aucun soft skill manquant</p>
+                    <p class="text-xs text-slate-400 italic text-center py-4">No missing soft skills</p>
                     }
                   </div>
                 </div>
@@ -396,8 +396,8 @@
             } @else {
               <div class="flex flex-col items-center justify-center py-8 text-center bg-emerald-50/30 rounded-2xl border border-emerald-100 border-dashed animate-fade-in">
                 <span class="material-symbols-outlined text-emerald-500 text-4xl mb-3">check_circle</span>
-                <h5 class="text-sm font-bold text-emerald-900 mb-1">Compatibilité Soft Skills confirmée</h5>
-                <p class="text-xs text-emerald-700/70 max-w-[400px]">Votre profil est parfaitement aligné avec les attentes de ce poste ou aucune lacune majeure n'a été détectée dans vos soft skills.</p>
+                <h5 class="text-sm font-bold text-emerald-900 mb-1">Soft Skills Compatibility Confirmed</h5>
+                <p class="text-xs text-emerald-700/70 max-w-[400px]">Your profile is well aligned with this role's expectations or no major soft skill gaps were detected.</p>
               </div>
             }
           </div>
@@ -405,14 +405,14 @@
       </div>
     </div>
 
-        <!-- KEYWORDS (Collapsible) -->
+    <!-- KEYWORDS (Collapsible) -->
     <div class="col-span-12">
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <button (click)="keywordsOpen = !keywordsOpen"
           class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
           <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-brand-500 text-lg">label</span>
-            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Mots-cles semantiques</h4>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Semantic Keywords</h4>
             <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ keywordCloud.length }}</span>
           </div>
           <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="keywordsOpen">expand_more</span>
@@ -424,7 +424,7 @@
               <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div class="rounded-xl border border-emerald-200 bg-white px-3 py-2">
                   <div class="flex items-center justify-between text-xs font-bold text-emerald-700 mb-1">
-                    <span>Presents</span>
+                    <span>Present</span>
                     <span>{{ matchedKeywordCloud.length }}</span>
                   </div>
                   <div class="h-1.5 bg-emerald-100 rounded-full overflow-hidden">
@@ -433,7 +433,7 @@
                 </div>
                 <div class="rounded-xl border border-red-200 bg-white px-3 py-2">
                   <div class="flex items-center justify-between text-xs font-bold text-red-700 mb-1">
-                    <span>Manquants</span>
+                    <span>Missing</span>
                     <span>{{ missingKeywordCloud.length }}</span>
                   </div>
                   <div class="h-1.5 bg-red-100 rounded-full overflow-hidden">
@@ -442,7 +442,7 @@
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-white px-3 py-2">
                   <div class="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
-                    <span>Neutres</span>
+                    <span>Neutral</span>
                     <span>{{ neutralKeywordCloud.length }}</span>
                   </div>
                   <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -456,7 +456,7 @@
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                       <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-                      <span class="text-sm font-extrabold text-emerald-800">Presents</span>
+                      <span class="text-sm font-extrabold text-emerald-800">Present</span>
                     </div>
                     <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{{ matchedKeywordCloud.length }}</span>
                   </div>
@@ -467,7 +467,7 @@
                     </span>
                     }
                     @if (matchedKeywordCloud.length === 0) {
-                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">Aucun mot-cle present</p>
+                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">No keywords present</p>
                     }
                   </div>
                 </div>
@@ -476,7 +476,7 @@
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                       <span class="material-symbols-outlined text-red-600 text-base">cancel</span>
-                      <span class="text-sm font-extrabold text-red-800">Manquants</span>
+                      <span class="text-sm font-extrabold text-red-800">Missing</span>
                     </div>
                     <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ missingKeywordCloud.length }}</span>
                   </div>
@@ -487,7 +487,7 @@
                     </span>
                     }
                     @if (missingKeywordCloud.length === 0) {
-                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">Aucun mot-cle manquant</p>
+                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">No missing keywords</p>
                     }
                   </div>
                 </div>
@@ -496,7 +496,7 @@
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                       <span class="material-symbols-outlined text-slate-500 text-base">sell</span>
-                      <span class="text-sm font-extrabold text-slate-700">Neutres</span>
+                      <span class="text-sm font-extrabold text-slate-700">Neutral</span>
                     </div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">{{ neutralKeywordCloud.length }}</span>
                   </div>
@@ -507,7 +507,7 @@
                     </span>
                     }
                     @if (neutralKeywordCloud.length === 0) {
-                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">Aucun mot-cle neutre</p>
+                    <p class="text-xs text-slate-400 italic text-center py-4 w-full">No neutral keywords</p>
                     }
                   </div>
                 </div>
@@ -517,14 +517,15 @@
         </div>
       </div>
     </div>
-<!-- RECOMMENDATIONS (Collapsible) -->
+
+    <!-- RECOMMENDATIONS (Collapsible) -->
     <div class="col-span-12">
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <button (click)="recommendationsOpen = !recommendationsOpen"
           class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
           <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-brand-500 text-lg">lightbulb</span>
-            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Axes d'optimisation</h4>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Optimization Focus</h4>
             <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ recommendationInsights.length }}</span>
           </div>
           <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="recommendationsOpen">expand_more</span>
@@ -555,7 +556,7 @@
             <div class="flex justify-end mt-6">
               <button (click)="continueToTemplate()" class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group">
                 <span class="material-symbols-outlined text-base group-hover:rotate-12 transition-transform">psychology</span>
-                Faire un plan détaillé
+                Create Detailed Plan
               </button>
             </div>
           </div>
@@ -563,14 +564,14 @@
       </div>
     </div>
 
-    <!-- Section : Intelligence Entreprise & Culture -->
+    <!-- Section : Company Intelligence & Culture -->
     <div class="col-span-12">
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <button (click)="companyInfoOpen = !companyInfoOpen"
           class="w-full flex items-center justify-between px-6 py-4 bg-white cursor-pointer border-none text-left hover:bg-slate-50 transition-colors">
           <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-brand-500 text-lg">search_insights</span>
-            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Intelligence Entreprise</h4>
+            <h4 class="font-outfit font-bold text-base text-slate-900 m-0">Company Intelligence</h4>
           </div>
           <span class="material-symbols-outlined text-slate-400 transition-transform duration-300" [class.rotate-180]="companyInfoOpen">expand_more</span>
         </button>
@@ -578,21 +579,21 @@
         <div class="transition-all duration-300 overflow-hidden"
              [ngClass]="companyInfoOpen ? 'max-h-[9999px]! opacity-100' : 'max-h-0 opacity-0'">
           <div class="px-6 pb-6 border-t border-slate-50 pt-6">
-            @if (headlineCompany !== 'Non spécifié') {
+            @if (headlineCompany !== 'Not specified') {
               <p class="text-slate-600 leading-relaxed text-sm mb-6">
-                Obtenez une vision approfondie de <strong>{{ headlineCompany }}</strong> pour préparer vos entretiens et personnaliser votre discours.
+                Get deep insights on <strong>{{ headlineCompany }}</strong> to prepare for your interviews and tailor your messaging.
               </p>
             } @else {
               <div class="mb-6">
                 <p class="text-slate-600 leading-relaxed text-sm mb-4">
-                  L'entreprise n'est pas spécifiée dans l'offre. Entrez le nom ci-dessous pour lancer l'analyse.
+                  Company is not specified in the job offer. Enter the name below to launch the analysis.
                 </p>
                 <div class="relative max-w-md">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">domain</span>
                   <input 
                     type="text" 
                     [(ngModel)]="customCompanyName"
-                    placeholder="Nom de l'entreprise..."
+                    placeholder="Company name..."
                     class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all bg-slate-50/50"
                   />
                 </div>
@@ -601,23 +602,22 @@
 
             <div class="bg-slate-50/50 rounded-xl p-4 mb-8 border border-slate-100">
               @if (hasCompanyIntelSnapshot) {
-                <h5 class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-3">Analyse entreprise disponible</h5>
+                <h5 class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-3">Company analysis available</h5>
                 <p class="text-xs text-slate-700 leading-relaxed mb-3">{{ companyIntelSummary }}</p>
-
               } @else {
-                <h5 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Résultats de l'analyse :</h5>
+                <h5 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Analysis highlights:</h5>
                 <ul class="space-y-2 m-0 p-0 list-none">
                   <li class="flex items-center gap-2 text-xs text-slate-600">
                     <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
-                    <span><strong>Culture :</strong> Valeurs, ambiance et environnement de travail.</span>
+                    <span><strong>Culture:</strong> Values, atmosphere, and work environment.</span>
                   </li>
                   <li class="flex items-center gap-2 text-xs text-slate-600">
                     <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
-                    <span><strong>Salaires :</strong> Estimations et fourchettes pour ce type de poste.</span>
+                    <span><strong>Compensation:</strong> Estimated ranges and benchmarks for this role.</span>
                   </li>
                   <li class="flex items-center gap-2 text-xs text-slate-600">
                     <span class="material-symbols-outlined text-brand-500 text-base">check_circle</span>
-                    <span><strong>Actualités :</strong> Derniers projets, levées de fonds ou recrutements.</span>
+                    <span><strong>News:</strong> Recent initiatives, fundraising, or key hires.</span>
                   </li>
                 </ul>
               }
@@ -626,15 +626,15 @@
             <div class="flex flex-wrap gap-3 mb-8">
               <span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-medium text-slate-500 flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[14px] text-brand-500">payments</span>
-                Grille de salaires
+                Salary Scale
               </span>
               <span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-medium text-slate-500 flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[14px] text-brand-500">groups</span>
-                Culture d'équipe
+                Team Culture
               </span>
               <span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-medium text-slate-500 flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[14px] text-brand-500">newspaper</span>
-                Actualités récentes
+                Recent News
               </span>
             </div>
 
@@ -655,7 +655,7 @@
                   [disabled]="companyIntelLoading"
                   class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-[11px] font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group disabled:opacity-60 disabled:cursor-not-allowed">
                   <span class="material-symbols-outlined text-base group-hover:rotate-12 transition-transform">travel_explore</span>
-                  {{ companyIntelLoading ? 'Recherche en cours...' : 'Lancer la recherche détaillée' }}
+                  {{ companyIntelLoading ? 'Searching...' : 'Start Detailed Search' }}
                 </button>
               }
             </div>
@@ -667,16 +667,15 @@
     <!-- Final Action Bar -->
     <div class="col-span-12">
       <div class="flex justify-end items-center py-4 px-2">
-        <p class="text-[10px] text-slate-400 uppercase tracking-widest m-0">Analyse terminée • Prêt pour la suite</p>
+        <p class="text-[10px] text-slate-400 uppercase tracking-widest m-0">Analysis complete • Ready for next step</p>
       </div>
       <div class="flex justify-between items-center py-4 px-2">
         <button (click)="goBack()" class="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer bg-white">
-          Retour à l'offre
+          Back to Offer
         </button>
         <div class="flex items-center gap-3">
-        
           <button (click)="continueToTemplate()" class="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-xs font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 border-none cursor-pointer group">
-            Choisir un template
+            Select Template
             <span class="material-symbols-outlined text-base group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
           </button>
         </div>

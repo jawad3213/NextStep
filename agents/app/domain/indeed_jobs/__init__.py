@@ -1,1 +1,0 @@
-"""Indeed jobs scraping domain."""

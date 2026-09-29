@@ -3,7 +3,7 @@
 #
 # FastAPI router for the Email Composer domain.
 #
-# Public routes — IDENTICAL to the old email_engine/router.py:
+# Public routes (called by the backend's Messaging module):
 #   POST /email/generate
 #   POST /email/generate-follow-up
 #   POST /email/classify-response
@@ -31,7 +31,6 @@ from app.domain.email_composer.service import (
 
 logger = logging.getLogger(__name__)
 
-# Prefix and tag preserved from the original email_engine/router.py
 router = APIRouter(prefix="/email", tags=["Email Agent"])
 
 

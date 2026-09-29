@@ -1,13 +1,17 @@
 # ============================================================
-# app/core/database.py — SQLAlchemy async + pgvector
+# app/core/database.py — SQLAlchemy async
 # ============================================================
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from pgvector.sqlalchemy import Vector  # noqa: F401 — enregistre le type Vector
 from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
+
+# PostgreSQL schema owned by the agents. Profiles, applications and coaching sessions belong to
+# backend modules: the agents reach them only through the backend (app.core.backend_client),
+# and the backend saves the interview coach's sessions itself.
+AGENTS_SCHEMA = "agents"
 
 def get_engine():
     # Convertir l'URL postgres:// en postgresql+asyncpg://

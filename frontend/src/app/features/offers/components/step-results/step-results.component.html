@@ -3,7 +3,11 @@
     <div class="icon-circle">5</div>
     <div>
       <h3 class="sb-title">Final review and send</h3>
-      <p class="sb-desc">Votre CV final est sauvegarde. Choisissez le destinataire, ajustez le message, puis envoyez votre candidature depuis l application.</p>
+      @if (resolvedCvHistoryId) {
+        <p class="sb-desc">Votre CV final est sauvegarde. Choisissez le destinataire, ajustez le message, puis envoyez votre candidature depuis l application.</p>
+      } @else if (!isLoadingPreview) {
+        <p class="sb-desc">Votre CV final n'est pas encore sauvegarde : revenez a l'etape precedente et enregistrez le PDF final. L'envoi est bloque tant qu'aucun CV n'est joint.</p>
+      }
     </div>
   </div>
 
@@ -65,14 +69,19 @@
             <span class="attachment-icon">PDF</span>
             <div>
               <strong>{{ attachmentName }}</strong>
-              <span>Will be attached automatically</span>
+              <span>{{ resolvedCvHistoryId ? 'Will be attached automatically' : 'Aucun PDF sauvegarde : envoi bloque' }}</span>
             </div>
           </div>
           <button class="btn-ghost" type="button" [disabled]="isLoadingEmailDraft" (click)="copyEmailBody()">Copy message</button>
         </div>
 
         @if (sendError) {
-          <div class="status-banner error">{{ sendError }}</div>
+          <div class="status-banner error" role="alert">
+            {{ sendError }}
+            @if (sendNeedsGmailReconnect) {
+              <a routerLink="/email/settings" class="font-bold underline ml-1">Open Gmail settings</a>
+            }
+          </div>
         }
 
         @if (sendSuccessMessage) {

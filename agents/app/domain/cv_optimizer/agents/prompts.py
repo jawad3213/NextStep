@@ -20,6 +20,17 @@ REGLES ABSOLUES (TOLERANCE ZERO POUR L'HALLUCINATION) :
 5. UTILISER LE SKILL GAP : Base tes priorites sur missing_skills, partial_skills, keywords_manquants et revision_hints. Ces champs doivent guider l'ordre des sections, les competences mises en avant et les experiences/projets a reecrire le plus fortement.
 
 DIRECTIVES DE QUALITE :
+0. resume_optimise.contenu (le resume en tete du CV) — il parle du CANDIDAT, jamais du poste :
+   - 3 a 4 lignes : 2 ou 3 phrases, 45 a 70 mots.
+   - Ecrit a la premiere personne, sans repeter "je" a chaque phrase (ex. "Eleve ingenieur en ..., je recherche ...").
+   - Phrase 1 : qui est le candidat (formation ou titre actuel, specialite) d'apres le profil.
+   - Phrase 2 : ce qu'il recherche. Si le profil contient "poste_vise", c'est CE poste qu'il recherche :
+     reprends son intitule tel quel (sans le traduire ni le reformuler). Sinon, deduis-le de l'offre
+     (type de contrat : stage PFA, stage PFE, alternance, CDI... et domaine).
+   - Phrase 3 (optionnelle) : 2 ou 3 competences ou realisations du profil les plus utiles pour ce poste.
+   - INTERDIT : decrire les missions du poste, parler du candidat a la 3e personne ("le stagiaire", "le candidat"),
+     s'adresser a lui ("vous"), ou recopier des phrases de l'offre. Ce n'est PAS un resume de l'offre.
+
 1. description_optimisee
    - Ecris 1 a 2 phrases maximum.
    - Le texte doit rester naturel, lisible et professionnel.
@@ -27,11 +38,10 @@ DIRECTIVES DE QUALITE :
    - Explique clairement la valeur, le scope ou l'impact du role/projet.
 
 2. taches_optimisees
-   - Fournis entre 2 et 5 puces par experience ou projet quand la source contient assez de matiere.
+   - Fournis au maximum 5 puces par experience ou projet, jamais plus que ce que la source justifie (une source courte donne peu de puces).
    - Chaque puce doit commencer par un verbe d'action fort comme Built, Implemented, Automated, Reduced, Improved, Designed, Deployed, Developed, Led.
-   - Chaque puce doit idealement montrer un resultat, un impact, une echelle, une amelioration de performance ou un indicateur mesurable.
-   - Si la source ne contient pas de chiffre, tu peux utiliser un placeholder avec moderation, seulement quand c'est vraiment utile.
-   - N'utilise pas un placeholder ou une metrique artificielle dans toutes les puces.
+   - Mets en avant un resultat ou un impact SEULEMENT s'il est dans la source. N'ajoute aucun chiffre, pourcentage ou metrique absent de la source.
+   - N'utilise JAMAIS de placeholder ([X], [X]%, XX%, <x>...) : le CV est envoye tel quel a un recruteur.
    - Ne repete pas exactement les memes mots-cles de l'offre dans chaque puce.
    - Evite les puces generiques comme "Worked on", "Participated in" ou "Responsible for".
 
@@ -57,7 +67,7 @@ Tu dois fournir un JSON valide respectant exactement le modele suivant :
 
 {{
   "resume_optimise": {{
-    "contenu": "Resume cible, court et pertinent pour l'offre"
+    "contenu": "Resume du CANDIDAT a la 1re personne (45-70 mots) : qui il est, le contrat/poste qu'il recherche, ses atouts"
   }},
   "experiences_optimisees": [
     {{
@@ -98,4 +108,17 @@ Tu dois fournir un JSON valide respectant exactement le modele suivant :
 IMPORTANT :
 - Le champ "entreprise" doit toujours etre present dans chaque experience.
 - Si la source ne contient pas d'entreprise exploitable, renvoie une chaine vide "" au lieu de null ou d'un champ absent.
+
+LANGUE DE SORTIE (regle la plus importante, elle prime sur toute habitude par defaut) :
+- Redige tout le texte genere (resume_optimise.contenu, description_optimisee, taches_optimisees) en {output_language}.
+- Les cles JSON du schema restent inchangees (en francais), seul le contenu textuel des valeurs change de langue.
 """
+
+# Human-readable language name the model is told to write in. The instruction above stays
+# in French (LLMs follow it either way) but this is what actually pins the output language,
+# so it works regardless of what language the rest of the prompt happens to be written in.
+_LANGUAGE_NAMES = {"en": "anglais (English)", "fr": "francais (French)"}
+
+
+def output_language_name(language: str | None) -> str:
+    return _LANGUAGE_NAMES.get((language or "en").strip().lower(), _LANGUAGE_NAMES["en"])

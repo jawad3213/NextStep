@@ -1,0 +1,197 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
+using NextStep.Shared.ErrorHandling;
+
+namespace NextStep.Modules.Coaching.Api;
+
+[ApiController]
+[Route("api/arena")]
+[Authorize] // JWT validated by .NET before any Python call
+public class ArenaController : ControllerBase
+{
+    private readonly IArenaService _arenaService;
+
+    public ArenaController(IArenaService arenaService)
+    {
+        _arenaService = arenaService;
+    }
+
+    private string GetUserId()
+    {
+        // Try all standard claims to get the Keycloak ID (sub)
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                     ?? User.FindFirst("sub")?.Value 
+                     ?? User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+
+        return userId ?? "";
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Health
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>GET /api/arena/health</summary>
+    [HttpGet("health")]
+    [AllowAnonymous]
+    public ActionResult<ArenaHealthResponse> HealthCheck()
+        => Ok(new ArenaHealthResponse("ok", "chatbot"));
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tab 1 — Questions
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// POST /api/arena/questions
+    /// Arena : ArenaConfig requis, OfferId null.
+    /// Offer : OfferId requis, ArenaConfig null.
+    /// </summary>
+    [HttpPost("questions")]
+    public async Task<ActionResult<QuestionsResponse>> GenerateQuestions([FromBody] QuestionsRequest request)
+    {
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        var result = await _arenaService.GenerateQuestionsAsync(request);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/arena/chat
+    /// Free-form preparation chat (Questions tab).
+    /// </summary>
+    [HttpPost("chat")]
+    public async Task<ActionResult<FreeChatResponse>> FreeChat([FromBody] FreeChatRequest request)
+    {
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        var result = await _arenaService.FreeChatAsync(request);
+        return Ok(result);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tab 2 — Interview
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// POST /api/arena/session/start
+    /// Creates the session in DB + returns the AI recruiter's opening message.
+    /// </summary>
+    [HttpPost("session/start")]
+    public async Task<ActionResult<StartSessionResponse>> StartSession([FromBody] StartSessionRequest request)
+    {
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        var result = await _arenaService.StartSessionAsync(request);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/arena/session/message
+    /// Sends a message and returns the AI recruiter's response.
+    /// </summary>
+    [HttpPost("session/message")]
+    public async Task<ActionResult<SendMessageResponse>> SendMessage([FromBody] SendMessageRequest request)
+    {
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        return Ok(await _arenaService.SendMessageAsync(request));
+    }
+
+    /// <summary>
+    /// POST /api/arena/session/end
+    /// Ends the interview and returns the full evaluation (score + 5 dimensions).
+    /// </summary>
+    [HttpPost("session/end")]
+    public async Task<ActionResult<EndSessionResponse>> EndSession([FromBody] EndSessionRequest request)
+    {
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        return Ok(await _arenaService.EndSessionAsync(request));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tab 3 — Salary
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// POST /api/arena/salary
+    /// Salary analysis + negotiation script.
+    /// </summary>
+    [HttpPost("salary")]
+    public async Task<ActionResult<SalaryResponse>> GetSalary([FromBody] SalaryRequest request)
+    {
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        var result = await _arenaService.GetSalaryAsync(request);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/arena/salary-coach
+    /// Interactive chat for salary negotiation.
+    /// </summary>
+    [HttpPost("salary-coach")]
+    public async Task<ActionResult<SalaryCoachResponse>> SalaryCoach([FromBody] SalaryCoachRequest request)
+    {
+        request = request with { UserId = GetUserId(), Mode = request.OfferId != null ? "offer" : "arena" };
+        var result = await _arenaService.SalaryCoachAsync(request);
+        return Ok(result);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Historique
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// GET /api/arena/sessions
+    /// Returns the session history of the authenticated user.
+    /// Security: The ID is extracted from the JWT token to prevent impersonation.
+    /// </summary>
+    [HttpGet("sessions")]
+    public async Task<ActionResult<List<SessionSummaryDto>>> GetSessions()
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("User not authenticated.");
+        
+        var result = await _arenaService.GetSessionsAsync(userId);
+        return Ok(result);
+    }
+
+    // GET /api/arena/sessions/{sessionId}
+    [HttpGet("sessions/{sessionId}")]
+    public async Task<ActionResult<SessionDetailDto>> GetSessionDetail([FromRoute] string sessionId)
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("User not authenticated.");
+        if (string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Invalid session identifier.");
+        var result = await _arenaService.GetSessionDetailAsync(sessionId, userId);
+        return Ok(result);
+    }
+
+    // DELETE /api/arena/sessions/{sessionId}
+    // Note: We keep HttpDelete but add HttpPost as a fallback since some servers block DELETE
+    [HttpDelete("sessions/{sessionId}")]
+    [HttpPost("sessions/{sessionId}/delete")]
+    public async Task<IActionResult> DeleteSession([FromRoute] string sessionId)
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Invalid user or session.");
+        
+        var success = await _arenaService.DeleteSessionAsync(sessionId, userId);
+        return success ? Ok() : ApiResult.NotFound("Session not found.");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Offers page
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// GET /api/arena/my-offers
+    /// Returns the analyzed offers of the current user for the Offers page.
+    /// </summary>
+    [HttpGet("my-offers")]
+    public async Task<ActionResult<List<UserOfferSummaryDto>>> GetMyOffers()
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("User not authenticated.");
+
+        var result = await _arenaService.GetUserOffersAsync(userId);
+        return Ok(result);
+    }
+}
+

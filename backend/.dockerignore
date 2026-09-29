@@ -20,7 +20,9 @@ Thumbs.db
 .git/
 
 
-
-
-
-
+# Nested build output, tests and local runtime data
+**/bin/
+**/obj/
+tests/
+storage/
+>>>>>>> chore/repo-cleanup

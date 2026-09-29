@@ -1,14 +1,20 @@
+# syntax=docker/dockerfile:1
+
 # Stage 1: Build the Angular application
 FROM node:22-alpine AS build
 WORKDIR /app
 
 # Copy necessary files for dependency installation
 COPY package.json package-lock.json ./
-RUN npm ci
+# npm packages persist in a BuildKit cache between builds
+RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
 
 # Copy the rest of the application files and build
 COPY . .
-RUN npm run build --configuration=production
+# Angular's persistent build cache survives between builds: unchanged files
+# are not recompiled.
+RUN --mount=type=cache,target=/app/.angular/cache \
+    npm run build -- --configuration=production
 
 # Stage 2: Serve the application using Nginx
 FROM nginx:alpine AS production

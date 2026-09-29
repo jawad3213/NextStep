@@ -2,15 +2,16 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { catchError, filter, map, of, startWith, switchMap } from 'rxjs';
-import { AuthService } from '../../auth/services/auth.service';
-import { ProfileService } from '../../../features/profile/profile.service';
-import { PipelineStateService } from '../../../services/pipeline-state.service';
-import { OnboardingService } from '../../../services/onboarding.service';
-import { AppSidebarComponent } from '../../../shared/layout/app-sidebar/app-sidebar.component';
-import { SidebarService } from '../../../shared/services/sidebar.service';
-import { ThemeService } from '../../../shared/services/theme.service';
-import { OfferStepId } from '../../../features/offers/offers.types';
-import { OffersStepperComponent } from '../../../features/offers/stepper/offers-stepper.component';
+import { AuthService } from '@core/auth/auth.service';
+import { ProfileService } from '@features/profile/data-access/profile.service';
+import { PipelineStateService } from '@features/offers/data-access/pipeline-state.service';
+import { OnboardingService } from '@core/auth/onboarding.service';
+import { AppSidebarComponent } from '../app-sidebar/app-sidebar.component';
+import { SidebarService } from '../sidebar.service';
+import { OfferStepId } from '@features/offers/data-access/offers.models';
+import { OffersStepperComponent } from '@features/offers/components/offers-stepper/offers-stepper.component';
+import { SnDrawerComponent } from '@features/sn-copilot/components/sn-drawer/sn-drawer.component';
+import { SnCopilotService } from '@features/sn-copilot/data-access/sn-copilot.service';
 
 type HeaderState = {
   eyebrow: string;
@@ -20,19 +21,26 @@ type HeaderState = {
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, AppSidebarComponent, OffersStepperComponent],
+  imports: [CommonModule, RouterModule, AppSidebarComponent, OffersStepperComponent, SnDrawerComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss'
 })
 export class MainLayoutComponent {
-  private readonly profileUnlockedKey = 'nextstep_profile_unlocked';
   readonly sidebarService = inject(SidebarService);
+  readonly snService = inject(SnCopilotService);
   readonly router = inject(Router);
   readonly authService = inject(AuthService);
   readonly profileService = inject(ProfileService);
   readonly onboardingService = inject(OnboardingService);
   readonly pipelineState = inject(PipelineStateService);
-  readonly themeService = inject(ThemeService);
+
+  @HostListener('window:keydown', ['$event'])
+  onGlobalKeyDown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.snService.toggleDrawer();
+    }
+  }
   readonly isExpanded$ = this.sidebarService.isExpanded$;
   readonly isMobileOpen$ = this.sidebarService.isMobileOpen$;
   readonly isHovered$ = this.sidebarService.isHovered$;
@@ -60,31 +68,17 @@ export class MainLayoutComponent {
     startWith(null),
     switchMap(() =>
       this.onboardingService.getStatus().pipe(
-        map((status) => {
-          const url = this.router.url;
-          const isOnboardingRoute = url.startsWith('/onboarding');
-          const isProfileRoute = url.startsWith('/profile');
-          const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
-          
-          // Sidebar remains hidden on onboarding page or if the profile hasn't been explicitly unlocked (Finish clicked)
-          if (isOnboardingRoute) return false;
-          const isForcedStepper = isProfileRoute && !profileUnlocked;
-          return !(!status.onboardingCompleted || isForcedStepper);
-        }),
-        catchError(() => {
-          const currentUrl = this.router.url;
-          if (currentUrl.startsWith('/onboarding')) return of(false);
-          const isProfileRoute = currentUrl.startsWith('/profile');
-          const profileUnlocked = localStorage.getItem(this.profileUnlockedKey) === 'true';
-          const isForcedStepper = isProfileRoute && !profileUnlocked;
-          return of(!isForcedStepper);
-        })
+        // The sidebar (links to the whole app) appears only once the backend says the
+        // onboarding questions AND the profile are both completed for this user.
+        map((status) =>
+          !this.router.url.startsWith('/onboarding') && status.onboardingCompleted && status.profileCompleted
+        ),
+        catchError(() => of(false))
       )
     )
   );
   readonly isProfileMenuOpen = signal(false);
   readonly isNotificationsMenuOpen = signal(false);
-  readonly theme = this.themeService.theme;
   readonly profile = this.profileService.profile;
   readonly userFullName = computed(() => {
     const personal = this.profile().personal;
@@ -147,10 +141,6 @@ export class MainLayoutComponent {
     this.sidebarService.toggleMobileOpen();
   }
 
-  toggleTheme(): void {
-    this.themeService.toggleTheme();
-  }
-
   toggleProfileMenu(): void {
     this.isNotificationsMenuOpen.set(false);
     this.isProfileMenuOpen.update(isOpen => !isOpen);
@@ -173,39 +163,6 @@ export class MainLayoutComponent {
     });
   }
 
-  menuSections = [
-    {
-      title: 'Core',
-      items: [
-        { path: '/dashboard', label: 'Dashboard', iconName: 'layout' },
-        { path: '/profile', label: 'My Profile', iconName: 'user' },
-        { path: '/offers', label: 'Jobs', iconName: 'briefcase' },
-      ]
-    },
-    {
-      title: 'Tools',
-      items: [
-        { path: '/cv', label: 'CV Builder', iconName: 'file-text' },
-        { path: '/letters', label: 'Email & Letter', iconName: 'mail' },
-        { path: '/applications', label: 'Applications', iconName: 'kanban' },
-      ]
-    },
-    {
-      title: 'AI Insights',
-      items: [
-        { path: '/company-intel', label: 'Company Intel', iconName: 'search-analytics' },
-        { path: '/chatbot', label: 'AI Chatbot', iconName: 'cpu' },
-      ]
-    },
-    {
-      title: 'System',
-      items: [
-        { path: '/email/settings', label: 'Gmail Settings', iconName: 'send' },
-        { path: '/settings', label: 'Settings', iconName: 'settings' },
-      ]
-    }
-  ];
-
   isActive(path: string): boolean {
     return this.router.url === path || this.router.url.startsWith(path + '/');
   }
@@ -213,6 +170,11 @@ export class MainLayoutComponent {
   goToSettings(): void {
     this.isProfileMenuOpen.set(false);
     this.router.navigate(['/settings']);
+  }
+
+  exportProfile(): void {
+    this.isProfileMenuOpen.set(false);
+    this.profileService.downloadProfileJson();
   }
 
   goToSupport(): void {

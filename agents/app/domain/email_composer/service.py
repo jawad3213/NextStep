@@ -7,11 +7,8 @@
 #   1. Direct mode  — FastAPI /email/generate calls generate_email_with_llm(request)
 #   2. Pipeline mode — email_composer_node calls generate_email_from_pipeline_state(state)
 #
-# The LLM factory (get_email_llm) is kept in email_engine/llm.py and re-imported
-# here so the existing Docker env vars (EMAIL_LLM_PROVIDER, EMAIL_LLM_MODEL) are
-# unchanged.
+# The LLM comes from get_email_llm() (the shared multi-provider wrapper).
 # ============================================================
-import os
 import logging
 import json
 import re
@@ -47,13 +44,8 @@ logger = logging.getLogger(__name__)
 
 
 def _with_structured_output(llm, response_model):
-    provider = os.getenv("EMAIL_LLM_PROVIDER", "").lower().strip()
-    class_name = llm.__class__.__name__.lower()
-    if not provider and "groq" in class_name:
-        provider = "groq"
-    if provider == "groq":
-        return llm.with_structured_output(response_model, method="json_mode")
-    return llm.with_structured_output(response_model)
+    # json_mode on Groq (applied by the shared wrapper to Groq only).
+    return llm.with_structured_output(response_model, method="json_mode")
 
 
 # Key aliases the LLM sometimes returns instead of the correct Pydantic field names
@@ -102,7 +94,7 @@ _VALID_CLASSIFY_TYPES = {
 }
 
 
-def _coerce_email_response(raw, options_language: str = "fr", options_tone: str = "professionnel") -> GenerateEmailResponse:
+def _coerce_email_response(raw, options_language: str = "en", options_tone: str = "professionnel") -> GenerateEmailResponse:
     """
     Safety net: if the LLM returns a dict with wrong field names
     (e.g. 'corps' instead of 'body'), remap them to what Pydantic expects.

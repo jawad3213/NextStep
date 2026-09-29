@@ -1,0 +1,348 @@
+<!-- Backdrop Overlay -->
+@if (snService.isOpen()) {
+  <div class="sn-backdrop" (click)="close()"></div>
+}
+
+<!-- BCG Careers Style Executive Chatbot Widget -->
+<aside 
+  class="sn-drawer"
+  [class.sn-drawer--open]="snService.isOpen()"
+  [class.sn-drawer--expanded]="snService.isExpanded()"
+  aria-label="SN Executive Chatbot"
+>
+  <!-- ── 1. BCG Header ─────────────────────────────────────────────── -->
+  <header class="sn-header">
+    <div class="sn-header-left">
+      <!-- BCG Circular Emblem with Green Ring -->
+      <div class="sn-bcg-logo">
+        <span class="sn-bcg-logo-text">SN</span>
+      </div>
+      <span class="sn-header-name">SN</span>
+    </div>
+
+    <div class="sn-header-actions">
+      <!-- Restart conversation -->
+      <button 
+        type="button" 
+        class="sn-icon-btn" 
+        (click)="clearConversation()" 
+        title="Reset conversation"
+        aria-label="Reset conversation"
+      >
+        <svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67" />
+        </svg>
+      </button>
+
+      <!-- Speaker / Voice Toggle -->
+      <button 
+        type="button" 
+        class="sn-icon-btn hidden sm:flex" 
+        (click)="toggleExpand()" 
+        [title]="snService.isExpanded() ? 'Collapse view' : 'Expand view'"
+        aria-label="Toggle size"
+      >
+        @if (snService.isExpanded()) {
+          <svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 14h6m0 0v6m0-6L3 21M20 10h-6m0 0V4m0 6l7-7" />
+          </svg>
+        } @else {
+          <svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7" />
+          </svg>
+        }
+      </button>
+
+      <!-- Close button -->
+      <button 
+        type="button" 
+        class="sn-icon-btn sn-close-btn" 
+        (click)="close()" 
+        title="Close"
+        aria-label="Close"
+      >
+        <svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── 2. Chat Canvas Scroll Area ─────────────────────────────────── -->
+  <div class="sn-canvas" #chatScrollContainer>
+    <!-- Centered Date Pill -->
+    <div class="sn-date-divider">
+      <span>Today {{ currentTime }}</span>
+    </div>
+
+    <!-- Empty State: Welcome + BCG Suggestion Chips -->
+    @if (snService.messages().length === 0) {
+      <div class="sn-welcome-section">
+        <div class="sn-bubble sn-bubble--sn sn-bubble--welcome">
+          Hello! I am <strong>SN</strong>, your career copilot. I am here to help you track your applications, manage opportunities, and optimize your hiring pipeline.
+        </div>
+
+        <div class="sn-initial-chips">
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Show my recent applications')">
+            Recent applications
+          </button>
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Which applications need follow-up?')">
+            Priority follow-ups
+          </button>
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Analyze my application statistics and response rates')">
+            Performance analytics
+          </button>
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('How should I prepare for an upcoming interview?')">
+            Interview coaching
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Message History Stream -->
+    <div class="sn-stream">
+      @for (msg of snService.messages(); track msg.id) {
+        <!-- User Message -->
+        @if (msg.sender === 'user') {
+          <div class="sn-msg sn-msg--user">
+            <div class="sn-bubble sn-bubble--user">
+              {{ msg.text }}
+            </div>
+            <span class="sn-timestamp">{{ msg.timestamp | date:'HH:mm' }}</span>
+          </div>
+        }
+
+        <!-- SN Assistant Response -->
+        @if (msg.sender === 'sn') {
+          <div class="sn-msg sn-msg--sn">
+            <!-- Non-technical Action Badges -->
+            @if (msg.actions && msg.actions.length > 0) {
+              <div class="sn-actions-trace">
+                @for (action of msg.actions; track action) {
+                  <span class="sn-action-pill">{{ action }}</span>
+                }
+              </div>
+            }
+
+            <!-- Assistant Response Bubble -->
+            <div class="sn-bubble sn-bubble--sn" [innerHTML]="formatMarkdown(msg.text)"></div>
+
+            <!-- BCG Style Candidature Cards -->
+            @if (msg.cards && msg.cards.length > 0) {
+              <div class="sn-bcg-cards-wrapper">
+                <div class="sn-bcg-cards-list">
+                  @for (card of msg.cards.slice(0, isExpandedCards() ? msg.cards.length : 3); track card.id || card.entreprise) {
+                    <div class="sn-bcg-card">
+                      <div class="sn-bcg-card-body">
+                        <h4 class="sn-bcg-card-title">{{ card.role }}</h4>
+                        <div class="sn-bcg-card-sub">
+                          <svg class="sn-bcg-pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </svg>
+                          <span>{{ card.entreprise }}</span>
+                          <span class="sn-bcg-card-dot">•</span>
+                          <span class="sn-bcg-status-text">{{ formatStatut(card.statut) }}</span>
+                        </div>
+                      </div>
+
+                      <div class="sn-bcg-card-footer">
+                        <button type="button" class="sn-bcg-link-btn" (click)="navigateToCard(card)">
+                          View details
+                        </button>
+                        <button type="button" class="sn-bcg-action-btn" (click)="navigateToCard(card)">
+                          Manage
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- "Show more" Pill Button -->
+                @if (msg.cards.length > 3 && !isExpandedCards()) {
+                  <button type="button" class="sn-bcg-view-more" (click)="toggleExpandCards()">
+                    Show more ({{ msg.cards.length - 3 }} more)
+                  </button>
+                }
+              </div>
+            }
+
+            <!-- Dynamic Question Suggestions underneath Response -->
+            @if (msg.suggestions && msg.suggestions.length > 0) {
+              <div class="sn-suggestions-box">
+                <div class="sn-suggestions-chips">
+                  @for (sug of msg.suggestions; track sug) {
+                    <button 
+                      type="button" 
+                      class="sn-pill-btn"
+                      (click)="selectSuggestion(sug)"
+                    >
+                      {{ sug }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- Typing / Reasoning indicator -->
+      @if (snService.loading()) {
+        <div class="sn-msg sn-msg--sn">
+          <div class="sn-bubble sn-bubble--loading">
+            <div class="sn-typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span class="sn-loading-label">SN is analyzing your request...</span>
+          </div>
+        </div>
+      }
+
+      <!-- In-Chat Upload Resume Card (Screenshot 2) -->
+      @if (showUploadCard()) {
+        <div
+          class="sn-upload-card"
+          [class.sn-upload-card--dragover]="isDraggingFile()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onFileDrop($event)"
+        >
+          <div class="sn-upload-icon-circle">
+            <svg class="sn-upload-doc-icon" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="16" x2="12" y2="10" />
+              <polyline points="9 13 12 10 15 13" />
+            </svg>
+          </div>
+
+          <p class="sn-upload-title">Drag & drop file to upload</p>
+
+          <button type="button" class="sn-upload-btn-primary" (click)="cvFileInput.click()">
+            Upload new Resume
+          </button>
+
+          <button type="button" class="sn-upload-btn-cancel" (click)="cancelUploadCard()">
+            Cancel
+          </button>
+
+          <p class="sn-upload-formats">Supported formats:pdf, doc, txt, docx</p>
+        </div>
+      }
+    </div>
+  </div>
+
+
+
+  <!-- ── 4. Pill Command Input Area (Screenshots 1 & 2) ────────────────── -->
+  <footer class="sn-footer">
+    <!-- Context Menu Triggered by 3-Line Green Icon (Screenshot 1) -->
+    @if (isMenuOpen()) {
+      <div class="sn-context-menu" (click)="$event.stopPropagation()">
+        <!-- 1. Ask a question -->
+        <button type="button" class="sn-context-menu-item" (click)="onMenuAskQuestion()">
+          <svg class="sn-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>Ask a question</span>
+        </button>
+
+        <!-- 2. Guided Job Search -->
+        <button type="button" class="sn-context-menu-item" (click)="onMenuGuidedSearch()">
+          <svg class="sn-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span>Guided Job Search</span>
+        </button>
+
+        <!-- 3. Upload Resume -->
+        <button type="button" class="sn-context-menu-item" (click)="onMenuUploadResume()">
+          <svg class="sn-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <circle cx="11" cy="15" r="2.5" />
+            <line x1="13" y1="17" x2="16" y2="20" />
+          </svg>
+          <span>Upload Resume</span>
+        </button>
+
+        <!-- 4. Set Job Alerts -->
+        <button type="button" class="sn-context-menu-item" (click)="onMenuJobAlerts()">
+          <svg class="sn-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          <span>Set Job Alerts</span>
+        </button>
+      </div>
+    }
+
+    <div class="sn-pill-input-box">
+      <!-- 3 Green Lines Hamburger Button (Screenshot 1 & 2) -->
+      <button
+        type="button"
+        class="sn-menu-btn"
+        [class.sn-menu-btn--active]="isMenuOpen()"
+        (click)="toggleMenu($event)"
+        title="Menu options"
+        aria-label="Menu options"
+      >
+        <svg class="sn-green-lines" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.6" stroke-linecap="round">
+          <line x1="4" y1="6" x2="20" y2="6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="18" x2="20" y2="18" />
+        </svg>
+      </button>
+
+      <input
+        #cvFileInput
+        type="file"
+        accept=".txt,.pdf,.doc,.docx"
+        class="sn-hidden-file"
+        (change)="onFileUpload($event)"
+      />
+
+      <!-- Text Input with Dynamic Placeholder -->
+      <input
+        type="text"
+        class="sn-text-input"
+        [disabled]="snService.loading()"
+        [ngModel]="userInput()"
+        (ngModelChange)="userInput.set($event)"
+        (keydown)="onKeyDown($event)"
+        [placeholder]="inputPlaceholder()"
+      />
+
+      <!-- Send / Mic Button -->
+      <button
+        type="button"
+        class="sn-input-action-btn"
+        [disabled]="snService.loading()"
+        (click)="sendMessage()"
+        aria-label="Send"
+      >
+        @if (snService.loading()) {
+          <svg class="sn-spinner" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+        } @else if (userInput().trim()) {
+          <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+          </svg>
+        } @else {
+          <!-- Paper plane send icon (Screenshot 2) -->
+          <svg class="sn-plane-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+          </svg>
+        }
+      </button>
+    </div>
+  </footer>
+</aside>

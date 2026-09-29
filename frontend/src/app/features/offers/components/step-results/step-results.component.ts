@@ -3,31 +3,33 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-import { PipelineStateService } from '../../../../services/pipeline-state.service';
-import {
-  CvHistoryItem,
-  EmailDraftResponse,
-  OfferApiService,
-  SendApplicationEmailRequest
-} from '../../services/offer-api.service';
-import { CandidatureService } from '../../../../services/candidature.service';
-import { EmailService } from '../../../../services/email.service';
-import { Router } from '@angular/router';
+import { PipelineStateService } from '../../data-access/pipeline-state.service';
+import { Router, RouterLink } from '@angular/router';
+import { LanguageService } from '@core/i18n/language.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { CandidatureService } from '@features/applications/data-access/candidature.service';
+import { EmailService } from '@features/applications/data-access/email.service';
+import { CvApiService } from '@features/cv-builder/data-access/cv-api.service';
+import { CvHistoryItem } from '@features/cv-builder/data-access/cv.models';
+import { EmailDraftDto, SendApplicationEmailRequest } from '@features/applications/data-access/email.models';
 
 @Component({
   selector: 'app-step-results',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './step-results.component.html',
   styleUrl: './step-results.component.scss'
 })
 export class StepResultsComponent implements OnInit, OnDestroy {
   readonly pipeline = inject(PipelineStateService);
-  private readonly api = inject(OfferApiService);
+  private readonly cvApi = inject(CvApiService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly candidatureService = inject(CandidatureService);
   private readonly emailService = inject(EmailService);
   private readonly router = inject(Router);
+  private readonly languageService = inject(LanguageService);
+  /** Sending failed because Gmail must be reconnected: the error banner links to Gmail settings. */
+  sendNeedsGmailReconnect = false;
   private previewBlobUrl: string | null = null;
 
   cvPreviewUrl: SafeResourceUrl | null = null;
@@ -42,7 +44,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   isGeneratingDraft = false;
   sendError: string | null = null;
   sendSuccessMessage: string | null = null;
-  lastSentDraft: EmailDraftResponse | null = null;
+  lastSentDraft: EmailDraftDto | null = null;
 
   get result() {
     return this.pipeline.pipelineResult();
@@ -52,8 +54,12 @@ export class StepResultsComponent implements OnInit, OnDestroy {
     return `${this.pipeline.finalCvTitle() ?? `CV_${this.pipeline.currentOfferId()}`}.pdf`;
   }
 
+  /** Id of the saved final PDF (the email attachment). Sending is blocked without it. */
+  resolvedCvHistoryId: string | null = null;
+
   get canSend(): boolean {
     return !this.isSendingEmail
+      && !!this.resolvedCvHistoryId
       && !!this.pipeline.currentOfferId()
       && !!this.recipientEmail.trim()
       && !!this.emailSubject.trim()
@@ -89,10 +95,10 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         throw new Error('Le CV final n a pas encore ete sauvegarde.');
       }
 
-      const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
+      const fileBlob = await firstValueFrom(this.cvApi.downloadCvHistoryFile(target.id));
       this.downloadBlob(fileBlob, offerId);
     } catch (err: any) {
-      this.previewError = err?.message || 'Telechargement indisponible pour le moment.';
+      this.previewError = extractApiError(err).message || 'Telechargement indisponible pour le moment.';
     }
   }
 
@@ -104,22 +110,23 @@ export class StepResultsComponent implements OnInit, OnDestroy {
 
     this.isSendingEmail = true;
     this.sendError = null;
+    this.sendNeedsGmailReconnect = false;
     this.sendSuccessMessage = null;
 
     const payload: SendApplicationEmailRequest = {
       offerId,
-      cvHistoryId: this.pipeline.finalCvHistoryId(),
+      cvHistoryId: this.resolvedCvHistoryId,
       recipientEmail: this.recipientEmail.trim(),
       subject: this.emailSubject.trim(),
       body: this.emailBody.trim(),
       emailType: 'application',
-      language: 'fr',
+      language: this.languageService.lang(),
     };
 
     try {
-      const sent = await firstValueFrom(this.api.sendApplicationEmail(payload));
+      const sent = await firstValueFrom(this.emailService.sendApplicationEmail(payload));
       this.lastSentDraft = sent;
-      this.sendSuccessMessage = `Email envoye a ${sent.recipientEmail} avec le CV en piece jointe.`;
+      this.sendSuccessMessage = `Email sent to ${sent.recipientEmail} with your CV attached.`;
       this.pipeline.markStepDone(4);
       this.pipeline.showSidebarBadge('email', 'Envoye', 'green');
 
@@ -132,7 +139,9 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         });
       }
     } catch (err: any) {
-      this.sendError = err?.error?.error ?? err?.error?.message ?? err?.message ?? 'Envoi de l email impossible.';
+      const apiError = extractApiError(err);
+      this.sendNeedsGmailReconnect = apiError.type === 'EmailReconnectRequired';
+      this.sendError = apiError.message || 'The email could not be sent. Please try again.';
     } finally {
       this.isSendingEmail = false;
     }
@@ -182,7 +191,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
               this.emailService.generateDraft({
                 candidatureId: candidature.idCandidature,
                 emailType: 'application',
-                language: 'fr',
+                language: this.languageService.lang(),
                 cvHistoryId: this.pipeline.finalCvHistoryId()
               }).subscribe({
                 next: (newDraft) => {
@@ -240,11 +249,13 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       const targetId = this.pipeline.finalCvHistoryId();
       const target = targetId ? { id: targetId } : await this.findLatestCvForOffer(offerId);
       if (!target?.id) {
+        this.resolvedCvHistoryId = null;
         this.previewError = 'PDF final pas encore sauvegarde.';
         return;
       }
+      this.resolvedCvHistoryId = target.id;
 
-      const fileBlob = await firstValueFrom(this.api.downloadCvHistoryFile(target.id));
+      const fileBlob = await firstValueFrom(this.cvApi.downloadCvHistoryFile(target.id));
       if (this.previewBlobUrl) {
         globalThis.URL.revokeObjectURL(this.previewBlobUrl);
       }
@@ -253,14 +264,14 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         `${this.previewBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`
       );
     } catch (err: any) {
-      this.previewError = err?.message || 'Apercu PDF indisponible.';
+      this.previewError = extractApiError(err).message || 'Apercu PDF indisponible.';
     } finally {
       this.isLoadingPreview = false;
     }
   }
 
   private async findLatestCvForOffer(offerId: string): Promise<CvHistoryItem | undefined> {
-    const history = await firstValueFrom(this.api.getCvHistory());
+    const history = await firstValueFrom(this.cvApi.getCvHistory());
     const expectedTitle = this.pipeline.finalCvTitle() ?? `CV_${offerId}`;
     return history
       .filter((item) => item.title === expectedTitle)
@@ -289,7 +300,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       domain: 'software',
       level: 'senior',
       duration_minutes: 20,
-      language: 'fr',
+      language: this.languageService.lang(),
       focus_areas: result.requiredSkills || []
     };
     this.pipeline.closeFlow();

@@ -1,36 +1,55 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using NextStep.data;
-using NextStep.Modules.Chatbot.DTOs;
-using NextStep.Modules.Chatbot.Interfaces;
-using NextStep.Modules.Chatbot.Models;
-using NextStep.Modules.Chatbot.Services;
-using NextStep.Modules.Identity.Models;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.Coaching.Infrastructure.Persistence;
+using NextStep.Modules.Coaching.Application.Dtos;
+using NextStep.Modules.Coaching.Application.Services;
+using NextStep.Modules.Coaching.Domain;
+using NextStep.Modules.Coaching.Infrastructure.Agents;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Shared.ErrorHandling;
+using System.Net.Http;
 using Xunit;
 
 namespace NextStep.Tests;
 
 public class ArenaServiceTests : IDisposable
 {
-    private readonly AppDbContext _db;
+    private readonly CoachingDbContext _db;
     private readonly Mock<IAgentHttpClient> _mockAgentClient;
+    private readonly Mock<IProfileApi> _mockProfile;
     private readonly ArenaService _service;
 
     public ArenaServiceTests()
     {
         // Use a unique name for each In-Memory Database to isolate tests
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+        var options = new DbContextOptionsBuilder<CoachingDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _db = new AppDbContext(options);
+        _db = new CoachingDbContext(options);
         _mockAgentClient = new Mock<IAgentHttpClient>();
-        _service = new ArenaService(_mockAgentClient.Object, _db);
+        // Users belong to the Profile module: resolved through its contract
+        _mockProfile = new Mock<IProfileApi>();
+        _service = new ArenaService(
+            _mockAgentClient.Object,
+            _db,
+            new Mock<IApplicationsApi>().Object,
+            _mockProfile.Object,
+            NullLogger<ArenaService>.Instance);
+    }
+
+    private void GivenUser(Guid userId, string keycloakId)
+    {
+        _mockProfile.Setup(p => p.FindUserIdAsync(keycloakId, It.IsAny<CancellationToken>())).ReturnsAsync(userId);
+        _mockProfile.Setup(p => p.FindUserIdAsync(userId.ToString(), It.IsAny<CancellationToken>())).ReturnsAsync(userId);
     }
 
     public void Dispose()
@@ -99,20 +118,38 @@ public class ArenaServiceTests : IDisposable
     {
         // Arrange
         var request = new StartSessionRequest(null, "arena", "user-1");
-        var expectedResponse = new StartSessionResponse("session-123", "Welcome to your interview!");
+        StartSessionRequest? sent = null;
 
         _mockAgentClient
-            .Setup(c => c.PostStartInterviewAsync(request))
-            .ReturnsAsync(expectedResponse);
+            .Setup(c => c.PostStartInterviewAsync(It.IsAny<StartSessionRequest>()))
+            .Callback<StartSessionRequest>(r => sent = r)
+            .ReturnsAsync((StartSessionRequest r) => new StartSessionResponse(r.SessionId!, "Welcome to your interview!"));
 
         // Act
         var result = await _service.StartSessionAsync(request);
 
-        // Assert
-        result.Should().NotBeNull();
-        result.SessionId.Should().Be("session-123");
+        // Assert: the backend chooses the session id and the agents answer for it
         result.OpeningMessage.Should().Be("Welcome to your interview!");
-        _mockAgentClient.Verify(c => c.PostStartInterviewAsync(request), Times.Once);
+        Guid.TryParse(result.SessionId, out _).Should().BeTrue();
+        sent!.SessionId.Should().Be(result.SessionId);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_Should_Report_Agent_Failures_As_A_User_Safe_500()
+    {
+        // Arrange
+        var request = new SendMessageRequest("session-123", "Here is my answer", new List<MessageTurnDto>());
+        _mockAgentClient
+            .Setup(c => c.PostSendMessageAsync(request))
+            .ThrowsAsync(new HttpRequestException("agents down"));
+
+        // Act
+        var act = () => _service.SendMessageAsync(request);
+
+        // Assert
+        var error = await act.Should().ThrowAsync<OperationFailedException>();
+        error.Which.Status.Should().Be(System.Net.HttpStatusCode.InternalServerError);
+        error.Which.Message.Should().Be("Error sending message. Please try again.");
     }
 
     [Fact]
@@ -234,13 +271,7 @@ public class ArenaServiceTests : IDisposable
     {
         // Arrange
         var userGuid = Guid.NewGuid();
-        var user = new UserEntity
-        {
-            Id = userGuid,
-            KeycloakId = "keycloak-sub-123",
-            Email = "john.doe@example.com"
-        };
-        await _db.Utilisateurs.AddAsync(user);
+        GivenUser(userGuid, "keycloak-sub-123");
 
         var activeSession = new SessionCoaching
         {
@@ -315,10 +346,12 @@ public class ArenaServiceTests : IDisposable
         };
         var feedbackJson = JsonSerializer.Serialize(feedbackData, options);
 
+        var ownerId = Guid.NewGuid();
+        GivenUser(ownerId, "kc-owner");
         var session = new SessionCoaching
         {
             IdSession = sessionId,
-            IdUtilisateur = Guid.NewGuid(),
+            IdUtilisateur = ownerId,
             Mode = "arena",
             Domain = "Data Science",
             Level = "mid",
@@ -331,7 +364,7 @@ public class ArenaServiceTests : IDisposable
         await _db.SaveChangesAsync();
 
         // Act
-        var result = await _service.GetSessionDetailAsync(sessionId.ToString());
+        var result = await _service.GetSessionDetailAsync(sessionId.ToString(), "kc-owner");
 
         // Assert
         result.Should().NotBeNull();
@@ -350,6 +383,31 @@ public class ArenaServiceTests : IDisposable
         result.BestAnswer.Should().Be("My STAR story");
     }
 
+    [Theory]
+    [InlineData("kc-other")]   // someone else
+    [InlineData("kc-unknown")] // unknown user
+    public async Task GetSessionDetailAsync_Should_Hide_Other_Users_Sessions(string caller)
+    {
+        var ownerId = Guid.NewGuid();
+        GivenUser(ownerId, "kc-owner");
+        GivenUser(Guid.NewGuid(), "kc-other");
+        var session = new SessionCoaching { IdUtilisateur = ownerId, Mode = "arena", DateSession = DateTime.UtcNow };
+        await _db.SessionCoachings.AddAsync(session);
+        await _db.SaveChangesAsync();
+
+        var act = () => _service.GetSessionDetailAsync(session.IdSession.ToString(), caller);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task GetSessionDetailAsync_Should_Report_Invalid_Id_As_NotFound()
+    {
+        GivenUser(Guid.NewGuid(), "kc-owner");
+        var act = () => _service.GetSessionDetailAsync("not-a-guid", "kc-owner");
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
     [Fact]
     public async Task DeleteSessionAsync_Should_DeleteOwnedSession_And_ReturnTrue()
     {
@@ -357,12 +415,7 @@ public class ArenaServiceTests : IDisposable
         var userGuid = Guid.NewGuid();
         var sessionGuid = Guid.NewGuid();
 
-        var user = new UserEntity
-        {
-            Id = userGuid,
-            KeycloakId = "keycloak-123",
-            Email = "user@test.com"
-        };
+        GivenUser(userGuid, "keycloak-123");
 
         var session = new SessionCoaching
         {
@@ -372,7 +425,6 @@ public class ArenaServiceTests : IDisposable
             Status = "started"
         };
 
-        await _db.Utilisateurs.AddAsync(user);
         await _db.SessionCoachings.AddAsync(session);
         await _db.SaveChangesAsync();
 

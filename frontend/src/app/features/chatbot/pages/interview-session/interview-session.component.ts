@@ -5,10 +5,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ArenaService } from '../../services/arena.service';
+import { ArenaService } from '../../data-access/arena.service';
 import {
   SessionConfig, ArenaConfig, ChatMessage, FeedbackResult,
-} from '../../models/arena.models';
+} from '../../data-access/arena.models';
 
 @Component({
   selector: 'app-interview-session',
@@ -86,7 +86,9 @@ export class InterviewSessionComponent implements OnInit, OnDestroy, AfterViewCh
       try {
         const el = this.chatScroll?.nativeElement;
         if (el) el.scrollTop = el.scrollHeight;
-      } catch {}
+      } catch (err) {
+        console.warn('[InterviewSession] Scroll failed:', err);
+      }
       this.needsScroll = false;
     }
   }

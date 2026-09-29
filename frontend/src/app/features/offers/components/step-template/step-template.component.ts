@@ -1,12 +1,17 @@
 ﻿import { Component, OnInit, inject, signal, WritableSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PipelineStateService } from '../../../../services/pipeline-state.service';
-import { CvTemplateDto, OfferApiService, ResumePipelineResponse } from '../../services/offer-api.service';
-import { ProfileService } from '../../../../services/profile.service';
+import { PipelineStateService } from '../../data-access/pipeline-state.service';
+import { ProfileApiService } from '@features/profile/data-access/profile-api.service';
 import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../../../environments/environment';
-import { SignalRService } from '../../../../services/signalr.service';
+import { SignalRService } from '../../data-access/signalr.service';
+import { extractApiError } from '@core/http/extract-api-error';
+import { CV_TEMPLATE_SLUGS } from '../../data-access/cv-templates';
+import { CvApiService } from '@features/cv-builder/data-access/cv-api.service';
+import { CvTemplateDto } from '@features/cv-builder/data-access/cv.models';
+import { OfferApiService } from '../../data-access/offer-api.service';
+import { ResumePipelineResponse } from '../../data-access/offers.models';
+import { backendOrigin } from '@core/http/api-url';
 
 const INDUSTRIES = [
   'Administrative & Office',
@@ -58,8 +63,9 @@ const TAGS = ['free', 'popular', 'recommended'] as const;
 })
 export class StepTemplateComponent implements OnInit {
   pipeline = inject(PipelineStateService);
+  private readonly cvApi = inject(CvApiService);
   private readonly offerApi = inject(OfferApiService);
-  private readonly profileService = inject(ProfileService);
+  private readonly profileApi = inject(ProfileApiService);
   private readonly signalR = inject(SignalRService);
   private readonly thumbnailUrlCache = new Map<string, string>();
   private readonly thumbnailNonce = Date.now();
@@ -92,9 +98,9 @@ export class StepTemplateComponent implements OnInit {
     this.isLoadingTemplates.set(true);
     this.templateLoadError.set(null);
 
-    this.offerApi.getCvTemplates().subscribe({
+    this.cvApi.getCvTemplates().subscribe({
       next: (templates) => {
-        const htmlTemplateSlugs = new Set(['modern', 'latex']);
+        const htmlTemplateSlugs = new Set<string>(CV_TEMPLATE_SLUGS);
         const availableTemplates = (templates ?? [])
           .filter(template => htmlTemplateSlugs.has(template.slug))
           .sort((a, b) => this.sortRank(a) - this.sortRank(b));
@@ -118,7 +124,7 @@ export class StepTemplateComponent implements OnInit {
     const cached = this.thumbnailUrlCache.get(slug);
     if (cached) return cached;
 
-    const origin = new URL(environment.apiBaseUrl).origin;
+    const origin = backendOrigin();
     const url = `${origin}/api/cv/templates/${encodeURIComponent(slug)}/thumbnail?v=${this.thumbnailNonce}`;
     this.thumbnailUrlCache.set(slug, url);
     return url;
@@ -229,7 +235,7 @@ export class StepTemplateComponent implements OnInit {
       console.warn('[CV-PIPELINE] SignalR join failed, falling back to polling only', err);
     }
 
-    const localProfile = await firstValueFrom(this.profileService.getFullProfile()).catch((err) => {
+    const localProfile = await firstValueFrom(this.profileApi.getFullProfile()).catch((err) => {
       console.warn('[CV-PIPELINE] profile fallback unavailable', err);
       return null;
     });
@@ -270,7 +276,7 @@ export class StepTemplateComponent implements OnInit {
       },
       error: (err) => {
         this.pipeline.setLoading(false);
-        this.pipeline.pipelineError.set(err?.error?.message || err?.message || 'Echec generation CV.');
+        this.pipeline.pipelineError.set(extractApiError(err).message || 'Echec generation CV.');
       }
     });
   }

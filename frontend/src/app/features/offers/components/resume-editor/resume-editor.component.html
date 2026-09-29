@@ -86,12 +86,11 @@
           <h3 class="gallery-title">All templates</h3>
 
           <div class="template-grid simple-template-grid">
-            <button class="template-choice-card template-choice-card-thumbnail" [class.active]="activeTemplate() === 'modern'" type="button" (click)="setTemplate('modern')" title="Modern">
-              <img [src]="templateThumbnailUrl('modern')" alt="" />
-            </button>
-            <button class="template-choice-card template-choice-card-thumbnail" [class.active]="activeTemplate() === 'latex'" type="button" (click)="setTemplate('latex')" title="LaTeX Tech">
-              <img [src]="templateThumbnailUrl('latex')" alt="" />
-            </button>
+            @for (template of templates; track template.slug) {
+              <button class="template-choice-card template-choice-card-thumbnail" [class.active]="activeTemplate() === template.slug" type="button" (click)="setTemplate(template.slug)" [title]="template.label">
+                <img [src]="templateThumbnailUrl(template.slug)" [alt]="template.label" />
+              </button>
+            }
           </div>
         } @else if (activePanelTab() === 'design') {
           <div class="editor-panel-scroll">
@@ -142,7 +141,7 @@
                     }
                   </select>
                 </label>
-                @if (activeTemplate() === 'modern') {
+                @if (templateHasSidebar()) {
                   <label class="inspector-field">
                     <span>Sidebar width</span>
                     <select [ngModel]="sidebarWidth()" (ngModelChange)="updateSidebarWidth($event)">

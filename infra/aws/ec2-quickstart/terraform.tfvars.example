@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+
+aws_region  = "us-east-1"
+repo_url    = "https://github.com/<your-account>/<your-repo>.git"
+repo_branch = "main"
+
+# Production .env (git-ignored). Start from the repo's .env.example.
+env_file = ".env.prod"
+
+# Optional HTTPS: set a domain, then create an A record -> the public_ip output.
+# domain_name       = "nextstep.example.com"
+# letsencrypt_email = "you@example.com"
+
+# instance_type = "t3.large"
+
+# SSH is closed by default (use `aws ssm start-session`). To open it:
+# ssh_ingress_cidrs = ["203.0.113.10/32"]
+# key_name          = "my-keypair"

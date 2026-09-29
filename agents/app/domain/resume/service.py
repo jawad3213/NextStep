@@ -1,27 +1,32 @@
+import asyncio
 import os
-import fitz  # PyMuPDF
 import json
+import pymupdf
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from fastapi import HTTPException
 from .prompts import SYSTEM_PROMPT
 
+
+def _pdf_text(pdf_content: bytes) -> str:
+    with pymupdf.open(stream=pdf_content, filetype="pdf") as doc:
+        # sort=True: reading order by position, so multi-column CVs don't interleave lines
+        return "".join(page.get_text("text", sort=True) + "\n" for page in doc)
+
+
 async def extract_text_from_pdf(pdf_content: bytes) -> str:
     """
-    Extracts text from a PDF byte stream.
+    Extracts text from a PDF byte stream (in a worker thread: parsing a large PDF must not
+    block the other requests).
     """
     try:
-        doc = fitz.open(stream=pdf_content, filetype="pdf")
-        text = ""
-        for page in doc:
-            text += page.get_text()
-        doc.close()
-        return text
+        return await asyncio.to_thread(_pdf_text, pdf_content)
     except Exception as e:
         raise Exception(f"Error extracting text from PDF: {str(e)}")
 
 import re
 import logging
+import unicodedata
 from app.core.config import get_llm
 
 logger = logging.getLogger(__name__)
@@ -57,6 +62,114 @@ def _normalize_language_levels(data: dict) -> dict:
                 lang["niveau"] = normalize_language_level(lang.get("niveau"))
     return data
 
+def _squash(text: object) -> str:
+    """Lowercase, strip accents, keep letters/digits/#/+ only: 'Node.js' ~ 'NodeJS', line breaks ignored."""
+    text = unicodedata.normalize("NFKD", str(text or ""))
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9#+]", "", text.lower())
+
+
+def _grounded(value: object, source: str) -> bool:
+    """True if the value (or one of its parts, e.g. 'DDD' in 'Domain-Driven Design (DDD)') is in the source."""
+    raw = str(value or "")
+    candidates = [raw] + re.split(r"[/(),;|]", raw)
+    return any(len(s) >= 1 and s in source for s in (_squash(c) for c in candidates) if s)
+
+
+# Common language names the model may translate (CV says "Anglais", model returns "English").
+_LANGUAGE_ALIASES = {
+    "english": "anglais", "anglais": "english", "french": "francais", "francais": "french",
+    "arabic": "arabe", "arabe": "arabic", "spanish": "espagnol", "espagnol": "spanish",
+    "german": "allemand", "allemand": "german", "italian": "italien", "italien": "italian",
+    "portuguese": "portugais", "portugais": "portuguese", "chinese": "chinois", "chinois": "chinese",
+}
+
+
+def ground_in_source(data: dict, source_text: str) -> dict:
+    """
+    Removes everything the model returned that does not appear in the source text
+    (hallucinations). Only verifiable facts are checked: names of skills, languages,
+    companies, schools, projects, certifications, and contact details/links.
+    """
+    source = _squash(source_text)
+    source_digits = re.sub(r"\D", "", source_text or "")
+    dropped: dict = {}
+
+    def keep(section: str, items: list, test) -> list:
+        kept = [item for item in items if test(item)]
+        removed = [item for item in items if not test(item)]
+        if removed:
+            dropped[section] = [str(i.get("nom") or i.get("titre") or i.get("entreprise") or i.get("etablissement") or "?") for i in removed]
+        return kept
+
+    personal = data.get("personal") or {}
+    for field in ("nom", "prenom", "ville", "pays", "titrePoste"):
+        if personal.get(field) and not _grounded(personal[field], source):
+            dropped.setdefault("personal", []).append(field)
+            personal[field] = ""
+    if personal.get("email") and _squash(personal["email"]) not in source:
+        dropped.setdefault("personal", []).append("email")
+        personal["email"] = ""
+    phone_digits = re.sub(r"\D", "", personal.get("telephone") or "")
+    if phone_digits and phone_digits[-8:] not in source_digits:
+        dropped.setdefault("personal", []).append("telephone")
+        personal["telephone"] = ""
+    for field in ("lienLinkedin", "lienGithub", "lienPortfolio"):
+        url = personal.get(field)
+        if url and _squash(re.sub(r"^https?://(www\.)?", "", url)) not in source:
+            dropped.setdefault("personal", []).append(field)
+            personal[field] = None
+    summary = _squash(personal.get("resumeProfessionnel"))
+    if summary and summary[:40] not in source:
+        dropped.setdefault("personal", []).append("resumeProfessionnel (not in CV)")
+        personal["resumeProfessionnel"] = ""
+    data["personal"] = personal
+
+    seen: set = set()
+
+    def new_skill(skill: dict) -> bool:
+        key = _squash(skill.get("nom"))
+        if not key or key in seen:
+            return False
+        seen.add(key)
+        return True
+
+    data["skills"] = [s for s in keep("skills", data.get("skills", []), lambda s: _grounded(s.get("nom"), source)) if new_skill(s)]
+    for skill in data["skills"]:
+        skill["typeCompetence"] = "Soft Skill" if "soft" in str(skill.get("typeCompetence", "")).lower() else "Technical"
+
+    def language_ok(lang: dict) -> bool:
+        name = _squash(lang.get("nom"))
+        return _grounded(lang.get("nom"), source) or _LANGUAGE_ALIASES.get(name, "\0") in source
+
+    data["languages"] = keep("languages", data.get("languages", []), language_ok)
+    data["experience"] = keep("experience", data.get("experience", []),
+                              lambda e: _grounded(e.get("entreprise"), source) or _grounded(e.get("poste"), source))
+    data["education"] = keep("education", data.get("education", []),
+                             lambda e: _grounded(e.get("etablissement"), source) or _grounded(e.get("diplome"), source))
+    data["projects"] = keep("projects", data.get("projects", []), lambda p: _grounded(p.get("titre"), source))
+    data["extracurricular"] = keep("extracurricular", data.get("extracurricular", []),
+                                   lambda x: _grounded(x.get("titre"), source) or _grounded(x.get("organisation"), source))
+    data["certifications"] = keep("certifications", data.get("certifications", []), lambda c: _grounded(c.get("titre"), source))
+
+    if dropped:
+        logger.warning("CV import: removed items not found in the CV text (hallucinations): %s", dropped)
+    return data
+
+
+REQUIRED_SECTIONS = ("personal", "experience", "education", "projects",
+                     "extracurricular", "certifications", "skills", "languages")
+
+
+def _coerce_list_items(data: dict) -> dict:
+    """Accepts skills/languages returned as plain strings ("Python") as well as objects."""
+    for key in ("skills", "languages"):
+        items = data.get(key)
+        if isinstance(items, list):
+            data[key] = [{"nom": i} if isinstance(i, str) else i for i in items if isinstance(i, (str, dict))]
+    return data
+
+
 async def parse_cv_with_ai(cv_text: str) -> dict:
     """
     Sends the CV text to the LLM and returns a structured JSON matching ResumeParsedSchema.
@@ -78,18 +191,22 @@ async def parse_cv_with_ai(cv_text: str) -> dict:
         logger.info(f"🚀 RAW LLM RESPONSE:\n{response.content}\n====================")
         
         # 1. Nettoyage et parsing robuste de la chaîne JSON
-        parsed_data = clean_and_parse_json(response.content)
-        
-        # 2. Validation de type et complétion via Pydantic
-        try:
-            validated = ResumeParsedSchema(**parsed_data)
-            result = validated.model_dump()
-        except Exception as pydantic_err:
-            logger.warning(f"⚠️ Validation Pydantic partielle (utilisation du fallback brut) : {pydantic_err}")
-            result = parsed_data
-            
-        # 3. Normalisation des clés françaises -> anglais + niveaux de langue
-        return _normalize_language_levels(_normalize_keys(result))
+        parsed_data = _coerce_list_items(_normalize_keys(clean_and_parse_json(response.content)))
+
+        # A truncated answer (token limit) can still be valid JSON with only "personal":
+        # fail loudly instead of importing a profile with every section silently empty.
+        missing = [k for k in REQUIRED_SECTIONS if k not in parsed_data]
+        if missing:
+            raise ValueError(f"Réponse IA incomplète (sections manquantes : {', '.join(missing)})")
+
+        # 2. Validation (tous les champs sont optionnels : pas de repli sur des données non vérifiées)
+        result = ResumeParsedSchema(**parsed_data).model_dump()
+
+        # 3. Suppression de tout ce qui n'apparaît pas dans le CV (hallucinations)
+        result = ground_in_source(result, cv_text)
+
+        # 4. Niveaux de langue (un niveau absent reste vide)
+        return _normalize_language_levels(result)
             
     except Exception as e:
         logger.error(f"❌ Erreur critique lors de l'appel ou du parsing du CV : {e}")

@@ -1,5 +1,5 @@
-# app/modules/chatbot/graph.py
-"""
+# app/domain/chatbot/graph.py
+r"""
 GRAPHE LANGGRAPH — Interview Prep Agent
 
 STRUCTURE :

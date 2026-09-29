@@ -1,0 +1,120 @@
+using NextStep.Modules.CvDocuments.Infrastructure.Rendering;
+using Microsoft.AspNetCore.SignalR;
+using NextStep.Modules.Applications.Contracts;
+using NextStep.Modules.CvDocuments.Domain;
+using NextStep.Shared.Realtime;
+using NextStep.Modules.CvDocuments.Application.Dtos;
+using NextStep.Shared.ErrorHandling;
+
+namespace NextStep.Modules.CvDocuments.Application.Services;
+
+public interface IPdfGenerationService
+{
+    Task<PdfGenerateResultDto> GeneratePdfAsync(
+        Guid userId, Guid offerId, string templateId, CancellationToken ct = default);
+}
+
+public class PdfGenerationService : IPdfGenerationService
+{
+    private const string FrontendBaseUrlConfigKey = "App:FrontendBaseUrl";
+
+    private readonly ICvService _cvService;
+    private readonly IHubContext<PipelineHub> _hubContext;
+    private readonly ILogger<PdfGenerationService> _logger;
+    private readonly IApplicationsApi _applications;
+    private readonly IConfiguration _configuration;
+
+    public PdfGenerationService(
+        ICvService cvService,
+        IHubContext<PipelineHub> hubContext,
+        ILogger<PdfGenerationService> logger,
+        IApplicationsApi applications,
+        IConfiguration configuration)
+    {
+        _cvService = cvService;
+        _hubContext = hubContext;
+        _logger = logger;
+        _applications = applications;
+        _configuration = configuration;
+    }
+
+    public async Task<PdfGenerateResultDto> GeneratePdfAsync(
+        Guid userId, Guid offerId, string templateId, CancellationToken ct = default)
+    {
+        _logger.LogInformation("PDFGen - Generating PDF for offer {OfferId}, template {Template}", offerId, templateId);
+
+        try
+        {
+            await SendProgress(offerId, 10, "Preparation des donnees CV...");
+
+            var preview = await _cvService.PreviewCvAsync(userId, templateId, offerId);
+
+            await SendProgress(offerId, 50, "Generation du PDF HTML/CSS...");
+
+            var offer = await _applications.GetOfferSummaryAsync(userId, offerId, ct);
+            string cvTitle = offer != null
+                ? $"CV - {offer.Title} - {offer.Company}"
+                : $"CV_{offerId}";
+
+            var saveResult = await _cvService.SaveCvAsync(userId, new CvSaveRequest
+            {
+                TemplateSlug = templateId,
+                Title = cvTitle,
+                Data = preview.Data,
+                DesignConfig = preview.DesignConfig,
+                HtmlSnapshot = preview.Html
+            });
+
+            await SendProgress(offerId, 100, "PDF genere avec succes !");
+
+            var frontendBaseUrl = _configuration[FrontendBaseUrlConfigKey];
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            {
+                frontendBaseUrl = "http://localhost:4200";
+            }
+
+            var normalizedFrontendBaseUrl = frontendBaseUrl.TrimEnd('/');
+
+            var result = new PdfGenerateResultDto
+            {
+                OfferId = offerId,
+                DownloadUrl = $"{normalizedFrontendBaseUrl}/api/cv/{saveResult.HistoryId}/download-file",
+                Status = "completed"
+            };
+
+            await _hubContext.Clients.Group(offerId.ToString())
+                .SendAsync("GenerationCompleted", result, CancellationToken.None);
+
+            _logger.LogInformation("PDFGen - PDF done for offer {OfferId}", offerId);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PDFGen - PDF generation failed for offer {OfferId}", offerId);
+
+            await _hubContext.Clients.Group(offerId.ToString())
+                .SendAsync("GenerationError", new
+                {
+                    OfferId = offerId,
+                    Error = ex.Message,
+                    Status = "error"
+                }, CancellationToken.None);
+
+            throw new OperationFailedException("PDF generation failed. Please try again.", ex);
+        }
+    }
+
+    private async Task SendProgress(Guid offerId, int percent, string message)
+    {
+        var dto = new GenerationProgressDto
+        {
+            OfferId = offerId,
+            ProgressPercent = percent,
+            Message = message,
+            Status = "running"
+        };
+
+        await _hubContext.Clients.Group(offerId.ToString())
+            .SendAsync("GenerationProgress", dto);
+    }
+}

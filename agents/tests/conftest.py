@@ -366,3 +366,10 @@ def mock_db_with_session(mock_db, session_id):
 
     mock_db.get = AsyncMock(return_value=session_row)
     return mock_db, session_row
+
+
+# ── No network in tests: backend calls answer "nothing found" unless a test patches them ──
+@pytest.fixture(autouse=True)
+def _no_backend_calls(monkeypatch):
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr("app.core.backend_client._request", AsyncMock(return_value=None))

@@ -29,6 +29,12 @@ class PipelineState(TypedDict, total=False):
     company_intelligence: Optional[Dict[str, Any]]
     """Output of the company agent (intelligence + score + recommendations)."""
 
+    company_intelligence_source: str
+    """Where it came from: "request" (sent by the backend), "cache" (recent analysis) or "fresh"."""
+
+    company_intelligence_collected_at: Any
+    """When a reused analysis was collected (keeps its cache age when linked to this offer)."""
+
     email_draft: Optional[Dict[str, Any]]
     """Generated email draft: {subject, body, language, tone}."""
 
@@ -39,7 +45,6 @@ class PipelineState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     errors: Annotated[list[str], operator.add]
     warnings: Annotated[list[str], operator.add]
-    company_intelligence: Optional[Dict[str, Any]]
     
     # -- Sorties Finales (CV) --
     cv_optimized_content: Optional[Dict[str, Any]]

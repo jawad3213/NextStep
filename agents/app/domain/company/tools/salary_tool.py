@@ -23,10 +23,10 @@ async def salary_data_search(company_name: str, job_title: str, location: Option
     
     try:
         results_q1, results_q2, results_q3, results_q4 = await asyncio.gather(
-            smart_search(q1), 
-            smart_search(q2),
-            smart_search(q3),
-            smart_search(q4)
+            smart_search(q1, must_mention=company_name), 
+            smart_search(q2, must_mention=company_name),
+            smart_search(q3, must_mention=company_name),
+            smart_search(q4, must_mention=company_name)
         )
         
         all_results = results_q1 + results_q2 + results_q3 + results_q4

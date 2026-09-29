@@ -1,0 +1,9 @@
+# Files executed or parsed inside Linux containers / servers must keep LF
+# line endings, even when Git on Windows uses core.autocrlf=true.
+# (A CRLF shebang "#!/bin/bash\r" makes Linux fail with
+#  "cannot execute: required file not found".)
+*.sh        text eol=lf
+*.tftpl     text eol=lf
+*.conf      text eol=lf
+Dockerfile  text eol=lf
+.dockerignore text eol=lf

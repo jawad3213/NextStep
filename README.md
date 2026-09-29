@@ -101,7 +101,7 @@ Le projet est organisé en architecture modulaire:
 - SignalR Hub (`/hubs/pipeline`),
 - Hangfire pour jobs récurrents,
 - génération PDF via QuestPDF/Puppeteer,
-- intégrations: Keycloak, Redis, MinIO.
+- intégrations: Keycloak, MinIO.
 
 ### Agents IA
 - FastAPI + LangGraph,
@@ -112,7 +112,7 @@ Le projet est organisé en architecture modulaire:
 - Frontend: Angular 19, TypeScript, TailwindCSS, RxJS, SignalR, Vitest
 - Backend: ASP.NET Core, EF Core, Npgsql, Hangfire, QuestPDF, PuppeteerSharp
 - IA: FastAPI, LangChain, LangGraph, Groq/Gemini/OpenAI
-- Data/Infra: PostgreSQL (+pgvector), Redis, MinIO, Keycloak, Docker Compose
+- Data/Infra: PostgreSQL (+pgvector), MinIO, Keycloak, Docker Compose
 - Qualité: SonarQube
 
 ## Structure du projet
@@ -121,11 +121,18 @@ NextStep/
 ├─ frontend/                 # UI Angular
 ├─ backend/                  # API .NET + modules métier
 ├─ agents/                   # API FastAPI + agents IA
-├─ postgres/                 # scripts init DB
-├─ keycloak-config/          # realm import
-├─ keycloak-theme/           # thèmes custom Keycloak
-├─ infra/                    # Terraform + infra locale/AWS
-├─ docker-compose.yml        # orchestration locale complète
+├─ init_config/
+│  ├─ postgres/              # scripts init DB + seeds
+│  ├─ keycloak/              # realm import + thèmes custom
+│  └─ nginx/                 # reverse proxy (prod)
+├─ infra/aws/                # Terraform AWS (voir infra/aws/README.md)
+│  ├─ enterprise-fargate/    # production: ECS Fargate, ALB, RDS Multi-AZ, KMS
+│  └─ ec2-quickstart/        # démo live: 1 EC2 + docker-compose.prod.yml + HTTPS
+├─ scripts/                  # dev.ps1 (stack local sans Docker)
+├─ docs/                     # diagrammes et documentation
+├─ docker-compose.yml        # base commune (services, healthchecks, volumes)
+├─ docker-compose.dev.yml    # surcharge dev (ports, hot reload)
+├─ docker-compose.prod.yml   # surcharge prod (reverse proxy, restart, limites)
 └─ NextStep.sln
 ```
 
@@ -173,19 +180,26 @@ Prérequis:
 cp .env.example .env
 ```
 2. Renseigner les clés/API secrets dans `.env`.
-3. Lancer la stack:
+3. Lancer la stack **dev** (hot reload, tous les ports ouverts):
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
+Le premier build est long (téléchargement des images de base et des dépendances). Ensuite, lancer simplement `up` : le code du backend, des agents et du frontend est monté et rechargé à chaud. `--build` n'est utile qu'après une modification d'un `Dockerfile`, de `requirements.txt`, `package.json` ou `NextStep.csproj`.
 
-Services principaux:
+Services (dev):
 - Frontend: `http://localhost:4200`
-- Backend API: `http://localhost:5000`
-- Agents FastAPI: `http://localhost:8000`
+- Backend API: `http://localhost:5000` (Swagger: `/swagger`, Hangfire: `/hangfire`)
+- Agents FastAPI: `http://localhost:8000/docs`
 - Keycloak: `http://localhost:8080`
-- MinIO Console: `http://localhost:9001`
-- Hangfire Dashboard (dev): `http://localhost:5000/hangfire`
-- SonarQube: `http://localhost:9005`
+- PostgreSQL: `localhost:5433`
+
+**Production** (seul le reverse proxy nginx est exposé, port `HTTP_PORT`, défaut 80):
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+Renseigner `PUBLIC_URL` dans `.env`. Routes: `/api`, `/hubs`, `/uploads` → backend, `/agents` → agents, `/auth` → Keycloak, `/` → frontend.
+
+Stockage des fichiers: disque local (volume Docker) par défaut (`STORAGE_MODE=Local`). MinIO est optionnel via `--profile minio` (voir `docker-compose.yml`).
 
 ## Option B - Démarrage manuel (dev)
 ### Frontend
@@ -241,7 +255,7 @@ pytest
 ```
 
 ## Qualité, observabilité et jobs
-- SonarQube intégré via `docker-compose.yml`
+- Analyse SonarQube dans la CI GitHub Actions
 - Logs backend centralisés (`Console` + `Debug`)
 - SignalR pour état live du pipeline
 - Jobs Hangfire:
@@ -261,7 +275,7 @@ pytest
 
 ### 3) Pipeline bloqué sur "Saving..."
 - Vérifier logs backend (PDF renderer, SignalR, endpoints `/offers/*`).
-- Vérifier accessibilité MinIO et persistance DB.
+- Vérifier le stockage des fichiers (volume `backend_storage` ou MinIO) et la persistance DB.
 - Vérifier timeouts API ou erreurs `500` dans l'onglet réseau frontend.
 
 ### 4) Scraping ne lance pas le bon écran

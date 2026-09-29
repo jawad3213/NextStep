@@ -26,11 +26,15 @@ agents/**/__pycache__/
 agents/*.pyc
 agents/.venv/
 agents/venv/
+agents/scratch/
 
-# --- Infrastructure (Vagrant & Terraform) ---
-**/.vagrant/
-**/vagrant-*.log
-**/*.box
+# --- Generated artifacts ---
+# Only <slug>.html.png is served; everything else is regenerated or unused
+backend/thumbnails/*.pdf
+backend/thumbnails/*.html
+*.tar.gz
+
+# --- Infrastructure (Terraform) ---
 
 **/.terraform/
 **/*.tfstate
@@ -53,6 +57,8 @@ Thumbs.db
 
 # --- Docker ---
 docker-compose.override.yml
+cloudflared.exe
+
 
 # --- Engineering Dashboard ---
 
@@ -66,21 +72,18 @@ git-commit.ps1
 
 
 .specify/
+.agents/
 
 # Infrastructure & Secrets
 .env
 .env.prod
 .env.local
 .terraform/
-.vagrant/
 *.tfstate
 *.tfstate.backup
 *.tfvars
 *.tfvars.json
 .terraform.lock.hcl
-
-# Vagrant
-vagrant-*.log
 
 # Scripts de migration
 extract-microservice.ps1
@@ -111,3 +114,8 @@ offer copy.txt
 # --- Configurations Locales ---
 appsettings.local.json
 secrets.json
+
+# --- Documents & Rapports locaux ---
+*.latex
+rapp.latex
+rappor-fonctionnele.latex

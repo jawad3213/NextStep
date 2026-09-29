@@ -1,6 +1,9 @@
 import logging
+import re
+import unicodedata
 from typing import Dict, Any, List, Optional
 
+from app.domain.matching.skill_matcher import canonical_skill
 from app.domain.cv_engine.schemas.models import (
     QuestPDFCvData,
     QuestPDFCandidate,
@@ -14,11 +17,18 @@ from app.domain.cv_engine.schemas.models import (
 logger = logging.getLogger(__name__)
 
 LANGUAGE_TYPES = {"language", "langue", "lang"}
+# Words that mark an untyped entry as an extracurricular activity. Matched as whole words
+# in the entry's title and organisation only (descriptions of real jobs mention clubs,
+# events or trainings too).
 ACTIVITY_KEYWORDS = {
-    "hackathon", "club", "association", "organisateur", "organizer", "membre",
-    "volunteer", "bénévole", "benevole", "event", "community", "communaut",
-    "it day", "prize", "prix", "participant", "formateur", "trainer",
-    "formation", "solihackathon", "itwave", "ids"
+    "hackathon", "club", "association", "bde", "benevole", "benevolat", "volunteer",
+    "volunteering", "volontariat", "organisateur", "organisatrice", "organizer",
+    "community", "communaute",
+}
+# Contract types that are always professional experience, whatever the wording.
+PROFESSIONAL_TYPES = {
+    "stage", "internship", "cdi", "cdd", "freelance", "alternance", "apprenticeship",
+    "pfe", "pfa", "interim", "emploi", "job", "full-time", "part-time",
 }
 ACTIVITY_TYPES = {
     "extracurricular",
@@ -68,14 +78,53 @@ def _profile_personal_info(profile: Dict[str, Any]) -> Dict[str, Any]:
     )
     return personal if isinstance(personal, dict) else {}
 
-def _looks_like_activity(role: str, company: str, desc: str) -> bool:
-    text = f"{_norm(role)} {_norm(company)} {_norm(desc)}"
-    if "stage" in text or "intern" in text:
-        return False
-    return any(k in text for k in ACTIVITY_KEYWORDS)
+def _plain(value: Any) -> str:
+    """Lower-case, accent-free text for whole-word matching."""
+    text = unicodedata.normalize("NFKD", _norm(value))
+    return "".join(c for c in text if not unicodedata.combining(c))
 
 def _is_activity_type(value: Any) -> bool:
     return _norm(value) in ACTIVITY_TYPES
+
+def _looks_like_activity(role: str, company: str, contract_type: Any = "") -> bool:
+    """Extracurricular entry: typed as such, or untyped with an activity word in its
+    title/organisation. A professional contract type is never an activity."""
+    if _is_activity_type(contract_type):
+        return True
+    if _plain(contract_type) in PROFESSIONAL_TYPES:
+        return False
+    words = set(re.findall(r"[a-z0-9]+", f"{_plain(role)} {_plain(company)}"))
+    return bool(words & ACTIVITY_KEYWORDS)
+
+def _activity_key(title: Any, role: Any) -> str:
+    """One key for an activity everywhere (title first, then organisation)."""
+    return f"{_norm(title)}|{_norm(role)}"
+
+def _find_source(
+    items: List[Dict[str, Any]],
+    used: set,
+    title: str,
+    company: str = "",
+    title_key: str = "titre",
+    company_key: str = "entreprise",
+) -> Optional[Dict[str, Any]]:
+    """The original entry an optimized one comes from: same title, and same company when
+    both are known (two jobs can share a title). Each original is used once."""
+    wanted_title, wanted_company = _norm(title), _norm(company)
+    fallback = None
+    for index, item in enumerate(items or []):
+        if index in used or _norm(item.get(title_key)) != wanted_title:
+            continue
+        source_company = _norm(item.get(company_key))
+        if not wanted_company or not source_company or source_company == wanted_company:
+            used.add(index)
+            return item
+        if fallback is None:
+            fallback = index
+    if fallback is not None:
+        used.add(fallback)
+        return items[fallback]
+    return None
 
 def _dedupe_strings(values: List[str], limit: Optional[int] = None) -> List[str]:
     seen = set()
@@ -210,6 +259,7 @@ def build_questpdf_payload(
     extracted_activities: List[QuestPDFActivity] = []
 
     scored_experiences = []
+    used_exps: set = set()
     for index, opt_exp in enumerate(opt_exps):
         opt_title = opt_exp.get("titre", "")
         opt_company = opt_exp.get("entreprise", "")
@@ -226,14 +276,13 @@ def build_questpdf_payload(
         optimized_tasks = _split_bullets(opt_exp.get("taches_optimisees"))
         orig_desc = ""
         orig_type = ""
-        for orig_exp in original_exps:
-            if orig_exp.get("titre", "").strip().lower() == opt_title.strip().lower():
-                start_date = orig_exp.get("date_debut")
-                end_date = orig_exp.get("date_fin")
-                orig_tasks = orig_exp.get("taches") or orig_exp.get("tasks") or []
-                orig_desc = str(orig_exp.get("description") or "")
-                orig_type = str(orig_exp.get("type") or "")
-                break
+        orig_exp = _find_source(original_exps, used_exps, opt_title, opt_company)
+        if orig_exp:
+            start_date = orig_exp.get("date_debut")
+            end_date = orig_exp.get("date_fin")
+            orig_tasks = orig_exp.get("taches") or orig_exp.get("tasks") or []
+            orig_desc = str(orig_exp.get("description") or "")
+            orig_type = str(orig_exp.get("type") or "")
 
         bullets = optimized_tasks
         if not bullets:
@@ -245,7 +294,7 @@ def build_questpdf_payload(
         bullets = _dedupe_strings(bullets, limit=4)
 
         # Keep extracurricular / community entries out of professional experience
-        if _is_activity_type(orig_type) or _looks_like_activity(opt_title, opt_company, f"{opt_desc} {orig_desc}"):
+        if _looks_like_activity(opt_title, opt_company, orig_type):
             extracted_activities.append(QuestPDFActivity(
                 title=opt_title or opt_company,
                 role=opt_company or None,
@@ -273,6 +322,7 @@ def build_questpdf_payload(
     original_projs = original_profile.get("projets", [])
     
     scored_projects = []
+    used_projs: set = set()
 
     for index, opt_proj in enumerate(opt_projects):
         opt_title = opt_proj.get("titre", "")
@@ -283,12 +333,9 @@ def build_questpdf_payload(
             score = (score * 10) + len(matched_techs)
 
         # Match with original project to get taches
-        orig_tasks = []
         optimized_tasks = _split_bullets(opt_proj.get("taches_optimisees"))
-        for orig_p in original_projs:
-            if orig_p.get("titre", "").strip().lower() == opt_title.strip().lower():
-                orig_tasks = orig_p.get("taches") or orig_p.get("tasks") or []
-                break
+        orig_p = _find_source(original_projs, used_projs, opt_title)
+        orig_tasks = (orig_p.get("taches") or orig_p.get("tasks") or []) if orig_p else []
 
         bullets = optimized_tasks
         if not bullets:
@@ -316,14 +363,13 @@ def build_questpdf_payload(
     original_edus = original_profile.get("formations", [])
     opt_edus = optimized_cv.get("formations_optimisees", [])
 
+    used_edus: set = set()
     for opt_edu in opt_edus:
         degree = opt_edu.get("diplome", "")
         institution = opt_edu.get("etablissement", "")
-        year = None
-        for orig_edu in original_edus:
-            if orig_edu.get("diplome", "").strip().lower() == degree.strip().lower():
-                year = orig_edu.get("annee")
-                break
+        orig_edu = _find_source(original_edus, used_edus, degree, institution, "diplome", "etablissement")
+        # A CV shows the graduation (end) year, not the year the studies started.
+        year = (orig_edu.get("annee_fin") or orig_edu.get("annee")) if orig_edu else None
         quest_educations.append(QuestPDFEducation(
             degree=degree,
             institution=institution,
@@ -348,9 +394,9 @@ def build_questpdf_payload(
             non_lang_competences.append(comp)
 
     # 8. Skills with matching and algorithmic sorting
-    matched_set = {s.lower().strip() for s in (matched_skills or [])}
+    matched_set = {canonical_skill(s) for s in (matched_skills or []) if str(s or "").strip()}
     highlighted_set = {
-        s.lower().strip()
+        canonical_skill(s)
         for s in (optimized_cv.get("competences_mises_en_avant", []) or [])
         if str(s or "").strip()
     }
@@ -368,13 +414,14 @@ def build_questpdf_payload(
             continue
         seen.add(key)
         
-        is_matched = key in matched_set
+        skill_key = canonical_skill(skill_name)
+        is_matched = skill_key in matched_set
         skill_obj = QuestPDFSkill(
             name=skill_name,
             level=3,
             is_matched=is_matched,
         )
-        if key in highlighted_set:
+        if skill_key in highlighted_set:
             highlighted_skills_list.append(skill_obj)
         elif is_matched:
             matched_skills_list.append(skill_obj)
@@ -394,7 +441,7 @@ def build_questpdf_payload(
         description = _clean_optional_str(activity.get("description"))
         if not title and not description:
             continue
-        akey = f"{_norm(title)}|{_norm(role)}"
+        akey = _activity_key(title or role, role)
         if akey in seen_activity_keys:
             continue
         activities.append(QuestPDFActivity(
@@ -411,8 +458,8 @@ def build_questpdf_payload(
         role = exp.get("titre", "")
         company = exp.get("entreprise", "")
         desc = exp.get("description", "")
-        if _is_activity_type(exp.get("type", "")) or _looks_like_activity(role, company, desc):
-            akey = f"{_norm(role)}|{_norm(company)}"
+        if _looks_like_activity(role, company, exp.get("type", "")):
+            akey = _activity_key(role or company, company)
             if akey in seen_activity_keys:
                 continue
             activities.append(QuestPDFActivity(
@@ -427,7 +474,7 @@ def build_questpdf_payload(
     # Extract from projets (legacy or alternative mapping)
     for proj in original_profile.get("projets", []):
         if proj.get("categorie") == "association" or proj.get("type") == "extracurricular":
-            akey = f"{_norm(proj.get('role'))}|{_norm(proj.get('titre'))}"
+            akey = _activity_key(proj.get("titre"), proj.get("role"))
             if akey in seen_activity_keys:
                 continue
             activities.append(QuestPDFActivity(
@@ -439,7 +486,7 @@ def build_questpdf_payload(
 
     # Merge activities extracted during optimized-exp pass + profile pass (deduplicated)
     for a in extracted_activities:
-        akey = f"{_norm(a.role)}|{_norm(a.title)}"
+        akey = _activity_key(a.title, a.role)
         if akey in seen_activity_keys:
             continue
         activities.append(a)
@@ -448,7 +495,7 @@ def build_questpdf_payload(
     # 10. ATS Score
     if offer_skills:
         total = len(offer_skills)
-        matched_count = sum(1 for s in offer_skills if s.lower().strip() in matched_set)
+        matched_count = sum(1 for s in offer_skills if canonical_skill(s) in matched_set)
         ats_score = round((matched_count / total) * 100) if total > 0 else 0
     else:
         ats_score = 0

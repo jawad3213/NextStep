@@ -27,22 +27,29 @@ Ta tâche est de lire attentivement les données brutes récoltées sur l'entrep
 Voici les données brutes collectées (extraits de recherche, LinkedIn, Indeed, Rekrute et Glassdoor) :
 {raw_data}
 
+⛔ RÈGLE ABSOLUE — AUCUNE INVENTION :
+- Chaque fait et chaque chiffre (note, score, salaire, effectif, actualité, avis) doit provenir des données ci-dessus.
+- Si une information n'y figure pas : null pour les nombres, [] pour les listes, "" pour les textes. N'estime rien,
+  n'utilise pas tes connaissances générales, ne complète pas avec des valeurs "typiques du marché".
+- Un rapport court et exact vaut mieux qu'un rapport long et inventé.
+
 💡 DIRECTIVES DE SYNTHÈSE ET DE PARSING FACTUEL :
 1. RÉSUMÉ DE L'ENTREPRISE (sera stocké dans `resume_entreprise` de la table PostgreSQL) :
-   Rédige une présentation générale très riche et ultra-détaillée (minimum 3 paragraphes complets, bien rédigés en français, agrémentés d'émojis). Ne fais pas un simple résumé d'une phrase ! Le texte doit impérativement détailler :
+   Rédige une présentation générale en français, dont la longueur est proportionnelle aux informations réellement disponibles (ne remplis pas). Elle couvre, seulement si les données le permettent :
    - Qui est l'entreprise (envergure, histoire, présence au Maroc, villes d'implantation comme Casablanca, Rabat, etc.).
    - Ce que fait exactement l'entreprise (ses secteurs d'activité, pôles technologiques, expertises en transformation numérique, ingénierie, R&D, intégration, etc.).
    - L'environnement de travail et le style de management décrits par les collaborateurs dans les avis scrapés.
 
 2. NOTES ET CULTURE :
-   - Extrais la note globale de l'entreprise sur Glassdoor/Indeed (ex: `3.6` ou `4.0` sur 5) ou 0.0 si introuvable.
-   - Calcule le `culture_score` (la note globale multipliée par 20, ex: 3.6 * 20 = 72).
-   - Extrais la note spécifique d'équilibre vie professionnelle / vie privée (`work_life_balance`), ex: `3.8`.
+   - Extrais la note globale de l'entreprise sur Glassdoor/Indeed (ex: `3.6` ou `4.0` sur 5) SEULEMENT si elle est écrite dans les données, sinon null.
+   - `culture_score` = note globale × 20 (ex: 3.6 * 20 = 72), ou null si la note est null.
+   - `work_life_balance` : seulement si cette note est écrite dans les données, sinon null.
 
 3. SALAIRES (RÈGLES STRICTES DE SÉNIORITÉ) :
    - Analyse les salaires et calcules-les au format mensuel net en dirhams (MAD).
    - Si les chiffres dans le texte brut sont annuels (ex: 129k MAD), divise-les par 12 (ex: 129000 / 12 = 10750 MAD/mois).
-   - ⚠️ **RÈGLE SÉNIORITÉ SPÉCIFIQUE** : Si l'utilisateur n'a PAS spécifié explicitement de niveau d'expérience (ex: s'il a juste cherché "{job_title}" sans préciser "Junior" ou "Senior"), tu DOIS impérativement inclure à la fois un profil **"Junior"** (ex: salaire de départ / débutant estimé à partir des données Indeed/Glassdoor) ET un profil **"Senior"** dans la liste des salaires, pour que l'utilisateur ait toujours les repères pour le niveau Junior et Senior ! Indique clairement la source pour chaque niveau de séniorité.
+   - N'inclus QUE les salaires présents dans les données (avec leur source). S'il n'y a aucun salaire, "salaries" vaut [].
+     N'estime jamais un salaire Junior ou Senior absent des données.
 
 4. QUESTIONS D'ENTRETIEN (RÈGLE DES 6 QUESTIONS) :
    - **Tu DOIS impérativement lister EXACTEMENT 6 questions d'entretien d'embauche.**

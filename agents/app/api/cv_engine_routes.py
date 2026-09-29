@@ -1,36 +1,14 @@
 import logging
 from fastapi import APIRouter, HTTPException
 
-from app.domain.cv_engine.schemas.models import CVEngineRequest, PrepareCvRequest
+from app.domain.cv_engine.schemas.models import PrepareCvRequest
 from app.domain.cv_engine.service import cv_engine_service
 from app.domain.profile_retriever.service import profile_retriever_service
 from app.domain.cv_optimizer.service import cv_optimizer_service
+from app.domain.matching.skill_matcher import build_match_result
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["CV Engine — Préparation données CV"])
-
-@router.post(
-    "/cv-engine/format-questpdf",
-    response_model=dict,
-    summary="Fusionne le profil d'origine et le CV optimisé pour QuestPDF",
-    description=(
-        "Prend en entrée les données brutes (Profile Retriever) et le CV optimisé "
-        "(CV Optimizer) pour produire un JSON déterministe respectant la structure "
-        "CvData attendue par le backend .NET."
-    ),
-)
-async def format_questpdf(payload: CVEngineRequest) -> dict:
-    """POST /cv-engine/format-questpdf"""
-    logger.info("POST /cv-engine/format-questpdf appelé.")
-    try:
-        return await cv_engine_service.format_for_questpdf(
-            original_profile=payload.original_profile,
-            optimized_cv=payload.optimized_cv
-        )
-    except Exception as e:
-        logger.error("POST /cv-engine/format-questpdf ❌ — %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.post(
     "/prepare-cv",
@@ -60,11 +38,12 @@ async def prepare_cv(payload: PrepareCvRequest) -> dict:
             logger.info("Offre detectee. Execution de CV Optimizer...")
             opt_output = await cv_optimizer_service.optimize_cv(
                 candidate_cv=profile,
-                job_offer=payload.offer_data
+                job_offer=payload.offer_data,
+                language=profile.get("preferred_language") or "en",
             )
             optimized_cv = opt_output.model_dump()
             offer_skills = payload.offer_data.get("competences_requises", [])
-            matched_skills = optimized_cv.get("competences_reordonnees", [])
+            matched_skills = build_match_result(profile, payload.offer_data)["matched_skills"]
         else:
             logger.info("Aucune offre fournie. Utilisation du profil brut.")
             optimized_cv = {
@@ -120,5 +99,5 @@ async def prepare_cv(payload: PrepareCvRequest) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Erreur dans POST /prepare-cv: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Erreur dans POST /prepare-cv: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la preparation du CV.")

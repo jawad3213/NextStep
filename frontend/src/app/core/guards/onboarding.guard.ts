@@ -1,12 +1,18 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
-import { OnboardingService } from '../../services/onboarding.service';
+import { OnboardingService } from '@core/auth/onboarding.service';
 import { catchError, map, of, take } from 'rxjs';
 
+/**
+ * Access to the application is decided only by the backend (per user, stored in
+ * the database), never by browser storage:
+ *   1. onboardingCompleted = false -> /onboarding (the 3 onboarding questions)
+ *   2. profileCompleted    = false -> /profile (stepper; "Finish" is validated server-side)
+ *   3. both true                   -> full application
+ */
 export const onboardingGuard: CanActivateFn = (route, state) => {
   const onboardingService = inject(OnboardingService);
   const router = inject(Router);
-  const profileUnlockedKey = 'nextstep_profile_unlocked';
 
   return onboardingService.getStatus().pipe(
     take(1),
@@ -14,26 +20,13 @@ export const onboardingGuard: CanActivateFn = (route, state) => {
       if (!status.onboardingCompleted) {
         return router.parseUrl('/onboarding');
       }
-
-      const isProfileRoute = state.url.startsWith('/profile');
-      if (!isProfileRoute) {
-        const profileUnlocked = localStorage.getItem(profileUnlockedKey) === 'true';
-        if (!profileUnlocked) {
-          return router.parseUrl('/profile?step=coordonnees');
-        }
+      if (!status.profileCompleted && !state.url.startsWith('/profile')) {
+        return router.parseUrl('/profile?step=coordonnees');
       }
-
       return true;
     }),
-    catchError(() => {
-      const devBypass = localStorage.getItem(profileUnlockedKey) === 'true';
-      if (devBypass) return of(true);
-      const softOnboardingDone = localStorage.getItem('nextstep_soft_onboarding_done') === 'true';
-      if (softOnboardingDone) {
-        return of(router.parseUrl('/profile?step=coordonnees'));
-      }
-      return of(router.parseUrl('/onboarding'));
-    })
+    // Fail closed: if the status cannot be read, do not open the application.
+    catchError(() => of(router.parseUrl('/onboarding')))
   );
 };
 
@@ -44,18 +37,12 @@ export const alreadyOnboardedGuard: CanActivateFn = () => {
   return onboardingService.getStatus().pipe(
     take(1),
     map(status => {
-      if (status.onboardingCompleted) {
-        return router.parseUrl('/offers');
+      if (!status.onboardingCompleted) {
+        return true;
       }
-      return true;
+      return router.parseUrl(status.profileCompleted ? '/offers' : '/profile?step=coordonnees');
     }),
-    catchError(() => {
-      const profileUnlocked = localStorage.getItem('nextstep_profile_unlocked') === 'true';
-      const softOnboardingDone = localStorage.getItem('nextstep_soft_onboarding_done') === 'true';
-      if (profileUnlocked || softOnboardingDone) {
-        return of(router.parseUrl('/offers'));
-      }
-      return of(true);
-    })
+    // The onboarding page itself stays reachable if the status cannot be read.
+    catchError(() => of(true))
   );
 };

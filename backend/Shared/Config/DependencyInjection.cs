@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,22 +7,16 @@ using Microsoft.Extensions.Options;
 using Amazon.S3;
 using Hangfire;
 using Hangfire.PostgreSql;
-using NextStep.data;
+using NextStep.Shared.Events;
 using NextStep.Shared.Http;
 using NextStep.Shared.Storage;
-using NextStep.Modules.Candidature.Repositories;
-using NextStep.Modules.Candidature.Services;
-using NextStep.Modules.Email.Repositories;
-using NextStep.Modules.Email.Services;
-using NextStep.Modules.Offer.Repositories;
-using NextStep.Modules.Offer.Services;
-using NextStep.Modules.Identity.Repositories;
-using NextStep.Modules.Identity.Services;
-using NextStep.Modules.Profile.Services;
-using NextStep.Modules.Cv.Services;
-using NextStep.Modules.Sourcing.Services;
-using NextStep.Modules.Chatbot;
-using NextStep.Jobs;
+using NextStep.Modules.Applications;
+using NextStep.Modules.Coaching;
+using NextStep.Modules.CvDocuments;
+using NextStep.Modules.Messaging;
+using NextStep.Modules.Profile;
+using NextStep.Modules.Profile.Contracts;
+using NextStep.Modules.Sourcing;
 
 namespace NextStep.Shared.Config;
 
@@ -49,23 +44,27 @@ public static class DependencyInjection
         return services;
     }
 
-    public static IServiceCollection AddCorsPolicy(this IServiceCollection services)
+    public static IServiceCollection AddCorsPolicy(this IServiceCollection services, IConfiguration configuration)
     {
+        var allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "http://localhost:4200"
+        };
+
+        var configuredFrontendBaseUrl = configuration["App:FrontendBaseUrl"];
+        if (Uri.TryCreate(configuredFrontendBaseUrl, UriKind.Absolute, out var frontendBaseUri))
+        {
+            allowedOrigins.Add(frontendBaseUri.GetLeftPart(UriPartial.Authority));
+        }
+
         services.AddCors(options =>
         {
             options.AddPolicy("Angular", policy =>
-                policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials()
+                policy.SetIsOriginAllowed(_ => true)
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials()
             );
-        });
-        return services;
-    }
-
-    public static IServiceCollection AddAppDbContext(this IServiceCollection services, IConfiguration configuration)
-    {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-        services.AddDbContext<AppDbContext>(options => {
-            options.UseNpgsql(connectionString);
-            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
         return services;
     }
@@ -85,7 +84,7 @@ public static class DependencyInjection
                 { 
                     ValidateAudience = false, 
                     ValidateIssuer = false, 
-                    ValidateLifetime = false,
+                    ValidateLifetime = true,
                     NameClaimType = "email" 
                 };
                 options.MapInboundClaims = false;
@@ -103,8 +102,8 @@ public static class DependencyInjection
                         var principal = context.Principal;
                         if (principal != null)
                         {
-                            var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                            try { await userService.EnsureUserCreatedAsync(principal); } catch { }
+                            var profile = context.HttpContext.RequestServices.GetRequiredService<IProfileApi>();
+                            try { await profile.EnsureUserIdAsync(principal); } catch { }
                         }
                     }
                 };
@@ -115,48 +114,28 @@ public static class DependencyInjection
     public static IServiceCollection AddAppBusinessServices(this IServiceCollection services, IConfiguration configuration)
     {
         // Python Agents settings
-        services.Configure<AgentPythonOptions>(configuration.GetSection("PythonAgents"));
-        services.Configure<SmtpEmailOptions>(configuration.GetSection("Email:Smtp"));
-        services.AddHttpClient("SharedAgentClient").AddTypedClient<IAgentHttpClient, AgentHttpClient>();
-        
-        // Chatbot Module
-        services.AddChatbotModule(configuration);
+        services.Configure<AgentPythonOptions>(options =>
+        {
+            var url = configuration["PythonAgents:Url"]
+                   ?? configuration["AgentsService:BaseUrl"]
+                   ?? "http://localhost:8000";
+            options.Url = url;
+        });
+        services.AddTransient<AgentApiKeyHandler>();
+        services.AddHttpClient("SharedAgentClient")
+            .AddHttpMessageHandler<AgentApiKeyHandler>()
+            .AddTypedClient<IAgentHttpClient, AgentHttpClient>();
 
-        // Core business services & repositories
-        services.AddScoped<IOfferRepository, OfferRepository>();
-        services.AddScoped<IOfferService, OfferService>();
-        services.AddScoped<IPipelineRunnerService, PipelineRunnerService>();
-        services.AddScoped<IPdfGenerationService, PdfGenerationService>();
-        services.AddScoped<ICandidatureRepository, CandidatureRepository>();
-        services.AddScoped<ICandidatureService, CandidatureService>();
-        services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
-        services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<IEmailSenderService, GmailEmailSenderService>();
-        services.AddScoped<IEmailConnectionService, EmailConnectionService>();
-        services.AddScoped<IUserEmailConnectionRepository, UserEmailConnectionRepository>();
-        services.AddScoped<IUserOAuthCredentialRepository, UserOAuthCredentialRepository>();
-        services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IProfileService, ProfileService>();
-        services.AddScoped<IGmailReplyMonitorService, GmailReplyMonitorService>();
-        services.AddScoped<IResponseClassificationService, ResponseClassificationService>();
-        services.AddScoped<CheckEmailRepliesJob>();
-        services.AddScoped<DetectFollowUpNeededJob>();
-        services.AddScoped<ICvService, CvService>();
-        services.AddScoped<ICvHtmlTemplateRenderer, CvHtmlTemplateRenderer>();
-        services.AddScoped<ICvPdfRenderer, CvPdfRenderer>();
-        services.AddScoped<ICvTemplateService, CvTemplateService>();
-        services.AddScoped<ITemplateThumbnailService, TemplateThumbnailService>();
-        services.AddScoped<ISourcedOfferService, SourcedOfferService>();
+        // Modules communicate through Contracts and integration events only
+        services.AddScoped<IEventPublisher, InProcessEventPublisher>();
 
-        // Google OAuth configuration
-        services.Configure<GoogleOAuthOptions>(
-            configuration.GetSection(GoogleOAuthOptions.SectionName));
-
-        // Email Follow-up configuration
-        services.Configure<EmailFollowUpOptions>(
-            configuration.GetSection(EmailFollowUpOptions.SectionName));
+        // Each module registers its own DbContext (own schema), services and event handlers
+        services.AddProfileModule(configuration);
+        services.AddApplicationsModule(configuration);
+        services.AddCvDocumentsModule(configuration);
+        services.AddMessagingModule(configuration);
+        services.AddCoachingModule(configuration);
+        services.AddSourcingModule(configuration);
 
         // ASP.NET Core Data Protection (encrypts Gmail tokens at rest)
         services.AddDataProtection();
@@ -164,7 +143,7 @@ public static class DependencyInjection
         return services;
     }
 
-    public static IServiceCollection AddAppStorageAndJobs(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddAppStorageAndJobs(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
@@ -176,19 +155,35 @@ public static class DependencyInjection
             .UsePostgreSqlStorage(opt => opt.UseNpgsqlConnection(connectionString)));
         services.AddHangfireServer();
 
-        // MinIO / S3 Storage
-        services.Configure<MinioOptions>(configuration.GetSection("Minio"));
-        services.AddSingleton<IAmazonS3>(sp =>
+        var storageMode = configuration["Storage:Mode"] ?? "Minio";
+
+        if (string.Equals(storageMode, "Local", StringComparison.OrdinalIgnoreCase))
         {
-            var opts = sp.GetRequiredService<IOptions<MinioOptions>>().Value;
-            var config = new AmazonS3Config
+            // Local development only: persist files on disk and serve them via
+            // the backend static-file middleware (see Program.cs /uploads).
+            services.Configure<LocalStorageOptions>(options =>
             {
-                ServiceURL = opts.Endpoint,
-                ForcePathStyle = true,   // Required for MinIO
-            };
-            return new AmazonS3Client(opts.AccessKey, opts.SecretKey, config);
-        });
-        services.AddSingleton<IStorageService, MinioStorageService>();
+                options.RootPath = Path.Combine(environment.ContentRootPath, "storage");
+                options.PublicBaseUrl = configuration["App:PublicBaseUrl"] ?? "http://localhost:5000";
+            });
+            services.AddSingleton<IStorageService, LocalFileStorageService>();
+        }
+        else
+        {
+            // MinIO / S3 Storage
+            services.Configure<MinioOptions>(configuration.GetSection("Minio"));
+            services.AddSingleton<IAmazonS3>(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<MinioOptions>>().Value;
+                var config = new AmazonS3Config
+                {
+                    ServiceURL = opts.Endpoint,
+                    ForcePathStyle = true,   // Required for MinIO
+                };
+                return new AmazonS3Client(opts.AccessKey, opts.SecretKey, config);
+            });
+            services.AddSingleton<IStorageService, MinioStorageService>();
+        }
 
         return services;
     }

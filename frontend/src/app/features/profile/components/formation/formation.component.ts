@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { Education, MENTION_LABELS, DEGREE_LABELS } from '../../profile.types';
+import { Education, MENTION_LABELS, DEGREE_LABELS } from '../../data-access/profile.models';
 
 @Component({
   selector: 'app-formation',

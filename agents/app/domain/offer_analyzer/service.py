@@ -10,9 +10,13 @@ logger = logging.getLogger(__name__)
 class OfferAnalyzerService:
     """Service pour l'analyse d'offres d'emploi."""
 
+    def __init__(self):
+        # Compiled once and reused by every request.
+        self._workflow = build_offer_analyzer_workflow()
+
     async def analyze(self, raw_text: str) -> dict:
         """Analyse une offre et retourne le JSON structuré + normalisé."""
-        workflow = build_offer_analyzer_workflow()
+        workflow = self._workflow
         initial_state: OfferAnalyzerState = {
             "raw_offer_text": raw_text,
             "iteration_count": 0,

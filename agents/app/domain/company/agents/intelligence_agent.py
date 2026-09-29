@@ -68,7 +68,7 @@ async def researcher_node(state: CompanyState) -> dict:
     
     # 1. Smart Search (Focalisé uniquement sur la fiche générale / présentation d'entreprise)
     search_query = f"{company} présentation"
-    search_results = await smart_search(search_query)
+    search_results = await smart_search(search_query, must_mention=company)
     
     logger.info(f"📊 Researcher got {len(search_results)} general results from DDG")
     
@@ -141,6 +141,76 @@ def clean_and_truncate_text(text: str, max_chars: int = 3500) -> str:
     return text
 
 
+_META_KEYS = {"error", "errors", "status", "source", "company", "query", "url", "message", "type"}
+
+
+def _has_substance(entry: dict) -> bool:
+    """True if a collected source actually contains information (not just an error/empty payload)."""
+    if not entry or entry.get("type") == "warning":
+        return False
+    if entry.get("type") == "web_deep_scrape":
+        return any(str(c).strip() for c in entry.get("content") or [])
+    data = entry.get("data")
+    if isinstance(data, dict):
+        return any(v for k, v in data.items() if k not in _META_KEYS)
+    return bool(data)
+
+
+_MIN_SUMMARY_CHARS = 80
+
+
+def report_has_content(intelligence: dict | None) -> bool:
+    """Whether a company report holds real facts from the sources: a real summary, sector,
+    headquarters, news, salaries, culture or pros/cons. A LinkedIn link and generic interview
+    questions alone are not a report."""
+    if not isinstance(intelligence, dict):
+        return False
+    culture = intelligence.get("culture") or {}
+    return any([
+        len(str(intelligence.get("summary") or "").strip()) >= _MIN_SUMMARY_CHARS,
+        str(intelligence.get("sector") or "").strip(),
+        str(intelligence.get("hq_location") or "").strip(),
+        intelligence.get("actualites"),
+        intelligence.get("salaries"),
+        intelligence.get("pros"),
+        intelligence.get("cons"),
+        isinstance(culture, dict) and (culture.get("glassdoor_rating") or culture.get("key_values") or culture.get("top_reviews")),
+    ])
+
+
+def _no_data_report(company: str, reason: str) -> dict:
+    """Honest empty report: nothing is invented when sources are missing or the analysis failed."""
+    return {
+        "intelligence": {
+            "nom": company,
+            "summary": f"Aucune information fiable n'a pu être collectée sur {company} ({reason}).",
+            "data_available": False,
+            "sector": "",
+            "hq_location": "",
+            "culture": {"culture_score": None, "turnover_rate": None, "work_life_balance": None,
+                        "glassdoor_rating": None, "key_values": [], "top_reviews": []},
+            "salaries": [],
+            "actualites": [],
+            "interview_difficulty": None,
+            "interview_questions": [],
+            "pros": [],
+            "cons": [],
+        },
+        "company_summary": "",
+        "score": None,
+        "recommendations": [],
+        "messages": [AIMessage(content=f"Pas de données fiables pour {company} : {reason}.", name="analyst")],
+    }
+
+
+def _written_in(value: object, source_text: str) -> bool:
+    """True if a rating like 3.6 appears in the sources (as '3.6' or '3,6')."""
+    if value in (None, ""):
+        return False
+    text = f"{float(value):.1f}"
+    return text in source_text or text.replace(".", ",") in source_text
+
+
 async def analyst_node(state: CompanyState) -> dict:
     """
     Nœud 2 : Synthèse finale de l'intelligence.
@@ -187,6 +257,11 @@ async def analyst_node(state: CompanyState) -> dict:
             
     raw_data_str = "\n".join(formatted_data) if formatted_data else "Aucune donnée collectée."
 
+    # No real source: do not ask the LLM (it would answer from memory and invent figures).
+    if not any(_has_substance(r) for r in raw_data):
+        logger.warning("Company intel: no usable source for %s, returning an empty report.", company)
+        return _no_data_report(company, "aucune source trouvée sur le web")
+
     llm = get_llm(agent_name="company")
     if hasattr(llm, "bind"):
         llm = llm.bind(response_format={"type": "json_object"})
@@ -208,11 +283,22 @@ async def analyst_node(state: CompanyState) -> dict:
         if "nom" not in intelligence_report or not intelligence_report["nom"]:
             intelligence_report["nom"] = company
             
-        # Sécurité : Plafonner les notes à 5.0
+        # Ratings must be written in the sources; otherwise they are dropped (not invented).
         culture = intelligence_report.get("culture", {})
         if isinstance(culture, dict):
-            if culture.get("work_life_balance", 0) > 5: culture["work_life_balance"] = 5.0
-            if culture.get("glassdoor_rating", 0) > 5: culture["glassdoor_rating"] = 5.0
+            for key in ("glassdoor_rating", "work_life_balance"):
+                try:
+                    value = culture.get(key)
+                    culture[key] = min(float(value), 5.0) if _written_in(value, raw_data_str) else None
+                except (TypeError, ValueError):
+                    culture[key] = None
+            if culture.get("glassdoor_rating") is None:
+                culture["culture_score"] = None
+
+        # Salaries only when a salary source actually returned data.
+        has_salary_source = any(r and r.get("type") == "salaries" and _has_substance(r) for r in raw_data)
+        if not has_salary_source:
+            intelligence_report["salaries"] = []
             
         # Sécurité : Forcer les actualités en liste de strings
         actualites = intelligence_report.get("actualites", [])
@@ -224,56 +310,15 @@ async def analyst_node(state: CompanyState) -> dict:
                 clean_news.append(str(act))
         intelligence_report["actualites"] = clean_news
             
-        compatibility_score = synthesis.get("score") or synthesis.get("compatibility_score") or 80
-        recommendations = synthesis.get("recommendations", [
-            "Se renseigner sur les technologies récentes de l'entreprise",
-            "Mettre en avant sa capacité d'adaptation et d'apprentissage rapide"
-        ])
-        
+        # Only a report with real facts counts as data (interview questions alone are generic).
+        intelligence_report["data_available"] = report_has_content(intelligence_report)
+
+        compatibility_score = synthesis.get("score") or synthesis.get("compatibility_score")
+        recommendations = synthesis.get("recommendations") or []
+
     except Exception as e:
         logger.error(f"❌ Erreur lors de la synthèse LLM par l'Analyste: {e}")
-        # Fallback si le parsing JSON ou l'appel échoue
-        intelligence_report = {
-            "nom": company,
-            "summary": f"Fiche d'information générale de secours pour {company} en raison d'une erreur d'analyse.",
-            "sector": "Secteur technologique",
-            "hq_location": "Non spécifié",
-            "culture": {
-                "culture_score": 75,
-                "turnover_rate": "medium",
-                "work_life_balance": 3.8,
-                "glassdoor_rating": 3.8,
-                "key_values": ["Adaptabilité", "Infiltration technologique"],
-                "top_reviews": ["Environnement dynamique mais exigeant."]
-            },
-            "salaries": [
-                {
-                    "job_title": job_title,
-                    "location": "National",
-                    "min_salary": 45000,
-                    "max_salary": 70000,
-                    "avg_salary": 55000,
-                    "currency": "EUR",
-                    "source": "Standard du marché (Fallback)"
-                }
-            ],
-            "actualites": [
-                f"Développement continu des activités de {company} dans le numérique.",
-                "Renforcement de l'expertise et des équipes techniques."
-            ],
-            "interview_difficulty": "medium",
-            "interview_questions": [
-                "Présentez votre parcours technique et vos projets récents.",
-                "Pourquoi souhaitez-vous rejoindre nos équipes ?"
-            ],
-            "pros": ["Innovation", "Excellence technique"],
-            "cons": ["Pression élevée", "Processus en cours de structuration"]
-        }
-        compatibility_score = 75
-        recommendations = [
-            "Se renseigner sur les technologies récentes de l'entreprise",
-            "Mettre en avant sa capacité d'adaptation et d'apprentissage rapide"
-        ]
+        return _no_data_report(company, "l'analyse a échoué")
 
     return {
         "intelligence": intelligence_report,

@@ -1,0 +1,40 @@
+// ============================================================
+// Modules/Applications/Repositories/OfferRepository.cs
+// Database access for job offers
+// ============================================================
+using Microsoft.EntityFrameworkCore;
+using NextStep.Modules.Applications.Infrastructure.Persistence;
+using NextStep.Modules.Applications.Domain;
+
+namespace NextStep.Modules.Applications.Infrastructure.Repositories;
+
+public interface IOfferRepository
+{
+    Task<OffreEmploi> SaveAsync(OffreEmploi offre, CancellationToken ct = default);
+    Task<OffreEmploi?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<OffreEmploi?> GetByIdWithAnalysisAsync(Guid id, CancellationToken ct = default);
+    Task<List<OffreEmploi>> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
+}
+
+public class OfferRepository(ApplicationsDbContext db) : IOfferRepository
+{
+    public async Task<OffreEmploi> SaveAsync(OffreEmploi offre, CancellationToken ct = default)
+    {
+        db.OffresEmploi.Add(offre);
+        await db.SaveChangesAsync(ct);
+        return offre;
+    }
+
+    public async Task<OffreEmploi?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await db.OffresEmploi.FirstOrDefaultAsync(o => o.Id == id, ct);
+
+    public async Task<OffreEmploi?> GetByIdWithAnalysisAsync(Guid id, CancellationToken ct = default)
+        => await db.OffresEmploi.FirstOrDefaultAsync(o => o.Id == id, ct);
+
+    public async Task<List<OffreEmploi>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
+        => await db.OffresEmploi
+            .AsNoTracking()
+            .Where(o => o.UtilisateurId == userId)
+            .OrderByDescending(o => o.DateCreation)
+            .ToListAsync(ct);
+}

@@ -1,9 +1,12 @@
-using NextStep.data;
 using NextStep.Shared.Config;
 using NextStep.Shared.Http;
+using NextStep.Shared.ErrorHandling;
+using NextStep.Shared.Persistence;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.Diagnostics;
 using QuestPDF.Infrastructure;
 using Hangfire;
-using NextStep.Jobs;
+using NextStep.Modules.Messaging.Application.Jobs;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -18,17 +21,21 @@ builder.Services.AddControllers();
 builder.Services.ConfigureApiBehavior();
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
-builder.Services.AddCorsPolicy();
+builder.Services.AddCorsPolicy(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Database & Auth
-builder.Services.AddAppDbContext(builder.Configuration);
+// Global exception handler (.NET 8 IExceptionHandler). UseExceptionHandler()
+// (in the pipeline below) discovers the handlers registered here.
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// Auth
 builder.Services.AddAppAuthentication(builder.Configuration);
 
-// Application Business Services, Storage & Background Jobs
+// Modules (each with its own DbContext and schema), Storage & Background Jobs
 builder.Services.AddAppBusinessServices(builder.Configuration);
-builder.Services.AddAppStorageAndJobs(builder.Configuration);
+builder.Services.AddAppStorageAndJobs(builder.Configuration, builder.Environment);
 
 QuestPDF.Settings.License = LicenseType.Community;
 
@@ -41,25 +48,32 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Local development storage: serve files written by LocalFileStorageService
+// (Storage:Mode = "Local"). Kept out of the pipeline otherwise.
+if (string.Equals(app.Configuration["Storage:Mode"], "Local", StringComparison.OrdinalIgnoreCase))
+{
+    var storageRoot = Path.Combine(app.Environment.ContentRootPath, "storage");
+    Directory.CreateDirectory(storageRoot);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(storageRoot),
+        RequestPath = "/uploads"
+    });
+}
+
 app.UseCors("Angular");
+
+// Global exception handling — MUST be registered before the terminal endpoints
+// (MapControllers / MapHub) so exceptions escaping controllers are caught.
+app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Global Exception Handler
-app.Use(async (ctx, next) =>
-{
-    try { await next(); }
-    catch (Exception ex)
-    {
-        ctx.Response.StatusCode = 500;
-        ctx.Response.ContentType = "application/json";
-        await ctx.Response.WriteAsync(
-            System.Text.Json.JsonSerializer.Serialize(new { error = ex.Message, type = ex.GetType().Name }));
-    }
-});
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health/live", () => Results.Ok(new { status = "ok" }));
 
 app.MapControllers();
-app.MapHub<NextStep.SignalR.PipelineHub>("/hubs/pipeline");
+app.MapHub<NextStep.Shared.Realtime.PipelineHub>("/hubs/pipeline");
 
 // Hangfire Dashboard (Development only) + Recurring Jobs
 if (app.Environment.IsDevelopment())
@@ -70,17 +84,19 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-RecurringJob.AddOrUpdate<CheckEmailRepliesJob>(
+var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+
+recurringJobManager.AddOrUpdate<CheckEmailRepliesJob>(
     "check-email-replies",
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
 
-RecurringJob.AddOrUpdate<DetectFollowUpNeededJob>(
+recurringJobManager.AddOrUpdate<DetectFollowUpNeededJob>(
     "detect-follow-up-needed",
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
 
-// Initialize DB schema checks, seed tables, & MinIO storage checks
+// Apply each module's migrations, then seed reference data (skill keywords, CV templates, storage)
 await app.InitializeDatabaseAsync();
 
 await app.RunAsync();

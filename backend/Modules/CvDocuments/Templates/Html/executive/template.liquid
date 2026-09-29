@@ -1,0 +1,76 @@
+<div class="cv-document cv-document-executive" style="{{ root_style }}">
+  <div class="cv-sheet cv-sheet-executive">
+    <header class="cv-exec-header" data-editor-section-id="header" data-editor-section-title="Header">
+      <h1>{{ candidate.name }}</h1>
+      <div class="cv-exec-ornament"><span></span></div>
+      {% if contact_line != blank %}<p class="cv-exec-contact">{{ contact_line }}</p>{% endif %}
+      {% if profile_links.size > 0 %}
+      <p class="cv-exec-links">
+        {% for link in profile_links %}<span>{{ link.href }}</span>{% endfor %}
+      </p>
+      {% endif %}
+    </header>
+
+    {% for section in main_sections %}
+    <section class="cv-section" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+      <h2 class="cv-exec-title">{{ section.title }}</h2>
+
+      {% if section.id == "summary" %}
+        <p class="cv-summary">{{ section.text }}</p>
+      {% elsif section.id == "certifications" %}
+        <ul class="cv-exec-list">
+        {% for item in section.items %}
+          <li><strong>{{ item.primary_text }}</strong>{% if item.secondary_text != blank %}<em> — {{ item.secondary_text }}</em>{% endif %}{% if item.date_range != blank %}<span class="cv-exec-date"> {{ item.date_range }}</span>{% endif %}</li>
+        {% endfor %}
+        </ul>
+      {% else %}
+        {% for item in section.items %}
+        <article class="cv-entry">
+          <div class="cv-entry-head">
+            <strong>{{ item.primary_text }}</strong>
+            {% if item.date_range != blank %}<span class="cv-exec-date">{{ item.date_range }}</span>{% endif %}
+          </div>
+          {% if item.secondary_text != blank or item.location != blank %}
+          <p class="cv-entry-sub">{{ item.secondary_text }}{% if item.secondary_text != blank and item.location != blank %}, {% endif %}{{ item.location }}</p>
+          {% endif %}
+          {% if item.description != blank %}<p class="cv-entry-description">{{ item.description }}</p>{% endif %}
+          {% if item.bullets.size > 0 %}
+          <ul class="cv-bullet-list">
+            {% for bullet in item.bullets %}<li>{{ bullet }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+        {% endfor %}
+      {% endif %}
+    </section>
+    {% endfor %}
+
+    {% for section in sidebar_sections %}
+    <section class="cv-section" data-editor-section-id="{{ section.id }}" data-editor-section-title="{{ section.title }}">
+      <h2 class="cv-exec-title">{% if section.id == "skills" %}Skills{% else %}{{ section.title }}{% endif %}</h2>
+      {% if section.id == "education" %}
+        {% for item in section.items %}
+        <article class="cv-entry">
+          <div class="cv-entry-head">
+            <strong>{{ item.primary_text }}</strong>
+            {% if item.date_range != blank %}<span class="cv-exec-date">{{ item.date_range }}</span>{% endif %}
+          </div>
+          {% if item.secondary_text != blank %}<p class="cv-entry-sub">{{ item.secondary_text }}</p>{% endif %}
+          {% if item.description != blank %}<p class="cv-entry-description">{{ item.description }}</p>{% endif %}
+        </article>
+        {% endfor %}
+      {% elsif section.id == "skills" and skill_summary_rows.size > 0 %}
+        <div class="cv-exec-skills">
+        {% for row in skill_summary_rows %}
+          <div class="cv-exec-skill-row"><strong>{{ row.label }}</strong><span>{{ row.value }}</span></div>
+        {% endfor %}
+        </div>
+      {% else %}
+        <p class="cv-exec-inline">
+        {% for item in section.items %}<span>{{ item.primary_text }}{% if item.secondary_text != blank %} ({{ item.secondary_text }}){% endif %}</span>{% endfor %}
+        </p>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</div>

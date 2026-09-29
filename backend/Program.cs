@@ -8,8 +8,6 @@ using QuestPDF.Infrastructure;
 using Hangfire;
 using NextStep.Modules.Messaging.Application.Jobs;
 
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Register Core Infrastructure

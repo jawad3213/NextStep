@@ -26,8 +26,8 @@
         type="button" 
         class="sn-icon-btn" 
         (click)="clearConversation()" 
-        title="Réinitialiser la conversation"
-        aria-label="Réinitialiser"
+        title="Reset conversation"
+        aria-label="Reset conversation"
       >
         <svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67" />
@@ -39,8 +39,8 @@
         type="button" 
         class="sn-icon-btn hidden sm:flex" 
         (click)="toggleExpand()" 
-        [title]="snService.isExpanded() ? 'Réduire la vue' : 'Agrandir la vue'"
-        aria-label="Agrandir"
+        [title]="snService.isExpanded() ? 'Collapse view' : 'Expand view'"
+        aria-label="Toggle size"
       >
         @if (snService.isExpanded()) {
           <svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -58,8 +58,8 @@
         type="button" 
         class="sn-icon-btn sn-close-btn" 
         (click)="close()" 
-        title="Fermer"
-        aria-label="Fermer"
+        title="Close"
+        aria-label="Close"
       >
         <svg class="sn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M18 6L6 18M6 6l12 12" />
@@ -72,28 +72,28 @@
   <div class="sn-canvas" #chatScrollContainer>
     <!-- Centered Date Pill -->
     <div class="sn-date-divider">
-      <span>Aujourd'hui {{ currentTime }}</span>
+      <span>Today {{ currentTime }}</span>
     </div>
 
     <!-- Empty State: Welcome + BCG Suggestion Chips -->
     @if (snService.messages().length === 0) {
       <div class="sn-welcome-section">
         <div class="sn-bubble sn-bubble--sn sn-bubble--welcome">
-          Bonjour ! Je suis <strong>SN</strong>, votre copilote de carrière. Je suis à vos côtés pour suivre vos candidatures, mettre à jour vos opportunités et optimiser votre stratégie de recrutement.
+          Hello! I am <strong>SN</strong>, your career copilot. I am here to help you track your applications, manage opportunities, and optimize your hiring pipeline.
         </div>
 
         <div class="sn-initial-chips">
-          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Affiche mes 10 dernières candidatures')">
-            Mes 10 candidatures
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Show my recent applications')">
+            Recent applications
           </button>
-          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Quelles sont les candidatures à relancer en priorité ?')">
-            Relances prioritaires
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Which applications need follow-up?')">
+            Priority follow-ups
           </button>
-          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Analyse mes statistiques et taux de conversion')">
-            Analyse de performance
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Analyze my application statistics and response rates')">
+            Performance analytics
           </button>
-          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('Comment préparer un entretien d embauche ?')">
-            Poser une question
+          <button type="button" class="sn-pill-btn" (click)="selectSuggestion('How should I prepare for an upcoming interview?')">
+            Interview coaching
           </button>
         </div>
       </div>
@@ -148,20 +148,20 @@
 
                       <div class="sn-bcg-card-footer">
                         <button type="button" class="sn-bcg-link-btn" (click)="navigateToCard(card)">
-                          Voir détails
+                          View details
                         </button>
                         <button type="button" class="sn-bcg-action-btn" (click)="navigateToCard(card)">
-                          Gérer
+                          Manage
                         </button>
                       </div>
                     </div>
                   }
                 </div>
 
-                <!-- "Voir plus" Pill Button -->
+                <!-- "Show more" Pill Button -->
                 @if (msg.cards.length > 3 && !isExpandedCards()) {
                   <button type="button" class="sn-bcg-view-more" (click)="toggleExpandCards()">
-                    Voir plus ({{ msg.cards.length - 3 }} autres)
+                    Show more ({{ msg.cards.length - 3 }} more)
                   </button>
                 }
               </div>
@@ -196,7 +196,7 @@
               <span></span>
               <span></span>
             </div>
-            <span class="sn-loading-label">SN prépare votre analyse...</span>
+            <span class="sn-loading-label">SN is analyzing your request...</span>
           </div>
         </div>
       }
@@ -325,7 +325,7 @@
         class="sn-input-action-btn"
         [disabled]="snService.loading()"
         (click)="sendMessage()"
-        aria-label="Envoyer"
+        aria-label="Send"
       >
         @if (snService.loading()) {
           <svg class="sn-spinner" viewBox="0 0 24 24" fill="none">

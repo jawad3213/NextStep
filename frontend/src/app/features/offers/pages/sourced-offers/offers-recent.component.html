@@ -1,13 +1,13 @@
 <div class="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 lg:p-5 pt-1 md:pt-2">
   <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
     <div>
-      <h1 class="text-xl font-bold text-gray-900">Offres sourcees</h1>
+      <h1 class="text-xl font-bold text-gray-900">Sourced offers</h1>
       <p class="mt-0.5 text-xs text-slate-500">
-        Workspace de sourcing multi-provider pour trier, sauvegarder, shortlist et promouvoir les meilleures offres.
+        Search LinkedIn, Indeed and Glassdoor, then save, shortlist and analyze the best offers.
       </p>
     </div>
     <div class="text-xs text-slate-400">
-      Derniere actualisation: {{ formatLastUpdated() }}
+      Last refresh: {{ formatLastUpdated() }}
     </div>
   </div>
 
@@ -105,13 +105,20 @@
       <div class="flex items-end">
         <button
           (click)="refreshOffers()"
-          [disabled]="isLoading() || selectedProviders().length === 0"
+          [disabled]="isLoading() || selectedProviders().length === 0 || !keywords().trim()"
+          [title]="selectedProviders().length === 0 ? 'Select at least one provider' : !keywords().trim() ? 'Enter keywords to search' : ''"
           class="w-full rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          {{ isLoading() ? 'Refreshing...' : 'Refresh providers' }}
+          {{ isLoading() && !isLoadingMore() ? 'Refreshing...' : 'Refresh providers' }}
         </button>
       </div>
     </div>
+
+    @if (selectedProviders().length === 0) {
+      <p class="mt-2 text-xs font-medium text-amber-600">Select at least one provider to search.</p>
+    } @else if (!keywords().trim()) {
+      <p class="mt-2 text-xs font-medium text-amber-600">Enter keywords to search the providers.</p>
+    }
 
     <div class="mt-4 flex flex-wrap gap-2">
       @for (provider of providers; track provider.key) {
@@ -123,7 +130,7 @@
           <div class="flex items-center gap-2">
             <span class="font-semibold">{{ provider.label }}</span>
             <span class="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-              {{ getProviderCount(provider.key) }}
+              {{ providerCounts()[provider.key] }}
             </span>
           </div>
         </button>
@@ -160,8 +167,9 @@
 
       <div class="flex flex-wrap gap-2">
         <input
+          [value]="searchTerm()"
           (input)="searchTerm.set($any($event.target).value)"
-          class="w-72 rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white"
+          class="w-full rounded-xl border-slate-200 bg-gray-50 px-4 py-2.5 text-sm focus:bg-white sm:w-72"
           placeholder="Search in cached results..."
         />
         <select
@@ -177,9 +185,14 @@
     </div>
 
     @if (warnings().length > 0) {
-      <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-        {{ warnings().join(' | ') }}
-      </div>
+      <ul class="mt-4 space-y-1 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+        @for (warning of warnings(); track warning) {
+          <li class="flex gap-2">
+            <span class="material-symbols-outlined text-base leading-5">warning</span>
+            <span>{{ warning }}</span>
+          </li>
+        }
+      </ul>
     }
 
     @if (errorMessage()) {
@@ -285,12 +298,63 @@
         </article>
       }
     </div>
-  } @else if (!isLoading()) {
+
+    @if (canLoadMore() || isLoadingMore()) {
+      <div class="mt-5 flex justify-center">
+        <button
+          (click)="loadMore()"
+          [disabled]="isLoadingMore()"
+          class="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 disabled:opacity-60"
+        >
+          {{ isLoadingMore() ? 'Loading...' : 'Load more offers' }}
+        </button>
+      </div>
+    }
+  } @else if (isLoading()) {
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-busy="true" aria-label="Loading offers">
+      @for (card of skeletonCards; track card) {
+        <div class="animate-pulse rounded-2xl border border-slate-200 bg-white p-5">
+          <div class="flex items-start gap-3">
+            <div class="h-12 w-12 rounded-lg bg-slate-200"></div>
+            <div class="flex-1 space-y-2">
+              <div class="h-4 w-3/4 rounded bg-slate-200"></div>
+              <div class="h-3 w-1/2 rounded bg-slate-100"></div>
+              <div class="h-3 w-1/3 rounded bg-slate-100"></div>
+            </div>
+          </div>
+          <div class="mt-4 flex gap-2">
+            <div class="h-5 w-16 rounded bg-slate-100"></div>
+            <div class="h-5 w-14 rounded bg-slate-100"></div>
+            <div class="h-5 w-12 rounded bg-slate-100"></div>
+          </div>
+          <div class="mt-4 space-y-2">
+            <div class="h-3 rounded bg-slate-100"></div>
+            <div class="h-3 rounded bg-slate-100"></div>
+            <div class="h-3 w-5/6 rounded bg-slate-100"></div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else if (offers().length > 0) {
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+      <span class="material-symbols-outlined text-5xl text-slate-200">search_off</span>
+      <h3 class="mt-4 text-lg font-bold text-slate-500">No offers match "{{ searchTerm() }}"</h3>
+      <button (click)="searchTerm.set('')" class="mt-3 text-sm font-semibold text-brand-600 hover:text-brand-700">
+        Clear search
+      </button>
+    </div>
+  } @else {
     <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-20 text-center">
       <span class="material-symbols-outlined text-6xl text-slate-200">travel_explore</span>
-      <h3 class="mt-4 text-lg font-bold text-slate-500">No sourced offers yet</h3>
+      <h3 class="mt-4 text-lg font-bold text-slate-500">
+        {{ workflowTab() === 'all' ? 'No sourced offers yet' : 'No ' + workflowTab() + ' offers' }}
+      </h3>
       <p class="mt-1 max-w-md text-sm text-slate-400">
-        Refresh providers to populate the sourcing cache, then save or shortlist the strongest offers for deeper analysis.
+        @if (workflowTab() === 'all') {
+          Refresh providers to populate the sourcing cache, then save or shortlist the strongest offers for deeper analysis.
+        } @else {
+          Offers you mark as {{ workflowTab() }} will appear here.
+        }
       </p>
     </div>
   }

@@ -113,12 +113,12 @@ public static class SkillGapMapper
                 "SKILL",
                 s.Name,
                 agentTexts.GetValueOrDefault(Key(s.Name))
-                    ?? $"Ajouter une preuve concrète de '{s.Name}' dans une expérience ou un projet.",
+                    ?? $"Add concrete proof of '{s.Name}' in an experience or project.",
                 s.Priority))
             .ToList();
 
         recommendations.AddRange(missingCerts.Select(c => new SkillGapRecommendationDto(
-            "CERTIFICATION", c, $"L'offre demande la certification '{c}'.", "medium")));
+            "CERTIFICATION", c, $"The job offer requires the certification '{c}'.", "medium")));
         return recommendations;
     }
 
@@ -127,13 +127,13 @@ public static class SkillGapMapper
         var hints = Distinct(match.GetStringList("revision_hints"));
 
         foreach (var partial in Distinct(match.GetStringList("partial_skills")))
-            hints.Add($"Précisez votre niveau en {partial} : votre profil ne le couvre que partiellement.");
+            hints.Add($"Clarify your level in {partial}: your profile only partially covers it.");
 
         foreach (var keyword in Distinct(match.GetStringList("keywords_manquants")).Take(MaxKeywordHints))
-            hints.Add($"Utilisez le mot-clé « {keyword} » dans votre CV s'il correspond à votre expérience.");
+            hints.Add($"Include the keyword \"{keyword}\" in your resume if it matches your experience.");
 
         if (gapYears > 0)
-            hints.Add($"Il vous manque environ {gapYears} an(s) d'expérience : mettez en avant stages, projets et alternances.");
+            hints.Add($"You are missing approximately {gapYears} year(s) of experience: highlight internships, projects, and work-study programs.");
 
         return hints;
     }

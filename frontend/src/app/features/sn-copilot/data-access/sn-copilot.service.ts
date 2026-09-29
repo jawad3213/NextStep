@@ -69,9 +69,9 @@ export class SnCopilotService {
   readonly messages = signal<SnUiMessage[]>([]);
   readonly starterSuggestions = signal<SnStarterSuggestionItem[]>([]);
   readonly activeFollowUps = signal<string[]>([
-    'Affiche mes 10 dernières candidatures',
-    'Quelles candidatures relancer en priorité ?',
-    'Analyse mes taux de conversion et métriques'
+    'Show my 10 most recent applications',
+    'Which applications should I follow up on first?',
+    'Analyze my conversion rates and metrics'
   ]);
 
   constructor() {
@@ -100,9 +100,9 @@ export class SnCopilotService {
   clearHistory(): void {
     this.messages.set([]);
     this.activeFollowUps.set([
-      'Affiche mes 10 dernières candidatures',
-      'Quelles candidatures relancer en priorité ?',
-      'Analyse mes taux de conversion et métriques'
+      'Show my 10 most recent applications',
+      'Which applications should I follow up on first?',
+      'Analyze my conversion rates and metrics'
     ]);
   }
 
@@ -111,44 +111,44 @@ export class SnCopilotService {
       .pipe(
         catchError(() => of([
           {
-            title: 'Mon Profil',
-            description: 'Résumé complet de vos compétences, formations et expériences',
-            prompt: 'Résume mon profil complet avec mes compétences et expériences',
-            category: 'Profil',
+            title: 'My Profile',
+            description: 'Full summary of your skills, education, and experience',
+            prompt: 'Summarize my complete profile including skills and experience',
+            category: 'Profile',
             icon: 'user'
           },
           {
             title: 'CV Matching',
-            description: 'Analyse la compatibilité de votre profil avec vos candidatures',
-            prompt: 'Match mon profil avec mes candidatures actives',
+            description: 'Evaluate compatibility between your profile and job openings',
+            prompt: 'Match my profile against active job applications',
             category: 'Intelligence',
             icon: 'target'
           },
           {
             title: 'Portfolio Review',
-            description: 'Visualiser vos 10 dernières candidatures et statuts récents',
-            prompt: 'Affiche mes 10 dernières candidatures avec leurs statuts et dates',
+            description: 'View your 10 most recent applications and latest statuses',
+            prompt: 'Show my 10 most recent applications with status and dates',
             category: 'Portfolio',
             icon: 'layers'
           },
           {
-            title: 'Priorités de Relance',
-            description: 'Identifier les candidatures stagnantes nécessitant un suivi',
-            prompt: 'Quelles sont les candidatures sans réponse à relancer en priorité ?',
-            category: 'Stratégie',
+            title: 'Follow-up Priorities',
+            description: 'Identify stagnant applications that require outreach',
+            prompt: 'Which unanswered applications should I follow up on first?',
+            category: 'Strategy',
             icon: 'clock'
           },
           {
-            title: 'Métriques & Vélocité',
-            description: 'Synthèse exécutive du taux de réponse et conversion',
-            prompt: 'Analyse mes taux de conversion et les statistiques de mon pipeline',
+            title: 'Metrics & Velocity',
+            description: 'Executive summary of response and conversion rates',
+            prompt: 'Analyze my conversion rates and pipeline statistics',
             category: 'Analytics',
             icon: 'bar-chart-2'
           },
           {
-            title: 'Mutation Rapide',
-            description: "Modifier un statut de candidature ou enregistrer un entretien",
-            prompt: "Passe ma dernière candidature en statut 'Entretien'",
+            title: 'Quick Status Update',
+            description: "Update an application status or record an interview",
+            prompt: "Move my latest application to 'Interview' status",
             category: 'Action',
             icon: 'check-circle'
           }
@@ -195,12 +195,12 @@ export class SnCopilotService {
         catchError((err) => {
           console.error('[SN Service] Backend request failed:', err);
           return of({
-            markdownText: `Désolé, je rencontre une indisponibilité momentanée pour contacter le moteur d'intelligence artificielle. Veuillez vous assurer que le service backend est actif et réessayer dans un instant.`,
-            actionsPerformed: ['⚠️ Connexion au service SN Copilot indisponible'],
+            markdownText: `I am currently experiencing a temporary issue connecting to the AI engine. Please ensure the backend services are running and try again in a moment.`,
+            actionsPerformed: ['⚠️ SN Copilot connection unavailable'],
             cards: [],
             followUpSuggestions: [
-              'Affiche mes 10 dernières candidatures',
-              'Quelles sont mes relances prioritaires ?'
+              'Show my 10 most recent applications',
+              'Which applications should I follow up on first?'
             ]
           } as SnChatAgentResponse);
         })

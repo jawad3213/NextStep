@@ -29,6 +29,7 @@ public static class MessagingModule
         services.AddScoped<IEmailSendingService, EmailSendingService>();
         services.AddScoped<IFollowUpEmailService, FollowUpEmailService>();
         services.AddScoped<IReplyEmailService, ReplyEmailService>();
+        services.AddScoped<IGmailTokenProvider, GmailTokenProvider>();
         services.AddScoped<IEmailSenderService, GmailEmailSenderService>();
         services.AddScoped<IEmailConnectionService, EmailConnectionService>();
         services.AddScoped<IUserEmailConnectionRepository, UserEmailConnectionRepository>();

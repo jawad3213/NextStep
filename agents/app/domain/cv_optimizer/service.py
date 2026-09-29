@@ -20,6 +20,7 @@ class CVOptimizerService:
         job_offer: dict,
         match_result: dict = None,
         skill_gap_analysis: dict = None,
+        language: str = "en",
     ) -> OptimizedCVOutput:
         """Lance le processus d'optimisation du CV."""
         resolved_skill_gap = skill_gap_analysis or match_result
@@ -28,6 +29,7 @@ class CVOptimizerService:
             "job_offer": job_offer,
             "skill_gap_analysis": resolved_skill_gap,
             "match_result": match_result or resolved_skill_gap,
+            "language": language or "en",
             "messages": [],
             "errors": [],
             "iteration_count": 0,

@@ -18,12 +18,12 @@ public static class ProfilePhotoValidator
     public static void Validate(IFormFile? file)
     {
         if (file == null || file.Length == 0)
-            throw new BadRequestException("Aucune image fournie.");
+            throw new BadRequestException("No image provided.");
 
         if (file.Length > MaxBytes)
-            throw new BadRequestException("L'image ne doit pas depasser 2MB.");
+            throw new BadRequestException("Image size must not exceed 2MB.");
 
         if (!AllowedContentTypes.Contains(file.ContentType))
-            throw new BadRequestException("Format d'image non supporte. Utilisez PNG, JPG ou WEBP.");
+            throw new BadRequestException("Unsupported image format. Please use PNG, JPG or WEBP.");
     }
 }

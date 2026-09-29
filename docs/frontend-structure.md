@@ -11,7 +11,7 @@ src/app/
 │   ├── auth/              Keycloak session (AuthService), onboarding status
 │   ├── guards/            auth and onboarding guards
 │   ├── http/              api-url helpers, error interceptor, extractApiError, PagedResponse
-│   ├── layout/            main layout, sidebar, theme
+│   ├── layout/            main layout, sidebar
 │   └── notifications/     toasts
 ├── shared/                reusable building blocks with no business logic (pipes, …)
 └── features/<feature>/

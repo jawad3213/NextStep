@@ -46,7 +46,7 @@ public class PipelineRunnerService : IPipelineRunnerService
             if (userGuid == Guid.Empty)
                 throw new InvalidOperationException("Authenticated user id is missing or invalid.");
 
-            await SendProgress(offerId, "generating_cv", "running", 10, "Génération du CV optimisé...", "cv_optimizer");
+            await SendProgress(offerId, "generating_cv", "running", 10, "Generating optimized CV...", "cv_optimizer");
             var keepAliveTask = SendKeepAliveAsync(offerId, "generation", pipelineCt);
 
             using var scope = _scopeFactory.CreateScope();
@@ -88,7 +88,7 @@ public class PipelineRunnerService : IPipelineRunnerService
 
             var dto = await offerService.GetAnalysisAsync(userGuid, offerId, CancellationToken.None);
             
-            await SendProgress(offerId, "generating_cv", "completed", 100, "CV généré avec succès !", "db_persist");
+            await SendProgress(offerId, "generating_cv", "completed", 100, "CV generated successfully!", "db_persist");
 
             var completedEvent = new PipelineCompletedDto { OfferId = offerId, Status = "completed", Result = dto };
             await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", completedEvent, CancellationToken.None);
@@ -110,10 +110,10 @@ public class PipelineRunnerService : IPipelineRunnerService
         {
             var generationSteps = new[]
             {
-                (20, "Preparation du contexte candidat...", "profile_context"),
-                (38, "Consolidation de l'analyse existante...", "analysis_context"),
-                (65, "Optimisation du CV...", "cv_optimizer"),
-                (82, "Generation du CV final...", "cv_engine"),
+                (20, "Preparing candidate context...", "profile_context"),
+                (38, "Consolidating existing analysis...", "analysis_context"),
+                (65, "Optimizing CV...", "cv_optimizer"),
+                (82, "Generating final CV...", "cv_engine"),
             };
 
             try
@@ -130,7 +130,7 @@ public class PipelineRunnerService : IPipelineRunnerService
                     await Task.Delay(TimeSpan.FromSeconds(20), ct);
                     if (generationHeartbeat < 89) generationHeartbeat++;
                     await SendProgress(offerId, "pipeline_running", "running", generationHeartbeat,
-                        "Finalisation en cours...", "db_persist");
+                        "Finalizing...", "db_persist");
                 }
             }
             catch (OperationCanceledException)
@@ -143,12 +143,12 @@ public class PipelineRunnerService : IPipelineRunnerService
 
         var steps = new[]
         {
-            (15, "Analyse de l'offre en cours...", "offer_analyzer"),
-            (25, "Récupération du profil candidat...", "profile_retriever"),
-            (40, "Analyse des compétences...", "skill_gap"),
-            (55, "Intelligence entreprise en cours...", "company_intel"),
-            (70, "Optimisation du CV...", "cv_optimizer"),
-            (80, "Génération du CV final...", "cv_engine"),
+            (15, "Analyzing the offer...", "offer_analyzer"),
+            (25, "Retrieving candidate profile...", "profile_retriever"),
+            (40, "Analyzing skills...", "skill_gap"),
+            (55, "Company intelligence in progress...", "company_intel"),
+            (70, "Optimizing CV...", "cv_optimizer"),
+            (80, "Generating final CV...", "cv_engine"),
         };
 
         try
@@ -166,7 +166,7 @@ public class PipelineRunnerService : IPipelineRunnerService
                 await Task.Delay(TimeSpan.FromSeconds(20), ct);
                 if (heartbeat < 89) heartbeat++;
                 await SendProgress(offerId, "pipeline_running", "running", heartbeat,
-                    "Finalisation en cours...", "db_persist");
+                    "Finalizing...", "db_persist");
             }
         }
         catch (OperationCanceledException)

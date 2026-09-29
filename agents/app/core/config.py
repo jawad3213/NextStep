@@ -1,6 +1,10 @@
+import asyncio
+import json
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional, List, Dict
@@ -30,10 +34,10 @@ dotenv.load_dotenv(find_env_file())
 # Modèles par défaut pour Groq
 GROQ_DEFAULTS = {
     "offer_analyzer": "openai/gpt-oss-120b",
-    "skill_gap": "openai/gpt-oss-120b",
     "cv_optimizer": "openai/gpt-oss-120b",
     "company": "openai/gpt-oss-120b",
     "resume": "openai/gpt-oss-120b",
+    "email": "openai/gpt-oss-120b",
     "default": "openai/gpt-oss-20b",
 }
 
@@ -43,26 +47,31 @@ class Settings(BaseSettings):
     """Configuration de l'application via variables d'environnement."""
     
     # --- Infrastructure & Database ---
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:said1234@localhost:5432/nextstep_db"
+    # Set by docker-compose from .env; no credentials in code.
+    DATABASE_URL: str = "postgresql+asyncpg://postgres@localhost:5432/nextstep_db"
     DOTNET_BACKEND_URL: str = "http://localhost:5000"
     
     # --- LLM Core Settings ---
     LLM_PROVIDER_PRIORITY: str = "groq,openai,gemini"
-    LLM_PRIORITY_SKILL_GAP: str = "gemini,groq"
     LLM_PRIORITY_CV_OPTIMIZER: str = "groq,openai,gemini"
     LLM_TEMPERATURE: float = 0.1
     # Reasoning models (Groq gpt-oss) spend part of this budget thinking before answering:
     # 2000 was too small and truncated long JSON answers (e.g. a full CV).
     LLM_MAX_TOKENS: int = 8192
     LLM_REQUEST_TIMEOUT: float = 90.0
-    
+    # Caps one provider attempt inside the multi-provider fallback loop. Some SDKs retry
+    # rate-limit errors internally for much longer than they admit (Gemini's client, for
+    # example, can spend a minute retrying a quota error that request-level timeouts and
+    # max_retries=0 don't stop). This timeout forces the fallback loop to move to the next
+    # provider — or fail fast — instead of waiting on a provider that is already struggling.
+    LLM_PROVIDER_ATTEMPT_TIMEOUT: float = 20.0
+
     # --- Groq Configuration ---
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "openai/gpt-oss-20b"
     GROQ_MODEL_PRECISE: str = "openai/gpt-oss-120b"
     # Agent Overrides
     GROQ_MODEL_OFFER_ANALYZER: str = ""
-    GROQ_MODEL_SKILL_GAP: str = ""
     GROQ_MODEL_CV_OPTIMIZER: str = ""
     GROQ_MODEL_COMPANY: str = ""
 
@@ -71,14 +80,12 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""  # Fallback
     GEMINI_MODEL: str = "gemini-flash-latest"  # alias: survives model retirements
     # Agent Overrides
-    GEMINI_MODEL_SKILL_GAP: str = ""
     GEMINI_MODEL_CV_OPTIMIZER: str = ""
 
     # --- OpenAI Configuration ---
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
     # Agent Overrides
-    OPENAI_MODEL_SKILL_GAP: str = ""
     OPENAI_MODEL_CV_OPTIMIZER: str = ""
 
     # --- External APIs ---
@@ -114,7 +121,6 @@ def _resolve_model(provider: str, agent_name: Optional[str] = None) -> str:
         if agent_name:
             overrides = {
                 "offer_analyzer": settings.GROQ_MODEL_OFFER_ANALYZER,
-                "skill_gap": settings.GROQ_MODEL_SKILL_GAP,
                 "cv_optimizer": settings.GROQ_MODEL_CV_OPTIMIZER,
                 "company": settings.GROQ_MODEL_COMPANY,
             }
@@ -123,15 +129,11 @@ def _resolve_model(provider: str, agent_name: Optional[str] = None) -> str:
         return settings.GROQ_MODEL
 
     elif provider == "gemini":
-        if agent_name == "skill_gap" and settings.GEMINI_MODEL_SKILL_GAP:
-            return settings.GEMINI_MODEL_SKILL_GAP
         if agent_name == "cv_optimizer" and settings.GEMINI_MODEL_CV_OPTIMIZER:
             return settings.GEMINI_MODEL_CV_OPTIMIZER
         return settings.GEMINI_MODEL
 
     elif provider == "openai":
-        if agent_name == "skill_gap" and settings.OPENAI_MODEL_SKILL_GAP:
-            return settings.OPENAI_MODEL_SKILL_GAP
         if agent_name == "cv_optimizer" and settings.OPENAI_MODEL_CV_OPTIMIZER:
             return settings.OPENAI_MODEL_CV_OPTIMIZER
         return settings.OPENAI_MODEL
@@ -144,6 +146,7 @@ def _create_provider_llm(
     temperature: Optional[float] = None,
     bound_kwargs: Optional[dict] = None,
     structured_output=None,
+    structured_method: Optional[str] = None,
 ):
     """Crée une instance LLM pour un provider donné."""
     temp = temperature if temperature is not None else settings.LLM_TEMPERATURE
@@ -158,6 +161,11 @@ def _create_provider_llm(
             logger.info("[LLM] gemini: dropping unsupported bind kwarg 'response_format'")
             effective_bound_kwargs.pop("response_format", None)
 
+        # Each client has its own internal retry-with-backoff loop on failure (Gemini alone
+        # retries up to 6 times with a growing delay). That fights our own fallback loop below,
+        # which already retries across providers with cooldown tracking: on a quota or rate-limit
+        # error, a client should fail immediately so we move to the next provider right away,
+        # not spend up to a minute retrying a provider whose quota is already exhausted.
         if provider == "groq":
             if not settings.GROQ_API_KEY: return None
             from langchain_groq import ChatGroq
@@ -167,6 +175,7 @@ def _create_provider_llm(
                 temperature=temp,
                 max_tokens=settings.LLM_MAX_TOKENS,
                 timeout=settings.LLM_REQUEST_TIMEOUT,
+                max_retries=0,
                 # gpt-oss models reason before answering; keep it short so the answer fits and returns fast.
                 model_kwargs={"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else {},
             )
@@ -180,6 +189,7 @@ def _create_provider_llm(
                 google_api_key=api_key,
                 temperature=temp,
                 timeout=settings.LLM_REQUEST_TIMEOUT,
+                max_retries=0,
             )
 
         elif provider == "openai":
@@ -190,6 +200,7 @@ def _create_provider_llm(
                 api_key=settings.OPENAI_API_KEY,
                 temperature=temp,
                 timeout=settings.LLM_REQUEST_TIMEOUT,
+                max_retries=0,
             )
         else:
             return None
@@ -197,7 +208,12 @@ def _create_provider_llm(
         # Post-processing (structured output, binding)
         if structured_output:
             try:
-                llm = llm.with_structured_output(structured_output)
+                # The method (e.g. "json_mode") only applies to Groq: tool calling is less
+                # reliable with its reasoning models. Other providers keep their default.
+                if provider == "groq" and structured_method:
+                    llm = llm.with_structured_output(structured_output, method=structured_method)
+                else:
+                    llm = llm.with_structured_output(structured_output)
             except Exception:
                 logger.warning(f"{provider} ne supporte pas structured_output")
                 return None
@@ -210,6 +226,61 @@ def _create_provider_llm(
     except Exception as e:
         logger.warning(f"Echec init {provider}: {e}")
         return None
+
+# ── Client reuse ────────────────────────────────────────────────────────────
+# Building a chat model opens a new HTTP client: each (provider, model, settings) is
+# built once and reused. Async clients cannot be shared between event loops, so the
+# running loop is part of the key (one loop in the service; tests/scripts create more).
+_MAX_CACHED_CLIENTS = 64
+_LLM_CLIENTS: Dict[tuple, Runnable] = {}
+
+
+def _cache_key(
+    provider: str,
+    agent_name: Optional[str],
+    temperature: Optional[float],
+    bound_kwargs: Optional[dict],
+    structured_output,
+    structured_method: Optional[str],
+    loop: Optional[asyncio.AbstractEventLoop],
+) -> tuple:
+    try:
+        hash(structured_output)
+        schema_key = structured_output  # Pydantic model classes, None
+    except TypeError:  # dict schemas are not hashable
+        schema_key = json.dumps(structured_output, sort_keys=True, default=str)
+    return (
+        provider,
+        _resolve_model(provider, agent_name),
+        temperature if temperature is not None else settings.LLM_TEMPERATURE,
+        json.dumps(bound_kwargs or {}, sort_keys=True, default=str),
+        schema_key,
+        structured_method,
+        id(loop) if loop else None,
+    )
+
+
+def _get_provider_llm(
+    provider: str,
+    agent_name: Optional[str],
+    temperature: Optional[float],
+    bound_kwargs: Optional[dict],
+    structured_output,
+    structured_method: Optional[str],
+    loop: Optional[asyncio.AbstractEventLoop] = None,
+):
+    """The chat model for these settings, built on first use and then reused.
+    None when the provider is not configured (not cached: a key may be added later)."""
+    key = _cache_key(provider, agent_name, temperature, bound_kwargs, structured_output, structured_method, loop)
+    llm = _LLM_CLIENTS.get(key)
+    if llm is None:
+        llm = _create_provider_llm(provider, agent_name, temperature, bound_kwargs, structured_output, structured_method)
+        if llm is not None:
+            if len(_LLM_CLIENTS) >= _MAX_CACHED_CLIENTS:
+                _LLM_CLIENTS.clear()
+            _LLM_CLIENTS[key] = llm
+    return llm
+
 
 def _cooldown_key(provider: str, agent_name: Optional[str]) -> str:
     return f"{provider}:{agent_name or 'default'}"
@@ -249,6 +320,22 @@ def _mark_provider_cooldown(provider: str, agent_name: Optional[str], error: Exc
         seconds,
     )
 
+# Cooldown applied when a provider is cut off by LLM_PROVIDER_ATTEMPT_TIMEOUT: it may still be
+# retrying internally past our own timeout, so it is left alone for a while either way.
+_STUCK_PROVIDER_COOLDOWN_SECONDS = 60
+
+def _on_provider_stuck(provider: str, agent_name: Optional[str]) -> None:
+    until = time.time() + _STUCK_PROVIDER_COOLDOWN_SECONDS
+    _PROVIDER_COOLDOWNS[_cooldown_key(provider, agent_name)] = until
+    logger.warning(
+        "[LLM] %s -> %s exceeded %ss without answering (its SDK may be retrying a rate-limit "
+        "or quota error internally); moving to the next provider and pausing it for %ss.",
+        provider,
+        agent_name or "default",
+        settings.LLM_PROVIDER_ATTEMPT_TIMEOUT,
+        _STUCK_PROVIDER_COOLDOWN_SECONDS,
+    )
+
 def _provider_on_cooldown(provider: str, agent_name: Optional[str]) -> bool:
     key = _cooldown_key(provider, agent_name)
     until = _PROVIDER_COOLDOWNS.get(key)
@@ -266,6 +353,10 @@ def _provider_on_cooldown(provider: str, agent_name: Optional[str]) -> bool:
     )
     return True
 
+# Backs the sync invoke() path's attempt timeout (see its comment). Not a context manager
+# and never shut down: a timed-out call is simply abandoned, not waited on or cancelled.
+_SYNC_INVOKE_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="llm-sync-invoke")
+
 class _LLMProvider(Runnable):
     """Wrapper Runnable avec fallback automatique multi-provider."""
 
@@ -274,34 +365,36 @@ class _LLMProvider(Runnable):
         agent_name: Optional[str] = None,
         temperature: Optional[float] = None,
         bound_kwargs: Optional[dict] = None,
-        structured_output=None
+        structured_output=None,
+        structured_method: Optional[str] = None,
     ):
         super().__init__()
         self._agent_name = agent_name
         self._temperature = temperature
         self._bound_kwargs = bound_kwargs or {}
         self._structured_output = structured_output
+        self._structured_method = structured_method
 
     def bind(self, **kwargs):
         return _LLMProvider(
             agent_name=self._agent_name,
             temperature=self._temperature,
             bound_kwargs={**self._bound_kwargs, **kwargs},
-            structured_output=self._structured_output
+            structured_output=self._structured_output,
+            structured_method=self._structured_method,
         )
 
-    def with_structured_output(self, schema, **kwargs):
+    def with_structured_output(self, schema, method: Optional[str] = None, **kwargs):
         return _LLMProvider(
             agent_name=self._agent_name,
             temperature=self._temperature,
             bound_kwargs=self._bound_kwargs,
-            structured_output=schema
+            structured_output=schema,
+            structured_method=method,
         )
 
     def _get_providers(self) -> List[str]:
         """Détermine la liste des providers à essayer pour cet agent."""
-        if self._agent_name == "skill_gap" and settings.LLM_PRIORITY_SKILL_GAP:
-            return [p.strip() for p in settings.LLM_PRIORITY_SKILL_GAP.split(",") if p.strip()]
         if self._agent_name == "cv_optimizer" and settings.LLM_PRIORITY_CV_OPTIMIZER:
             return [p.strip() for p in settings.LLM_PRIORITY_CV_OPTIMIZER.split(",") if p.strip()]
         
@@ -312,14 +405,21 @@ class _LLMProvider(Runnable):
         for provider in self._get_providers():
             if _provider_on_cooldown(provider, self._agent_name):
                 continue
-            llm = _create_provider_llm(
-                provider, self._agent_name, self._temperature, 
-                self._bound_kwargs, self._structured_output
+            llm = _get_provider_llm(
+                provider, self._agent_name, self._temperature,
+                self._bound_kwargs, self._structured_output, self._structured_method
             )
             if not llm: continue
             try:
                 logger.info(f"[LLM] {provider} -> {self._agent_name or 'default'}")
-                return llm.invoke(input, config=config, **kwargs)
+                # Not a context manager: on timeout we abandon the future below and move on
+                # immediately. A `with` block would wait for the stuck call to finish first
+                # (ThreadPoolExecutor.shutdown(wait=True) on exit), defeating the timeout.
+                future = _SYNC_INVOKE_POOL.submit(llm.invoke, input, config=config, **kwargs)
+                return future.result(timeout=settings.LLM_PROVIDER_ATTEMPT_TIMEOUT)
+            except FuturesTimeoutError as e:
+                _on_provider_stuck(provider, self._agent_name)
+                last_error = e
             except Exception as e:
                 if _is_rate_limit_error(e):
                     _mark_provider_cooldown(provider, self._agent_name, e)
@@ -332,14 +432,21 @@ class _LLMProvider(Runnable):
         for provider in self._get_providers():
             if _provider_on_cooldown(provider, self._agent_name):
                 continue
-            llm = _create_provider_llm(
-                provider, self._agent_name, self._temperature, 
-                self._bound_kwargs, self._structured_output
+            llm = _get_provider_llm(
+                provider, self._agent_name, self._temperature,
+                self._bound_kwargs, self._structured_output, self._structured_method,
+                loop=asyncio.get_running_loop(),
             )
             if not llm: continue
             try:
                 logger.info(f"[LLM] {provider} -> {self._agent_name or 'default'}")
-                return await llm.ainvoke(input, config=config, **kwargs)
+                return await asyncio.wait_for(
+                    llm.ainvoke(input, config=config, **kwargs),
+                    timeout=settings.LLM_PROVIDER_ATTEMPT_TIMEOUT,
+                )
+            except asyncio.TimeoutError as e:
+                _on_provider_stuck(provider, self._agent_name)
+                last_error = e
             except Exception as e:
                 if _is_rate_limit_error(e):
                     _mark_provider_cooldown(provider, self._agent_name, e)

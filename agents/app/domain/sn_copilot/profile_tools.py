@@ -2,7 +2,7 @@
 # agents/app/domain/sn_copilot/profile_tools.py
 #
 # Profile & CV Intelligence Tools for SN Executive AI Copilot:
-#   - get_user_profile: Full user profile from PostgreSQL
+#   - get_user_profile: Full user profile (backend Profile module)
 #   - parse_cv_text: LLM-based CV text extraction
 #   - match_cv_with_candidatures: CV-to-job scoring
 # ============================================================
@@ -10,207 +10,139 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import text
-from app.core.database import AsyncSessionFactory
+from app.core import backend_client
 from app.core.config import get_llm
-from app.domain.sn_copilot.tools import _resolve_user_id, get_recent_candidatures
+from app.domain.sn_copilot.tools import get_recent_candidatures
 from langchain_core.messages import SystemMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
 
-# In-memory session cache for profile data (keyed by user_id)
-_profile_cache: Dict[str, Dict[str, Any]] = {}
+def _date(value: Any) -> str:
+    return str(value or "")[:10]
+
+
+def _by(key: str):
+    """Sort key putting empty values last when sorting in descending order."""
+    return lambda item: (item.get(key) is not None and item.get(key) != "", item.get(key) or "")
+
+
+def to_sn_profile(dto: Dict[str, Any]) -> Dict[str, Any]:
+    """Backend FullProfileDto (camelCase) → the profile shape the copilot's prompts use."""
+    info = dto.get("personalInfo") or {}
+    return {
+        "personal_info": {
+            "nom": info.get("nom") or "",
+            "prenom": info.get("prenom") or "",
+            "email": info.get("email") or "",
+            "telephone": info.get("telephone") or "",
+            "ville": info.get("ville") or "",
+            "pays": info.get("pays") or "",
+            "titre_poste": info.get("titrePoste") or "",
+            "resume_professionnel": info.get("resumeProfessionnel") or "",
+            "objectif": dto.get("objectif") or "",
+            "niveau": dto.get("niveau") or "",
+            "secteur": dto.get("secteur") or "",
+            "linkedin": info.get("lienLinkedin") or "",
+            "github": info.get("lienGithub") or "",
+            "portfolio": info.get("lienPortfolio") or "",
+        },
+        "competences": sorted(
+            (
+                {"nom": c.get("nom") or "", "niveau": c.get("niveau") or 0, "type": c.get("typeCompetence") or "technique"}
+                for c in dto.get("competences") or []
+            ),
+            key=lambda c: c["niveau"],
+            reverse=True,
+        ),
+        "formations": sorted(
+            (
+                {
+                    "etablissement": f.get("etablissement") or "",
+                    "diplome": f.get("diplome") or "",
+                    "annee": f.get("annee") or 0,
+                    "annee_fin": f.get("anneeFin"),
+                    "ville": f.get("ville") or "",
+                    "specialisation": f.get("specialisation") or "",
+                    "mention": f.get("mention") or "",
+                }
+                for f in dto.get("formations") or []
+            ),
+            key=lambda f: f["annee"],
+            reverse=True,
+        ),
+        "experiences": sorted(
+            (
+                {
+                    "entreprise": e.get("entreprise") or "",
+                    "poste": e.get("poste") or "",
+                    "date_debut": _date(e.get("dateDebut")),
+                    "date_fin": _date(e.get("dateFin")) if e.get("dateFin") else "En cours",
+                    "missions": e.get("missions") or "",
+                    "ville": e.get("ville") or "",
+                    "type_contrat": e.get("type") or "",
+                    "taches": e.get("taches") or [],
+                }
+                for e in dto.get("experiences") or []
+            ),
+            key=_by("date_debut"),
+            reverse=True,
+        ),
+        "projets": sorted(
+            (
+                {
+                    "titre": pr.get("titreProjet") or "",
+                    "description": pr.get("description") or "",
+                    "technologies": pr.get("technologiesUtilisees") or "",
+                    "date": _date(pr.get("dateRealisation")),
+                    "lien": pr.get("lienProjet") or "",
+                    "universitaire": bool(pr.get("isUniversity")),
+                }
+                for pr in dto.get("projets") or []
+            ),
+            key=_by("date"),
+            reverse=True,
+        ),
+        "certifications": sorted(
+            (
+                {
+                    "titre": c.get("titre") or "",
+                    "organisation": c.get("organisation") or "",
+                    "date": _date(c.get("dateObtention")),
+                }
+                for c in dto.get("certifications") or []
+            ),
+            key=_by("date"),
+            reverse=True,
+        ),
+    }
+
+
+_EMPTY_PROFILE: Dict[str, Any] = {
+    "personal_info": {}, "competences": [], "formations": [], "experiences": [], "projets": [], "certifications": [],
+}
 
 
 async def get_user_profile(user_id: str) -> Dict[str, Any]:
     """
-    Retrieve the complete user profile from PostgreSQL in a single call.
-    Returns personal info, competences, formations, experiences, projects, certifications.
-    Results are cached per session to avoid redundant DB calls.
+    The user's full profile, from the backend's Profile module (same source as the other
+    agents). Read fresh on every call, so the copilot always sees the latest profile edits.
     """
-    # Check cache first
-    if user_id in _profile_cache:
-        logger.info("[Tool:SN] get_user_profile — cache hit for user_id=%s", user_id)
-        return _profile_cache[user_id]
-
-    logger.info("[Tool:SN] get_user_profile — fetching full profile for user_id=%s", user_id)
-    profile: Dict[str, Any] = {
-        "personal_info": {},
-        "competences": [],
-        "formations": [],
-        "experiences": [],
-        "projets": [],
-        "certifications": [],
-    }
-
+    logger.info("[Tool:SN] get_user_profile — user_id=%s", user_id)
     try:
-        async with AsyncSessionFactory() as session:
-            resolved_uid = await _resolve_user_id(session, user_id)
+        result = await backend_client.get_full_profile(user_id)
+    except backend_client.BackendError as e:
+        logger.error("[Tool:SN] get_user_profile error: %s", e.message)
+        return {k: (dict(v) if isinstance(v, dict) else list(v)) for k, v in _EMPTY_PROFILE.items()}
+    if not result:
+        return {k: (dict(v) if isinstance(v, dict) else list(v)) for k, v in _EMPTY_PROFILE.items()}
 
-            # 1. Personal Info from utilisateur table
-            user_row = (await session.execute(
-                text("""
-                    SELECT 
-                        nom, prenom, email, telephone, ville, pays,
-                        titre_poste, resume_professionnel, objectif,
-                        niveau, secteur, lien_linkedin, lien_github,
-                        lien_portfolio, profile_score
-                    FROM profile.utilisateur 
-                    WHERE id_utilisateur::text = :uid
-                    LIMIT 1
-                """),
-                {"uid": str(resolved_uid)}
-            )).mappings().first()
-
-            if user_row:
-                profile["personal_info"] = {
-                    "nom": user_row.get("nom") or "",
-                    "prenom": user_row.get("prenom") or "",
-                    "email": user_row.get("email") or "",
-                    "telephone": user_row.get("telephone") or "",
-                    "ville": user_row.get("ville") or "",
-                    "pays": user_row.get("pays") or "",
-                    "titre_poste": user_row.get("titre_poste") or "",
-                    "resume_professionnel": user_row.get("resume_professionnel") or "",
-                    "objectif": user_row.get("objectif") or "",
-                    "niveau": user_row.get("niveau") or "",
-                    "secteur": user_row.get("secteur") or "",
-                    "linkedin": user_row.get("lien_linkedin") or "",
-                    "github": user_row.get("lien_github") or "",
-                    "portfolio": user_row.get("lien_portfolio") or "",
-                    "profile_score": user_row.get("profile_score") or 0,
-                }
-
-            # 2. Competences
-            comp_rows = (await session.execute(
-                text("""
-                    SELECT nom, niveau, type_competence
-                    FROM profile.competence
-                    WHERE id_utilisateur::text = :uid
-                    ORDER BY niveau DESC
-                """),
-                {"uid": str(resolved_uid)}
-            )).mappings().all()
-
-            profile["competences"] = [
-                {
-                    "nom": r.get("nom") or "",
-                    "niveau": r.get("niveau") or 0,
-                    "type": r.get("type_competence") or "technique",
-                }
-                for r in comp_rows
-            ]
-
-            # 3. Formations
-            form_rows = (await session.execute(
-                text("""
-                    SELECT etablissement, diplome, annee, annee_fin, 
-                           ville, specialisation, mention
-                    FROM profile.formation
-                    WHERE id_utilisateur::text = :uid
-                    ORDER BY annee DESC
-                """),
-                {"uid": str(resolved_uid)}
-            )).mappings().all()
-
-            profile["formations"] = [
-                {
-                    "etablissement": r.get("etablissement") or "",
-                    "diplome": r.get("diplome") or "",
-                    "annee": r.get("annee") or 0,
-                    "annee_fin": r.get("annee_fin"),
-                    "ville": r.get("ville") or "",
-                    "specialisation": r.get("specialisation") or "",
-                    "mention": r.get("mention") or "",
-                }
-                for r in form_rows
-            ]
-
-            # 4. Experiences
-            exp_rows = (await session.execute(
-                text("""
-                    SELECT entreprise, poste, date_debut, date_fin,
-                           missions, ville, type_contrat, taches
-                    FROM profile.experience
-                    WHERE id_utilisateur::text = :uid
-                    ORDER BY date_debut DESC NULLS LAST
-                """),
-                {"uid": str(resolved_uid)}
-            )).mappings().all()
-
-            profile["experiences"] = [
-                {
-                    "entreprise": r.get("entreprise") or "",
-                    "poste": r.get("poste") or "",
-                    "date_debut": str(r.get("date_debut") or "")[:10],
-                    "date_fin": str(r.get("date_fin") or "")[:10] if r.get("date_fin") else "En cours",
-                    "missions": r.get("missions") or "",
-                    "ville": r.get("ville") or "",
-                    "type_contrat": r.get("type_contrat") or "",
-                    "taches": r.get("taches") or [],
-                }
-                for r in exp_rows
-            ]
-
-            # 5. Projets
-            proj_rows = (await session.execute(
-                text("""
-                    SELECT titre_projet, description, technologies_utilisees,
-                           date_realisation, lien_projet, is_university
-                    FROM profile.projet
-                    WHERE id_utilisateur::text = :uid
-                    ORDER BY date_realisation DESC NULLS LAST
-                """),
-                {"uid": str(resolved_uid)}
-            )).mappings().all()
-
-            profile["projets"] = [
-                {
-                    "titre": r.get("titre_projet") or "",
-                    "description": r.get("description") or "",
-                    "technologies": r.get("technologies_utilisees") or "",
-                    "date": str(r.get("date_realisation") or "")[:10],
-                    "lien": r.get("lien_projet") or "",
-                    "universitaire": bool(r.get("is_university")),
-                }
-                for r in proj_rows
-            ]
-
-            # 6. Certifications
-            cert_rows = (await session.execute(
-                text("""
-                    SELECT titre, organisation, date_obtention
-                    FROM profile.certification
-                    WHERE id_utilisateur::text = :uid
-                    ORDER BY date_obtention DESC NULLS LAST
-                """),
-                {"uid": str(resolved_uid)}
-            )).mappings().all()
-
-            profile["certifications"] = [
-                {
-                    "titre": r.get("titre") or "",
-                    "organisation": r.get("organisation") or "",
-                    "date": str(r.get("date_obtention") or "")[:10],
-                }
-                for r in cert_rows
-            ]
-
-        # Cache the profile
-        _profile_cache[user_id] = profile
-        logger.info(
-            "[Tool:SN] Profile loaded: %d competences, %d formations, %d experiences, %d projets, %d certifications",
-            len(profile["competences"]),
-            len(profile["formations"]),
-            len(profile["experiences"]),
-            len(profile["projets"]),
-            len(profile["certifications"]),
-        )
-        return profile
-
-    except Exception as e:
-        logger.error("[Tool:SN] get_user_profile error: %s", e)
-        return profile
+    profile = to_sn_profile(result.get("profile") or {})
+    logger.info(
+        "[Tool:SN] Profile loaded: %d competences, %d formations, %d experiences, %d projets, %d certifications",
+        len(profile["competences"]), len(profile["formations"]), len(profile["experiences"]),
+        len(profile["projets"]), len(profile["certifications"]),
+    )
+    return profile
 
 
 def build_profile_summary(profile: Dict[str, Any]) -> str:
@@ -302,14 +234,12 @@ async def parse_cv_text(cv_text: str) -> Dict[str, Any]:
     if "[cv_upload_base64:" in cv_text.lower():
         try:
             import base64
-            import fitz  # PyMuPDF
+            from app.domain.resume.service import extract_text_from_pdf
             b64_str = cv_text.split("]", 1)[1].strip()
             if "base64," in b64_str:
                 b64_str = b64_str.split("base64,")[1].strip()
             pdf_bytes = base64.b64decode(b64_str)
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            extracted_pages = [page.get_text() for page in doc]
-            cv_extracted = "\n".join(extracted_pages).strip()
+            cv_extracted = (await extract_text_from_pdf(pdf_bytes)).strip()
             if len(cv_extracted) > 30:
                 cv_text = cv_extracted
                 logger.info("[Tool:SN] PyMuPDF successfully extracted %d chars from PDF CV", len(cv_text))
@@ -470,11 +400,3 @@ Classe par score décroissant. Sois réaliste et précis dans les scores.
     except Exception as e:
         logger.error("[Tool:SN] match_cv_with_candidatures error: %s", e)
         return {"error": str(e), "matches": []}
-
-
-def clear_profile_cache(user_id: Optional[str] = None) -> None:
-    """Clear cached profile data. If user_id provided, clears only that user."""
-    if user_id:
-        _profile_cache.pop(user_id, None)
-    else:
-        _profile_cache.clear()

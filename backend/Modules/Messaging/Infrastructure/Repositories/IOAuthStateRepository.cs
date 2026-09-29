@@ -6,6 +6,9 @@ public interface IOAuthStateRepository
 {
     Task AddAsync(OAuthState state, CancellationToken cancellationToken = default);
 
+    /// <summary>Deletes states that expired before <paramref name="olderThanUtc"/> (used or not).</summary>
+    Task<int> DeleteExpiredAsync(DateTime olderThanUtc, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Finds a valid (unused, not expired) OAuthState by provider and state token hash.
     /// </summary>

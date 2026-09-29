@@ -23,10 +23,10 @@ public class GenerateReplyDraftDto
     /// Optional free-text instructions from the user that the AI should follow
     /// when compatible with known facts and the recruiter's context.
     /// Examples:
-    ///   "Mentionner que je suis disponible lundi après-midi et mercredi matin."
-    ///   "Garder la réponse courte."
-    ///   "Répondre en français."
-    ///   "Préciser que je peux fournir mon GitHub si nécessaire."
+    ///   "Mention that I am available Monday afternoon and Wednesday morning."
+    ///   "Keep the reply short."
+    ///   "Reply in French."
+    ///   "Specify that I can provide my GitHub if needed."
     /// </summary>
     public string? UserInstructions { get; set; }
 }

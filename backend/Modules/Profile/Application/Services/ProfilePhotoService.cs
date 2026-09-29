@@ -21,7 +21,7 @@ public class ProfilePhotoService(ProfileDbContext db, IStorageService storage) :
         ProfilePhotoValidator.Validate(file);
 
         var user = await db.Utilisateurs.FindAsync(userId)
-            ?? throw new NotFoundException("Utilisateur introuvable.");
+            ?? throw new NotFoundException("User not found.");
 
         var extension = Path.GetExtension(file!.FileName);
         if (string.IsNullOrWhiteSpace(extension))
@@ -41,17 +41,17 @@ public class ProfilePhotoService(ProfileDbContext db, IStorageService storage) :
         user.PhotoUrl = photoUrl;
         await db.SaveChangesAsync();
 
-        return new PhotoUploadResponse(photoUrl, objectKey, "Photo de profil televersee avec succes.");
+        return new PhotoUploadResponse(photoUrl, objectKey, "Profile photo uploaded successfully.");
     }
 
     public async Task<PhotoFile> GetPhotoAsync(Guid userId)
     {
         var user = await db.Utilisateurs.FindAsync(userId)
-            ?? throw new NotFoundException("Utilisateur non trouve.");
+            ?? throw new NotFoundException("User not found.");
 
         var objectKey = ExtractObjectKey(user.PhotoUrl);
         if (string.IsNullOrWhiteSpace(objectKey))
-            throw new NotFoundException("Photo de profil introuvable.");
+            throw new NotFoundException("Profile photo not found.");
 
         var bytes = await storage.DownloadFileAsync(objectKey);
         return new PhotoFile(bytes, ResolveImageContentType(objectKey));
@@ -60,7 +60,7 @@ public class ProfilePhotoService(ProfileDbContext db, IStorageService storage) :
     public async Task<PhotoUrlResponse> GetSignedUrlAsync(Guid userId)
     {
         var user = await db.Utilisateurs.FindAsync(userId)
-            ?? throw new NotFoundException("Utilisateur non trouve.");
+            ?? throw new NotFoundException("User not found.");
 
         var rawUrl = (user.PhotoUrl ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(rawUrl))

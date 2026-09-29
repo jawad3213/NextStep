@@ -24,7 +24,7 @@ public class SnCopilotService : ISnCopilotService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Message))
-            throw new BadRequestException("Le message ne peut pas être vide.");
+            throw new BadRequestException("Message cannot be empty.");
 
         _logger.LogInformation("SN Copilot chat initiated for user {UserId} ({UserName})", userId, userName);
 
@@ -41,8 +41,8 @@ public class SnCopilotService : ISnCopilotService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erreur lors de l'interaction avec SN Copilot.");
-            throw new OperationFailedException("Erreur de communication avec le copilote SN.", ex);
+            _logger.LogError(ex, "Error interacting with SN Copilot.");
+            throw new OperationFailedException("Failed to communicate with SN Copilot.", ex);
         }
     }
 
@@ -51,44 +51,44 @@ public class SnCopilotService : ISnCopilotService
         var starters = new List<SnStarterSuggestionItem>
         {
             new(
-                Title: "Mon Profil",
-                Description: "Résumé complet de vos compétences, formations et expériences",
-                Prompt: "Résume mon profil complet avec mes compétences et expériences",
-                Category: "Profil",
+                Title: "My Profile",
+                Description: "Comprehensive summary of your skills, education, and experiences",
+                Prompt: "Summarize my full profile with my skills and experiences",
+                Category: "Profile",
                 Icon: "user"
             ),
             new(
                 Title: "CV Matching",
-                Description: "Analyse la compatibilité de votre profil avec vos candidatures",
-                Prompt: "Match mon profil avec mes candidatures actives",
+                Description: "Analyze compatibility between your profile and active applications",
+                Prompt: "Match my profile with my active applications",
                 Category: "Intelligence",
                 Icon: "target"
             ),
             new(
                 Title: "Portfolio Review",
-                Description: "Visualiser vos 10 dernières candidatures et statuts récents",
-                Prompt: "Affiche mes 10 dernières candidatures avec leurs statuts et dates",
+                Description: "View your last 10 applications and recent status updates",
+                Prompt: "Show my last 10 applications with their statuses and dates",
                 Category: "Portfolio",
                 Icon: "layers"
             ),
             new(
-                Title: "Priorités de Relance",
-                Description: "Identifier les candidatures stagnantes nécessitant un suivi",
-                Prompt: "Quelles sont les candidatures sans réponse à relancer en priorité ?",
-                Category: "Stratégie",
+                Title: "Follow-up Priorities",
+                Description: "Identify stagnant applications requiring follow-up",
+                Prompt: "Which pending applications should I follow up on first?",
+                Category: "Strategy",
                 Icon: "clock"
             ),
             new(
-                Title: "Métriques & Vélocité",
-                Description: "Synthèse exécutive du taux de réponse et conversion",
-                Prompt: "Analyse mes taux de conversion et les statistiques de mon pipeline",
+                Title: "Metrics & Velocity",
+                Description: "Executive summary of response rates and pipeline conversion",
+                Prompt: "Analyze my conversion rates and pipeline statistics",
                 Category: "Analytics",
                 Icon: "bar-chart-2"
             ),
             new(
-                Title: "Mutation Rapide",
-                Description: "Modifier un statut de candidature ou enregistrer un entretien",
-                Prompt: "Passe ma dernière candidature en statut 'Entretien'",
+                Title: "Quick Update",
+                Description: "Update an application status or record an interview",
+                Prompt: "Move my latest application to 'Interview' status",
                 Category: "Action",
                 Icon: "check-circle"
             )

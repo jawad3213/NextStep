@@ -48,24 +48,22 @@ public class CvController : ControllerBase
     }
 
     [HttpPost("templates/generate-thumbnails")]
-    [AllowAnonymous]
     public async Task<ActionResult<MessageResponse>> GenerateThumbnails()
     {
         await _thumbnailService.GenerateAllThumbnailsAsync();
         return Ok(new MessageResponse("Thumbnails generated for all templates."));
     }
 
+    // Public (loaded by <img> tags, which send no token). A missing thumbnail of a real
+    // template is generated lazily, rate-limited by the thumbnail service.
     [HttpGet("templates/{slug}/thumbnail")]
     [AllowAnonymous]
     public async Task<IActionResult> GetThumbnailPng(string slug)
     {
         var normalizedSlug = slug.ToLowerInvariant();
         var imageBytes = _thumbnailService.GetThumbnailPng(normalizedSlug);
-        if (imageBytes is null)
-        {
-            await _thumbnailService.GenerateAllThumbnailsAsync();
+        if (imageBytes is null && await _thumbnailService.TryGenerateMissingAsync(normalizedSlug))
             imageBytes = _thumbnailService.GetThumbnailPng(normalizedSlug);
-        }
         if (imageBytes is null)
             throw new NotFoundException(ThumbnailNotFound(slug));
 
@@ -97,14 +95,12 @@ public class CvController : ControllerBase
     }
 
     [HttpPost("preview/render")]
-    [AllowAnonymous]
     public async Task<ActionResult<CvRenderResponse>> PreviewRender([FromBody] CvRenderRequest request)
     {
         return Ok(await _cvService.PreviewFromDataAsync(request));
     }
 
     [HttpPost("export/pdf")]
-    [AllowAnonymous]
     public async Task<IActionResult> ExportPdf([FromBody] CvExportPdfRequest request)
     {
         var pdfBytes = await _cvService.ExportPdfAsync(request);

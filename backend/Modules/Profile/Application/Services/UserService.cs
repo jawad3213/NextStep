@@ -9,7 +9,6 @@ using NextStep.Modules.Profile.Infrastructure.Persistence;
 namespace NextStep.Modules.Profile.Application.Services {
     public interface IUserService
     {
-        Task SyncUserFromKeycloakAsync(UserSyncDto syncDto);
         Task<UserEntity> EnsureUserCreatedAsync(ClaimsPrincipal userPrincipal);
         Task<UserEntity> UpdateSoftOnboardingAsync(string keycloakId, SoftOnboardingDto dto);
         Task<ProfileStatusDto> GetProfileStatusAsync(string keycloakId);
@@ -30,33 +29,10 @@ namespace NextStep.Modules.Profile.Application.Services {
             _logger = logger;
         }
 
-        public async Task SyncUserFromKeycloakAsync(UserSyncDto syncDto)
-        {
-            if (string.IsNullOrEmpty(syncDto.KeycloakId) || string.IsNullOrEmpty(syncDto.Email))
-                throw new BadRequestException("Payload invalide : KeycloakId et Email sont requis.");
-
-            var existingUser = await _userRepository.GetByKeycloakIdAsync(syncDto.KeycloakId);
-            
-            if (existingUser != null)
-            {
-                _logger.LogInformation("Utilisateur {KeycloakId} existe déjà dans la base locale.", syncDto.KeycloakId);
-                return;
-            }
-
-            var newUser = new UserEntity
-            {
-                KeycloakId = syncDto.KeycloakId,
-                Email = syncDto.Email,
-                Nom = syncDto.LastName,
-                Prenom = syncDto.FirstName,
-                OnboardingCompleted = false,
-                ProfileScore = 0,
-                DateInscription = DateTime.UtcNow
-            };
-
-            await _userRepository.CreateUserAsync(newUser);
-        }
-
+        /// <summary>
+        /// The local user of the signed-in Keycloak account, created on first sight from the
+        /// token's claims (the only way users are created).
+        /// </summary>
         public async Task<UserEntity> EnsureUserCreatedAsync(ClaimsPrincipal userPrincipal)
         {
             var keycloakId = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value 
@@ -64,7 +40,7 @@ namespace NextStep.Modules.Profile.Application.Services {
 
             if (string.IsNullOrEmpty(keycloakId))
             {
-                throw new UnauthorizedException("Impossible d'extraire l'identifiant Keycloak du token.");
+                throw new UnauthorizedException("Unable to extract Keycloak identifier from token.");
             }
 
             var existingUser = await _userRepository.GetByKeycloakIdAsync(keycloakId);
@@ -94,7 +70,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task<UserEntity> UpdateSoftOnboardingAsync(string keycloakId, SoftOnboardingDto dto)
         {
             var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
-            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("User not found.");
 
             user.Objectif = dto.Objectif.ToString();
             user.Niveau = dto.Niveau.ToString();
@@ -108,7 +84,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task<ProfileStatusDto> GetProfileStatusAsync(string keycloakId)
         {
             var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
-            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("User not found.");
 
             var missingSections = new List<string>();
             
@@ -117,10 +93,10 @@ namespace NextStep.Modules.Profile.Application.Services {
             bool hasProjects = await _context.Projets.AnyAsync(p => p.UserId == user.Id);
             bool hasEdu = await _context.Formations.AnyAsync(f => f.UserId == user.Id);
 
-            if (!hasExp) missingSections.Add("Expériences");
-            if (!hasSkills) missingSections.Add("Compétences");
-            if (!hasProjects) missingSections.Add("Projets");
-            if (!hasEdu) missingSections.Add("Formations");
+            if (!hasExp) missingSections.Add("Experiences");
+            if (!hasSkills) missingSections.Add("Skills");
+            if (!hasProjects) missingSections.Add("Projects");
+            if (!hasEdu) missingSections.Add("Education");
 
             int score = await ComputeProfileScoreInternalAsync(user);
             user.ProfileScore = score;
@@ -147,7 +123,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task<CompleteProfileResult> CompleteProfileAsync(string keycloakId)
         {
             var user = await _userRepository.GetByKeycloakIdAsync(keycloakId);
-            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("User not found.");
 
             var percent = await ComputeCompletionPercentAsync(user);
             var result = new CompleteProfileResult { CompletionPercent = percent, RequiredPercent = RequiredCompletionPercent };

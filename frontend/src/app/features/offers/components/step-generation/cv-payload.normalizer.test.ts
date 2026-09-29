@@ -52,4 +52,18 @@ describe('normalizeCvForBackend', () => {
     expect(result.experience.map((e: any) => e.company)).toEqual(['Acme']);
     expect(result.activities.some((a: any) => /hackathon/i.test(a.title))).toBe(true);
   });
+
+  it('garde un vrai poste même si ses puces parlent de formation, d’événements ou de club', () => {
+    const result = normalizeCvForBackend(
+      {
+        candidate: { name: 'Sara Alami' },
+        experience: [
+          { role: 'Formatrice technique', company: 'Kids Academy', bullets: ['Animé des formations et des events pour un club client'] },
+        ],
+      },
+      context(),
+    );
+    expect(result.experience.map((e: any) => e.company)).toEqual(['Kids Academy']);
+    expect(result.activities).toEqual([]);
+  });
 });

@@ -60,7 +60,7 @@ export class EmailWorkspaceComponent implements OnInit {
   subject = '';
   body = '';
   emailType = 'application';
-  language = 'fr';
+  language = 'en';
   userInstructions = ''; // for reply draft generation
   oauthClientId = '';
   oauthClientSecret = '';
@@ -84,7 +84,7 @@ export class EmailWorkspaceComponent implements OnInit {
     this.candidatureId = this.route.snapshot.paramMap.get('candidatureId') ?? '';
     this.navigationSource = (this.route.snapshot.queryParamMap.get('source') ?? '').toLowerCase();
     if (!this.candidatureId) {
-      this.pageError.set('Identifiant de candidature manquant.');
+      this.pageError.set('Missing application ID.');
       this.loadingPage.set(false);
       return;
     }
@@ -101,7 +101,7 @@ export class EmailWorkspaceComponent implements OnInit {
       gmail: this.emailService.getGmailStatus().pipe(catchError(() => of(null)))
     }).subscribe(({ candidature, drafts, gmail }) => {
       if (!candidature) {
-        this.pageError.set('Candidature introuvable ou accès refusé.');
+        this.pageError.set('Application not found or access denied.');
         this.loadingPage.set(false);
         return;
       }
@@ -155,7 +155,7 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (draft) => {
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
-        this.toast.success('Brouillon généré avec succès.');
+        this.toast.success('Draft generated successfully.');
         this.generatingDraft.set(false);
       },
       error: (err) => {
@@ -178,7 +178,7 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (draft) => {
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
-        const msg = 'Email de relance généré avec succès. Relisez et approuvez avant envoi.';
+        const msg = 'Follow-up email generated. Review and approve before sending.';
         this.toast.success(msg);
         this.generatingDraft.set(false);
       },
@@ -206,7 +206,7 @@ export class EmailWorkspaceComponent implements OnInit {
         this.drafts.update(drafts => [draft, ...drafts]);
         this.selectDraft(draft);
         this.userInstructions = '';
-        const msg = 'Brouillon de réponse généré. Vérifiez et approuvez avant envoi.';
+        const msg = 'Reply draft generated. Review and approve before sending.';
         this.toast.success(msg);
         this.generatingReply.set(false);
       },
@@ -231,7 +231,7 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (updated) => {
         this.updateDraftInList(updated);
         this.selectedDraft.set(updated);
-        this.toast.success('Brouillon sauvegardé.');
+        this.toast.success('Draft saved successfully.');
         this.savingDraft.set(false);
       },
       error: (err) => {
@@ -251,7 +251,7 @@ export class EmailWorkspaceComponent implements OnInit {
       next: (updated) => {
         this.updateDraftInList(updated);
         this.selectedDraft.set(updated);
-        this.toast.success('Brouillon approuvé. Vous pouvez maintenant l\'envoyer.');
+        this.toast.success('Draft approved. You can now send it.');
         this.approvingDraft.set(false);
       },
       error: (err) => {
@@ -280,13 +280,17 @@ export class EmailWorkspaceComponent implements OnInit {
           };
           this.updateDraftInList(updated);
           this.selectedDraft.set(updated);
-          this.toast.success(`Email envoyé avec succès ! ID Gmail : ${result.providerMessageId ?? '—'}`);
+          this.toast.success('Email sent.');
         } else {
-          this.toast.error(result.errorMessage ?? 'L\'envoi a échoué.');
+          this.toast.error(result.errorMessage ?? 'The email could not be sent. Please try again.');
+          // Show the reconnect state of the Gmail panel right away.
+          if (result.needsReconnect) this.refreshGmailStatus();
         }
       },
       error: (err) => {
-        this.toast.error(extractApiError(err).message);
+        const apiError = extractApiError(err);
+        this.toast.error(apiError.message || 'The email could not be sent. Please try again.');
+        if (apiError.type === 'EmailReconnectRequired') this.refreshGmailStatus();
         this.sendingDraft.set(false);
       }
     });
@@ -314,7 +318,7 @@ export class EmailWorkspaceComponent implements OnInit {
     const redirectUri = this.oauthRedirectUri.trim();
 
     if (!clientId || !clientSecret) {
-      this.toast.error('Client ID et Client Secret sont obligatoires.');
+      this.toast.error('Client ID and Client Secret are required.');
       return;
     }
 
@@ -343,7 +347,7 @@ export class EmailWorkspaceComponent implements OnInit {
       },
       error: (err) => {
         const message = extractApiError(err).message;
-        const msg = message || 'Impossible d\'enregistrer les credentials OAuth.';
+        const msg = message || 'Unable to save OAuth credentials.';
         this.toast.error(msg);
         this.savingOauthCredentials.set(false);
       }
@@ -366,14 +370,14 @@ export class EmailWorkspaceComponent implements OnInit {
           return;
         }
 
-        this.toast.error('URL de connexion Gmail invalide.');
+        this.toast.error('Invalid Gmail login URL.');
         this.connectingGmail.set(false);
       },
       error: (err) => {
         if (!this.gmailStatus()?.hasCustomClientCredentials) {
           this.showOauthCredentialsForm.set(true);
         }
-        const msg = extractApiError(err).message || 'Impossible d\'obtenir l\'URL de connexion Gmail.';
+        const msg = extractApiError(err).message || 'Unable to retrieve Gmail login URL.';
         this.toast.error(msg);
         this.connectingGmail.set(false);
       }
@@ -457,10 +461,10 @@ export class EmailWorkspaceComponent implements OnInit {
   /** Human-readable label for email type. */
   getEmailTypeLabel(emailType: string): string {
     switch (emailType) {
-      case 'application': return 'Candidature';
+      case 'application': return 'Application';
       case 'follow_up':
-      case 'relance':    return 'Relance';
-      case 'reply':      return 'Réponse';
+      case 'relance':    return 'Follow-up';
+      case 'reply':      return 'Reply';
       default:           return emailType;
     }
   }
@@ -473,14 +477,14 @@ export class EmailWorkspaceComponent implements OnInit {
 
   formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
   }
 
   getDraftLabel(draft: EmailDraftDto): string {
-    const status = draft.isSent ? '✓ Envoyé' : draft.isApproved ? '✓ Approuvé' : 'Brouillon';
+    const status = draft.isSent ? '✓ Sent' : draft.isApproved ? '✓ Approved' : 'Draft';
     return `${draft.emailType} — ${status}`;
   }
 

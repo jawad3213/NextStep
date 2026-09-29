@@ -25,8 +25,8 @@ describe('SnCopilotService', () => {
       req[0].flush([
         {
           title: 'Portfolio Review',
-          description: 'Visualiser vos 10 dernières candidatures',
-          prompt: 'Affiche mes 10 dernières candidatures',
+          description: 'View your last 10 applications',
+          prompt: 'Show my last 10 applications',
           category: 'Portfolio',
           icon: 'layers'
         }
@@ -34,7 +34,7 @@ describe('SnCopilotService', () => {
     }
   });
 
-  it('devrait être initialisé correctement', () => {
+  it('should initialize correctly', () => {
     expect(service).toBeTruthy();
     expect(service.isOpen()).toBe(false);
     expect(service.isExpanded()).toBe(false);
@@ -42,7 +42,7 @@ describe('SnCopilotService', () => {
     expect(service.messages().length).toBe(0);
   });
 
-  it('devrait basculer l état du drawer (open/close)', () => {
+  it('should toggle drawer state (open/close)', () => {
     service.toggleDrawer();
     expect(service.isOpen()).toBe(true);
 
@@ -53,7 +53,7 @@ describe('SnCopilotService', () => {
     expect(service.isOpen()).toBe(true);
   });
 
-  it('devrait basculer le mode étendu (440px / 740px)', () => {
+  it('should toggle expanded mode (440px / 740px)', () => {
     expect(service.isExpanded()).toBe(false);
     service.toggleExpand();
     expect(service.isExpanded()).toBe(true);
@@ -61,21 +61,21 @@ describe('SnCopilotService', () => {
     expect(service.isExpanded()).toBe(false);
   });
 
-  it('devrait ajouter un message utilisateur et envoyer la requête', () => {
-    service.sendMessage('Affiche mes 10 dernières candidatures');
+  it('should add user message and send request', () => {
+    service.sendMessage('Show my last 10 applications');
 
     expect(service.messages().length).toBe(1);
-    expect(service.messages()[0].text).toBe('Affiche mes 10 dernières candidatures');
+    expect(service.messages()[0].text).toBe('Show my last 10 applications');
     expect(service.messages()[0].sender).toBe('user');
     expect(service.loading()).toBe(true);
 
     const chatReq = httpMock.expectOne('http://localhost:5000/api/sn/chat');
     expect(chatReq.request.method).toBe('POST');
-    expect(chatReq.request.body.message).toBe('Affiche mes 10 dernières candidatures');
+    expect(chatReq.request.body.message).toBe('Show my last 10 applications');
 
     chatReq.flush({
-      markdownText: 'Voici vos 10 dernières candidatures enregistrées.',
-      actionsPerformed: ['Recupération de 10 candidatures'],
+      markdownText: 'Here are your last 10 recorded applications.',
+      actionsPerformed: ['Fetched 10 applications'],
       cards: [
         {
           id: 'c1',
@@ -86,7 +86,7 @@ describe('SnCopilotService', () => {
           has_response: true
         }
       ],
-      followUpSuggestions: ['Passer Doctolib en accepté', 'Voir les statistiques']
+      followUpSuggestions: ['Set Doctolib to accepted', 'View statistics']
     });
 
     expect(service.loading()).toBe(false);
@@ -96,7 +96,7 @@ describe('SnCopilotService', () => {
     expect(service.activeFollowUps().length).toBe(2);
   });
 
-  it('devrait vider la conversation', () => {
+  it('should clear conversation history', () => {
     service.sendMessage('Test');
     expect(service.messages().length).toBe(1);
 

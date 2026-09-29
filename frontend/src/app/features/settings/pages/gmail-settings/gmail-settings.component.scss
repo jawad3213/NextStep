@@ -33,6 +33,7 @@
   padding: 14px 16px; border-radius: vars.$radius-lg;
   margin-bottom: 20px; font-size: 14px; font-weight: 500;
   &.alert-error { background: vars.$color-error-tint; color: vars.$color-error; border: 1px solid rgba(vars.$color-error, 0.2); }
+  &.alert-success { background: rgba(vars.$color-success, 0.08); color: vars.$color-success; border: 1px solid rgba(vars.$color-success, 0.2); }
 }
 
 .status-card {

@@ -118,20 +118,20 @@ public class ArenaServiceTests : IDisposable
     {
         // Arrange
         var request = new StartSessionRequest(null, "arena", "user-1");
-        var expectedResponse = new StartSessionResponse("session-123", "Welcome to your interview!");
+        StartSessionRequest? sent = null;
 
         _mockAgentClient
-            .Setup(c => c.PostStartInterviewAsync(request))
-            .ReturnsAsync(expectedResponse);
+            .Setup(c => c.PostStartInterviewAsync(It.IsAny<StartSessionRequest>()))
+            .Callback<StartSessionRequest>(r => sent = r)
+            .ReturnsAsync((StartSessionRequest r) => new StartSessionResponse(r.SessionId!, "Welcome to your interview!"));
 
         // Act
         var result = await _service.StartSessionAsync(request);
 
-        // Assert
-        result.Should().NotBeNull();
-        result.SessionId.Should().Be("session-123");
+        // Assert: the backend chooses the session id and the agents answer for it
         result.OpeningMessage.Should().Be("Welcome to your interview!");
-        _mockAgentClient.Verify(c => c.PostStartInterviewAsync(request), Times.Once);
+        Guid.TryParse(result.SessionId, out _).Should().BeTrue();
+        sent!.SessionId.Should().Be(result.SessionId);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class ArenaServiceTests : IDisposable
         // Assert
         var error = await act.Should().ThrowAsync<OperationFailedException>();
         error.Which.Status.Should().Be(System.Net.HttpStatusCode.InternalServerError);
-        error.Which.Message.Should().Be("Erreur lors de l'envoi du message. Veuillez réessayer.");
+        error.Which.Message.Should().Be("Error sending message. Please try again.");
     }
 
     [Fact]
@@ -346,10 +346,12 @@ public class ArenaServiceTests : IDisposable
         };
         var feedbackJson = JsonSerializer.Serialize(feedbackData, options);
 
+        var ownerId = Guid.NewGuid();
+        GivenUser(ownerId, "kc-owner");
         var session = new SessionCoaching
         {
             IdSession = sessionId,
-            IdUtilisateur = Guid.NewGuid(),
+            IdUtilisateur = ownerId,
             Mode = "arena",
             Domain = "Data Science",
             Level = "mid",
@@ -362,7 +364,7 @@ public class ArenaServiceTests : IDisposable
         await _db.SaveChangesAsync();
 
         // Act
-        var result = await _service.GetSessionDetailAsync(sessionId.ToString());
+        var result = await _service.GetSessionDetailAsync(sessionId.ToString(), "kc-owner");
 
         // Assert
         result.Should().NotBeNull();
@@ -379,6 +381,31 @@ public class ArenaServiceTests : IDisposable
         result.QuestionEvaluations.Should().HaveCount(1);
         result.QuestionEvaluations[0].Question.Should().Be("Q1");
         result.BestAnswer.Should().Be("My STAR story");
+    }
+
+    [Theory]
+    [InlineData("kc-other")]   // someone else
+    [InlineData("kc-unknown")] // unknown user
+    public async Task GetSessionDetailAsync_Should_Hide_Other_Users_Sessions(string caller)
+    {
+        var ownerId = Guid.NewGuid();
+        GivenUser(ownerId, "kc-owner");
+        GivenUser(Guid.NewGuid(), "kc-other");
+        var session = new SessionCoaching { IdUtilisateur = ownerId, Mode = "arena", DateSession = DateTime.UtcNow };
+        await _db.SessionCoachings.AddAsync(session);
+        await _db.SaveChangesAsync();
+
+        var act = () => _service.GetSessionDetailAsync(session.IdSession.ToString(), caller);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task GetSessionDetailAsync_Should_Report_Invalid_Id_As_NotFound()
+    {
+        GivenUser(Guid.NewGuid(), "kc-owner");
+        var act = () => _service.GetSessionDetailAsync("not-a-guid", "kc-owner");
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     [Fact]

@@ -76,6 +76,8 @@ export interface FullProfileDto {
   niveau?: string | null;
   secteur?: string | null;
   onboardingCompleted: boolean;
+  /** UI and generated-document language ("en" or "fr"). Defaults to English. */
+  preferredLanguage: string;
   experiences: ExperienceDto[];
   formations: FormationDto[];
   projets: ProjetDto[];

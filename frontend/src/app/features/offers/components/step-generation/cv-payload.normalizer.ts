@@ -13,12 +13,16 @@ export interface CvPayloadContext {
   signedProfilePhotoUrl: string | null;
 }
 
-const ACTIVITY_SIGNALS = [
-  'hackathon', 'club', 'association', 'organisateur', 'organizer',
-  'membre', 'member', 'volunteer', 'benevole', 'benevole', 'event',
-  'community', 'communaut', 'it day', 'prize', 'prix', 'participant',
-  'formateur', 'trainer', 'formation', 'solihackathon', 'itwave', 'ids'
-];
+/**
+ * Words that mark an experience as an extracurricular activity, matched as whole words in
+ * its title and organisation only (a real job's bullets can mention clubs or trainings).
+ * Same list as the agents' CV formatter.
+ */
+const ACTIVITY_WORDS = new Set([
+  'hackathon', 'club', 'association', 'bde', 'benevole', 'benevolat', 'volunteer',
+  'volunteering', 'volontariat', 'organisateur', 'organisatrice', 'organizer',
+  'community', 'communaute',
+]);
 
 export function normalizeCvForBackend(data: any, context: CvPayloadContext): any {
   data = unwrapCvPayload(data);
@@ -422,10 +426,8 @@ function dedupeActivities(activities: any[]): any[] {
 }
 
 function looksLikeActivity(exp: any): boolean {
-  const text = normalizeKey(`${exp?.role ?? ''} ${exp?.company ?? ''} ${asStringArray(exp?.bullets).join(' ')}`);
-  if (!text) return false;
-  if (text.includes('stage') || text.includes('intern')) return false;
-  return ACTIVITY_SIGNALS.some(signal => text.includes(normalizeKey(signal)));
+  const words = normalizeKey(`${exp?.role ?? ''} ${exp?.company ?? ''}`).split(' ');
+  return words.some(word => ACTIVITY_WORDS.has(word));
 }
 
 function isSameMeaning(left: string, right: string): boolean {

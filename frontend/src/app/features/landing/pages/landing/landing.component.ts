@@ -53,46 +53,46 @@ export class LandingComponent {
     {
       role: 'Full Stack Engineer (.NET 10 / Angular 19)',
       company: 'Qonto Tech',
-      location: 'Paris (Hybride)',
-      salary: '65k - 75k€',
+      location: 'Paris (Hybrid)',
+      salary: '$65k - $75k',
       matchScore: 94,
-      category: 'Développement Web',
+      category: 'Web Development',
       matchedSkills: ['Angular 19', 'C# / .NET 10', 'TypeScript', 'PostgreSQL', 'REST API', 'Docker'],
       missingSkills: ['Kubernetes', 'RabbitMQ'],
-      recommendation: 'Profil très fort. Mettez en avant vos architectures modulaires et vos microservices.'
+      recommendation: 'Very strong profile. Highlight your modular architectures and microservices.'
     },
     {
       role: 'DevOps & Cloud Architect',
       company: 'PayFit',
       location: 'Full Remote',
-      salary: '70k - 85k€',
+      salary: '$70k - $85k',
       matchScore: 89,
-      category: 'Infrastructure Cloud',
+      category: 'Cloud Infrastructure',
       matchedSkills: ['Docker', 'CI/CD Pipelines', 'Linux', 'Terraform', 'Git', 'Monitoring'],
       missingSkills: ['ArgoCD', 'Prometheus'],
-      recommendation: 'Score ATS optimal. Mentionnez la réduction des temps de déploiement et la haute disponibilité.'
+      recommendation: 'Optimal ATS score. Highlight deployment time reduction and high availability.'
     },
     {
       role: 'AI / Data Solutions Engineer',
       company: 'Mistral Partner',
-      location: 'Paris 9e',
-      salary: '72k - 88k€',
+      location: 'New York (Hybrid)',
+      salary: '$72k - $88k',
       matchScore: 91,
-      category: 'Data & IA',
+      category: 'Data & AI',
       matchedSkills: ['Python', 'FastAPI', 'LangGraph', 'SQL', 'Embeddings', 'Git'],
       missingSkills: ['MLflow', 'Triton Server'],
-      recommendation: 'Excellente adéquation avec les agents intelligents. Ajoutez vos métriques de latence/coûts LLM.'
+      recommendation: 'Excellent fit for intelligent agents. Include your LLM latency and cost metrics.'
     },
     {
       role: 'Tech Lead Frontend & Design Systems',
       company: 'Doctolib',
-      location: 'Nantes / Remote',
-      salary: '75k - 90k€',
+      location: 'Remote',
+      salary: '$75k - $90k',
       matchScore: 96,
       category: 'Frontend & UX',
       matchedSkills: ['Angular', 'Design System', 'TailwindCSS', 'SCSS', 'Web Performance', 'Micro-Frontends'],
       missingSkills: ['Storybook', 'Cypress'],
-      recommendation: 'Match quasiment parfait ! Insistez sur votre gouvernance de composants réutilisables.'
+      recommendation: 'Near-perfect match! Emphasize your governance of reusable components.'
     }
   ];
 
@@ -103,102 +103,102 @@ export class LandingComponent {
   readonly pipelineSteps: PipelineStep[] = [
     {
       id: 1,
-      title: '01. Sourcing Offres',
-      badge: 'Scraping Multi-Sources',
-      shortDesc: 'LinkedIn, Indeed & Glassdoor réunis',
-      headline: 'Centralisez toutes les opportunités sans changer d\'onglet',
-      description: 'NextStep extrait et normalise en continu les offres depuis LinkedIn, Indeed et Glassdoor. Filtrez par technologies précises, fourchette salariale et télétravail, puis promouvez l\'offre en 1 clic dans votre pipeline actif.',
+      title: '01. Job Sourcing',
+      badge: 'Multi-Source Scraping',
+      shortDesc: 'LinkedIn, Indeed & Glassdoor unified',
+      headline: 'Centralize all opportunities without switching tabs',
+      description: 'NextStep continuously extracts and normalizes job openings from LinkedIn, Indeed, and Glassdoor. Filter by target technologies, salary range, and remote flexibility, then promote postings into your active pipeline with one click.',
       image: '/pipeline-step-1.jpg',
       metrics: [
-        { label: 'Sources connectées', value: 'LinkedIn + Indeed' },
-        { label: 'Gain de temps sourcing', value: '75%' },
-        { label: 'Statuts de suivi', value: 'Kanban temps réel' }
+        { label: 'Connected Sources', value: 'LinkedIn + Indeed' },
+        { label: 'Sourcing Time Saved', value: '75%' },
+        { label: 'Tracking Statuses', value: 'Real-time Kanban' }
       ],
       highlights: [
-        'Agrégation multi-plateformes unifiée sans doublons',
-        'Filtres avancés par mots-clés, séniorité et remote',
-        'Classification automatique : Sauvegardé, Sélectionné, Archivé',
-        'Promotion instantanée vers le moteur d\'analyse IA'
+        'Unified multi-platform aggregation without duplicates',
+        'Advanced filters by keywords, seniority, and remote status',
+        'Automatic classification: Saved, Selected, Archived',
+        'Instant promotion to the AI analysis engine'
       ]
     },
     {
       id: 2,
-      title: '02. Matching ATS',
-      badge: 'Analyse Sémantique',
-      shortDesc: 'Score de match et compétences manquantes',
-      headline: 'Connaissez votre taux de match exact avant de postuler',
-      description: 'L\'algorithme sémantique décompose la fiche de poste et la confronte avec votre profil. Il calcule le score ATS réel, détecte les compétences requises manquantes et formule des suggestions concrètes pour combler les écarts.',
+      title: '02. ATS Matching',
+      badge: 'Semantic Analysis',
+      shortDesc: 'Match score and skill gap analysis',
+      headline: 'Know your exact match rate before applying',
+      description: 'The semantic engine analyzes the job description against your profile. It calculates the real ATS compatibility score, pinpoints missing required skills, and generates actionable advice to bridge skill gaps.',
       image: '/pipeline-step-2.jpg',
       metrics: [
-        { label: 'Précision du matching', value: '98%' },
-        { label: 'Détection des lacunes', value: 'Instantanée' },
-        { label: 'Pistes d\'amélioration', value: 'Actionnables' }
+        { label: 'Matching Accuracy', value: '98%' },
+        { label: 'Gap Detection', value: 'Instant' },
+        { label: 'Actionable Advice', value: 'Actionable' }
       ],
       highlights: [
-        'Calcul du score de pertinence globale (%)',
-        'Cartographie des compétences maîtrisées vs attendues',
-        'Indicateur visuel de gravité (Perfect / Minor / Critical)',
-        'Recommandations de ponts de compétences et certifications'
+        'Overall relevance and match score calculation (%)',
+        'Mastered skills vs required skills mapping',
+        'Visual severity indicator (Perfect / Minor / Critical)',
+        'Skill bridge recommendations and suggested certifications'
       ]
     },
     {
       id: 3,
-      title: '03. Studio CV',
+      title: '03. Resume Studio',
       badge: 'LaTeX & Modern PDF',
-      shortDesc: 'Templates Modern & LaTeX optimisés',
-      headline: 'Générez un CV haute fidélité taillé sur-mesure pour chaque poste',
-      description: 'Fini le CV générique ignoré par les recruteurs. NextStep réécrit et réordonne vos points d\'impact pour correspondre précisément aux mots-clés de l\'offre ciblée. Exportez en LaTeX ou Modern PDF haute résolution hébergé sur MinIO.',
+      shortDesc: 'Optimized Modern & LaTeX templates',
+      headline: 'Generate high-impact resumes tailored to each job description',
+      description: 'Say goodbye to generic resumes ignored by recruiters. NextStep rewrites and reprioritizes your bullet points to align with target keywords. Export in LaTeX or high-resolution Modern PDF hosted on MinIO.',
       image: '/pipeline-step-3.jpg',
       metrics: [
-        { label: 'Format conforme ATS', value: '100%' },
-        { label: 'Templates professionnels', value: 'Modern & LaTeX' },
-        { label: 'Export & Stockage', value: 'PDF MinIO S3' }
+        { label: 'ATS-Compliant Format', value: '100%' },
+        { label: 'Professional Templates', value: 'Modern & LaTeX' },
+        { label: 'Export & Storage', value: 'PDF MinIO S3' }
       ],
       highlights: [
-        'Formulation orientée impact et métriques quantifiées',
-        'Alignement automatique des mots-clés pour passer les filtres ATS',
-        'Prévisualisation temps réel du document',
-        'Historique complet des CV générés téléchargeables à tout moment'
+        'Impact-focused phrasing with quantified metrics',
+        'Automatic keyword alignment to pass ATS filters',
+        'Real-time live document preview',
+        'Full history of generated resumes available to download anytime'
       ]
     },
     {
       id: 4,
-      title: '04. Envoi Gmail',
+      title: '04. Gmail Delivery',
       badge: 'OAuth2 & Polling',
-      shortDesc: 'Emails personnalisés et tracking des réponses',
-      headline: 'Envoyez vos candidatures et suivez les réponses directement',
-      description: 'Rédigez des emails de motivation personnalisés et percutants grâce à l\'IA. Connectez votre compte Gmail en OAuth2, expédiez votre candidature avec CV attaché et laissez les agents classifier les réponses reçues (entretien, refus, relance requise).',
+      shortDesc: 'Personalized outreach and reply tracking',
+      headline: 'Send applications and track responses automatically',
+      description: 'Craft personalized cover emails powered by AI. Connect your Gmail account via OAuth2, send applications with attached resumes directly from your own email, and let automated agents classify incoming replies (interview, rejection, follow-up needed).',
       image: '/pipeline-step-4.jpg',
       metrics: [
-        { label: 'Taux de réponse moyen', value: '+78%' },
-        { label: 'Intégration directe', value: 'Gmail OAuth2' },
-        { label: 'Classification des retours', value: 'IA automatique' }
+        { label: 'Avg. Response Rate', value: '+78%' },
+        { label: 'Direct Integration', value: 'Gmail OAuth2' },
+        { label: 'Reply Classification', value: 'Automated AI' }
       ],
       highlights: [
-        'Génération d\'emails d\'accroche et de relance ciblés',
-        'Envoi direct avec pièce jointe sécurisée depuis votre propre adresse',
-        'Détection automatique des invitations à un entretien dans vos threads',
-        'Rappels et notifications de relance avant expiration du délai'
+        'Targeted outreach and follow-up email generation',
+        'Direct delivery with secure attachment from your inbox',
+        'Automatic interview invitation detection in email threads',
+        'Reminders and follow-up alerts before deadlines pass'
       ]
     },
     {
       id: 5,
-      title: '05. Coach Entretien',
-      badge: 'Simulateur d\'Entretien',
-      shortDesc: 'Entraînement questions-réponses et négociation',
-      headline: 'Préparez vos entretiens et négociez votre salaire avec l\'IA',
-      description: 'Entraînez-vous face à un simulateur d\'entretien IA qui adapte ses questions au poste ciblé et à l\'entreprise. Bénéficiez d\'un Salary Coach pour négocier votre rémunération et d\'un module Company Intelligence pour décoder la culture de l\'employeur.',
+      title: '05. Interview Coach',
+      badge: 'Interview Simulator',
+      shortDesc: 'Mock interviews and salary negotiation',
+      headline: 'Practice interviews and negotiate your salary with AI',
+      description: 'Train with an AI mock interview simulator tailored to the target role and company. Leverage the Salary Coach to negotiate your compensation and access Company Intelligence to understand company culture.',
       image: '/pipeline-step-5.jpg',
       metrics: [
-        { label: 'Simulation interactive', value: 'Temps réel' },
-        { label: 'Coach salarial', value: 'Inclus' },
+        { label: 'Interactive Simulation', value: 'Real-time' },
+        { label: 'Salary Coach', value: 'Included' },
         { label: 'Company Intelligence', value: 'Deep Insights' }
       ],
       highlights: [
-        'Simulateur d\'entretien technique et comportemental',
-        'Feedback instantané sur la pertinence de vos réponses',
-        'Salary Coach : arguments et fourchettes de rémunération',
-        'Company Intel : signaux d\'entreprise, culture et attentes clés'
+        'Technical and behavioral interview simulations',
+        'Instant STAR feedback on your answers',
+        'Salary Coach: compensation benchmarks and talking points',
+        'Company Intel: business signals, culture, and key expectations'
       ]
     }
   ];

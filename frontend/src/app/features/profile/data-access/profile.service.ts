@@ -2,6 +2,7 @@ import { Injectable, signal, computed, inject, effect } from '@angular/core';
 import { Profile, ProfileStepId, PersonalInfo, Experience, Education, Skill, Language, Project, Certification, ProfileImportSummary } from './profile.models';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '@core/auth/auth.service';
+import { LanguageService, AppLang } from '@core/i18n/language.service';
 import { extractApiError } from '@core/http/extract-api-error';
 import { ProfileApiService } from './profile-api.service';
 import { KeywordDto } from './profile-api.models';
@@ -36,6 +37,7 @@ type LanguageInput = { id?: string; name: string; level: string };
 export class ProfileService {
   private readonly api = inject(ProfileApiService);
   private readonly authService = inject(AuthService);
+  private readonly languageService = inject(LanguageService);
   private readonly SESSION_KEY = 'nextstep_onboarding_profile';
   private profilePhotoObjectUrl: string | null = null;
 
@@ -64,6 +66,9 @@ export class ProfileService {
 
   profile = signal<Profile>(this.emptyProfile);
   currentStep = signal<ProfileStepId>('coordonnees');
+  /** True once the profile has been fetched at least once (success or failure). Lets the UI
+   * skip the "everything completes at once" transition flash on the very first load. */
+  readonly profileLoaded = signal(false);
 
   constructor() {
     effect(() => {
@@ -93,7 +98,7 @@ export class ProfileService {
     sessionStorage.removeItem(this.SESSION_KEY);
   }
 
-  // Méthode publique pour forcer le rechargement
+  // Public method to force a reload
   async refreshProfile() {
     return this.loadProfile();
   }
@@ -103,11 +108,17 @@ export class ProfileService {
       const data = await firstValueFrom(this.api.getFullProfile());
 
       if (!data || !data.personalInfo) {
-        console.warn('Données de profil incomplètes reçues du serveur');
+        console.warn('Incomplete profile data received from server');
         return;
       }
 
       this.profile.set(toProfile(data, this.authService.user(), this.emptyProfile.sectionTitles));
+
+      // The backend is the source of truth for the language preference: it overrides
+      // whatever this browser had guessed (localStorage default or a previous device).
+      if (data.preferredLanguage === 'en' || data.preferredLanguage === 'fr') {
+        this.languageService.setLang(data.preferredLanguage);
+      }
 
       const profilePhotoUrl = data.personalInfo.photoUrl ? await this.loadProfilePhotoObjectUrl() : null;
       this.profile.update(profile => ({
@@ -119,6 +130,8 @@ export class ProfileService {
       }));
     } catch (error) {
       console.error('Erreur chargement profil:', error);
+    } finally {
+      this.profileLoaded.set(true);
     }
   }
 
@@ -143,6 +156,15 @@ export class ProfileService {
   async savePersonalInfo(info: PersonalInfo) {
     if (this.isOnboarding()) return;
     return firstValueFrom(this.api.updatePersonalInfo(toPersonalInfoDto(info, this.profile().resume, this.profile().sectionTitles)));
+  }
+
+  /**
+   * Persists the language preference server-side (not just in this browser's localStorage)
+   * and updates the UI immediately. Generated CVs and resume summaries use this preference.
+   */
+  async setLanguagePreference(lang: AppLang) {
+    this.languageService.setLang(lang);
+    await firstValueFrom(this.api.updateLanguagePreference(lang));
   }
 
   async uploadProfilePhoto(file: File): Promise<string> {
@@ -380,14 +402,17 @@ export class ProfileService {
     }
   }
 
+  /**
+   * Professional summary written by the AI from the profile.
+   * Throws (with the reason) when nothing was generated, so the current summary is kept.
+   */
   async generateResume(profileData: unknown): Promise<string> {
-    try {
-      const res = await firstValueFrom(this.api.generateResume(profileData));
-      return res.resume || '';
-    } catch (e) {
-      console.error('Erreur génération CV IA', e);
-      return 'Generation error.';
+    const res = await firstValueFrom(this.api.generateResume(profileData));
+    const resume = (res.resume || '').trim();
+    if (!resume) {
+      throw new Error(res.errors?.[0] || 'The summary could not be generated.');
     }
+    return resume;
   }
 
   /**
@@ -429,9 +454,9 @@ export class ProfileService {
     const jsonContent = JSON.stringify(data, null, 2);
     const cleanFirstName = (p.personal?.firstName || '').toLowerCase().replace(/[^a-z0-9]/gi, '_');
     const cleanLastName = (p.personal?.lastName || '').toLowerCase().replace(/[^a-z0-9]/gi, '_');
-    const namePart = [cleanFirstName, cleanLastName].filter(Boolean).join('_') || 'mon_profil';
+    const namePart = [cleanFirstName, cleanLastName].filter(Boolean).join('_') || 'my_profile';
     const datePart = new Date().toISOString().split('T')[0];
-    const filename = `profil_${namePart}_${datePart}.json`;
+    const filename = `profile_${namePart}_${datePart}.json`;
 
     return { filename, jsonContent, data };
   }
@@ -453,15 +478,15 @@ export class ProfileService {
   }
 
   /**
-   * Calcul du pourcentage de complétion du profil (equilibre par etape)
-   * Chaque section du stepper a un poids significatif. Aucune section
-   * ne peut etre ignoree sans descendre sous le seuil de 85%.
+   * Profile completion percentage calculation (balanced per step).
+   * Each stepper section has a significant weight. No section
+   * can be ignored without falling below the 85% threshold.
    */
   completionPercentage = computed(() => {
     const p = this.profile();
     let score = 0;
     
-    // 1. Contact Info (12%) — equilibre sur plusieurs champs
+    // 1. Contact Info (12%) — balanced across several fields
     if (p.personal.firstName) score += 2;
     if (p.personal.lastName) score += 2;
     if (p.personal.email) score += 2;
@@ -476,10 +501,10 @@ export class ProfileService {
     // 3. Experience (14%)
     if (p.experience.length > 0) score += 14;
     
-    // 4. Skills (16%) — poids fort: indispensable pour depasser 85%
+    // 4. Skills (16%) — high weight: essential to exceed 85%
     if (p.skills.length > 0) score += 16;
     
-    // 5. Languages (4%) — bonus, ne compense pas un manque de competences
+    // 5. Languages (4%) — bonus, does not compensate for missing skills
     if (p.languages.length > 0) score += 4;
     
     // 6. Projects (14%)
@@ -546,7 +571,7 @@ export class ProfileService {
     this.parsingEvents.set([]);
     this.lastImportSummary.set(null);
     try {
-      // Simulation du feed pendant la requête
+      // Simulated feed during the request
       this.addParsingEvent('info', 'Connecting to NextStep AI agents...');
       
       const simulateEvents = async () => {
@@ -559,16 +584,16 @@ export class ProfileService {
         ];
 
         for (const e of events) {
-          if (this.parsingEvents().length > 10) break; // Arrêt si fini
+          if (this.parsingEvents().length > 10) break; // Stop if finished
           this.addParsingEvent(e.type, e.msg, e.entity);
           await new Promise(r => setTimeout(r, 800));
         }
       };
 
-      // On lance la simulation en parallèle
+      // Launch simulation in parallel
       void simulateEvents();
 
-      // Véritable appel API
+      // Actual API call
       const rawData = await firstValueFrom(this.api.parseResume(file));
 
       const normalizedPayload = normalizeImportedPayload(rawData);
@@ -582,7 +607,7 @@ export class ProfileService {
     } catch (error) {
       const message = extractApiError(error).message;
       this.addParsingEvent('info', message, 'Process halted');
-      console.error('Erreur lors du parsing du CV:', error);
+      console.error('CV parsing error:', error);
       throw error;
     }
   }
@@ -601,7 +626,7 @@ export class ProfileService {
         ];
 
         for (const e of events) {
-          if (this.parsingEvents().length > 10) break; // Arrêt si fini
+          if (this.parsingEvents().length > 10) break; // Stop if finished
           this.addParsingEvent(e.type, e.msg, e.entity);
           await new Promise(r => setTimeout(r, 800));
         }

@@ -6,16 +6,16 @@ using NextStep.Modules.Coaching.Application.Dtos;
 namespace NextStep.Modules.Coaching.Infrastructure.Agents;
 
 /// <summary>
-/// Proxy HTTP pur vers Python FastAPI (LangGraph agents).
-/// Aucune logique métier ici — uniquement sérialisation/désérialisation JSON.
-/// Pour migrer en microservice : remplacer cette classe par un client gRPC ou message broker.
+/// Pure HTTP proxy to Python FastAPI (LangGraph agents).
+/// No business logic here — only JSON serialization/deserialization.
+/// To migrate to a microservice: replace this class with a gRPC client or message broker.
 /// </summary>
 public class AgentHttpClient : IAgentHttpClient
 {
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    // Injecté depuis appsettings.json → AgentsService:BaseUrl
+    // Injected from appsettings.json → AgentsService:BaseUrl
     public AgentHttpClient(HttpClient http)
     {
         _http = http;

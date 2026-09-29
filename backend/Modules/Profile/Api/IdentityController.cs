@@ -10,28 +10,21 @@ namespace NextStep.Modules.Profile.Api;
 
 [ApiController]
 [Route("api/identity")]
+[Authorize]
 public class IdentityController(IUserService userService) : ControllerBase
 {
-    /// <summary>Synchronise un utilisateur Keycloak dans la base locale.</summary>
-    [HttpPost("sync")]
-    public async Task<ActionResult<MessageResponse>> SyncUser([FromBody] UserSyncDto payload)
-    {
-        await userService.SyncUserFromKeycloakAsync(payload);
-        return Ok(new MessageResponse("Synchronisation réussie."));
-    }
-
-    /// <summary>Récupère le profil utilisateur courant (JIT provisioning).</summary>
+    /// <summary>Retrieves the current user profile (JIT provisioning).</summary>
     [HttpGet("profile")]
     [Authorize]
     public async Task<ActionResult<UserProfileResponse>> GetUserProfile()
     {
         var user = await userService.EnsureUserCreatedAsync(User);
         return Ok(new UserProfileResponse(
-            "Profil récupéré avec succès (Synchronisé avec Keycloak).",
+            "User profile retrieved successfully (synchronized with Keycloak).",
             UserProfileDto.From(user)));
     }
 
-    /// <summary>Retourne le statut d'onboarding (complété ou non) et le score du profil.</summary>
+    /// <summary>Returns the onboarding status and profile score.</summary>
     [HttpGet("onboarding-status")]
     [Authorize]
     public async Task<ActionResult<OnboardingStatusResponse>> GetOnboardingStatus()
@@ -55,18 +48,18 @@ public class IdentityController(IUserService userService) : ControllerBase
         return BadRequest(new CompleteProfileErrorResponse(result.Message, result.CompletionPercent, result.RequiredPercent));
     }
 
-    /// <summary>Met à jour les informations d'onboarding "soft" (objectif, niveau, secteur).</summary>
+    /// <summary>Updates soft onboarding information (objective, level, sector).</summary>
     [HttpPost("soft-onboarding")]
     [Authorize]
     public async Task<ActionResult<SoftOnboardingResponse>> UpdateSoftOnboarding([FromBody] SoftOnboardingDto dto)
     {
         var user = await userService.UpdateSoftOnboardingAsync(GetKeycloakId(), dto);
         return Ok(new SoftOnboardingResponse(
-            "Onboarding soft complété.",
+            "Soft onboarding completed successfully.",
             new SoftOnboardingData(user.OnboardingCompleted)));
     }
 
-    /// <summary>Retourne le statut de complétion du profil pour le dashboard (inclut les sections manquantes).</summary>
+    /// <summary>Returns the profile completion status for the dashboard (includes missing sections).</summary>
     [HttpGet("profile-status")]
     [Authorize]
     public async Task<ActionResult<ProfileStatusDto>> GetProfileStatus() =>
@@ -76,5 +69,5 @@ public class IdentityController(IUserService userService) : ControllerBase
     private string GetKeycloakId() =>
         User.FindFirst(ClaimTypes.NameIdentifier)?.Value
         ?? User.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedException("Impossible d'extraire l'identifiant Keycloak.");
+        ?? throw new UnauthorizedException("Unable to extract Keycloak identifier.");
 }

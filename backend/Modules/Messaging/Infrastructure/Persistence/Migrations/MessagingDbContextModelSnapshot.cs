@@ -8,7 +8,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace NextStep.Modules.Messaging.Infrastructure.Persistence.Migrations {
+namespace NextStep.Modules.Messaging.Infrastructure.Persistence.Migrations
+{
     [DbContext(typeof(MessagingDbContext))]
     partial class MessagingDbContextModelSnapshot : ModelSnapshot
     {
@@ -209,6 +210,15 @@ namespace NextStep.Modules.Messaging.Infrastructure.Persistence.Migrations {
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("provider");
+
+                    b.Property<string>("ReconnectReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reconnect_reason");
+
+                    b.Property<DateTime?>("ReconnectRequiredAtUtc")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("reconnect_required_at_utc");
 
                     b.Property<string>("RefreshTokenEncrypted")
                         .IsRequired()

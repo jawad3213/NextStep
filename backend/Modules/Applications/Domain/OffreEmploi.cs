@@ -1,6 +1,6 @@
 // ============================================================
 // Modules/Applications/Models/OffreEmploi.cs
-// Entité EF Core — table offres_emploi
+// EF Core entity — offres_emploi table
 // ============================================================
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -22,7 +22,7 @@ public class OffreEmploi
     [Column("texte_brut")]
     public string TexteBrut { get; set; } = string.Empty;
 
-    /// <summary>JSON structuré retourné par Agent 1 (LLM), stocké en JSONB PostgreSQL.</summary>
+    /// <summary>Structured JSON returned by Agent 1 (LLM), stored as PostgreSQL JSONB.</summary>
     [Column("analyse_json", TypeName = "jsonb")]
     public string? AnalyseJson { get; set; }
 

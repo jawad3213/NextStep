@@ -100,7 +100,7 @@ public class PdfGenerationService : IPdfGenerationService
                     Status = "error"
                 }, CancellationToken.None);
 
-            throw new OperationFailedException("La génération du PDF a échoué. Veuillez réessayer.", ex);
+            throw new OperationFailedException("PDF generation failed. Please try again.", ex);
         }
     }
 

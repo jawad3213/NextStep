@@ -8,7 +8,6 @@ import { PipelineStateService } from '@features/offers/data-access/pipeline-stat
 import { OnboardingService } from '@core/auth/onboarding.service';
 import { AppSidebarComponent } from '../app-sidebar/app-sidebar.component';
 import { SidebarService } from '../sidebar.service';
-import { ThemeService } from '../theme.service';
 import { OfferStepId } from '@features/offers/data-access/offers.models';
 import { OffersStepperComponent } from '@features/offers/components/offers-stepper/offers-stepper.component';
 import { SnDrawerComponent } from '@features/sn-copilot/components/sn-drawer/sn-drawer.component';
@@ -34,7 +33,6 @@ export class MainLayoutComponent {
   readonly profileService = inject(ProfileService);
   readonly onboardingService = inject(OnboardingService);
   readonly pipelineState = inject(PipelineStateService);
-  readonly themeService = inject(ThemeService);
 
   @HostListener('window:keydown', ['$event'])
   onGlobalKeyDown(event: KeyboardEvent): void {
@@ -81,7 +79,6 @@ export class MainLayoutComponent {
   );
   readonly isProfileMenuOpen = signal(false);
   readonly isNotificationsMenuOpen = signal(false);
-  readonly theme = this.themeService.theme;
   readonly profile = this.profileService.profile;
   readonly userFullName = computed(() => {
     const personal = this.profile().personal;
@@ -142,10 +139,6 @@ export class MainLayoutComponent {
     }
 
     this.sidebarService.toggleMobileOpen();
-  }
-
-  toggleTheme(): void {
-    this.themeService.toggleTheme();
   }
 
   toggleProfileMenu(): void {

@@ -1,70 +1,34 @@
+# ============================================================
+# app/domain/profile_retriever/service.py
+# Agent 2 — the candidate profile, loaded from the backend's Profile module.
+# ============================================================
 import logging
-import time
-from functools import wraps
-from typing import Dict, Any, Tuple
-from app.domain.profile_retriever.graph.workflow import build_profile_retriever_workflow
-from app.domain.profile_retriever.schemas.state import ProfileRetrieverState
+
+from app.domain.profile_retriever.schemas.models import UserProfile
+from app.domain.profile_retriever.tools.profile_source import get_user_profile
 
 logger = logging.getLogger(__name__)
 
-def async_ttl_cache(ttl_seconds: int = 300):
-    """Décorateur simple pour cacher les résultats de fonctions async avec un TTL."""
-    cache: Dict[str, Tuple[float, Any]] = {}
-
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(self, user_id: str, *args, **kwargs):
-            now = time.time()
-            
-            # Vérifier si on a un hit en cache et s'il est encore valide
-            if user_id in cache:
-                timestamp, result = cache[user_id]
-                if now - timestamp < ttl_seconds:
-                    logger.info(f"[Cache] Hit pour user_id={user_id}")
-                    return result
-            
-            # Sinon, exécuter la fonction et mettre en cache
-            logger.info(f"[Cache] Miss pour user_id={user_id}. Récupération DB...")
-            result = await func(self, user_id, *args, **kwargs)
-
-            # Do not cache empty/invalid profiles: this avoids freezing bad data for 5 minutes.
-            profile = (result or {}).get("profile_data") if isinstance(result, dict) else None
-            has_min_profile = isinstance(profile, dict) and (
-                bool(profile.get("competences"))
-                or bool(profile.get("experiences"))
-                or bool(profile.get("projets"))
-                or bool(profile.get("resume"))
-                or bool(profile.get("titre"))
-            )
-            if has_min_profile:
-                cache[user_id] = (now, result)
-            else:
-                logger.warning(f"[Cache] Skip cache for user_id={user_id} (profil vide/incomplet)")
-            return result
-        return wrapper
-    return decorator
 
 class ProfileRetrieverService:
-    """Service pour la récupération du profil candidat."""
+    """Loads and validates the candidate profile."""
 
-    def __init__(self):
-        # On compile le workflow une seule fois au démarrage (Singleton)
-        self._workflow = build_profile_retriever_workflow()
-
-    @async_ttl_cache(ttl_seconds=300) # Cache de 5 minutes
     async def get_profile(self, user_id: str) -> dict:
-        """Récupère le profil complet depuis la DB avec un mécanisme de cache TTL."""
-        initial_state: ProfileRetrieverState = {
-            "user_id": user_id,
-            "messages": [],
-            "errors": []
-        }
-        
-        final_state = await self._workflow.ainvoke(initial_state)
-        
-        return {
-            "profile_data": final_state.get("profile_data"),
-            "errors":       final_state.get("errors")
-        }
+        """{"profile_data": dict | None, "errors": [...]}. Read fresh on every call, so a CV
+        generated right after a profile edit uses the edited profile."""
+        if not user_id:
+            return {"profile_data": None, "errors": ["Agent2: user_id manquant"]}
+
+        raw_profile = await get_user_profile(user_id)
+        if "error" in raw_profile:
+            logger.error("Agent 2 — profile not loaded for %s: %s", user_id, raw_profile["error"])
+            return {"profile_data": None, "errors": [f"Agent2: Profil introuvable pour l'ID {user_id}: {raw_profile['error']}"]}
+
+        try:
+            return {"profile_data": UserProfile(**raw_profile).model_dump(), "errors": []}
+        except Exception as e:
+            logger.error("Agent 2 — invalid profile for %s: %s", user_id, e)
+            return {"profile_data": None, "errors": [f"Agent2: profil invalide: {e}"]}
+
 
 profile_retriever_service = ProfileRetrieverService()

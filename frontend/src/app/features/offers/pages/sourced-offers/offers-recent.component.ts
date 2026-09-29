@@ -1,7 +1,8 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { extractApiError } from '@core/http/extract-api-error';
 import { ToastService } from '@core/notifications/toast.service';
 import { NormalizedContractType, PostedWindow, ScrapeProvider, ScrapeSessionDto } from '../../data-access/sourced-offers.models';
@@ -21,7 +22,7 @@ type ProviderSummary = {
   templateUrl: './offers-recent.component.html',
   styleUrl: '../offers/offers.component.scss',
 })
-export class OffersRecentComponent implements OnInit {
+export class OffersRecentComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
   private readonly sourcedOffersApi = inject(SourcedOffersApiService);
   private readonly router = inject(Router);
@@ -90,7 +91,14 @@ export class OffersRecentComponent implements OnInit {
   readonly keywords = signal('software engineer');
   readonly location = signal('Casablanca');
   readonly indeedCountryCode = signal('ma');
-  readonly limit = signal(24);
+
+  /** Offers shown per page; the cached list endpoint returns at most MAX_CACHED. */
+  readonly pageSize = 24;
+  private readonly maxCached = 100;
+  readonly limit = signal(this.pageSize);
+  readonly isLoadingMore = signal(false);
+  private listSub: Subscription | null = null;
+  private refreshSub: Subscription | null = null;
 
   // Dropdown States
   readonly showKeywordSuggestions = signal(false);
@@ -152,15 +160,49 @@ export class OffersRecentComponent implements OnInit {
     return result;
   });
 
+  readonly providerCounts = computed(() => {
+    const counts: Record<ScrapeProvider, number> = { linkedin: 0, indeed: 0, glassdoor: 0 };
+    for (const offer of this.offers()) {
+      if (offer.provider in counts) counts[offer.provider]++;
+    }
+    return counts;
+  });
+
+  /** A full page came back, so the cache may hold more. */
+  readonly canLoadMore = computed(() =>
+    !this.isLoading() && this.offers().length >= this.limit() && this.limit() < this.maxCached
+  );
+
+  readonly skeletonCards = [1, 2, 3, 4];
+
   ngOnInit(): void {
     this.loadCachedOffers();
   }
 
+  ngOnDestroy(): void {
+    this.listSub?.unsubscribe();
+    this.refreshSub?.unsubscribe();
+  }
+
+  /** Reloads page 1 of the cache (after a filter change). */
   loadCachedOffers(): void {
+    this.limit.set(this.pageSize);
+    this.fetchCachedOffers();
+  }
+
+  loadMore(): void {
+    this.limit.update((n) => Math.min(n + this.pageSize, this.maxCached));
+    this.isLoadingMore.set(true);
+    this.fetchCachedOffers();
+  }
+
+  private fetchCachedOffers(): void {
+    // Only the latest filter state counts: a slower, older response must not overwrite it.
+    this.listSub?.unsubscribe();
     this.isLoading.set(true);
     this.errorMessage.set('');
 
-    this.sourcedOffersApi.getSourcedOffers({
+    this.listSub = this.sourcedOffersApi.getSourcedOffers({
       keywords: this.keywords(),
       location: this.location(),
       providers: this.selectedProviders(),
@@ -175,11 +217,13 @@ export class OffersRecentComponent implements OnInit {
       next: (offers) => {
         this.offers.set(offers);
         this.isLoading.set(false);
+        this.isLoadingMore.set(false);
       },
       error: (err) => {
         this.errorMessage.set(extractApiError(err).message || 'Unable to load sourced offers.');
-        this.offers.set([]);
+        if (!this.isLoadingMore()) this.offers.set([]);
         this.isLoading.set(false);
+        this.isLoadingMore.set(false);
       },
     });
   }
@@ -201,15 +245,19 @@ export class OffersRecentComponent implements OnInit {
   }
 
   refreshOffers(): void {
+    this.listSub?.unsubscribe();
+    this.refreshSub?.unsubscribe();
     this.isLoading.set(true);
+    this.isLoadingMore.set(false);
     this.errorMessage.set('');
     this.warnings.set([]);
+    this.limit.set(this.pageSize);
 
-    this.sourcedOffersApi.searchSourcedOffers({
+    this.refreshSub = this.sourcedOffersApi.searchSourcedOffers({
       keywords: this.keywords(),
       location: this.location(),
       providers: this.selectedProviders(),
-      limit: this.limit(),
+      limit: this.pageSize,
       postedWindow: this.selectedPostedWindow(),
       contractTypes: this.selectedContractTypes(),
       indeedCountryCode: this.indeedCountryCode(),
@@ -219,7 +267,12 @@ export class OffersRecentComponent implements OnInit {
         this.lastSession.set(response.session ?? null);
         this.warnings.set(response.warnings ?? []);
         this.isLoading.set(false);
-        this.toast.success('Offres actualisées.');
+        const count = response.offers?.length ?? 0;
+        if (count > 0) {
+          this.toast.success(`${count} offer${count > 1 ? 's' : ''} refreshed.`);
+        } else {
+          this.toast.info('No new offers found for these filters.');
+        }
       },
       error: (err) => {
         this.errorMessage.set(extractApiError(err).message || 'Unable to refresh sourced offers.');
@@ -278,7 +331,7 @@ export class OffersRecentComponent implements OnInit {
             autoAnalyze: 1,
           },
         });
-        this.toast.success('Analyse lancée.');
+        this.toast.success('Analysis started.');
       },
       error: (err) => {
         this.actionOfferId.set(null);
@@ -289,16 +342,12 @@ export class OffersRecentComponent implements OnInit {
 
   formatLastUpdated(): string {
     const value = this.lastSession()?.createdAtUtc;
-    if (!value) return 'Cached results';
+    if (!value) return 'cached results';
     return new Date(value).toLocaleString();
   }
 
   getProviderChip(provider: ScrapeProvider): ProviderSummary {
     return this.providers.find((item) => item.key === provider) ?? this.providers[0];
-  }
-
-  getProviderCount(provider: ScrapeProvider): number {
-    return this.offers().filter((offer) => offer.provider === provider).length;
   }
 
   getBubbleGradient(company: string): string {
@@ -326,14 +375,34 @@ export class OffersRecentComponent implements OnInit {
     this.actionOfferId.set(id);
     this.sourcedOffersApi.updateSourcedOffer(id, payload).subscribe({
       next: (updated) => {
-        this.offers.update((current) => current.map((offer) => offer.id === id ? { ...offer, ...updated } : offer));
+        this.offers.update((current) => {
+          const next = current.map((offer) => offer.id === id ? { ...offer, ...updated } : offer);
+          // In a Saved/Shortlisted/Archived tab, an offer that no longer matches it leaves the list.
+          const tab = this.workflowTab();
+          if (tab === 'all') return next.filter((offer) => offer.id !== id || !offer.isArchived);
+          return next.filter((offer) => offer.id !== id || this.matchesTab(offer, tab));
+        });
         this.actionOfferId.set(null);
-        this.toast.success('Préférence mise à jour.');
+        this.toast.success(this.stateToast(payload));
       },
       error: (err) => {
         this.actionOfferId.set(null);
         this.errorMessage.set(extractApiError(err).message || 'Unable to update sourced offer.');
       },
     });
+  }
+
+  private matchesTab(offer: SourcedOfferListItemDto, tab: 'saved' | 'shortlisted' | 'archived'): boolean {
+    switch (tab) {
+      case 'saved': return offer.isSaved && !offer.isArchived;
+      case 'shortlisted': return offer.isShortlisted && !offer.isArchived;
+      case 'archived': return offer.isArchived;
+    }
+  }
+
+  private stateToast(payload: { isSaved?: boolean; isShortlisted?: boolean; isArchived?: boolean }): string {
+    if (payload.isArchived !== undefined) return payload.isArchived ? 'Offer archived.' : 'Offer restored.';
+    if (payload.isShortlisted !== undefined) return payload.isShortlisted ? 'Added to shortlist.' : 'Removed from shortlist.';
+    return payload.isSaved ? 'Offer saved.' : 'Offer unsaved.';
   }
 }

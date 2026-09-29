@@ -7,8 +7,8 @@ namespace NextStep.Modules.Coaching.Application.Dtos;
 // ─────────────────────────────────────────────
 
 /// <summary>
-/// Config Arena : vient du stepper Angular (mode arena uniquement).
-/// En mode offer ce champ est null — les données viennent de la DB.
+/// Arena configuration: comes from the Angular stepper (arena mode only).
+/// In offer mode this field is null — data comes from the DB.
 /// </summary>
 public record ArenaConfigDto(
     string Domain,
@@ -19,8 +19,8 @@ public record ArenaConfigDto(
 );
 
 /// <summary>
-/// Un tour de conversation (question IA ou réponse user).
-/// Utilisé pour passer l'historique à Python à chaque appel.
+/// A conversation turn (AI question or user response).
+/// Used to pass history to Python on each call.
 /// </summary>
 public record MessageTurnDto(
     string Role,
@@ -254,8 +254,8 @@ public record SalaryCoachResponse(
 // ─────────────────────────────────────────────
 
 /// <summary>
-/// Légère carte affichée sur la page Offers du sidebar.
-/// Alimente le bouton "Prepare for Interview" (mode offer du chatbot).
+/// Lightweight card displayed on the Offers sidebar page.
+/// Feeds the "Prepare for Interview" button (chatbot offer mode).
 /// </summary>
 public record UserOfferSummaryDto(
     string OfferId,

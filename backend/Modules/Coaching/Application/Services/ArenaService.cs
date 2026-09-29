@@ -13,12 +13,9 @@ using NextStep.Shared.ErrorHandling;
 namespace NextStep.Modules.Coaching.Application.Services;
 
 /// <summary>
-/// Service métier du module Chatbot.
-/// Responsabilités :
-///   1. Valider et enrichir les requêtes
-///   2. Persister en DB (session_coaching, chat_message)
-///   3. Déléguer l'IA à Python via IAgentHttpClient
-///   4. Mapper les réponses Python vers les DTOs .NET
+/// Interview coach (Arena). The Python agents only compute (questions, interviewer replies,
+/// evaluation); this service owns the coaching data: it saves the sessions and questions
+/// in the "coaching" schema around each agent call and reuses questions already generated.
 /// </summary>
 public class ArenaService : IArenaService
 {
@@ -47,22 +44,50 @@ public class ArenaService : IArenaService
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Transmet la requête à Python tel quel.
-    /// Python se charge de lire la DB (mode offer) ou d'utiliser ArenaConfig (mode arena).
-    /// Pas de persistance ici — les questions sont affichées mais pas encore "jouées".
+    /// Questions for an offer or an Arena configuration. Questions already generated for the
+    /// same application (offer mode) or the same domain/level/language (Arena) are reused;
+    /// otherwise the agents generate them and they are saved with a new "pending" session.
     /// </summary>
     public async Task<QuestionsResponse> GenerateQuestionsAsync(QuestionsRequest request)
     {
-        return await _agentClient.PostQuestionsAsync(request);
+        var userId = await ResolveUserIdAsync(request.UserId);
+        var candidatureId = await FindCandidatureIdAsync(userId, request.OfferId);
+
+        var reusable = await FindReusableQuestionsAsync(request, userId, candidatureId);
+        if (reusable is not null)
+            return reusable;
+
+        var response = await _agentClient.PostQuestionsAsync(request);
+        if (userId is null || response?.Questions is null || response.Questions.Count == 0)
+            return response!;
+
+        var config = request.ArenaConfig;
+        var session = NewSession(userId.Value, candidatureId, request.Mode, config, status: "pending");
+        var saved = response.Questions.Select((q, index) => new QuestionEntrainement
+        {
+            IdSession = session.IdSession,
+            TexteQuestion = q.Question,
+            TypeQuestion = q.Type,
+            Source = q.Source,
+            CompanySpecific = q.CompanySpecific,
+            ConseilReponse = q.Tip,
+            Ordre = index,
+        }).ToList();
+
+        _db.SessionCoachings.Add(session);
+        _db.QuestionEntrainements.AddRange(saved);
+        await _db.SaveChangesAsync();
+
+        return new QuestionsResponse(saved.Select(ToQuestionDto).ToList(), session.IdSession.ToString());
     }
 
     /// <summary>
-    /// Chat libre (tab Questions).
-    /// Après la réponse IA : on persiste les 2 messages (user + ai) dans chat_message.
+    /// Free chat (Questions tab).
+    /// After the AI response: persists the 2 messages (user + ai) in chat_message.
     /// </summary>
     public async Task<FreeChatResponse> FreeChatAsync(FreeChatRequest request)
     {
-        // Python se charge de persister les messages dans chat_message
+        // Python handles persisting messages in chat_message
         return await _agentClient.PostFreeChatAsync(request);
     }
 
@@ -71,8 +96,8 @@ public class ArenaService : IArenaService
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Crée la session en DB AVANT d'appeler Python.
-    /// Python a besoin du session_id pour persister ses propres données (question_entrainement).
+    /// Creates the session in DB BEFORE calling Python.
+    /// Python needs the session_id to persist its own data (question_entrainement).
     /// </summary>
     public async Task<StartSessionResponse> StartSessionAsync(StartSessionRequest request)
     {
@@ -87,28 +112,9 @@ public class ArenaService : IArenaService
                     var offerGuid = Guid.Parse(request.OfferId);
                     string? placeholderRawText = null;
 
-                    // 1. The offer may only exist in the agents' analysis: build its text from there
+                    // 1. An offer unknown to the Applications module gets a placeholder text
                     if (!await _applications.OfferExistsAsync(offerGuid))
-                    {
-                        // Récupérer les détails depuis agents.offre_analysee pour créer l'entrée correspondante
-                        var offerDetails = await QueryOffreAnalyseeAsync(offerGuid);
-
-                        string title = "Offre de Stage";
-                        string company = "ALTEN Maroc";
-                        string location = "Maroc";
-                        if (offerDetails != null)
-                        {
-                            title = offerDetails.TitrePoste ?? title;
-                            company = offerDetails.Entreprise ?? company;
-                            location = offerDetails.Localisation ?? location;
-                        }
-
-                        placeholderRawText =
-                            $"Auto-created from chat session{Environment.NewLine}" +
-                            $"Title: {title}{Environment.NewLine}" +
-                            $"Company: {company}{Environment.NewLine}" +
-                            $"Location: {location}";
-                    }
+                        placeholderRawText = "Auto-created from chat session";
 
                     // 2. Make sure the user has an application for this offer (owned by Applications)
                     await _applications.EnsureApplicationForOfferAsync(
@@ -120,18 +126,21 @@ public class ArenaService : IArenaService
             }
             catch (Exception ex)
             {
-                // Best-effort : l'auto-création de la candidature ne doit pas
-                // bloquer la session, mais l'échec doit rester traçable.
-                _logger.LogWarning(ex, "ArenaService — auto-création de candidature ignorée pour la session.");
+                // Best-effort: auto-creation of the application must not
+                // block the session, but the failure must remain traceable.
+                _logger.LogWarning(ex, "ArenaService — auto-creation of application ignored for the session.");
             }
         }
 
-        // Python se charge de créer la session en DB et de retourner le session_id
-        return await _agentClient.PostStartInterviewAsync(request);
+        // The session is created here, then the agents write the opening message for it.
+        var userId = await ResolveUserIdAsync(request.UserId);
+        var sessionId = await CreateInterviewSessionAsync(request, userId);
+        var response = await _agentClient.PostStartInterviewAsync(request with { SessionId = sessionId.ToString() });
+        return response with { SessionId = sessionId.ToString() };
     }
 
     /// <summary>
-    /// Envoie le message user à Python, persiste user + réponse IA en DB.
+    /// Sends the user message to Python, persists user + AI response in DB.
     /// </summary>
     public async Task<SendMessageResponse> SendMessageAsync(SendMessageRequest request)
     {
@@ -142,26 +151,30 @@ public class ArenaService : IArenaService
         }
         catch (Exception ex) when (ex is not AppException)
         {
-            _logger.LogError(ex, "ArenaService — envoi du message échoué pour la session {SessionId}.", request.SessionId);
-            throw new OperationFailedException("Erreur lors de l'envoi du message. Veuillez réessayer.", ex);
+            _logger.LogError(ex, "ArenaService — send message failed for session {SessionId}.", request.SessionId);
+            throw new OperationFailedException("Error sending message. Please try again.", ex);
         }
     }
 
     /// <summary>
-    /// Appelle Python pour l'évaluation, puis met à jour la SessionCoaching en DB.
+    /// Calls Python for evaluation, then updates SessionCoaching in DB.
     /// </summary>
     public async Task<EndSessionResponse> EndSessionAsync(EndSessionRequest request)
     {
-        // Python se charge d'évaluer et de mettre à jour la SessionCoaching
+        // The agents evaluate the interview; the score and feedback are saved here.
+        EndSessionResponse response;
         try
         {
-            return await _agentClient.PostEndInterviewAsync(request);
+            response = await _agentClient.PostEndInterviewAsync(request);
         }
         catch (Exception ex) when (ex is not AppException)
         {
-            _logger.LogError(ex, "ArenaService — fin de session échouée pour {SessionId}.", request.SessionId);
-            throw new OperationFailedException("Erreur lors de la fin de session. Veuillez réessayer.", ex);
+            _logger.LogError(ex, "ArenaService — end session failed for {SessionId}.", request.SessionId);
+            throw new OperationFailedException("Error ending session. Please try again.", ex);
         }
+
+        await CompleteSessionAsync(request, response);
+        return response;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -169,8 +182,8 @@ public class ArenaService : IArenaService
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Transmet à Python — pas de persistance spécifique pour le salary coach.
-    /// Python fait la recherche Tavily + lit intel_entreprise si mode offer.
+    /// Forwards to Python — no specific persistence for the salary coach.
+    /// Python does the Tavily search + reads intel_entreprise if offer mode.
     /// </summary>
     public async Task<SalaryResponse> GetSalaryAsync(SalaryRequest request)
     {
@@ -178,8 +191,8 @@ public class ArenaService : IArenaService
     }
 
     /// <summary>
-    /// Chat interactif pour la négociation salariale.
-    /// Redirige vers la logique free-chat de Python car le LLM s'adapte au contexte via l'historique fourni.
+    /// Interactive chat for salary negotiation.
+    /// Redirects to Python's free-chat logic since the LLM adapts to context via the supplied history.
     /// </summary>
     public async Task<SalaryCoachResponse> SalaryCoachAsync(SalaryCoachRequest request)
     {
@@ -201,6 +214,126 @@ public class ArenaService : IArenaService
             Status: "ok",
             Response: response.Response
         );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Session persistence (the coaching data belongs to this module)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Feedback is stored in the agents' snake_case format (read by GetSessionDetailAsync).</summary>
+    private static readonly JsonSerializerOptions FeedbackJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
+
+    private async Task<Guid?> ResolveUserIdAsync(string? userRef) =>
+        string.IsNullOrEmpty(userRef) ? null : await _profile.FindUserIdAsync(userRef);
+
+    private async Task<Guid?> FindCandidatureIdAsync(Guid? userId, string? offerId)
+    {
+        if (userId is null || !Guid.TryParse(offerId, out var offerGuid)) return null;
+        var application = await _applications.FindApplicationForOfferAsync(userId.Value, offerGuid);
+        return application?.CandidatureId;
+    }
+
+    private static SessionCoaching NewSession(Guid userId, Guid? candidatureId, string? mode, ArenaConfigDto? config, string status) => new()
+    {
+        IdSession = Guid.NewGuid(),
+        IdUtilisateur = userId,
+        IdCandidature = candidatureId,
+        Mode = mode ?? (candidatureId.HasValue ? "offer" : "arena"),
+        Language = config?.Language ?? "en",
+        DurationMinutes = config?.DurationMinutes ?? 20,
+        Domain = config?.Domain,
+        Level = config?.Level,
+        FocusAreas = config?.FocusAreas is { } areas ? JsonSerializer.Serialize(areas) : null,
+        Status = status,
+        DateSession = DateTime.UtcNow,
+    };
+
+    private static QuestionItemDto ToQuestionDto(QuestionEntrainement q) =>
+        new(q.IdQuestion.ToString(), q.TexteQuestion, q.TypeQuestion, q.Source, q.CompanySpecific, q.ConseilReponse);
+
+    /// <summary>Questions already generated for this application / Arena configuration, or null.</summary>
+    private async Task<QuestionsResponse?> FindReusableQuestionsAsync(QuestionsRequest request, Guid? userId, Guid? candidatureId)
+    {
+        if (userId is null) return null;
+
+        IQueryable<SessionCoaching> sessions;
+        if (request.Mode == "offer" && candidatureId.HasValue)
+        {
+            sessions = _db.SessionCoachings.Where(s => s.IdCandidature == candidatureId.Value);
+        }
+        else if (request.Mode == "arena" && request.ArenaConfig is { } config)
+        {
+            sessions = _db.SessionCoachings.Where(s =>
+                s.IdUtilisateur == userId.Value && s.Mode == "arena"
+                && s.Domain == config.Domain && s.Level == config.Level && s.Language == config.Language);
+        }
+        else
+        {
+            return null;
+        }
+
+        var sessionId = await sessions
+            .Where(s => _db.QuestionEntrainements.Any(q => q.IdSession == s.IdSession))
+            .OrderByDescending(s => s.DateSession)
+            .Select(s => (Guid?)s.IdSession)
+            .FirstOrDefaultAsync();
+        if (sessionId is null) return null;
+
+        var questions = await _db.QuestionEntrainements
+            .Where(q => q.IdSession == sessionId.Value)
+            .OrderBy(q => q.Ordre)
+            .ToListAsync();
+        _logger.LogInformation("ArenaService — {Count} questions reused from session {SessionId}.", questions.Count, sessionId);
+        return new QuestionsResponse(questions.Select(ToQuestionDto).ToList(), sessionId.Value.ToString());
+    }
+
+    /// <summary>
+    /// Creates the "started" interview session. Reuses the given id when it is free or already
+    /// the user's own session; an unknown user gets an unsaved id (the interview still works).
+    /// </summary>
+    private async Task<Guid> CreateInterviewSessionAsync(StartSessionRequest request, Guid? userId)
+    {
+        var requested = Guid.TryParse(request.SessionId, out var id) ? id : (Guid?)null;
+        if (userId is null) return requested ?? Guid.NewGuid();
+
+        if (requested is { } existingId && await _db.SessionCoachings.FindAsync(existingId) is { } existing)
+        {
+            if (existing.IdUtilisateur == userId.Value) return existingId;
+            requested = null; // someone else's id: never reuse it
+        }
+
+        var candidatureId = Guid.TryParse(request.CandidatureId, out var cid)
+            ? cid
+            : await FindCandidatureIdAsync(userId, request.OfferId);
+        var session = NewSession(userId.Value, candidatureId, request.Mode, request.ArenaConfig, status: "started");
+        if (requested is { } free) session.IdSession = free;
+
+        _db.SessionCoachings.Add(session);
+        await _db.SaveChangesAsync();
+        return session.IdSession;
+    }
+
+    /// <summary>Saves score and feedback on the user's own session.</summary>
+    private async Task CompleteSessionAsync(EndSessionRequest request, EndSessionResponse response)
+    {
+        var userId = await ResolveUserIdAsync(request.UserId);
+        if (!Guid.TryParse(request.SessionId, out var sessionId) || userId is null) return;
+
+        var session = await _db.SessionCoachings.FindAsync(sessionId);
+        if (session is null || session.IdUtilisateur != userId.Value)
+        {
+            _logger.LogWarning("ArenaService — session {SessionId} not found for this user; evaluation not saved.", request.SessionId);
+            return;
+        }
+
+        session.Status = "completed";
+        session.ScoreEntretien = response.Score;
+        session.CompletedAt = DateTime.UtcNow;
+        session.FeedbackJson = JsonSerializer.Serialize(response.Feedback, FeedbackJsonOptions);
+        await _db.SaveChangesAsync();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -231,19 +364,9 @@ public class ArenaService : IArenaService
                 var cand = await ResolveSessionApplicationAsync(s);
                 if (cand?.OfferId is not null)
                 {
-                    try
-                    {
-                        var row = await QueryOffreAnalyseeAsync(cand.OfferId.Value);
-                        if (row != null)
-                        {
-                            jobTitle = row.TitrePoste;
-                            company = row.Entreprise;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "ArenaService — enrichissement offre ignoré pour {CandidatureId}.", cand.CandidatureId);
-                    }
+                    var offer = await OfferSummaryAsync(s.IdUtilisateur, cand.OfferId.Value);
+                    jobTitle = offer?.Title;
+                    company = offer?.Company;
                 }
             }
 
@@ -266,14 +389,17 @@ public class ArenaService : IArenaService
         return result;
     }
 
-    public async Task<SessionDetailDto> GetSessionDetailAsync(string sessionId)
+    public async Task<SessionDetailDto> GetSessionDetailAsync(string sessionId, string userId)
     {
-        var session = await _db.SessionCoachings
-            .FindAsync(Guid.Parse(sessionId));
+        // Another user's session is reported as not found (its existence is not revealed).
+        var internalUserId = await ResolveUserIdAsync(userId);
+        var session = Guid.TryParse(sessionId, out var id) && internalUserId.HasValue
+            ? await _db.SessionCoachings.FirstOrDefaultAsync(s => s.IdSession == id && s.IdUtilisateur == internalUserId.Value)
+            : null;
 
-        if (session == null) throw new NotFoundException("Session introuvable.");
+        if (session == null) throw new NotFoundException("Session not found.");
 
-        // Le FeedbackDto doit être désérialisé en tenant compte du format snake_case de Python
+        // The FeedbackDto must be deserialized considering the snake_case format from Python
         var options = new JsonSerializerOptions 
         { 
             PropertyNameCaseInsensitive = true,
@@ -292,19 +418,9 @@ public class ArenaService : IArenaService
             var cand = await ResolveSessionApplicationAsync(session);
             if (cand?.OfferId is not null)
             {
-                try
-                {
-                    var row = await QueryOffreAnalyseeAsync(cand.OfferId.Value);
-                    if (row != null)
-                    {
-                        jobTitle = row.TitrePoste;
-                        company = row.Entreprise;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "ArenaService — détail offre ignoré pour le détail de session.");
-                }
+                var offer = await OfferSummaryAsync(session.IdUtilisateur, cand.OfferId.Value);
+                jobTitle = offer?.Title;
+                company = offer?.Company;
             }
         }
 
@@ -364,39 +480,24 @@ public class ArenaService : IArenaService
 
         if (candidatureIds.Count == 0) return [];
 
-        // Raw SQL query against the agent tables (not EF-mapped write tables)
+        // Analysis of each offer, read through the Applications module's contract
         var result = new List<UserOfferSummaryDto>();
 
         foreach (var offreId in candidatureIds)
         {
-            var r = await QueryOffreAnalyseeAsync(offreId);
-            if (r == null) continue;
-
-            // Parse JSONB arrays
-            List<string> skills = [];
-            try
-            {
-                if (!string.IsNullOrEmpty(r.CompetencesRequises))
-                    skills = System.Text.Json.JsonSerializer.Deserialize<List<string>>(r.CompetencesRequises) ?? [];
-            }
-            catch (JsonException parseEx)
-            {
-                _logger.LogWarning(parseEx, "ArenaService — compétences illisibles pour l'offre {OfferId}.", offreId);
-            }
-
-            // Get matching score from resultat_matching
-            int? matchScore = await QueryMatchScoreAsync(offreId, internalUserId.Value);
+            var offer = await OfferSummaryAsync(internalUserId.Value, offreId);
+            if (offer == null) continue;
 
             result.Add(new UserOfferSummaryDto(
-                OfferId         : r.IdOffre.ToString(),
-                JobTitle        : r.TitrePoste ?? "Unknown Position",
-                Company         : r.Entreprise ?? "Unknown Company",
-                Location        : r.Localisation,
-                ContractType    : r.TypeContrat,
-                MatchingScore   : matchScore,
-                YearsExperience : r.AnneesExperience,
-                RequiredSkills  : skills.Take(6).ToList(),
-                DateAnalysed    : r.DateAnalyse
+                OfferId         : offer.OfferId.ToString(),
+                JobTitle        : string.IsNullOrWhiteSpace(offer.Title) ? "Unknown Position" : offer.Title,
+                Company         : offer.Company ?? "Unknown Company",
+                Location        : offer.Location,
+                ContractType    : offer.ContractType,
+                MatchingScore   : offer.MatchingScore,
+                YearsExperience : offer.YearsExperience,
+                RequiredSkills  : offer.RequiredSkills.Take(6).ToList(),
+                DateAnalysed    : offer.AnalysedAt ?? DateTime.MinValue
             ));
         }
 
@@ -411,112 +512,18 @@ public class ArenaService : IArenaService
             : await _applications.FindFirstApplicationAsync(session.IdUtilisateur);
     }
 
-    private async Task<OffreAnalyseeRaw?> QueryOffreAnalyseeAsync(Guid idOffre)
+    /// <summary>The offer's analysis (Applications module), or null when missing or unreadable.</summary>
+    private async Task<OfferSummary?> OfferSummaryAsync(Guid userId, Guid offerId)
     {
-        var conn = _db.Database.GetDbConnection();
-        var wasOpen = conn.State == System.Data.ConnectionState.Open;
-        if (!wasOpen) await conn.OpenAsync();
         try
         {
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = """
-                    SELECT id, id_offre, titre_poste, entreprise, localisation, type_contrat, competences_requises::text, annees_experience, date_analyse 
-                    FROM agents.offre_analysee 
-                    WHERE id_offre = @idOffre 
-                    LIMIT 1
-                """;
-                var p = cmd.CreateParameter();
-                p.ParameterName = "@idOffre";
-                p.Value = idOffre;
-                cmd.Parameters.Add(p);
-
-                using (var reader = await cmd.ExecuteReaderAsync())
-                {
-                    if (await reader.ReadAsync())
-                    {
-                        return new OffreAnalyseeRaw
-                        {
-                            Id = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0),
-                            IdOffre = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1),
-                            TitrePoste = reader.IsDBNull(2) ? null : reader.GetString(2),
-                            Entreprise = reader.IsDBNull(3) ? null : reader.GetString(3),
-                            Localisation = reader.IsDBNull(4) ? null : reader.GetString(4),
-                            TypeContrat = reader.IsDBNull(5) ? null : reader.GetString(5),
-                            CompetencesRequises = reader.IsDBNull(6) ? null : reader.GetString(6),
-                            AnneesExperience = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-                            DateAnalyse = reader.IsDBNull(8) ? DateTime.MinValue : reader.GetDateTime(8)
-                        };
-                    }
-                }
-            }
+            return await _applications.GetOfferSummaryAsync(userId, offerId);
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "ArenaService — requête offre analysée échouée pour {OfferId}.", idOffre);
+            _logger.LogDebug(ex, "ArenaService — analyse de l'offre {OfferId} indisponible.", offerId);
+            return null;
         }
-        finally
-        {
-            if (!wasOpen) await conn.CloseAsync();
-        }
-        return null;
     }
-
-    private async Task<int?> QueryMatchScoreAsync(Guid idOffre, Guid idUtilisateur)
-    {
-        var conn = _db.Database.GetDbConnection();
-        var wasOpen = conn.State == System.Data.ConnectionState.Open;
-        if (!wasOpen) await conn.OpenAsync();
-        try
-        {
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = """
-                    SELECT score_global FROM agents.resultat_matching 
-                    WHERE id_offre = @idOffre AND id_utilisateur = @idUtilisateur 
-                    LIMIT 1
-                """;
-                
-                var p1 = cmd.CreateParameter();
-                p1.ParameterName = "@idOffre";
-                p1.Value = idOffre;
-                cmd.Parameters.Add(p1);
-
-                var p2 = cmd.CreateParameter();
-                p2.ParameterName = "@idUtilisateur";
-                p2.Value = idUtilisateur;
-                cmd.Parameters.Add(p2);
-
-                var val = await cmd.ExecuteScalarAsync();
-                if (val != null && val != DBNull.Value)
-                {
-                    return Convert.ToInt32(val);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "ArenaService — récupération du score matching échouée pour {OfferId}.", idOffre);
-        }
-        finally
-        {
-            if (!wasOpen) await conn.CloseAsync();
-        }
-        return null;
-    }
-}
-
-// ── Raw query projection types ──
-public class OffreAnalyseeRaw
-{
-    public Guid Id { get; set; }
-    public Guid IdOffre { get; set; }
-    public string? TitrePoste { get; set; }
-    public string? Entreprise { get; set; }
-    public string? Localisation { get; set; }
-    public string? TypeContrat { get; set; }
-    public string? CompetencesRequises { get; set; }
-    public int? AnneesExperience { get; set; }
-    public DateTime DateAnalyse { get; set; }
 }
 

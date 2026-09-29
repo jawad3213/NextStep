@@ -30,8 +30,8 @@ public class ResponseClassificationService : IResponseClassificationService
     private static readonly ClassificationResult Fallback = new(
         ResponseType:             "REPONSE_RECUE",
         Confidence:               0.0,
-        Summary:                  "Une réponse a été détectée, mais l'analyse automatique a échoué.",
-        RecommendedAction:        "Consultez la réponse manuellement.",
+        Summary:                  "A response was detected, but the automatic analysis failed.",
+        RecommendedAction:        "Review the response manually.",
         ShouldGenerateReplyDraft: false
     );
 

@@ -18,6 +18,7 @@ public static class ApplicationsModule
         services.AddScoped<IOfferAnalysisService, OfferAnalysisService>();
         services.AddScoped<IPipelineRunnerService, PipelineRunnerService>();
         services.AddScoped<ISkillGapService, SkillGapService>();
+        services.AddScoped<IAgentApplicationsService, AgentApplicationsService>();
         services.AddScoped<ICandidatureRepository, CandidatureRepository>();
         services.AddScoped<ICandidatureService, CandidatureService>();
 

@@ -6,7 +6,7 @@ export const authGuard: CanActivateFn = async (route, state) => {
   const keycloak = inject(Keycloak);
 
   if (keycloak.authenticated) {
-    // Si des rôles sont requis pour cette route, on pourrait les vérifier ici :
+    // If specific roles are required for this route, they can be checked here:
     // const requiredRoles = route.data['roles'] as Array<string>;
     // if (requiredRoles && !requiredRoles.some(role => keycloak.hasRealmRole(role))) {
     //   const router = inject(Router);
@@ -16,7 +16,7 @@ export const authGuard: CanActivateFn = async (route, state) => {
     return true;
   }
 
-  // Si l'utilisateur n'est pas connecté, on le redirige vers la mire de connexion
+  // If user is not authenticated, redirect to login
   await keycloak.login({
     redirectUri: globalThis.location.origin + state.url,
   });

@@ -7,10 +7,10 @@ using NextStep.Modules.Sourcing.Application.Dtos;
 namespace NextStep.Modules.Sourcing.Api;
 
 /// <summary>
-/// Proxy vers le service d'agents Python (FastAPI). Centralise les appels IA du
-/// frontend derrière l'API backend : une seule origine, CORS simplifié, erreurs
-/// normalisées via le contrat d'erreur commun. En mode local ces endpoints
-/// échouent proprement (502) si le service d'agents n'est pas démarré.
+/// Proxy to the Python agents service (FastAPI). Centralizes AI calls from the
+/// frontend behind the backend API: single origin, simplified CORS, errors
+/// normalized via the common error contract. In local mode these endpoints
+/// fail gracefully (502) if the agents service is not started.
 /// </summary>
 [ApiController]
 [Route("api/agents")]
@@ -55,16 +55,16 @@ public class AgentsProxyController : ControllerBase
         try
         {
             var doc = await _agentClient.PostRawAsync(path, body, ct);
-            // Re-sérialise le JSON des agents dans la réponse, tel quel.
+            // Re-serialize the agent JSON into the response, as-is.
             return Content(doc.RootElement.GetRawText(), "application/json");
         }
         catch (HttpRequestException ex)
         {
-            // Le service d'agents est indisponible ou a renvoyé une erreur.
-            // On garde un statut applicatif approprié (502 = passerelle amont).
-            _logger.LogWarning(ex, "AgentsProxy — erreur amont sur {Path}.", path);
+            // The agents service is unavailable or returned an error.
+            // We keep an appropriate application status (502 = upstream gateway).
+            _logger.LogWarning(ex, "AgentsProxy — upstream error on {Path}.", path);
             return StatusCode(502, new AgentsProxyErrorResponse(
-                "Le service IA est temporairement indisponible.", ex.Message, path));
+                "The AI service is temporarily unavailable.", ex.Message, path));
         }
     }
 }

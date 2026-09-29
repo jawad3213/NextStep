@@ -41,8 +41,8 @@ public class AgentHttpClient : IAgentHttpClient
     }
 
     /// <summary>
-    /// Appelle POST /run-pipeline sur les agents Python.
-    /// Lance le pipeline complet (6 agents) et retourne le résultat.
+    /// Calls POST /run-pipeline on the Python agents.
+    /// Runs the full pipeline (6 agents) and returns the result.
     /// </summary>
     public async Task<JsonDocument> RunPipelineAsync(
         string rawText,
@@ -53,7 +53,7 @@ public class AgentHttpClient : IAgentHttpClient
         object? resumeData = null,
         CancellationToken ct = default)
     {
-        // On fusionne les données de base avec les données de reprise si présentes
+        // Merge base data with resume data if present
         var payload = new Dictionary<string, object>
         {
             ["raw_text"] = rawText,

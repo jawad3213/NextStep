@@ -26,7 +26,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Global exception handler (.NET 8 IExceptionHandler). UseExceptionHandler()
-// (dans la pipeline, plus bas) trouve les handlers enregistrés ici.
+// (in the pipeline below) discovers the handlers registered here.
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 

@@ -10,6 +10,8 @@ namespace NextStep.Modules.Profile.Application.Services {
     {
         Task<FullProfileDto> GetFullProfileAsync(Guid userId);
         Task UpdatePersonalInfoAsync(Guid userId, PersonalInfoDto dto);
+        Task UpdateLanguagePreferenceAsync(Guid userId, string language);
+        Task<string> GetLanguagePreferenceAsync(Guid userId);
         
         Task AddExperienceAsync(Guid userId, ExperienceDto dto);
         Task UpdateExperienceAsync(Guid userId, ExperienceDto dto);
@@ -53,7 +55,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task<FullProfileDto> GetFullProfileAsync(Guid userId)
         {
             var user = await _context.Utilisateurs.FindAsync(userId);
-            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("User not found.");
 
             return new FullProfileDto
             {
@@ -77,6 +79,7 @@ namespace NextStep.Modules.Profile.Application.Services {
                 Niveau = user.Niveau,
                 Secteur = user.Secteur,
                 OnboardingCompleted = user.OnboardingCompleted,
+                PreferredLanguage = string.IsNullOrWhiteSpace(user.PreferredLanguage) ? "en" : user.PreferredLanguage,
                 Experiences = await _context.Experiences.Where(e => e.UserId == userId)
                     .Select(e => new ExperienceDto { 
                         Id = e.Id, 
@@ -119,7 +122,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task UpdatePersonalInfoAsync(Guid userId, PersonalInfoDto dto)
         {
             var user = await _context.Utilisateurs.FindAsync(userId);
-            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("User not found.");
 
             user.Nom = dto.Nom;
             user.Prenom = dto.Prenom;
@@ -136,6 +139,28 @@ namespace NextStep.Modules.Profile.Application.Services {
 
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
+        }
+
+        private static readonly HashSet<string> SupportedLanguages = new(StringComparer.OrdinalIgnoreCase) { "en", "fr" };
+
+        public async Task UpdateLanguagePreferenceAsync(Guid userId, string language)
+        {
+            var normalized = (language ?? "").Trim().ToLowerInvariant();
+            if (!SupportedLanguages.Contains(normalized))
+                throw new BadRequestException("Unsupported language. Use \"en\" or \"fr\".");
+
+            var user = await _context.Utilisateurs.FindAsync(userId);
+            if (user == null) throw new NotFoundException("User not found.");
+
+            user.PreferredLanguage = normalized;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<string> GetLanguagePreferenceAsync(Guid userId)
+        {
+            var user = await _context.Utilisateurs.FindAsync(userId);
+            if (user == null) throw new NotFoundException("User not found.");
+            return string.IsNullOrWhiteSpace(user.PreferredLanguage) ? "en" : user.PreferredLanguage;
         }
 
         // Experiences
@@ -160,7 +185,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task UpdateExperienceAsync(Guid userId, ExperienceDto dto)
         {
             var exp = await _context.Experiences.FirstOrDefaultAsync(e => e.Id == dto.Id && e.UserId == userId);
-            if (exp == null) throw new NotFoundException("Expérience non trouvée.");
+            if (exp == null) throw new NotFoundException("Experience not found.");
             exp.Entreprise = dto.Entreprise; exp.Poste = dto.Poste; exp.DateDebut = dto.DateDebut; exp.DateFin = dto.DateFin; exp.Missions = dto.Missions;
             exp.Ville = dto.Ville; exp.TypeContrat = dto.Type; exp.Taches = dto.Taches ?? new List<string>();
             await _context.SaveChangesAsync();
@@ -196,7 +221,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task UpdateProjetAsync(Guid userId, ProjetDto dto)
         {
             var p = await _context.Projets.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
-            if (p == null) throw new NotFoundException("Projet non trouvé.");
+            if (p == null) throw new NotFoundException("Project not found.");
             p.TitreProjet = dto.TitreProjet; p.Description = dto.Description; p.TechnologiesUtilisees = dto.TechnologiesUtilisees; p.LienProjet = dto.LienProjet; p.DateRealisation = dto.DateRealisation;
             p.DemoUrl = dto.DemoUrl; p.ImageUrl = dto.ImageUrl; p.IsUniversity = dto.IsUniversity; p.Taches = dto.Taches ?? new List<string>();
             await _context.SaveChangesAsync();
@@ -221,7 +246,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task UpdateCompetenceAsync(Guid userId, CompetenceDto dto)
         {
             var c = await _context.Competences.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
-            if (c == null) throw new NotFoundException("Compétence non trouvée.");
+            if (c == null) throw new NotFoundException("Skill not found.");
             c.Nom = dto.Nom; c.Niveau = dto.Niveau; c.TypeCompetence = dto.TypeCompetence;
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
@@ -253,7 +278,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task UpdateCertificationAsync(Guid userId, CertificationDto dto)
         {
             var cert = await _context.Certifications.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
-            if (cert == null) throw new NotFoundException("Certification non trouvée.");
+            if (cert == null) throw new NotFoundException("Certification not found.");
             
             cert.Titre = dto.Titre;
             cert.Organisation = dto.Organisation;
@@ -288,7 +313,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task UpdateFormationAsync(Guid userId, FormationDto dto)
         {
             var f = await _context.Formations.FirstOrDefaultAsync(x => x.Id == dto.Id && x.UserId == userId);
-            if (f == null) throw new NotFoundException("Formation non trouvée.");
+            if (f == null) throw new NotFoundException("Education not found.");
             f.Etablissement = dto.Etablissement; f.Diplome = dto.Diplome; f.Annee = dto.Annee; f.Ville = dto.Ville; f.Specialisation = dto.Specialisation; f.Mention = dto.Mention; f.AnneeFin = dto.AnneeFin;
             await _context.SaveChangesAsync();
             await _userService.UpdateProfileScoreAsync(userId);
@@ -303,7 +328,7 @@ namespace NextStep.Modules.Profile.Application.Services {
         public async Task CompleteOnboardingAsync(Guid userId, OnboardingDto dto)
         {
             var user = await _context.Utilisateurs.FindAsync(userId);
-            if (user == null) throw new NotFoundException("Utilisateur non trouvé.");
+            if (user == null) throw new NotFoundException("User not found.");
 
             user.Objectif = dto.Objectif;
             user.Niveau = dto.Niveau;

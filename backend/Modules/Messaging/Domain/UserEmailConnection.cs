@@ -32,6 +32,15 @@ public class UserEmailConnection
     /// <summary>UTC datetime when the access token expires.</summary>
     public DateTime AccessTokenExpiresAtUtc { get; set; }
 
+    /// <summary>
+    /// Why the user must reconnect (access revoked, permission missing, tokens unreadable...),
+    /// or null while the connection works. Set by <c>GmailTokenProvider</c>, cleared by a new
+    /// successful OAuth connection; background jobs skip connections that need reconnecting.
+    /// </summary>
+    public string? ReconnectReason { get; set; }
+
+    public DateTime? ReconnectRequiredAtUtc { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAtUtc { get; set; }

@@ -80,7 +80,7 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
   submit(): void {
     this.error = '';
     this.pipeline.pipelineError.set(null);
-    this.pipeline.setLoading(true, 'Soumission en cours...');
+    this.pipeline.setLoading(true, 'Submission in progress...');
     this.pipeline.offerUrl.set(this.urlValue);
     this.pipeline.offerText.set(this.textValue);
 
@@ -100,10 +100,10 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
         const analysisStartTs = Date.now();
         const minAnalysisUxMs = 7200;
         const progressStages = [
-          { agent: 'offer_analyzer', label: 'Analyse de la description du poste (Agent 1)...', percent: 15 },
-          { agent: 'offer_analyzer', label: 'Extraction des compétences et mots-clés...', percent: 35 },
-          { agent: 'profile_retriever', label: 'Récupération de votre CV (Agent 2)...', percent: 60 },
-          { agent: 'skill_gap', label: 'Analyse des écarts et matching (Agent 3)...', percent: 85 }
+          { agent: 'offer_analyzer', label: 'Analyzing job description (Agent 1)...', percent: 15 },
+          { agent: 'offer_analyzer', label: 'Extracting skills and keywords...', percent: 35 },
+          { agent: 'profile_retriever', label: 'Retrieving your profile (Agent 2)...', percent: 60 },
+          { agent: 'skill_gap', label: 'Analyzing skill gaps and matching (Agent 3)...', percent: 85 }
         ];
 
         const updateProgress = (stageIdx: number) => {
@@ -139,7 +139,7 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
             this.pipeline.currentAgentProgress.set({
               step: 'analysis',
               agentName: 'skill_gap',
-              label: 'Finalisation de l analyse (Agent 3)...',
+              label: 'Finalizing analysis (Agent 3)...',
               status: 'running',
               progressPercent: 95
             });
@@ -152,7 +152,7 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
               this.pipeline.currentAgentProgress.set({
                 step: 'analysis',
                 agentName: 'skill_gap',
-                label: 'Analyse terminee',
+                label: 'Analysis complete',
                 status: 'done',
                 progressPercent: 100
               });
@@ -164,8 +164,8 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
             timers.forEach(t => clearTimeout(t));
 
             const message = err?.status === 404
-              ? 'Le endpoint d analyse /analyze-sync est introuvable sur le backend en cours. Redemarrez l API .NET pour charger la nouvelle route.'
-              : extractApiError(err).message || 'Erreur lors de l\'analyse';
+              ? 'The /analyze-sync analysis endpoint was not found on the backend. Please restart the .NET API.'
+              : extractApiError(err).message || 'Error during analysis';
 
             this.pipeline.setLoading(false);
             this.pipeline.pipelineError.set(message);
@@ -178,7 +178,7 @@ export class StepSubmitComponent implements OnDestroy, OnInit {
         this.pipeline.setLoading(false);
         const backendError = this.extractSubmitError(err);
         this.pipeline.pipelineError.set(backendError);
-        this.error = `Erreur : ${backendError}`;
+        this.error = `Error: ${backendError}`;
       }
     });
   }

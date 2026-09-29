@@ -1,14 +1,6 @@
 using NextStep.Modules.Profile.Domain;
 
 namespace NextStep.Modules.Profile.Application.Dtos {
-    public class UserSyncDto
-    {
-        public string KeycloakId { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string? FirstName { get; set; }
-        public string? LastName { get; set; }
-    }
-
     public class SoftOnboardingDto
     {
         public ObjectifEnum Objectif { get; set; }

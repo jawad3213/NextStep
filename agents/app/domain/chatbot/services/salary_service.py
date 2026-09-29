@@ -2,46 +2,29 @@
 SERVICE — Logique métier du module chatbot.
 
 RESPONSABILITÉS :
-  1. Récupérer le contexte offre depuis la DB (outputs agents 2/3/4)
+  1. Récupérer le contexte de l'offre (tables agents + backend)
   2. Appeler le graphe LangGraph
-  3. Persister les résultats en DB
-  4. Retourner les schemas de réponse API
+  3. Retourner les schemas de réponse API
+
+Les sessions et questions sont enregistrées par le backend (module Coaching).
 
 Le router appelle le service.
-Le service appelle graph + DB.
+Le service appelle le graphe.
 Le service ne connaît pas HTTP.
 """
 
 from __future__ import annotations
 import uuid
 import logging
-from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.domain.chatbot.graph import interview_graph
-from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
-from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement,
-)
-from app.domain.chatbot.state import (
-    InterviewPrepState, ArenaConfig, MessageTurn,
-    OfferContext, OfferData, CompanyData, MatchData,
-    FeedbackResult, DimensionScore,
-)
-from app.domain.chatbot.schemas import (
-    ArenaConfigSchema, MessageSchema,
-    QuestionsResponse, QuestionOut,
-    FreeChatResponse,
-    StartInterviewResponse,
-    SendMessageResponse,
-    EndInterviewResponse, FeedbackOut, DimensionOut,
-    SalaryResponse, NegotiationStepOut,
-)
+from app.domain.chatbot.state import InterviewPrepState
+from app.domain.chatbot.schemas import ArenaConfigSchema, SalaryResponse, NegotiationStepOut
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
+from .context_service import get_offer_context_from_db, _to_arena_config
 
 # SERVICE 6 — SALARY COACH (Tab 3)
 async def get_salary_service(

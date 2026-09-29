@@ -29,13 +29,13 @@ public static class ApiResult
     public static ObjectResult BadRequest(string message, string? type = "ValidationError", Dictionary<string, string[]>? details = null)
         => Error(message, HttpStatusCode.BadRequest, type, details);
 
-    public static ObjectResult NotFound(string message = "Ressource introuvable.", string? type = "NotFound")
+    public static ObjectResult NotFound(string message = "Resource not found.", string? type = "NotFound")
         => Error(message, HttpStatusCode.NotFound, type);
 
-    public static ObjectResult Unauthorized(string message = "Accès refusé.", string? type = "Unauthorized")
+    public static ObjectResult Unauthorized(string message = "Unauthorized access.", string? type = "Unauthorized")
         => Error(message, HttpStatusCode.Unauthorized, type);
 
-    public static ObjectResult Forbidden(string message = "Accès refusé.", string? type = "Forbidden")
+    public static ObjectResult Forbidden(string message = "Access denied.", string? type = "Forbidden")
         => Error(message, HttpStatusCode.Forbidden, type);
 
     public static ObjectResult Conflict(string message, string? type = "Conflict")

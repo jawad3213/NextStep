@@ -51,6 +51,8 @@ export interface SendEmailResultDto {
   draftId: string;
   providerMessageId: string | null;
   errorMessage: string | null;
+  /** Sending failed because Gmail must be reconnected (Settings > Gmail). */
+  needsReconnect?: boolean;
   sentAtUtc: string | null;
 }
 
@@ -58,6 +60,8 @@ export interface EmailConnectionStatusDto {
   isConnected: boolean;
   isTokenValid: boolean;
   hasCustomClientCredentials?: boolean;
+  /** The user must reconnect Gmail (false for temporary problems). */
+  needsReconnect?: boolean;
   errorMessage: string | null;
   emailAddress: string | null;
   provider: string;

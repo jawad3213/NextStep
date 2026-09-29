@@ -139,34 +139,34 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       name: "Nichan Said",
       email: "saidnichan6@gmail.com",
       phone: "+212 713 668 431",
-      location: "Salé",
-      title: "Développeur Full Stack",
+      location: "Rabat / Sale",
+      title: "Full Stack Developer",
       photoUrl: null,
       linkedIn: "linkedin.com/in/saidnichan",
       gitHub: "github.com/saidnichan",
       portfolio: "saidnichan.dev"
     },
-    summary: "Développeur Full Stack passionné par la création d'applications web évolutives, l'intégration d'IA et l'automatisation. Je recherche activement un poste de Développeur Full Stack Python / React pour mettre en pratique mes compétences et acquérir de nouvelles expériences.",
+    summary: "Full Stack Developer passionate about building scalable web applications, AI integration, and workflow automation. Experienced in Python, React, TypeScript, and modern cloud architectures.",
     experience: [
       {
-        role: "Stage Développeur Full-Stack",
+        role: "Full Stack Developer Intern",
         company: "Smart Automation Technologie",
         start: "2025-07",
         end: "2025-08",
         bullets: [
-          "Contribution à l'amélioration et à la refonte d'une plateforme web marketplace en utilisant Angular, développement d'un chatbot IA basé sur l'approche RAG pour automatiser le support client, mise en place de l'automatisation des workflows avec n8n, collaboration au sein d'une équipe Agile avec gestion du versionning via GitLab."
+          "Contributed to the improvement and redesign of a marketplace web platform using Angular, built an AI chatbot using RAG to automate customer support, set up workflow automation with n8n, and collaborated in an Agile team with GitLab CI/CD."
         ]
       }
     ],
     education: [
       {
-        degree: "Cycle d'Ingénieur – Génie Informatique",
-        institution: "Ecole Nationale des Sciences Appliquées (ENSA) Tanger",
+        degree: "Master's Degree in Computer Engineering",
+        institution: "National School of Applied Sciences (ENSA) Tangier",
         year: "2024"
       },
       {
-        degree: "Classes Préparatoires Intégrées",
-        institution: "Ecole Nationale des Sciences Appliquées",
+        degree: "Integrated Preparatory Classes",
+        institution: "National School of Applied Sciences",
         year: "2022"
       }
     ],
@@ -196,19 +196,19 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       {
         title: "Roadmap Builder",
         bullets: [
-          "Conception et déploiement d'une plateforme interactive avec la Clean Architecture et une authentification sécurisée (JWT, Supabase), intégration d'un assistant IA (BMO) pour générer des roadmaps visuelles et gérer les nœuds structurés, mise en place du CI/CD (Vercel, Render) et gestion du projet avec la méthodologie Agile (Jira)."
+          "Engineered and deployed an interactive roadmap platform using Clean Architecture and secure authentication (JWT, Supabase), integrated an AI assistant (BMO) to generate visual roadmaps, and configured automated CI/CD pipelines (Vercel, Render)."
         ]
       },
       {
-        title: "FlowCom – Chat Temps Réel",
+        title: "FlowCom – Real-Time Chat",
         bullets: [
-          "Développement d'une application de messagerie similaire à WhatsApp avec gestion du temps réel et notifications, développement des API Backend et intégration d'une base de données NoSQL pour le stockage sécurisé des messages."
+          "Developed a real-time messaging application with live notifications, engineered Backend APIs, and integrated NoSQL databases for secure message persistence."
         ]
       },
       {
         title: "Soft Skills Evaluation Web App",
         bullets: [
-          "Développement d'une application web pour l'évaluation des compétences sociales, assurance qualité (QA) et réalisation des phases de test unitaires et E2E."
+          "Developed a web application for social skills assessment, conducted QA testing, and authored comprehensive unit and E2E test suites."
         ]
       }
     ],
@@ -217,9 +217,9 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       "Agile Project Management – Google (Coursera) - Google"
     ],
     languages: [
-      "Arabe (Maternel)",
-      "Anglais (Professionnel)",
-      "Français (Courant)"
+      "Arabic (Native)",
+      "English (Professional)",
+      "French (Fluent)"
     ],
     activities: [
       {
@@ -1018,7 +1018,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
       ...data,
       education: [
         ...data.education,
-        { degree: 'Diplôme ou Certification', institution: 'Université / École', year: '2026' }
+        { degree: 'Degree or Certification', institution: 'University / Institution', year: '2026' }
       ]
     }));
   }
@@ -1464,7 +1464,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   addExperienceBullet(expIndex: number): void {
     this.cvData.update(data => {
       const exp = [...data.experience];
-      exp[expIndex] = { ...exp[expIndex], bullets: [...exp[expIndex].bullets, 'Nouvelle réalisation...'] };
+      exp[expIndex] = { ...exp[expIndex], bullets: [...exp[expIndex].bullets, 'New achievement...'] };
       return { ...data, experience: exp };
     });
   }
@@ -1480,7 +1480,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   addProjectBullet(projIndex: number): void {
     this.cvData.update(data => {
       const projs = [...data.projects];
-      projs[projIndex] = { ...projs[projIndex], bullets: [...projs[projIndex].bullets, 'Nouvelle description...'] };
+      projs[projIndex] = { ...projs[projIndex], bullets: [...projs[projIndex].bullets, 'New project description...'] };
       return { ...data, projects: projs };
     });
   }
@@ -1497,7 +1497,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   duplicateExperience(index: number): void {
     this.cvData.update(data => {
       const exp = [...data.experience];
-      exp.splice(index + 1, 0, { ...exp[index], role: exp[index].role + ' (copie)' });
+      exp.splice(index + 1, 0, { ...exp[index], role: exp[index].role + ' (copy)' });
       return { ...data, experience: exp };
     });
   }
@@ -1505,7 +1505,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   duplicateEducation(index: number): void {
     this.cvData.update(data => {
       const edu = [...data.education];
-      edu.splice(index + 1, 0, { ...edu[index], degree: edu[index].degree + ' (copie)' });
+      edu.splice(index + 1, 0, { ...edu[index], degree: edu[index].degree + ' (copy)' });
       return { ...data, education: edu };
     });
   }
@@ -1513,7 +1513,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   duplicateProject(index: number): void {
     this.cvData.update(data => {
       const projs = [...data.projects];
-      projs.splice(index + 1, 0, { ...projs[index], title: projs[index].title + ' (copie)' });
+      projs.splice(index + 1, 0, { ...projs[index], title: projs[index].title + ' (copy)' });
       return { ...data, projects: projs };
     });
   }
@@ -1554,7 +1554,7 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
     setTimeout(() => {
       this.cvData.update(data => ({
         ...data,
-        summary: "Développeur Full Stack spécialisé en Python, FastAPI et architectures basées sur React/TypeScript. Expert dans l'intégration d'IA via l'approche RAG (Retrieval-Augmented Generation) et dans la création de pipelines d'automatisation avec n8n. Fortement orienté Clean Architecture, CI/CD et méthodologies Agiles pour concevoir des applications web hautement performantes et robustes.",
+        summary: "Full Stack Developer specialized in Python, FastAPI, and React/TypeScript architectures. Expert in AI integration via RAG (Retrieval-Augmented Generation) and automation pipelines with n8n. Dedicated to Clean Architecture, CI/CD, and Agile practices for scalable, high-performance web applications.",
         matchingScore: 98,
         atsScore: 98
       }));
@@ -1592,11 +1592,11 @@ export class ResumeEditorComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   formatDate(date: string): string {
-    if (!date || date === 'Présent') return date;
+    if (!date || date === 'Present' || date === 'Présent') return 'Present';
     // Handle YYYY-MM format
     const parts = date.split('-');
     if (parts.length === 2) {
-      const months = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       return months[parseInt(parts[1]) - 1] + ' ' + parts[0];
     }
     return date;

@@ -22,17 +22,17 @@ public static class CoachingModule
     {
         services.AddModuleDbContext<CoachingDbContext>(configuration, CoachingDbContext.SchemaName);
 
-        // HttpClient typé vers Python FastAPI
-        // BaseUrl lue depuis appsettings.json → AgentsService:BaseUrl
+        // Typed HttpClient to Python FastAPI
+        // BaseUrl read from appsettings.json → AgentsService:BaseUrl
         services.AddHttpClient<IAgentHttpClient, AgentHttpClient>(client =>
         {
             var baseUrl = configuration["AgentsService:BaseUrl"]
                 ?? throw new InvalidOperationException("AgentsService:BaseUrl not configured");
             client.BaseAddress = new Uri(baseUrl);
-            client.Timeout = TimeSpan.FromSeconds(60); // LLM peut prendre du temps
+            client.Timeout = TimeSpan.FromSeconds(60); // LLM can take a while
         }).AddHttpMessageHandler<NextStep.Shared.Http.AgentApiKeyHandler>();
 
-        // Services métier
+        // Business services
         services.AddScoped<IArenaService, ArenaService>();
         services.AddScoped<ISnCopilotService, SnCopilotService>();
 

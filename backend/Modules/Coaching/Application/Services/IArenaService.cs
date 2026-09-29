@@ -3,53 +3,53 @@ using NextStep.Modules.Coaching.Application.Dtos;
 namespace NextStep.Modules.Coaching.Application.Services;
 
 /// <summary>
-/// Contrat service métier du module Chatbot.
-/// Le Controller dépend uniquement de cette interface — jamais de l'implémentation concrète.
+/// Business service contract for the Chatbot module.
+/// The Controller depends only on this interface — never on the concrete implementation.
 /// </summary>
 public interface IArenaService
 {
     // ── Tab 1 ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Génère les questions d'entraînement.
-    /// Arena : depuis ArenaConfig (stepper Angular).
-    /// Offer : Python lit offre_analysee + intel_entreprise + resultat_matching depuis la DB.
+    /// Generates training questions.
+    /// Arena: from ArenaConfig (Angular stepper).
+    /// Offer: Python reads offre_analysee + intel_entreprise + resultat_matching from the DB.
     /// </summary>
     Task<QuestionsResponse> GenerateQuestionsAsync(QuestionsRequest request);
 
     /// <summary>
-    /// Chat libre de préparation (tab Questions).
-    /// Persiste chaque échange dans chat_message (chat_type = "questions").
+    /// Free-form preparation chat (Questions tab).
+    /// Persists each exchange in chat_message (chat_type = "questions").
     /// </summary>
     Task<FreeChatResponse> FreeChatAsync(FreeChatRequest request);
 
     // ── Tab 2 ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Démarre une session d'interview simulée.
-    /// Crée un enregistrement SessionCoaching en DB (status = "active").
-    /// Retourne le SessionId + le message d'ouverture du recruteur IA.
+    /// Starts a simulated interview session.
+    /// Creates a SessionCoaching record in DB (status = "active").
+    /// Returns the SessionId + the AI recruiter's opening message.
     /// </summary>
     Task<StartSessionResponse> StartSessionAsync(StartSessionRequest request);
 
     /// <summary>
-    /// Envoie un message utilisateur pendant l'interview.
-    /// Persiste 2 ChatMessage en DB (user + ai, chat_type = "interview").
+    /// Sends a user message during the interview.
+    /// Persists 2 ChatMessage records in DB (user + ai, chat_type = "interview").
     /// </summary>
     Task<SendMessageResponse> SendMessageAsync(SendMessageRequest request);
 
     /// <summary>
-    /// Termine la session et déclenche l'évaluation IA.
-    /// Met à jour SessionCoaching : score, feedback_json, status = "completed", completed_at.
+    /// Ends the session and triggers AI evaluation.
+    /// Updates SessionCoaching: score, feedback_json, status = "completed", completed_at.
     /// </summary>
     Task<EndSessionResponse> EndSessionAsync(EndSessionRequest request);
 
     // ── Tab 3 ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Analyse salariale + script de négociation.
-    /// Arena : données Tavily depuis ArenaConfig.
-    /// Offer : données Tavily + fourchette intel_entreprise (agents 3).
+    /// Salary analysis + negotiation script.
+    /// Arena: Tavily data from ArenaConfig.
+    /// Offer: Tavily data + intel_entreprise salary range (agents 3).
     /// </summary>
     Task<SalaryResponse> GetSalaryAsync(SalaryRequest request);
 
@@ -58,26 +58,27 @@ public interface IArenaService
     /// </summary>
     Task<SalaryCoachResponse> SalaryCoachAsync(SalaryCoachRequest request);
 
-    // ── Historique ─────────────────────────────────────────────────────────
+    // ── History ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Retourne l'historique des sessions d'un utilisateur.
+    /// Returns the session history for a user.
     /// </summary>
     Task<List<SessionSummaryDto>> GetSessionsAsync(string userId);
 
     /// <summary>
-    /// Retourne les détails (feedback complet) d'une session terminée.
+    /// Returns the details (full feedback) of a completed session.
     /// </summary>
-    Task<SessionDetailDto> GetSessionDetailAsync(string sessionId);
+    /// <summary>The user's own session; another user's session is reported as not found.</summary>
+    Task<SessionDetailDto> GetSessionDetailAsync(string sessionId, string userId);
 
     /// <summary>
-    /// Supprime une session d'interview.
+    /// Deletes an interview session.
     /// </summary>
     Task<bool> DeleteSessionAsync(string sessionId, string userId);
 
     /// <summary>
-    /// Retourne les offres analysées (offre_analysee) de l'utilisateur,
-    /// issues de ses candidatures — utilisé par la page Offers du sidebar.
+    /// Returns the user's analyzed offers (offre_analysee),
+    /// from their applications — used by the Offers sidebar page.
     /// </summary>
     Task<List<UserOfferSummaryDto>> GetUserOffersAsync(string userId);
 }

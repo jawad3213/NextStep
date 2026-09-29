@@ -18,5 +18,8 @@ public class SendEmailResultDto
     /// <summary>Clear error message if sending failed.</summary>
     public string? ErrorMessage { get; set; }
 
+    /// <summary>Sending failed because the user must reconnect Gmail (show a link to Settings > Gmail).</summary>
+    public bool NeedsReconnect { get; set; }
+
     public DateTime? SentAtUtc { get; set; }
 }

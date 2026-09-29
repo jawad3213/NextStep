@@ -30,26 +30,26 @@ export class CandidatureDetailComponent implements OnInit {
   showStatusDropdown = signal(false);
 
   statutOptions = [
-    { value: 'BROUILLON', label: 'Brouillon' },
-    { value: 'ENVOYE', label: 'Envoye' },
-    { value: 'ACCUSE_RECEPTION', label: 'Accuse de reception' },
-    { value: 'EN_COURS_EXAMEN', label: 'En cours d\'examen' },
-    { value: 'RELANCE_NECESSAIRE', label: 'Relance necessaire' },
-    { value: 'RELANCE_ENVOYEE', label: 'Relance envoyee' },
-    { value: 'REPONSE_RECUE', label: 'Reponse recue' },
-    { value: 'TEST_TECHNIQUE', label: 'Test technique' },
-    { value: 'ENTRETIEN_PROPOSE', label: 'Entretien propose' },
-    { value: 'ENTRETIEN_EFFECTUE', label: 'Entretien effectue' },
-    { value: 'OFFRE_RECUE', label: 'Offre recue' },
-    { value: 'ACCEPTE', label: 'Accepte' },
-    { value: 'REFUSE', label: 'Refuse' },
-    { value: 'ABANDONNE', label: 'Abandonne' },
+    { value: 'BROUILLON', label: 'Draft' },
+    { value: 'ENVOYE', label: 'Sent' },
+    { value: 'ACCUSE_RECEPTION', label: 'Receipt Confirmed' },
+    { value: 'EN_COURS_EXAMEN', label: 'Under Review' },
+    { value: 'RELANCE_NECESSAIRE', label: 'Follow-up Needed' },
+    { value: 'RELANCE_ENVOYEE', label: 'Follow-up Sent' },
+    { value: 'REPONSE_RECUE', label: 'Reply Received' },
+    { value: 'TEST_TECHNIQUE', label: 'Technical Test' },
+    { value: 'ENTRETIEN_PROPOSE', label: 'Interview Offered' },
+    { value: 'ENTRETIEN_EFFECTUE', label: 'Interview Completed' },
+    { value: 'OFFRE_RECUE', label: 'Job Offer Received' },
+    { value: 'ACCEPTE', label: 'Accepted' },
+    { value: 'REFUSE', label: 'Rejected' },
+    { value: 'ABANDONNE', label: 'Withdrawn' },
   ];
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('candidatureId');
     if (!id) {
-      this.error.set('ID de candidature manquant.');
+      this.error.set('Missing application ID.');
       this.loading.set(false);
       return;
     }
@@ -70,7 +70,7 @@ export class CandidatureDetailComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Candidature introuvable.');
+        this.error.set('Application not found.');
         this.loading.set(false);
       },
     });
@@ -95,7 +95,7 @@ export class CandidatureDetailComponent implements OnInit {
         this.showStatusDropdown.set(false);
       },
       error: () => {
-        this.error.set('Impossible de changer le statut.');
+        this.error.set('Failed to update status.');
       },
     });
   }
@@ -116,7 +116,7 @@ export class CandidatureDetailComponent implements OnInit {
         this.addingNote.set(false);
       },
       error: () => {
-        this.error.set('Impossible d\'ajouter la note.');
+        this.error.set('Failed to add note.');
         this.addingNote.set(false);
       },
     });
@@ -125,24 +125,24 @@ export class CandidatureDetailComponent implements OnInit {
   deleteCandidature(): void {
     const c = this.candidature();
     if (!c) return;
-    if (!confirm(`Supprimer la candidature chez ${this.getEntreprise()} ?`)) return;
+    if (!confirm(`Delete application for ${this.getEntreprise()}?`)) return;
 
     this.candidatureService.deleteCandidature(c.idCandidature).subscribe({
       next: () => this.router.navigate(['/applications']),
-      error: () => this.error.set('Impossible de supprimer la candidature.'),
+      error: () => this.error.set('Failed to delete application.'),
     });
   }
 
   getEntreprise(): string {
     const c = this.candidature();
     if (!c) return '';
-    return this.offer()?.entreprise || c.notes?.split('\n')[0] || 'Candidature spontanee';
+    return this.offer()?.entreprise || c.notes?.split('\n')[0] || 'Spontaneous application';
   }
 
   getPoste(): string {
     const c = this.candidature();
     if (!c) return '';
-    return this.offer()?.titre || c.notes?.split('\n')[1] || 'Poste non precise';
+    return this.offer()?.titre || c.notes?.split('\n')[1] || 'Role not specified';
   }
 
   getType(): string {
@@ -239,9 +239,9 @@ export class CandidatureDetailComponent implements OnInit {
       case 'LINKEDIN': return 'LinkedIn';
       case 'INDEED': return 'Indeed';
       case 'WHATSAPP': return 'WhatsApp';
-      case 'WEBSITE': return 'Site carriere';
-      case 'PHONE': return 'Telephone';
-      default: return channel || 'Autre';
+      case 'WEBSITE': return 'Careers site';
+      case 'PHONE': return 'Phone';
+      default: return channel || 'Other';
     }
   }
 
@@ -269,6 +269,6 @@ export class CandidatureDetailComponent implements OnInit {
   formatDate(dateStr: string | undefined): string {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 }

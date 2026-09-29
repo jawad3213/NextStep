@@ -83,5 +83,9 @@ namespace NextStep.Modules.Profile.Domain {
 
         [Column("date_inscription")]
         public DateTime DateInscription { get; set; } = DateTime.UtcNow;
+
+        /// <summary>UI and generated-document language ("en" or "fr"). Defaults to English.</summary>
+        [Column("preferred_language")]
+        public string PreferredLanguage { get; set; } = "en";
     }
 }

@@ -1,4 +1,4 @@
-import { Component, inject, computed, Output, EventEmitter } from '@angular/core';
+import { Component, inject, computed, effect, signal, Output, EventEmitter } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -31,6 +31,22 @@ export class ProfileStepperComponent {
 
   currentStep = this.profileService.currentStep;
   completionPercentage = this.profileService.completionPercentage;
+
+  /**
+   * Off until one frame after the profile first loads, then stays on. Lets the node
+   * circles/progress bar render their real (often already-completed) state instantly on
+   * page open instead of visibly transitioning through it — CSS transitions only kick in
+   * for genuine later changes (the user completing a section while on the page).
+   */
+  readonly transitionsEnabled = signal(false);
+
+  constructor() {
+    effect((onCleanup) => {
+      if (!this.profileService.profileLoaded()) return;
+      const frame = requestAnimationFrame(() => this.transitionsEnabled.set(true));
+      onCleanup(() => cancelAnimationFrame(frame));
+    });
+  }
 
   currentIndex = computed(() => this.steps.findIndex(s => s.id === this.currentStep()));
 

@@ -26,7 +26,7 @@ public class OfferAnalysisService(
     public async Task<OfferAnalysisDto> AnalyzeAsync(Guid userId, Guid offerId, CancellationToken ct = default)
     {
         var offer = await offerService.GetOfferWithAnalysisAsync(userId, offerId, ct)
-            ?? throw new NotFoundException("Offre introuvable.");
+            ?? throw new NotFoundException("Offer not found.");
 
         try
         {
@@ -55,11 +55,11 @@ public class OfferAnalysisService(
         catch (Exception ex) when (ex is not AppException)
         {
             logger.LogError(ex, "Synchronous analysis failed for offer {OfferId} / user {UserId}", offerId, userId);
-            throw new OperationFailedException("L'analyse de l'offre a échoué. Veuillez réessayer.", ex);
+            throw new OperationFailedException("Offer analysis failed. Please try again.", ex);
         }
 
         return await offerService.GetAnalysisAsync(userId, offerId, ct)
-            ?? throw new OperationFailedException("Impossible de récupérer l'analyse après enregistrement.");
+            ?? throw new OperationFailedException("Unable to retrieve the analysis after saving.");
     }
 
     public void StartGenerationInBackground(Guid userId, Guid offerId, int templateId)

@@ -1,11 +1,18 @@
 <div class="shell-container">
   <header class="page-header">
-    <h1 class="page-title">Connexion Gmail</h1>
-    <p class="page-description">Connectez votre compte Gmail pour envoyer vos emails de candidature directement depuis NextStep.</p>
+    <h1 class="page-title">Gmail Connection</h1>
+    <p class="page-description">Connect your Gmail account to send application emails directly from NextStep.</p>
   </header>
 
+  @if (success()) {
+    <div class="alert alert-success" role="status">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      {{ success() }}
+    </div>
+  }
+
   @if (error()) {
-    <div class="alert alert-error">
+    <div class="alert alert-error" role="alert">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
       {{ error() }}
     </div>
@@ -14,7 +21,7 @@
   @if (loading()) {
     <div class="loading-state">
       <div class="spinner"></div>
-      <p>Vérification du statut Gmail...</p>
+      <p>Checking Gmail status...</p>
     </div>
   }
 
@@ -33,49 +40,55 @@
       <div class="status-details">
         @if (status()?.isConnected) {
           <h3 class="status-title" [class.status-ok]="status()?.isTokenValid" [class.status-warn]="!status()?.isTokenValid">
-            {{ status()?.isTokenValid ? 'Gmail connecté' : 'Session Gmail expirée' }}
+            {{ status()?.isTokenValid ? 'Gmail connected' : (status()?.needsReconnect ? 'Gmail needs to be reconnected' : 'Gmail temporarily unavailable') }}
           </h3>
           <p class="status-email">{{ status()?.emailAddress }}</p>
           
           @if (!status()?.isTokenValid) {
             <div class="token-error-box">
-              <p class="status-error-msg">{{ status()?.errorMessage || 'Votre session Gmail a expiré ou a été révoquée. Veuillez vous reconnecter.' }}</p>
-              <button class="btn btn-primary btn-sm" (click)="connectGmail()" [disabled]="connecting()">
-                Reconnecter Gmail
-              </button>
+              <p class="status-error-msg">{{ status()?.errorMessage || 'Gmail access was revoked or has expired. Please reconnect your Gmail account.' }}</p>
+              @if (status()?.needsReconnect !== false) {
+                <button class="btn btn-primary btn-sm" (click)="connectGmail()" [disabled]="connecting()">
+                  {{ connecting() ? 'Redirecting...' : 'Reconnect Gmail' }}
+                </button>
+              } @else {
+                <button class="btn btn-secondary btn-sm" (click)="verifyStatus()" [disabled]="verifying()">
+                  {{ verifying() ? 'Checking...' : 'Try again' }}
+                </button>
+              }
             </div>
           } @else {
-            <p class="status-note">Votre compte Gmail est connecté. Vous pouvez envoyer des emails de candidature depuis le workspace.</p>
+            <p class="status-note">Your Gmail account is connected. You can send application emails from the workspace.</p>
           }
 
           <div class="action-buttons">
             <button class="btn btn-secondary btn-sm" (click)="verifyStatus()" [disabled]="verifying()">
               @if (verifying()) {
-                <div class="btn-spinner"></div> Vérification...
+                <div class="btn-spinner"></div> Checking...
               } @else {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                Vérifier le statut
+                Check status
               }
             </button>
 
             <button class="btn btn-outline-danger btn-sm" (click)="disconnectGmail()" [disabled]="disconnecting()">
               @if (disconnecting()) {
-                <div class="btn-spinner"></div> Déconnexion...
+                <div class="btn-spinner"></div> Disconnecting...
               } @else {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                Déconnecter
+                Disconnect
               }
             </button>
           </div>
         } @else {
-          <h3 class="status-title status-warn">Gmail non connecté</h3>
-          <p class="status-note">Connectez votre compte Gmail pour activer l'envoi d'emails de candidature. Seule la permission d'envoi (<code>gmail.send</code>) sera demandée.</p>
+          <h3 class="status-title status-warn">Gmail not connected</h3>
+          <p class="status-note">Connect your Gmail account to send application emails and detect recruiter replies. Google will ask for permission to send emails (<code>gmail.send</code>) and to read them (<code>gmail.readonly</code>): allow both.</p>
           <button class="btn btn-primary" (click)="connectGmail()" [disabled]="connecting()">
             @if (connecting()) {
-              <div class="btn-spinner"></div> Redirection...
+              <div class="btn-spinner"></div> Redirecting...
             } @else {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              Connecter avec Gmail
+              Connect with Gmail
             }
           </button>
         }
@@ -83,8 +96,8 @@
     </div>
 
     <div class="status-card card">
-      <h3 class="status-title">Credentials OAuth Google (BYO)</h3>
-      <p class="status-note">Saisissez votre Client ID / Client Secret. Ils sont stockes chiffres uniquement cote backend.</p>
+      <h3 class="status-title">Google OAuth Credentials (BYO)</h3>
+      <p class="status-note">Enter your Client ID / Client Secret. They are stored encrypted on the backend only.</p>
 
       <div class="token-error-box">
         <label class="status-note" for="client-id-input">Client ID</label>
@@ -93,49 +106,49 @@
         <label class="status-note" for="client-secret-input">Client Secret</label>
         <input id="client-secret-input" type="password" [(ngModel)]="clientSecret" class="form-input" placeholder="GOCSPX-..." />
 
-        <label class="status-note" for="redirect-uri-input">Redirect URI (optionnel)</label>
+        <label class="status-note" for="redirect-uri-input">Redirect URI (optional)</label>
         <input id="redirect-uri-input" type="text" [(ngModel)]="redirectUri" class="form-input" placeholder="http://localhost:5000/api/email-connections/google/callback" />
 
         @if (credentials()?.hasCredentials) {
           <p class="status-note">
-            Credentials sauvegardes:
+            Saved credentials:
             <strong>{{ credentials()?.clientIdMasked }}</strong>
             @if (credentials()?.usesCustomRedirectUri) {
               <span> | Redirect: {{ credentials()?.redirectUri }}</span>
             }
           </p>
         } @else {
-          <p class="status-note">Aucun credential personnalise enregistre. Le systeme utilisera la configuration serveur globale.</p>
+          <p class="status-note">No custom credentials saved. The system will use the global server configuration.</p>
         }
       </div>
 
       <div class="action-buttons">
         <button class="btn btn-primary btn-sm" (click)="saveCredentials()" [disabled]="savingCredentials()">
           @if (savingCredentials()) {
-            <div class="btn-spinner"></div> Sauvegarde...
+            <div class="btn-spinner"></div> Saving...
           } @else {
-            Sauvegarder credentials
+            Save credentials
           }
         </button>
         <button class="btn btn-secondary btn-sm" (click)="deleteCredentials()" [disabled]="deletingCredentials()">
           @if (deletingCredentials()) {
-            <div class="btn-spinner"></div> Suppression...
+            <div class="btn-spinner"></div> Deleting...
           } @else {
-            Supprimer credentials
+            Delete credentials
           }
         </button>
       </div>
     </div>
 
     <div class="info-box card card-accent">
-      <h4>Comment ça fonctionne ?</h4>
+      <h4>How does it work?</h4>
       <ol>
-        <li>Cliquez sur "Connecter avec Gmail" ci-dessus.</li>
-        <li>Vous serez redirigé vers Google pour autoriser NextStep à envoyer des emails en votre nom.</li>
-        <li>Après autorisation, vous serez redirigé ici automatiquement.</li>
-        <li>Vos emails de candidature seront envoyés via votre adresse Gmail configurée.</li>
+        <li>Click "Connect with Gmail" above.</li>
+        <li>Google asks you to allow NextStep to <strong>send</strong> and <strong>read</strong> emails. Tick both permissions.</li>
+        <li>You are brought back here automatically, with a confirmation or the reason it failed.</li>
+        <li>Application emails are sent from your Gmail address, and replies to them are detected automatically.</li>
       </ol>
-      <p class="info-note">🔒 Seule la permission <strong>gmail.send</strong> est demandée. Vos emails ne sont pas lus ni stockés.</p>
+      <p class="info-note">🔒 Read access is only used to check the threads of emails you sent from NextStep for recruiter replies. Your Google tokens are stored encrypted, and you can disconnect at any time here or at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">myaccount.google.com/permissions</a>.</p>
     </div>
   }
 </div>

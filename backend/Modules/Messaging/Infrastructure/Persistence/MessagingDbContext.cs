@@ -119,6 +119,13 @@ public class MessagingDbContext(DbContextOptions<MessagingDbContext> options) : 
                 .HasMaxLength(255)
                 .IsRequired();
 
+            entity.Property(e => e.ReconnectReason)
+                .HasColumnName("reconnect_reason")
+                .HasMaxLength(500);
+
+            entity.Property(e => e.ReconnectRequiredAtUtc)
+                .HasColumnName("reconnect_required_at_utc");
+
             entity.Property(e => e.AccessTokenEncrypted)
                 .HasColumnName("access_token_chiffre")
                 .IsRequired();

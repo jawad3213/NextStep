@@ -253,10 +253,11 @@ def offer_validator_node(state: OfferAnalyzerState) -> dict:
     # 2. Nettoyage des listes
     for field in ["competences_requises", "competences_souhaitees", "keywords_ats"]:
         original_list = data.get(field, [])
-        cleaned_list = list(set([
-            item.strip() for item in original_list 
-            if item and item.lower() not in ["string", "skill"]
-        ]))
+        # dict.fromkeys de-duplicates but keeps the offer's order (a set shuffles it).
+        cleaned_list = list(dict.fromkeys(
+            item.strip() for item in original_list
+            if item and item.strip() and item.strip().lower() not in ["string", "skill"]
+        ))
         if field == "keywords_ats":
             cleaned_list = [item for item in cleaned_list if _is_short_cloud_keyword(item, max_words=4)]
         data[field] = cleaned_list

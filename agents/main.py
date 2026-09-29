@@ -11,18 +11,15 @@ from fastapi.responses import JSONResponse
 from app.api.chatbot_routes import router as chatbot_router
 from app.api.company_routes import router as company_router
 from app.api.cv_engine_routes import router as cv_engine_router
-from app.api.cv_optimizer_routes import router as cv_optimizer_router
-from app.api.glassdoor_jobs_routes import router as glassdoor_jobs_router
-from app.api.indeed_jobs_routes import router as indeed_jobs_router
-from app.api.linkedin_jobs_routes import router as linkedin_jobs_router
+from app.api.job_board_routes import glassdoor_router, indeed_router, linkedin_router
 from app.api.offer_routes import router as offer_router
-from app.api.resume_routes import router as resume_router
+from app.api.resume_routes import router as resume_router, summary_router
 from app.api.sn_routes import router as sn_router
 from app.core.config import settings
 from app.core.schema_bootstrap import ensure_agent_runtime_schema
 from app.core.error_handlers import register_exception_handlers
 
-# Email Composer (M4) - domain-driven refactor of email_engine
+# Email Composer (M4)
 try:
     from app.domain.email_composer.router import router as email_router
 
@@ -82,6 +79,7 @@ app = FastAPI(
 register_exception_handlers(app)
 
 app.include_router(resume_router, prefix="/resume", tags=["Resume Parsing"])
+app.include_router(summary_router)
 
 # Only the NextStep backend may call the agents: every request must carry the shared
 # secret AGENTS_API_KEY. No CORS: browsers must never call this service directly.
@@ -102,10 +100,9 @@ async def require_internal_api_key(request: Request, call_next):
 
 app.include_router(offer_router, prefix="/offer")
 app.include_router(company_router, prefix="/company")
-app.include_router(glassdoor_jobs_router, prefix="/glassdoor-jobs")
-app.include_router(indeed_jobs_router, prefix="/indeed-jobs")
-app.include_router(linkedin_jobs_router, prefix="/linkedin-jobs")
-app.include_router(cv_optimizer_router)
+app.include_router(glassdoor_router, prefix="/glassdoor-jobs")
+app.include_router(indeed_router, prefix="/indeed-jobs")
+app.include_router(linkedin_router, prefix="/linkedin-jobs")
 app.include_router(cv_engine_router)
 app.include_router(chatbot_router)
 app.include_router(sn_router)
@@ -131,9 +128,7 @@ async def health_check():
             "glassdoor_jobs": "POST /glassdoor-jobs/search",
             "indeed_jobs": "POST /indeed-jobs/search",
             "linkedin_jobs": "POST /linkedin-jobs/search",
-            "format_questpdf": "POST /cv-engine/format-questpdf",
             "analyze_company": "POST /company/analyze-company",
-            "optimize_cv": "POST /cv-optimizer/optimize",
             "generate_email": "POST /email/generate",
             "generate_followup": "POST /email/generate-follow-up",
             "classify_response": "POST /email/classify-response",

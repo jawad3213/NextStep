@@ -1,6 +1,6 @@
 // ============================================================
 // Modules/Applications/Repositories/OfferRepository.cs
-// Accès base de données pour les offres d'emploi
+// Database access for job offers
 // ============================================================
 using Microsoft.EntityFrameworkCore;
 using NextStep.Modules.Applications.Infrastructure.Persistence;

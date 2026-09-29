@@ -50,6 +50,7 @@ public class ProfileDbContext(DbContextOptions<ProfileDbContext> options) : Modu
             entity.Property(e => e.OnboardingData).HasColumnName("onboarding_data").HasColumnType("jsonb");
             entity.Property(e => e.ProfileScore).HasColumnName("profile_score");
             entity.Property(e => e.DateInscription).HasColumnName("date_inscription");
+            entity.Property(e => e.PreferredLanguage).HasColumnName("preferred_language").HasDefaultValue("en");
             entity.HasIndex(e => e.KeycloakId).HasDatabaseName("idx_utilisateur_keycloak_id");
             entity.HasIndex(e => e.Email).HasDatabaseName("idx_utilisateur_email");
         });

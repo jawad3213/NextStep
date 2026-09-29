@@ -166,7 +166,7 @@ export class OffersComponent implements OnInit {
         this.selectedOfferIds.set(new Set<string>());
         this.isDeleting.set(false);
         this.showDeleteConfirm.set(false);
-        this.toast.success('Offre(s) supprimée(s) avec succès.');
+        this.toast.success('Offer(s) deleted successfully.');
       },
       error: () => {
         this.isDeleting.set(false);
@@ -176,9 +176,9 @@ export class OffersComponent implements OnInit {
 
   getStatusLabel(status: OfferCard['status']): string {
     switch (status) {
-      case 'cv_genere': return 'CV Généré';
-      case 'analysee': return 'Analysée';
-      case 'non_traitee': return 'Non traitée';
+      case 'cv_genere': return 'CV Generated';
+      case 'analysee': return 'Analyzed';
+      case 'non_traitee': return 'Untreated';
     }
   }
 
@@ -192,8 +192,8 @@ export class OffersComponent implements OnInit {
 
   getNextAction(offer: OfferCard): { label: string; link: string; queryParams?: Record<string, string> } | null {
     if (offer.expired) return null;
-    if (offer.currentStep <= 4) return { label: 'Continuer', link: '/offers/analyze', queryParams: { offerId: offer.id } };
-    return { label: 'Voir les résultats', link: '/offers/analyze', queryParams: { offerId: offer.id, step: 'results' } };
+    if (offer.currentStep <= 4) return { label: 'Continue', link: '/offers/analyze', queryParams: { offerId: offer.id } };
+    return { label: 'View results', link: '/offers/analyze', queryParams: { offerId: offer.id, step: 'results' } };
   }
 
   prepareInterview(event: Event, offer: OfferCard): void {

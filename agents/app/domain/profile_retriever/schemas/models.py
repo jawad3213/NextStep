@@ -46,7 +46,8 @@ class Experience(BaseModel):
 class Formation(BaseModel):
     diplome: str = Field(..., description="Nom du diplome ou de la certification")
     etablissement: str = Field(..., description="Nom de l'ecole ou universite")
-    annee: Optional[int] = Field(None, description="Annee d'obtention ou de fin")
+    annee: Optional[int] = Field(None, description="Annee de debut (ou d'obtention si seule)")
+    annee_fin: Optional[int] = Field(None, description="Annee de fin / d'obtention")
     ville: Optional[str] = Field(None, description="Ville de l'etablissement")
 
     @field_validator("diplome", "etablissement", mode="before")
@@ -133,11 +134,3 @@ class UserProfile(BaseModel):
     formations: List[Formation] = Field(default_factory=list)
     certifications: List[Certification] = Field(default_factory=list)
     projets: List[Project] = Field(default_factory=list)
-
-class ProfileRetrieverInput(BaseModel):
-    """Entree necessaire pour declencher la recuperation du profil."""
-    user_id: str = Field(..., description="ID de l'utilisateur cible")
-
-class ProfileRetrieverOutput(BaseModel):
-    """Sortie structuree produite par l'agent Profile Retriever."""
-    profile_data: UserProfile

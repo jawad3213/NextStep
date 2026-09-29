@@ -2,43 +2,28 @@
 SERVICE — Logique métier du module chatbot.
 
 RESPONSABILITÉS :
-  1. Récupérer le contexte offre depuis la DB (outputs agents 2/3/4)
+  1. Récupérer le contexte de l'offre (tables agents + backend)
   2. Appeler le graphe LangGraph
-  3. Persister les résultats en DB
-  4. Retourner les schemas de réponse API
+  3. Retourner les schemas de réponse API
+
+Les sessions et questions sont enregistrées par le backend (module Coaching).
 
 Le router appelle le service.
-Le service appelle graph + DB.
+Le service appelle le graphe.
 Le service ne connaît pas HTTP.
 """
 
 from __future__ import annotations
 import uuid
 import logging
-from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.domain.chatbot.graph import interview_graph
+from app.core import backend_client
 from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
-from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement,
-)
-from app.domain.chatbot.state import (
-    InterviewPrepState, ArenaConfig, MessageTurn,
-    OfferContext, OfferData, CompanyData, MatchData,
-    FeedbackResult, DimensionScore,
-)
-from app.domain.chatbot.schemas import (
-    ArenaConfigSchema, MessageSchema,
-    QuestionsResponse, QuestionOut,
-    FreeChatResponse,
-    StartInterviewResponse,
-    SendMessageResponse,
-    EndInterviewResponse, FeedbackOut, DimensionOut,
-    SalaryResponse, NegotiationStepOut,
-)
+from app.domain.chatbot.state import ArenaConfig, MessageTurn, OfferContext, OfferData, CompanyData, MatchData
+from app.domain.chatbot.schemas import ArenaConfigSchema, MessageSchema
 
 logger = logging.getLogger(__name__)
 
@@ -61,58 +46,22 @@ def _to_message_turns(history: list[MessageSchema]) -> list[MessageTurn]:
 
 
 async def get_internal_user_id(keycloak_id: str | None, db: AsyncSession) -> uuid.UUID | None:
-    """Résout le Keycloak ID en internal id_utilisateur UUID."""
+    """Local user id for a Keycloak id or local id (backend Profile module)."""
     if not keycloak_id:
         return None
     try:
-        from sqlalchemy import text
-        # 1. Priorité absolue : chercher par keycloak_id
-        r = await db.execute(
-            text("SELECT id_utilisateur FROM profile.utilisateur WHERE keycloak_id = :k"),
-            {"k": keycloak_id}
-        )
-        found_id = r.scalar()
-        if found_id:
-            return found_id
-
-        # 2. Chercher par id_utilisateur (UUID)
-        r = await db.execute(
-            text("SELECT id_utilisateur FROM profile.utilisateur WHERE id_utilisateur::text = :k"),
-            {"k": keycloak_id}
-        )
-        found_id = r.scalar()
-        if found_id:
-            return found_id
-            
-        # 3. Si non trouvé, on tente de voir si c'est un UUID valide pour l'utiliser
-        try:
-            val_uuid = uuid.UUID(keycloak_id)
-            return val_uuid
-        except (ValueError, TypeError):
-            return None
-            
-    except Exception as e:
+        user = await backend_client.get_user(keycloak_id)
+        if user and user.get("userId"):
+            return uuid.UUID(str(user["userId"]))
+    except (backend_client.BackendError, ValueError) as e:
         logger.error(f"Error resolving user {keycloak_id}: {e}")
         return None
-
-
-async def get_candidature_id(offer_id: str | None, user_id: str | None, db: AsyncSession) -> uuid.UUID | None:
-    """Trouve l'id_candidature à partir de l'id_offre et id_utilisateur."""
-    if not offer_id or not user_id:
-        return None
+    # Unknown to the backend: keep a well-formed id as-is (sessions stay tied to it).
     try:
-        internal_uid = await get_internal_user_id(user_id, db)
-        if not internal_uid:
-            return None
-        from sqlalchemy import text
-        r = await db.execute(
-            text("SELECT id_candidature FROM applications.candidature WHERE id_offre = :o AND id_utilisateur = :u LIMIT 1"),
-            {"o": uuid.UUID(offer_id), "u": internal_uid}
-        )
-        return r.scalar()
-    except Exception as e:
-        logger.error(f"Error getting candidature ID: {e}")
+        return uuid.UUID(keycloak_id)
+    except (ValueError, TypeError):
         return None
+
 
 # ══ CONTEXT ══
 # RÉCUPÉRATION DU CONTEXTE OFFRE DEPUIS LA DB
@@ -159,85 +108,12 @@ async def get_offer_context_from_db(
             )
             match_row = r4.scalar_one_or_none()
 
-        # ── Fallback si les tables séparées sont vides mais l'offre a été traitée (offres_emploi) ── (DÉSACTIVÉ POUR TESTER LA DB EN DIRECT)
-        # if not offre_row and not intel_row:
-        #     from sqlalchemy import text
-        #     r_emploi = await db.execute(
-        #         text("SELECT analyse_json FROM applications.offres_emploi WHERE id = :o"),
-        #         {"o": offer_uuid}
-        #     )
-        #     row_emploi = r_emploi.scalar_one_or_none()
-        #     if row_emploi:
-        #         # SQLAlchemy parses jsonb columns to python dict/list automatically
-        #         json_data = row_emploi if isinstance(row_emploi, dict) else {}
-        #         if not json_data and isinstance(row_emploi, str):
-        #             import json
-        #             try:
-        #                 json_data = json.loads(row_emploi)
-        #             except Exception:
-        #                 json_data = {}
-        # 
-        #         analyzed_offer = json_data.get("analyzed_offer") or {}
-        #         company_intel = json_data.get("company_intelligence") or {}
-        #         intel_sub = company_intel.get("intelligence") or {}
-        #         skill_gap = json_data.get("skill_gap") or {}
-        # 
-        #         # Extraction des compétences et mots-clés
-        #         req_skills = analyzed_offer.get("competences_requises") or []
-        #         ats_kws = analyzed_offer.get("keywords_ats") or []
-        #         t_stack = analyzed_offer.get("competences_souhaitees") or []
-        #         exp_yrs = analyzed_offer.get("annees_experience") or 0
-        # 
-        #         comp_name = analyzed_offer.get("entreprise") or intel_sub.get("nom") or ""
-        #         rating = intel_sub.get("rating") or 4.0
-        #         diff = intel_sub.get("interview_difficulty") or "medium"
-        #         questions = intel_sub.get("interview_questions") or []
-        #         summary = intel_sub.get("summary") or company_intel.get("summary") or ""
-        # 
-        #         # Extraction des salaires
-        #         salaries_list = intel_sub.get("salaries") or []
-        #         s_min = 0
-        #         s_max = 0
-        #         curr = "MAD"
-        #         if salaries_list and isinstance(salaries_list, list):
-        #             first_sal = salaries_list[0]
-        #             s_min = first_sal.get("min_salary") or 0
-        #             s_max = first_sal.get("max_salary") or 0
-        #             curr = first_sal.get("currency") or "MAD"
-        # 
-        #         # Matching
-        #         score = skill_gap.get("compatibilityScore") or skill_gap.get("score") or company_intel.get("score") or 0
-        #         missing = skill_gap.get("competences_manquantes") or []
-        #         strengths = skill_gap.get("points_forts") or []
-        # 
-        #         return OfferContext(
-        #             offer=OfferData(
-        #                 offer_id=offer_id,
-        #                 job_title=analyzed_offer.get("titre") or "",
-        #                 company_name=comp_name,
-        #                 required_skills=req_skills,
-        #                 ats_keywords=ats_kws,
-        #                 tech_stack=t_stack,
-        #                 experience_years=exp_yrs,
-        #                 location=analyzed_offer.get("localisation") or "",
-        #                 contract_type=analyzed_offer.get("type_contrat") or "",
-        #             ),
-        #             company=CompanyData(
-        #                 company_name=comp_name,
-        #                 glassdoor_rating=float(rating) if rating else 0.0,
-        #                 salary_min=int(s_min) if s_min else 0,
-        #                 salary_max=int(s_max) if s_max else 0,
-        #                 currency=curr,
-        #                 company_summary=summary,
-        #                 interview_difficulty=diff,
-        #                 known_questions=questions,
-        #             ),
-        #             match=MatchData(
-        #                 score_global=int(score) if score else 0,
-        #                 missing_skills=missing,
-        #                 strengths=strengths,
-        #             ),
-        #         )
+        # The agents' tables are only filled by CV generation. An offer that was only
+        # analysed (step 2) has its analysis in the backend's offres_emploi.analyse_json.
+        if not offre_row and not intel_row:
+            from_analysis = await _context_from_offer_analysis(offer_id, user_id)
+            if from_analysis:
+                return from_analysis
 
         # Si aucune donnée ni dans les tables ni dans offres_emploi → retourner None
         if not offre_row and not intel_row:
@@ -276,3 +152,62 @@ async def get_offer_context_from_db(
     except Exception as e:
         logger.error(f"get_offer_context_from_db error: {e}")
         return None
+
+
+async def _context_from_offer_analysis(offer_id: str, user_id: str | None) -> OfferContext | None:
+    """Offer context from the analysis the backend stored for this user's offer."""
+    if not user_id:
+        return None
+    try:
+        data = await backend_client.get_offer_analysis(user_id, offer_id)
+    except backend_client.BackendError as e:
+        logger.error(f"Offer analysis unavailable for {offer_id}: {e.message}")
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    offer = data.get("analyzed_offer") or {}
+    if not offer:
+        return None
+    gap = data.get("skill_gap_analysis") or data.get("match_result") or data.get("skill_gap") or {}
+    company_intel = data.get("company_intelligence") or {}
+    intel = company_intel.get("intelligence") or {}
+    culture = intel.get("culture") or {}
+    salaries = intel.get("salaries") or []
+    salary = salaries[0] if salaries and isinstance(salaries[0], dict) else {}
+
+    def as_int(value) -> int:
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return 0
+
+    company_name = offer.get("entreprise") or intel.get("nom") or ""
+    return OfferContext(
+        offer=OfferData(
+            offer_id=offer_id,
+            job_title=offer.get("titre") or "",
+            company_name=company_name,
+            required_skills=offer.get("competences_requises") or [],
+            ats_keywords=offer.get("keywords_ats") or [],
+            tech_stack=offer.get("competences_souhaitees") or [],
+            experience_years=as_int(offer.get("annees_experience")),
+            location=offer.get("localisation") or "",
+            contract_type=offer.get("type_contrat") or "",
+        ),
+        company=CompanyData(
+            company_name=company_name,
+            glassdoor_rating=float(culture.get("glassdoor_rating") or 0.0),
+            salary_min=as_int(salary.get("min_salary")),
+            salary_max=as_int(salary.get("max_salary")),
+            currency=salary.get("currency") or "MAD",
+            company_summary=intel.get("summary") or company_intel.get("summary") or "",
+            interview_difficulty=intel.get("interview_difficulty") or "medium",
+            known_questions=intel.get("interview_questions") or [],
+        ),
+        match=MatchData(
+            score_global=as_int(gap.get("score_matching")),
+            missing_skills=gap.get("missing_skills") or gap.get("competences_manquantes") or [],
+            strengths=gap.get("matched_skills") or gap.get("competences_matching") or [],
+        ),
+    )

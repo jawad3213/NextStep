@@ -1,23 +1,26 @@
+import asyncio
 import os
-import fitz  # PyMuPDF
 import json
+import pymupdf
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from fastapi import HTTPException
 from .prompts import SYSTEM_PROMPT
 
+
+def _pdf_text(pdf_content: bytes) -> str:
+    with pymupdf.open(stream=pdf_content, filetype="pdf") as doc:
+        # sort=True: reading order by position, so multi-column CVs don't interleave lines
+        return "".join(page.get_text("text", sort=True) + "\n" for page in doc)
+
+
 async def extract_text_from_pdf(pdf_content: bytes) -> str:
     """
-    Extracts text from a PDF byte stream.
+    Extracts text from a PDF byte stream (in a worker thread: parsing a large PDF must not
+    block the other requests).
     """
     try:
-        doc = fitz.open(stream=pdf_content, filetype="pdf")
-        text = ""
-        for page in doc:
-            # sort=True: reading order by position, so multi-column CVs don't interleave lines
-            text += page.get_text("text", sort=True) + "\n"
-        doc.close()
-        return text
+        return await asyncio.to_thread(_pdf_text, pdf_content)
     except Exception as e:
         raise Exception(f"Error extracting text from PDF: {str(e)}")
 

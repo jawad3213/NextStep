@@ -193,7 +193,7 @@ public class CvService : ICvService
 
         var history = await _db.CvHistories
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
-            ?? throw new NotFoundException("CV introuvable.");
+            ?? throw new NotFoundException("CV not found.");
 
         var pdfBytes = await RenderPdfWithFallbackAsync(renderResult.TemplateSlug, request.Data, htmlSnapshot);
         var objectKey = $"cvs/{userId}/{Guid.NewGuid()}.pdf";
@@ -307,7 +307,7 @@ public class CvService : ICvService
     {
         var history = await _db.CvHistories
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
-            ?? throw new NotFoundException("CV introuvable.");
+            ?? throw new NotFoundException("CV not found.");
 
         var data = CvDataSanitizer.Sanitize(JsonSerializer.Deserialize<CvData>(history.CvDataJson, _jsonOptions) ?? new CvData());
         var designConfig = JsonSerializer.Deserialize<CvDesignConfig>(history.DesignConfigJson, _jsonOptions)
@@ -332,7 +332,7 @@ public class CvService : ICvService
     {
         var history = await _db.CvHistories
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
-            ?? throw new NotFoundException("CV introuvable.");
+            ?? throw new NotFoundException("CV not found.");
 
         return await _storageService.GetPresignedUrlAsync(history.ObjectKey, TimeSpan.FromHours(1));
     }
@@ -341,7 +341,7 @@ public class CvService : ICvService
     {
         var history = await _db.CvHistories
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
-            ?? throw new NotFoundException("CV introuvable.");
+            ?? throw new NotFoundException("CV not found.");
 
         return await _storageService.DownloadFileAsync(history.ObjectKey);
     }
@@ -350,7 +350,7 @@ public class CvService : ICvService
     {
         var history = await _db.CvHistories
             .FirstOrDefaultAsync(h => h.Id == historyId && h.UserId == userId)
-            ?? throw new NotFoundException("CV introuvable.");
+            ?? throw new NotFoundException("CV not found.");
 
         _db.CvHistories.Remove(history);
         await _db.SaveChangesAsync();

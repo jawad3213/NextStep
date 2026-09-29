@@ -25,8 +25,8 @@ export class ToastService {
     toast.dismiss();
   }
 
-  /** Shortcut pour afficher une erreur d'API normalisée. */
-  apiError(error: unknown, fallback = 'Une erreur est survenue.'): void {
+  /** Shortcut to show a normalized API error. */
+  apiError(error: unknown, fallback = 'An unexpected error occurred.'): void {
     this.error(extractApiError(error).message || fallback);
   }
 }

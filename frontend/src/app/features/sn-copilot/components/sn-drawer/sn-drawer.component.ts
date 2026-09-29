@@ -54,14 +54,14 @@ export class SnDrawerComponent implements AfterViewChecked {
     const botMsg: SnUiMessage = {
       id: `sn-${Date.now() + 1}`,
       sender: 'sn',
-      text: 'Voici les questions fréquentes pour piloter vos candidatures avec SN :',
+      text: 'Here are common questions to help manage your job search with SN:',
       timestamp: new Date(),
       suggestions: [
-        'Quelles sont mes candidatures prioritaires ?',
-        'Résume ce que tu connais de mon profil',
-        'Comment préparer mes prochains entretiens ?',
-        'Quelles relances urgentes dois-je faire ?',
-        'Quel est le diagnostic de mon pipeline ?'
+        'Which applications are my top priorities?',
+        'Summarize what you know about my profile',
+        'How should I prepare for upcoming interviews?',
+        'Which urgent follow-ups should I send?',
+        'What is the health diagnostic of my pipeline?'
       ]
     };
     this.snService.messages.update((list) => [...list, userMsg, botMsg]);
@@ -71,7 +71,7 @@ export class SnDrawerComponent implements AfterViewChecked {
   onMenuGuidedSearch(): void {
     this.closeMenu();
     this.inputPlaceholder.set('Ask anything');
-    this.snService.sendMessage('Guided Job Search : analyse mes opportunités et guide-moi selon mon profil.');
+    this.snService.sendMessage('Guided Job Search: analyze my opportunities and advise me based on my profile.');
     this.shouldScrollToBottom = true;
   }
 
@@ -99,7 +99,7 @@ export class SnDrawerComponent implements AfterViewChecked {
   onMenuJobAlerts(): void {
     this.closeMenu();
     this.inputPlaceholder.set('Ask anything');
-    this.snService.sendMessage('Quelles sont les alertes, dates limites et relances urgentes pour mes candidatures ?');
+    this.snService.sendMessage('What are the urgent follow-ups, upcoming deadlines, and alerts for my applications?');
     this.shouldScrollToBottom = true;
   }
 
@@ -198,13 +198,13 @@ export class SnDrawerComponent implements AfterViewChecked {
   }
 
   formatStatut(statut?: string): string {
-    if (!statut) return 'En cours';
+    if (!statut) return 'In Progress';
     const s = statut.toUpperCase();
-    if (s.includes('ENTRETIEN')) return 'Entretien';
-    if (s.includes('ACCEPTE')) return 'Accepté';
-    if (s.includes('REFUSE')) return 'Refusé';
-    if (s.includes('RELANCE')) return 'Relance requise';
-    if (s.includes('EXAMEN') || s.includes('ATTENTE') || s.includes('ENVOYE')) return 'En cours d’examen';
+    if (s.includes('ENTRETIEN')) return 'Interview';
+    if (s.includes('ACCEPTE')) return 'Accepted';
+    if (s.includes('REFUSE')) return 'Rejected';
+    if (s.includes('RELANCE')) return 'Follow-up Needed';
+    if (s.includes('EXAMEN') || s.includes('ATTENTE') || s.includes('ENVOYE')) return 'Under Review';
     return statut.replace(/_/g, ' ');
   }
 
@@ -226,7 +226,7 @@ export class SnDrawerComponent implements AfterViewChecked {
     const maxSize = 5 * 1024 * 1024; // 5MB
 
     if (file.size > maxSize) {
-      this.snService.sendMessage('[CV_UPLOAD] Erreur : Le fichier est trop volumineux (max 5 Mo).');
+      this.snService.sendMessage('[CV_UPLOAD] Error: File is too large (max 5 MB).');
       return;
     }
 
@@ -239,7 +239,7 @@ export class SnDrawerComponent implements AfterViewChecked {
       reader.onload = () => {
         const text = reader.result as string;
         if (text.trim().length < 50) {
-          this.snService.sendMessage('[CV_UPLOAD] Le fichier semble vide ou trop court pour être un CV.');
+          this.snService.sendMessage('[CV_UPLOAD] The file appears empty or too short to be a valid CV.');
         } else {
           this.snService.sendMessage(`[CV_UPLOAD] ${text}`);
         }

@@ -3,575 +3,335 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Options;
 using NextStep.Modules.Messaging.Application.Dtos;
 using NextStep.Modules.Messaging.Domain;
 using NextStep.Modules.Messaging.Infrastructure.Repositories;
-using NextStep.Shared.Config;
 using NextStep.Shared.ErrorHandling;
 
 namespace NextStep.Modules.Messaging.Infrastructure.Gmail;
 
 /// <summary>
-/// Manages the Gmail OAuth 2.0 connection lifecycle:
-/// generating login URLs, handling callbacks, and checking status.
+/// Manages the Gmail OAuth 2.0 connection lifecycle: login URL, callback, status, verification.
+/// Tokens themselves (refresh, failures) are handled by <see cref="IGmailTokenProvider"/>.
 /// </summary>
 public class EmailConnectionService : IEmailConnectionService
 {
-    private const string TokenProtectionPurpose       = "GmailOAuthTokens";
+    private const string Provider = "Gmail";
     private const string OAuthClientProtectionPurpose = "GmailOAuthClientCredentials";
-    private const string GmailProfileUrl       = "https://gmail.googleapis.com/gmail/v1/users/me/profile";
-    private const string TokenExchangeUrl      = "https://oauth2.googleapis.com/token";
-    private const string GmailScope =
-        "https://www.googleapis.com/auth/gmail.send " +
-        "https://www.googleapis.com/auth/gmail.readonly";
-    private const string GoogleAuthBase        = "https://accounts.google.com/o/oauth2/v2/auth";
+    private const string GmailProfileUrl = "https://gmail.googleapis.com/gmail/v1/users/me/profile";
+    private const string GoogleAuthBase = "https://accounts.google.com/o/oauth2/v2/auth";
+    public const string SendScope = "https://www.googleapis.com/auth/gmail.send";
+    public const string ReadScope = "https://www.googleapis.com/auth/gmail.readonly";
     private static readonly TimeSpan StateExpiry = TimeSpan.FromMinutes(10);
 
     private readonly IOAuthStateRepository _stateRepo;
     private readonly IUserEmailConnectionRepository _connectionRepo;
     private readonly IUserOAuthCredentialRepository _oauthCredentialRepo;
+    private readonly IGmailTokenProvider _tokens;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IDataProtector _tokenProtector;
     private readonly IDataProtector _oauthClientProtector;
-    private readonly GoogleOAuthOptions _options;
     private readonly ILogger<EmailConnectionService> _logger;
 
     public EmailConnectionService(
         IOAuthStateRepository stateRepo,
         IUserEmailConnectionRepository connectionRepo,
         IUserOAuthCredentialRepository oauthCredentialRepo,
+        IGmailTokenProvider tokens,
         IHttpClientFactory httpClientFactory,
         IDataProtectionProvider dataProtectionProvider,
-        IOptions<GoogleOAuthOptions> options,
         ILogger<EmailConnectionService> logger)
     {
-        _stateRepo             = stateRepo;
-        _connectionRepo        = connectionRepo;
-        _oauthCredentialRepo   = oauthCredentialRepo;
-        _httpClientFactory     = httpClientFactory;
-        _tokenProtector        = dataProtectionProvider.CreateProtector(TokenProtectionPurpose);
-        _oauthClientProtector  = dataProtectionProvider.CreateProtector(OAuthClientProtectionPurpose);
-        _options               = options.Value;
-        _logger                = logger;
+        _stateRepo = stateRepo;
+        _connectionRepo = connectionRepo;
+        _oauthCredentialRepo = oauthCredentialRepo;
+        _tokens = tokens;
+        _httpClientFactory = httpClientFactory;
+        _oauthClientProtector = dataProtectionProvider.CreateProtector(OAuthClientProtectionPurpose);
+        _logger = logger;
     }
 
-    public async Task SaveGoogleClientCredentialsAsync(
-        Guid localUserId,
-        SaveGoogleClientCredentialsDto dto,
-        CancellationToken ct = default)
+    // ── Custom OAuth client credentials ──────────────────────────────────────────
+
+    public async Task SaveGoogleClientCredentialsAsync(Guid localUserId, SaveGoogleClientCredentialsDto dto, CancellationToken ct = default)
     {
         var clientId = dto.ClientId?.Trim() ?? string.Empty;
         var clientSecret = dto.ClientSecret?.Trim() ?? string.Empty;
-        var redirectUri = string.IsNullOrWhiteSpace(dto.RedirectUri)
-            ? null
-            : dto.RedirectUri.Trim();
+        var redirectUri = string.IsNullOrWhiteSpace(dto.RedirectUri) ? null : dto.RedirectUri.Trim();
 
         if (string.IsNullOrWhiteSpace(clientId))
             throw new BadRequestException("Google Client ID is required.");
+        if (!clientId.EndsWith(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase))
+            throw new BadRequestException("This does not look like a Google Client ID (it should end with .apps.googleusercontent.com).");
         if (string.IsNullOrWhiteSpace(clientSecret))
             throw new BadRequestException("Google Client Secret is required.");
-        if (redirectUri is not null && !Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
-            throw new BadRequestException("Redirect URI must be a valid absolute URL.");
+        if (redirectUri is not null && (!Uri.TryCreate(redirectUri, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")))
+            throw new BadRequestException("Redirect URI must be a valid http(s) URL.");
 
-        var credential = new UserOAuthCredential
+        await _oauthCredentialRepo.UpsertAsync(new UserOAuthCredential
         {
             UserId = localUserId,
-            Provider = "Gmail",
+            Provider = Provider,
             ClientIdEncrypted = _oauthClientProtector.Protect(clientId),
             ClientSecretEncrypted = _oauthClientProtector.Protect(clientSecret),
             RedirectUriOverride = redirectUri,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-
-        await _oauthCredentialRepo.UpsertAsync(credential, ct);
+            CreatedAtUtc = DateTime.UtcNow,
+        }, ct);
     }
 
-    public async Task<GoogleClientCredentialsSummaryDto> GetGoogleClientCredentialsSummaryAsync(
-        Guid localUserId,
-        CancellationToken ct = default)
+    public async Task<GoogleClientCredentialsSummaryDto> GetGoogleClientCredentialsSummaryAsync(Guid localUserId, CancellationToken ct = default)
     {
-        var credential = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
+        var credential = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, Provider, ct);
         if (credential is null)
-        {
-            return new GoogleClientCredentialsSummaryDto
-            {
-                HasCredentials = false,
-                UsesCustomRedirectUri = false
-            };
-        }
+            return new GoogleClientCredentialsSummaryDto { HasCredentials = false, UsesCustomRedirectUri = false };
 
-        string? decryptedClientId = null;
+        string clientId;
         try
         {
-            decryptedClientId = _oauthClientProtector.Unprotect(credential.ClientIdEncrypted);
+            clientId = _oauthClientProtector.Unprotect(credential.ClientIdEncrypted);
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
         {
-            _logger.LogWarning(
-                ex,
-                "EmailConnectionService — custom OAuth credentials are unreadable for user {UserId}. Removing corrupted credentials.",
-                localUserId);
-
-            await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
-            return new GoogleClientCredentialsSummaryDto
-            {
-                HasCredentials = false,
-                UsesCustomRedirectUri = false
-            };
+            _logger.LogWarning(ex, "Custom Gmail OAuth credentials unreadable for user {UserId}; removing them", localUserId);
+            await _oauthCredentialRepo.DeleteAsync(localUserId, Provider, ct);
+            return new GoogleClientCredentialsSummaryDto { HasCredentials = false, UsesCustomRedirectUri = false };
         }
 
         return new GoogleClientCredentialsSummaryDto
         {
             HasCredentials = true,
-            ClientIdMasked = MaskClientId(decryptedClientId),
+            ClientIdMasked = MaskClientId(clientId),
             UsesCustomRedirectUri = !string.IsNullOrWhiteSpace(credential.RedirectUriOverride),
             RedirectUri = credential.RedirectUriOverride,
-            UpdatedAtUtc = credential.UpdatedAtUtc ?? credential.CreatedAtUtc
+            UpdatedAtUtc = credential.UpdatedAtUtc ?? credential.CreatedAtUtc,
         };
     }
 
-    public async Task DeleteGoogleClientCredentialsAsync(
-        Guid localUserId,
-        CancellationToken ct = default)
-    {
-        await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
-    }
+    public Task DeleteGoogleClientCredentialsAsync(Guid localUserId, CancellationToken ct = default) =>
+        _oauthCredentialRepo.DeleteAsync(localUserId, Provider, ct);
 
-    // ── GetGoogleLoginUrlAsync ────────────────────────────────────────────────────
+    // ── OAuth flow ────────────────────────────────────────────────────────────────
 
-    public async Task<string> GetGoogleLoginUrlAsync(
-        Guid localUserId,
-        CancellationToken ct = default)
+    public async Task<string> GetGoogleLoginUrlAsync(Guid localUserId, CancellationToken ct = default)
     {
-        ResolvedOAuthConfig oauthConfig;
+        GmailOAuthClient client;
         try
         {
-            oauthConfig = await ResolveOAuthConfigAsync(localUserId, ct);
+            client = await _tokens.ResolveOAuthClientAsync(localUserId, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (GmailConnectionException ex)
         {
-            _logger.LogError(ex, "EmailConnectionService — failed to build Google login URL for user {UserId}", localUserId);
-            throw new OperationFailedException($"Erreur de configuration : {ex.Message}", ex);
+            throw new BadRequestException(ex.Message);
         }
 
-        // 1. Generate cryptographically random raw state token (32 bytes → 43 chars base64url)
-        var rawStateBytes = RandomNumberGenerator.GetBytes(32);
-        var rawState = Base64UrlEncode(rawStateBytes);
-
-        // 2. Hash the raw state — only the hash is stored in the DB
-        var stateHash = ComputeSha256Hash(rawState);
-
-        // 3. Persist OAuthState record
-        var oauthState = new OAuthState
+        // Expired states are useless (the flow lasts at most StateExpiry): clean them up here.
+        try
         {
-            UserId         = localUserId,
-            Provider       = "Gmail",
-            StateTokenHash = stateHash,
-            ExpiresAtUtc   = DateTime.UtcNow.Add(StateExpiry),
-            Used           = false,
-            CreatedAtUtc   = DateTime.UtcNow
-        };
-
-        await _stateRepo.AddAsync(oauthState, ct);
-
-        _logger.LogInformation(
-            "EmailConnectionService — OAuth state created for user {UserId}, expires {Expiry}",
-            localUserId, oauthState.ExpiresAtUtc);
-
-        // 4. Build Google authorization URL
-        var queryParams = new Dictionary<string, string>
+            await _stateRepo.DeleteExpiredAsync(DateTime.UtcNow.AddHours(-1), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            ["client_id"]     = oauthConfig.ClientId,
-            ["redirect_uri"]  = oauthConfig.RedirectUri,
+            _logger.LogWarning(ex, "Could not clean up expired OAuth states");
+        }
+
+        // Random state; only its hash is stored, and it can be used once within StateExpiry.
+        var rawState = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        await _stateRepo.AddAsync(new OAuthState
+        {
+            UserId = localUserId,
+            Provider = Provider,
+            StateTokenHash = ComputeSha256Hash(rawState),
+            ExpiresAtUtc = DateTime.UtcNow.Add(StateExpiry),
+            Used = false,
+            CreatedAtUtc = DateTime.UtcNow,
+        }, ct);
+
+        var query = new Dictionary<string, string>
+        {
+            ["client_id"] = client.ClientId,
+            ["redirect_uri"] = client.RedirectUri,
             ["response_type"] = "code",
-            ["scope"]         = GmailScope,
-            ["access_type"]   = "offline",
-            ["prompt"]        = "consent",
-            ["state"]         = rawState,
+            ["scope"] = $"{SendScope} {ReadScope}",
+            ["access_type"] = "offline",
+            ["prompt"] = "consent",
+            ["include_granted_scopes"] = "true",
+            ["state"] = rawState,
         };
-
-        var queryString = string.Join("&", queryParams.Select(
-            kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
-
-        return $"{GoogleAuthBase}?{queryString}";
+        return $"{GoogleAuthBase}?{string.Join("&", query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"))}";
     }
 
-    // ── HandleGoogleCallbackAsync ─────────────────────────────────────────────────
-
-    public async Task HandleGoogleCallbackAsync(
-        string code,
-        string state,
-        CancellationToken ct = default)
+    /// <summary>Completes the OAuth flow. Throws <see cref="GmailConnectionException"/> with a user-safe message.</summary>
+    public async Task HandleGoogleCallbackAsync(string code, string state, CancellationToken ct = default)
     {
-        // 1. Hash the returned state to look it up in DB
-        var stateHash = ComputeSha256Hash(state);
-
-        // 2. Find valid (unused, not expired) OAuthState
-        var oauthState = await _stateRepo.FindValidAsync("Gmail", stateHash, ct);
-
+        var oauthState = await _stateRepo.FindValidAsync(Provider, ComputeSha256Hash(state), ct);
         if (oauthState is null)
         {
-            _logger.LogWarning(
-                "EmailConnectionService — invalid, expired, or already-used OAuth state received.");
-            throw new InvalidOperationException(
-                "OAuth state is invalid, expired, or has already been used.");
+            _logger.LogWarning("Gmail OAuth callback with an invalid, expired or already-used state");
+            throw new GmailConnectionException("This Gmail connection link has expired or was already used. Please click \"Connect Gmail\" again.");
         }
 
-        // 3. Consume state — mark used immediately to prevent replay
-        oauthState.Used      = true;
+        // Consumed before anything else: a state can never be replayed.
+        oauthState.Used = true;
         oauthState.UsedAtUtc = DateTime.UtcNow;
         await _stateRepo.SaveChangesAsync(ct);
 
         var localUserId = oauthState.UserId;
-        var oauthConfig = await ResolveOAuthConfigAsync(localUserId, ct);
+        var client = await _tokens.ResolveOAuthClientAsync(localUserId, ct);
 
-        // 4. Exchange authorization code for tokens
-        using var httpClient = _httpClientFactory.CreateClient();
-
-        var formData = new Dictionary<string, string>
-        {
-            ["code"]          = code,
-            ["client_id"]     = oauthConfig.ClientId,
-            ["client_secret"] = oauthConfig.ClientSecret,
-            ["redirect_uri"]  = oauthConfig.RedirectUri,
-            ["grant_type"]    = "authorization_code",
-        };
-
-        HttpResponseMessage tokenResponse;
+        using var http = _httpClientFactory.CreateClient();
+        HttpResponseMessage response;
+        string body;
         try
         {
-            tokenResponse = await httpClient.PostAsync(
-                TokenExchangeUrl,
-                new FormUrlEncodedContent(formData),
-                ct);
+            response = await http.PostAsync(GmailTokenProvider.TokenUrl, new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["code"] = code,
+                ["client_id"] = client.ClientId,
+                ["client_secret"] = client.ClientSecret,
+                ["redirect_uri"] = client.RedirectUri,
+                ["grant_type"] = "authorization_code",
+            }), ct);
+            body = await response.Content.ReadAsStringAsync(ct);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
         {
-            _logger.LogError(ex, "EmailConnectionService — network error during token exchange");
-            throw new InvalidOperationException(
-                $"Network error during Gmail OAuth token exchange: {ex.Message}", ex);
-        }
-
-        var tokenBody = await tokenResponse.Content.ReadAsStringAsync(ct);
-
-        if (!tokenResponse.IsSuccessStatusCode)
-        {
-            _logger.LogWarning(
-                "EmailConnectionService — token exchange failed {Status}: {Body}",
-                tokenResponse.StatusCode, tokenBody);
-            throw new InvalidOperationException(
-                $"Gmail token exchange failed ({(int)tokenResponse.StatusCode}): {tokenBody}");
+            _logger.LogError(ex, "Gmail OAuth token exchange unreachable");
+            throw new GmailConnectionException("Google could not be reached to finish the connection. Please try again.", ex);
         }
 
-        TokenExchangeResponse tokens;
-        try
+        if (!response.IsSuccessStatusCode)
         {
-            tokens = JsonSerializer.Deserialize<TokenExchangeResponse>(tokenBody)
-                ?? throw new InvalidOperationException("Empty token exchange response.");
+            var error = GmailTokenProvider.OAuthErrorCode(body);
+            _logger.LogWarning("Gmail OAuth token exchange failed: {Status} {Error}", (int)response.StatusCode, error);
+            throw new GmailConnectionException(error switch
+            {
+                "invalid_grant" => "The Google authorization expired before it could be used. Please connect again.",
+                "redirect_uri_mismatch" => "Google rejected the redirect URI. It must match exactly the one registered in your Google Cloud OAuth client.",
+                "invalid_client" or "unauthorized_client" => GmailMessages.ClientRejected,
+                _ => "Google refused the connection. Please try again.",
+            });
         }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+
+        var tokens = GmailTokenProvider.ParseTokens(body);
+        if (tokens is null || string.IsNullOrWhiteSpace(tokens.AccessToken))
+            throw new GmailConnectionException("Google returned an unexpected answer. Please try again.");
+
+        // With granular consent the user can untick permissions: without them nothing would work later.
+        var granted = (tokens.Scope ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (!granted.Contains(SendScope) || !granted.Contains(ReadScope))
         {
-            _logger.LogError(ex, "EmailConnectionService — failed to parse token response");
-            throw new InvalidOperationException("Could not parse Gmail token response.", ex);
+            _logger.LogWarning("Gmail OAuth for user {UserId} granted only: {Scopes}", localUserId, tokens.Scope);
+            throw new GmailConnectionException(
+                "NextStep needs permission to send and read your emails. Connect again and tick both Gmail permissions on Google's screen.");
         }
 
-        // 5. Fetch Gmail profile to get the email address
-        var emailAddress = await FetchGmailEmailAddressAsync(httpClient, tokens.AccessToken, ct);
-
-        // 6. Encrypt tokens and upsert UserEmailConnection
-        var connection = new UserEmailConnection
+        var existing = await _connectionRepo.GetByUserAndProviderAsync(localUserId, Provider, ct);
+        var refreshTokenEncrypted = !string.IsNullOrWhiteSpace(tokens.RefreshToken)
+            ? _tokens.Protect(tokens.RefreshToken)
+            : existing?.RefreshTokenEncrypted;
+        if (string.IsNullOrWhiteSpace(refreshTokenEncrypted))
         {
-            UserId                   = localUserId,
-            Provider                 = "Gmail",
-            EmailAddress             = emailAddress,
-            AccessTokenEncrypted     = _tokenProtector.Protect(tokens.AccessToken),
-            RefreshTokenEncrypted    = _tokenProtector.Protect(tokens.RefreshToken),
-            AccessTokenExpiresAtUtc  = DateTime.UtcNow.AddSeconds(tokens.ExpiresIn - 30),
-            CreatedAtUtc             = DateTime.UtcNow
-        };
+            // Google only sends a refresh token on the first consent for a client.
+            throw new GmailConnectionException(
+                "Google did not provide long-term access. Remove NextStep from https://myaccount.google.com/permissions, then connect again.");
+        }
 
-        await _connectionRepo.UpsertAsync(connection, ct);
+        var emailAddress = await FetchGmailEmailAddressAsync(http, tokens.AccessToken, ct);
+        if (string.IsNullOrWhiteSpace(emailAddress))
+            throw new GmailConnectionException("Your Gmail address could not be read. Please try connecting again.");
 
-        _logger.LogInformation(
-            "EmailConnectionService — Gmail connection saved for user {UserId}, email: {Email}",
-            localUserId, emailAddress);
+        await _connectionRepo.UpsertAsync(new UserEmailConnection
+        {
+            UserId = localUserId,
+            Provider = Provider,
+            EmailAddress = emailAddress,
+            AccessTokenEncrypted = _tokens.Protect(tokens.AccessToken),
+            RefreshTokenEncrypted = refreshTokenEncrypted,
+            AccessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(tokens.ExpiresIn, 60)),
+            ReconnectReason = null,
+            ReconnectRequiredAtUtc = null,
+            CreatedAtUtc = DateTime.UtcNow,
+        }, ct);
 
-        // TODO: Implement cleanup of expired OAuthState rows periodically
-        // (e.g., via a background IHostedService or scheduled task)
+        _logger.LogInformation("Gmail connected for user {UserId}", localUserId);
     }
 
-    // ── GetStatusAsync ────────────────────────────────────────────────────────────
+    // ── Status ────────────────────────────────────────────────────────────────────
 
-    public async Task<EmailConnectionStatusDto> GetStatusAsync(
-        Guid localUserId,
-        CancellationToken ct = default)
+    /// <summary>
+    /// Stored status, without calling Google. An expired access token is normal (it is renewed
+    /// automatically when needed): only a recorded reconnect reason marks the connection unusable.
+    /// </summary>
+    public async Task<EmailConnectionStatusDto> GetStatusAsync(Guid localUserId, CancellationToken ct = default)
     {
-        var customCred = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
-        var hasCustomCred = customCred is not null;
-        if (customCred is not null)
-        {
-            try
-            {
-                _ = _oauthClientProtector.Unprotect(customCred.ClientIdEncrypted);
-                _ = _oauthClientProtector.Unprotect(customCred.ClientSecretEncrypted);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "EmailConnectionService — custom OAuth credentials are unreadable for user {UserId}. Removing corrupted credentials.",
-                    localUserId);
-                await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
-                hasCustomCred = false;
-            }
-        }
-
-        var connection = await _connectionRepo.GetByUserAndProviderAsync(
-            localUserId, "Gmail", ct);
-
-        if (connection is null)
-            return new EmailConnectionStatusDto
-            {
-                IsConnected = false,
-                Provider = "Gmail",
-                HasCustomClientCredentials = hasCustomCred
-            };
-
-        var isExpired = DateTime.UtcNow >= connection.AccessTokenExpiresAtUtc;
-
-        return new EmailConnectionStatusDto
-        {
-            IsConnected  = true,
-            IsTokenValid = !isExpired, // Basic check: if not expired, we assume it's valid for now
-            EmailAddress = connection.EmailAddress,
-            Provider     = "Gmail",
-            HasCustomClientCredentials = hasCustomCred,
-            ErrorMessage = isExpired ? "Access token expired. Verification required." : null
-        };
+        var hasCustomCredentials = (await GetGoogleClientCredentialsSummaryAsync(localUserId, ct)).HasCredentials;
+        var connection = await _connectionRepo.GetByUserAndProviderAsync(localUserId, Provider, ct);
+        return ToStatus(connection, hasCustomCredentials, connection?.ReconnectReason);
     }
 
     public async Task DisconnectAsync(Guid localUserId, CancellationToken ct = default)
     {
-        await _connectionRepo.DeleteAsync(localUserId, "Gmail", ct);
-        _logger.LogInformation("EmailConnectionService — Disconnected Gmail for user {UserId}", localUserId);
+        await _connectionRepo.DeleteAsync(localUserId, Provider, ct);
+        _logger.LogInformation("Gmail disconnected for user {UserId}", localUserId);
     }
 
+    /// <summary>Checks the connection with Google now (forces a token refresh).</summary>
     public async Task<EmailConnectionStatusDto> VerifyConnectionAsync(Guid localUserId, CancellationToken ct = default)
     {
-        var hasCustomCred = (await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct)) is not null;
-        var connection = await _connectionRepo.GetByUserAndProviderAsync(
-            localUserId, "Gmail", ct);
+        var hasCustomCredentials = (await GetGoogleClientCredentialsSummaryAsync(localUserId, ct)).HasCredentials;
+        var access = await _tokens.GetAccessAsync(localUserId, forceRefresh: true, ct);
+        if (access.Failure == GmailFailure.NotConnected)
+            return ToStatus(null, hasCustomCredentials, null);
+        return ToStatus(access.Connection, hasCustomCredentials, access.Success ? null : access.UserMessage, access.Failure == GmailFailure.Transient);
+    }
 
-        if (connection is null)
-            return new EmailConnectionStatusDto
+    private static EmailConnectionStatusDto ToStatus(UserEmailConnection? connection, bool hasCustomCredentials, string? problem, bool transient = false) =>
+        connection is null
+            ? new EmailConnectionStatusDto { IsConnected = false, IsTokenValid = false, Provider = Provider, HasCustomClientCredentials = hasCustomCredentials }
+            : new EmailConnectionStatusDto
             {
-                IsConnected = false,
-                Provider = "Gmail",
-                HasCustomClientCredentials = hasCustomCred
-            };
-
-        string? refreshToken;
-        try
-        {
-            refreshToken = _tokenProtector.Unprotect(connection.RefreshTokenEncrypted);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "EmailConnectionService — Failed to decrypt refresh token for user {UserId}", localUserId);
-            return new EmailConnectionStatusDto 
-            { 
-                IsConnected = true, 
-                IsTokenValid = false, 
+                IsConnected = true,
+                IsTokenValid = problem is null,
+                NeedsReconnect = problem is not null && !transient,
                 EmailAddress = connection.EmailAddress,
-                HasCustomClientCredentials = hasCustomCred,
-                ErrorMessage = "Failed to decrypt tokens. Please reconnect."
+                Provider = Provider,
+                HasCustomClientCredentials = hasCustomCredentials,
+                ErrorMessage = problem,
             };
-        }
 
-        // Try to refresh the token to verify it's still valid with Google
-        var refreshResult = await RefreshAccessTokenInternalAsync(refreshToken, connection, ct);
+    // ── Helpers ───────────────────────────────────────────────────────────────────
 
-        return new EmailConnectionStatusDto
-        {
-            IsConnected  = true,
-            IsTokenValid = refreshResult.Success,
-            EmailAddress = connection.EmailAddress,
-            Provider     = "Gmail",
-            HasCustomClientCredentials = hasCustomCred,
-            ErrorMessage = refreshResult.ErrorMessage
-        };
-    }
+    private static string? MaskClientId(string? clientId) =>
+        string.IsNullOrWhiteSpace(clientId) ? null
+        : clientId.Length <= 8 ? "****"
+        : $"{clientId[..4]}...{clientId[^4..]}";
 
-    private async Task<RefreshResult> RefreshAccessTokenInternalAsync(
-        string refreshToken,
-        UserEmailConnection connection,
-        CancellationToken ct)
-    {
-        var oauthConfig = await ResolveOAuthConfigAsync(connection.UserId, ct);
-        using var httpClient = _httpClientFactory.CreateClient();
-
-        var formData = new Dictionary<string, string>
-        {
-            ["grant_type"]    = "refresh_token",
-            ["client_id"]     = oauthConfig.ClientId,
-            ["client_secret"] = oauthConfig.ClientSecret,
-            ["refresh_token"] = refreshToken,
-        };
-
-        try
-        {
-            var response = await httpClient.PostAsync(TokenExchangeUrl, new FormUrlEncodedContent(formData), ct);
-            var body = await response.Content.ReadAsStringAsync(ct);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("EmailConnectionService — Token refresh failed: {Body}", body);
-                return new RefreshResult(false, "Gmail account access revoked or expired. Please reconnect.");
-            }
-
-            var tokens = JsonSerializer.Deserialize<TokenExchangeResponse>(body);
-            if (tokens == null) return new RefreshResult(false, "Invalid response from Google.");
-
-            // Update connection with new access token
-            connection.AccessTokenEncrypted    = _tokenProtector.Protect(tokens.AccessToken);
-            connection.AccessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokens.ExpiresIn - 30);
-            connection.UpdatedAtUtc            = DateTime.UtcNow;
-            
-            await _connectionRepo.UpsertAsync(connection, ct);
-
-            return new RefreshResult(true, null);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "EmailConnectionService — Error during token refresh");
-            return new RefreshResult(false, $"Network error: {ex.Message}");
-        }
-    }
-
-    private record RefreshResult(bool Success, string? ErrorMessage);
-
-    private async Task<ResolvedOAuthConfig> ResolveOAuthConfigAsync(Guid localUserId, CancellationToken ct)
-    {
-        var customCredential = await _oauthCredentialRepo.GetByUserAndProviderAsync(localUserId, "Gmail", ct);
-        if (customCredential is not null)
-        {
-            try
-            {
-                var clientId = _oauthClientProtector.Unprotect(customCredential.ClientIdEncrypted);
-                var clientSecret = _oauthClientProtector.Unprotect(customCredential.ClientSecretEncrypted);
-                var redirectUri = string.IsNullOrWhiteSpace(customCredential.RedirectUriOverride)
-                    ? _options.RedirectUri
-                    : customCredential.RedirectUriOverride!.Trim();
-
-                ValidateResolvedOAuthConfig(clientId, clientSecret, redirectUri);
-                return new ResolvedOAuthConfig(clientId, clientSecret, redirectUri);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "EmailConnectionService — failed to decrypt custom OAuth credentials for user {UserId}. Removing corrupted credentials.",
-                    localUserId);
-
-                await _oauthCredentialRepo.DeleteAsync(localUserId, "Gmail", ct);
-                throw new InvalidOperationException(
-                    "Saved Google OAuth credentials are no longer readable. Please enter your Client ID and Client Secret again.");
-            }
-        }
-
-        _options.Validate();
-        return new ResolvedOAuthConfig(_options.ClientId, _options.ClientSecret, _options.RedirectUri);
-    }
-
-    private static void ValidateResolvedOAuthConfig(string clientId, string clientSecret, string redirectUri)
-    {
-        if (string.IsNullOrWhiteSpace(clientId))
-            throw new InvalidOperationException("Resolved Google OAuth Client ID is empty.");
-        if (string.IsNullOrWhiteSpace(clientSecret))
-            throw new InvalidOperationException("Resolved Google OAuth Client Secret is empty.");
-        if (string.IsNullOrWhiteSpace(redirectUri) || !Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
-            throw new InvalidOperationException("Resolved Google OAuth Redirect URI is invalid.");
-    }
-
-    private static string? MaskClientId(string? clientId)
-    {
-        if (string.IsNullOrWhiteSpace(clientId))
-            return null;
-        if (clientId.Length <= 8)
-            return "****";
-        return $"{clientId[..4]}...{clientId[^4..]}";
-    }
-
-    // ── Private helpers ───────────────────────────────────────────────────────────
-
-    private async Task<string> FetchGmailEmailAddressAsync(
-        HttpClient httpClient,
-        string accessToken,
-        CancellationToken ct)
+    private async Task<string> FetchGmailEmailAddressAsync(HttpClient http, string accessToken, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, GmailProfileUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
         try
         {
-            var response = await httpClient.SendAsync(request, ct);
-            var body     = await response.Content.ReadAsStringAsync(ct);
-
+            var response = await http.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
             if (response.IsSuccessStatusCode)
             {
                 using var doc = JsonDocument.Parse(body);
-                if (doc.RootElement.TryGetProperty("emailAddress", out var ep))
-                    return ep.GetString() ?? string.Empty;
+                if (doc.RootElement.TryGetProperty("emailAddress", out var address))
+                    return address.GetString() ?? string.Empty;
             }
-
-            _logger.LogWarning(
-                "EmailConnectionService — could not fetch Gmail profile: {Status} {Body}",
-                response.StatusCode, body);
+            _logger.LogWarning("Gmail profile could not be read: {Status}", (int)response.StatusCode);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException && !ct.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "EmailConnectionService — error fetching Gmail profile");
+            _logger.LogWarning(ex, "Gmail profile request failed");
         }
-
         return string.Empty;
     }
 
-    private static string ComputeSha256Hash(string input)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
+    private static string ComputeSha256Hash(string input) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input))).ToLowerInvariant();
 
-    private static string Base64UrlEncode(byte[] input)
-    {
-        return Convert.ToBase64String(input)
-            .Replace('+', '-')
-            .Replace('/', '_')
-            .TrimEnd('=');
-    }
-
-    // ── Internal response DTOs ────────────────────────────────────────────────────
-
-    private sealed record ResolvedOAuthConfig(
-        string ClientId,
-        string ClientSecret,
-        string RedirectUri);
-
-    private sealed class TokenExchangeResponse
-    {
-        [JsonPropertyName("access_token")]
-        public string AccessToken { get; set; } = string.Empty;
-
-        [JsonPropertyName("refresh_token")]
-        public string RefreshToken { get; set; } = string.Empty;
-
-        [JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; set; } = 3600;
-
-        [JsonPropertyName("token_type")]
-        public string TokenType { get; set; } = "Bearer";
-    }
+    private static string Base64UrlEncode(byte[] input) =>
+        Convert.ToBase64String(input).Replace('+', '-').Replace('/', '_').TrimEnd('=');
 }

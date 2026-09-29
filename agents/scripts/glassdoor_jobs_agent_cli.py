@@ -5,6 +5,8 @@ from typing import Any
 
 import requests
 
+from _agents_http import auth_headers
+
 
 def _pretty(data: Any) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False)
@@ -27,6 +29,7 @@ def main() -> int:
     parser.add_argument("--location", default="Morocco", help="Glassdoor location hint")
     parser.add_argument("--limit", type=int, default=10, help="Max number of jobs to return")
     parser.add_argument("--timeout", type=int, default=180, help="HTTP timeout in seconds")
+    parser.add_argument("--api-key", default=None, help="AGENTS_API_KEY (default: environment or .env)")
     args = parser.parse_args()
 
     url = f"{args.base_url.rstrip('/')}/glassdoor-jobs/search"
@@ -35,7 +38,7 @@ def main() -> int:
     print(f"[INFO] POST {url}")
     print(f"[INFO] payload={_pretty(payload)}")
     try:
-        response = requests.post(url, json=payload, timeout=args.timeout)
+        response = requests.post(url, json=payload, headers=auth_headers(args.api_key), timeout=args.timeout)
     except Exception as exc:
         print(f"[ERROR] Request failed: {exc}")
         return 2

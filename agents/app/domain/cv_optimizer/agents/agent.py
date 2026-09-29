@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.utils.json import parse_json_markdown
 
 from app.core.config import get_llm
-from app.domain.cv_optimizer.agents.prompts import _CV_OPTIMIZER_PROMPT
+from app.domain.cv_optimizer.agents.prompts import _CV_OPTIMIZER_PROMPT, output_language_name
 from app.domain.cv_optimizer.schemas.models import OptimizedCVOutput
 from app.domain.cv_optimizer.schemas.state import CVOptimizerState
 
@@ -46,16 +46,6 @@ def _clean_list(values: Any) -> list[str]:
     if isinstance(values, list):
         return [str(item).strip() for item in values if str(item).strip()]
     return []
-
-
-def _match_by_title(items: list[dict], title: Any) -> dict | None:
-    normalized = _normalized_title(title)
-    if not normalized:
-        return None
-    for item in items or []:
-        if _normalized_title(item.get("titre", "")) == normalized:
-            return item
-    return None
 
 
 def _squash(value: Any) -> str:
@@ -297,20 +287,6 @@ def _contains_priority(text: str, priority: str) -> bool:
     return bool(parts and all(f" {part} " in normalized_text for part in parts[:3]))
 
 
-def _extract_source_technologies(project: dict) -> set[str]:
-    values = project.get("technologies") or project.get("technologies_utilisees") or []
-    if isinstance(values, str):
-        values = re.split(r"[,;/|]", values)
-    return {str(item).strip().lower() for item in values if str(item).strip()}
-
-
-def _has_meaningful_source_content(item: dict) -> bool:
-    tasks = item.get("taches") or item.get("tasks") or []
-    if _split_structured_bullets(tasks):
-        return True
-    return bool(str(item.get("description") or "").strip())
-
-
 def _starts_with_action_verb(bullet: str) -> bool:
     normalized = _strip_accents(str(bullet or "")).lower()
     words = re.findall(r"[A-Za-z]+", normalized)
@@ -331,23 +307,6 @@ def _looks_like_giant_paragraph(bullet: str) -> bool:
     text = " ".join(str(bullet or "").split())
     word_count = len(text.split())
     return word_count > 35 or len(text) > 260
-
-
-def _placeholder_heavy(bullets: list[str]) -> bool:
-    if not bullets:
-        return False
-    placeholder_count = sum(
-        1 for bullet in bullets if any(token in str(bullet).lower() for token in PLACEHOLDER_TOKENS)
-    )
-    return placeholder_count == len(bullets) and len(bullets) >= 2
-
-
-def _project_tech_subset_valid(opt_project: dict, source_project: dict) -> bool:
-    source_techs = _extract_source_technologies(source_project)
-    if not source_techs:
-        return True
-    optimized_techs = {str(item).strip().lower() for item in opt_project.get("technologies") or [] if str(item).strip()}
-    return optimized_techs.issubset(source_techs)
 
 
 def _collect_candidate_skills(candidate_cv: dict) -> list[str]:
@@ -428,15 +387,135 @@ def _build_fallback_result(candidate_cv: dict) -> dict:
     ).model_dump()
 
 
+# What the model needs to rewrite the CV's wording. Name, email, phone, photo and social
+# links are never sent to the LLM provider: it never writes them, so it doesn't need them.
+_CV_CONTENT_FIELDS = ("resume", "experiences", "projets", "formations", "certifications", "competences")
+
+
+def target_position(candidate_cv: dict) -> str:
+    """The profile's "Target position / Current title": what the candidate is looking for."""
+    return str((candidate_cv or {}).get("titre") or "").strip()
+
+
+def _cv_content_for_llm(candidate_cv: dict) -> dict:
+    content = {field: candidate_cv[field] for field in _CV_CONTENT_FIELDS if candidate_cv.get(field) is not None}
+    if target_position(candidate_cv):
+        content["poste_vise"] = target_position(candidate_cv)
+    return content
+
+
+# --- CV summary: it must present the candidate, never describe the job -------------------
+
+SUMMARY_MAX_WORDS = 90
+# Wording of a job description or of a text about someone else (accent-free, lower-case).
+_JOB_DESCRIPTION_MARKERS = (
+    "le stagiaire", "la stagiaire", "le candidat", "la candidate", "le titulaire du poste",
+    "participera", "contribuera", "sera charge", "sera amene", "aura pour mission",
+    "nous recherchons", "notre equipe", "rejoindre notre", "vous ",
+    "the intern ", "the candidate", "the successful candidate", "you will", "we are looking",
+    "our team", "join our", "the role will",
+)
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9#+]+", _strip_accents(text).lower())
+
+
+def _copied_share(summary: str, source: str) -> float:
+    """Share of the summary's word trigrams that appear verbatim in the offer text."""
+    s, o = _words(summary), _words(source)
+    grams = {tuple(s[i:i + 3]) for i in range(len(s) - 2)}
+    if not grams or len(o) < 3:
+        return 0.0
+    offer_grams = {tuple(o[i:i + 3]) for i in range(len(o) - 2)}
+    return len(grams & offer_grams) / len(grams)
+
+
+_TITLE_STOPWORDS = {"and", "the", "for", "with", "des", "les", "une", "pour", "avec", "stage", "internship"}
+
+
+def _mentions_target(summary: str, target: str) -> bool:
+    """The summary names the profile's target position (word order and accents ignored)."""
+    wanted = [w for w in _words(target) if len(w) >= 2 and w not in _TITLE_STOPWORDS]
+    if not wanted:
+        return True
+    present = set(_words(summary))
+    return sum(w in present for w in wanted) >= max(1, round(len(wanted) * 0.6))
+
+
+def summary_problem(summary: str, job_offer: dict | None, target: str = "") -> str | None:
+    """Why a CV summary is not acceptable, or None. The summary sits at the top of the CV and
+    must present the candidate: a summary of the offer (\"Le stagiaire participera a...\") is wrong,
+    and when the profile has a target position, that is what the candidate is seeking."""
+    text = str(summary or "").strip()
+    if not text:
+        return None
+    folded = " " + " ".join(_words(text)) + " "
+    marker = next((m for m in _JOB_DESCRIPTION_MARKERS if f" {' '.join(_words(m))} " in folded), None)
+    if marker:
+        return f"il decrit le poste au lieu de presenter le candidat (\"{marker.strip()}\")"
+    offer_text = " ".join(str((job_offer or {}).get(k) or "") for k in ("description_poste", "descriptionPoste", "missions"))
+    if _copied_share(text, offer_text) > 0.35:
+        return "il recopie la description de l'offre"
+    if len(_words(text)) > SUMMARY_MAX_WORDS:
+        return f"il est trop long ({len(_words(text))} mots, maximum {SUMMARY_MAX_WORDS})"
+    if target and not _mentions_target(text, target):
+        return f"il ne reprend pas le poste vise du profil (\"{target}\")"
+    return None
+
+
+def _sought_position(job_offer: dict, language: str) -> str:
+    """"un stage PFA" / "an internship (PFA)"... from the offer's contract type and wording."""
+    offer = job_offer or {}
+    contract = _strip_accents(str(offer.get("type_contrat") or offer.get("typeContrat") or "")).lower()
+    wording = _strip_accents(" ".join(str(offer.get(k) or "") for k in ("titre", "description_poste", "descriptionPoste"))).lower()
+    project = next((p for p in ("pfe", "pfa") if re.search(rf"\b{p}\b", wording)), None)
+    french = language == "fr"
+    if "altern" in contract or "apprenti" in contract:
+        return "une alternance" if french else "an apprenticeship"
+    if "stage" in contract or "intern" in contract or project or re.search(r"\b(stage|stagiaire|intern(ship)?)\b", wording):
+        suffix = f" {project.upper()}" if project else ""
+        return f"un stage{suffix}" if french else (f"a {project.upper()} internship" if project else "an internship")
+    return "un poste" if french else "a position"
+
+
+def fallback_summary(candidate_cv: dict, job_offer: dict | None, language: str = "en") -> str:
+    """Summary used when the model's one is unusable: the candidate's own profile summary when
+    it is fine, else a short factual one built from the profile and the offer."""
+    target = target_position(candidate_cv)
+    own = str(candidate_cv.get("resume") or "").strip()
+    if own and not summary_problem(own, job_offer, target):
+        return own
+
+    french = (language or "en").lower() == "fr"
+    formations = candidate_cv.get("formations") or []
+    degree = next((str(f.get("diplome")).strip() for f in formations if isinstance(f, dict) and f.get("diplome")), "")
+    identity = degree
+    # What the candidate seeks: the profile's target position first, the offer's title otherwise.
+    role = target or str((job_offer or {}).get("titre") or "").strip()
+    skills = [str(c.get("nom")).strip() for c in (candidate_cv.get("competences") or []) if isinstance(c, dict) and c.get("nom")][:3]
+    position = _sought_position(job_offer or {}, "fr" if french else "en")
+
+    if french:
+        first = f"{identity}, je recherche {position}" if identity else f"Je recherche {position}"
+        first += f" en tant que {role}." if role else "."
+        second = f" Je m'appuie sur mes compétences en {', '.join(skills)} pour contribuer rapidement aux projets de l'équipe." if skills else ""
+    else:
+        first = f"{identity}, looking for {position}" if identity else f"Looking for {position}"
+        first += f" as {role}." if role else "."
+        second = f" Skilled in {', '.join(skills)}, ready to contribute quickly to the team's projects." if skills else ""
+    return first + second
+
+
 async def cv_optimizer_node(state: CVOptimizerState) -> dict:
     candidate_cv = state.get("candidate_cv")
     job_offer = state.get("job_offer")
     current_count = state.get("iteration_count", 0)
-    prev_errors = state.get("errors", [])
+    prev_errors = state.get("validation_errors") or []
 
     if not candidate_cv or not job_offer:
         logger.warning("Donnees manquantes pour l'optimisation de CV.")
-        return {"errors": ["CV ou Offre d'emploi manquants."], "iteration_count": current_count + 1}
+        return {"errors": ["CV ou Offre d'emploi manquants."], "iteration_count": current_count + 1, "used_fallback": True}
 
     logger.info("CV Optimizer Agent - tentative %s", current_count + 1)
 
@@ -447,7 +526,7 @@ async def cv_optimizer_node(state: CVOptimizerState) -> dict:
     prompt_content = _CV_OPTIMIZER_PROMPT
     if prev_errors and current_count > 0:
         feedback = "\n\nIMPORTANT : La tentative precedente a echoue. Corrige ces erreurs :\n"
-        feedback += "\n".join([f"- {err}" for err in prev_errors[-3:]])
+        feedback += "\n".join([f"- {err}" for err in prev_errors[:5]])
         prompt_content += feedback
 
     prompt = ChatPromptTemplate.from_template(prompt_content)
@@ -457,122 +536,106 @@ async def cv_optimizer_node(state: CVOptimizerState) -> dict:
         skill_gap_analysis = state.get("skill_gap_analysis") or state.get("match_result") or {}
         response = await chain.ainvoke(
             {
-                "candidate_cv": json.dumps(candidate_cv, indent=2, ensure_ascii=False),
+                "candidate_cv": json.dumps(_cv_content_for_llm(candidate_cv), indent=2, ensure_ascii=False),
                 "job_offer": json.dumps(job_offer, indent=2, ensure_ascii=False),
                 "skill_gap_analysis": json.dumps(skill_gap_analysis, indent=2, ensure_ascii=False),
+                "output_language": output_language_name(state.get("language")),
             }
         )
 
         output_dict = parse_json_markdown(response.content if hasattr(response, "content") else str(response))
+        # A summary describing the job instead of the candidate never reaches the CV: it is
+        # replaced now, and the validator asks the model to rewrite it (one retry).
+        problem = None
+        if isinstance(output_dict, dict):
+            raw_summary = output_dict.get("resume_optimise")
+            raw_summary = raw_summary.get("contenu") if isinstance(raw_summary, dict) else raw_summary
+            problem = summary_problem(str(raw_summary or ""), job_offer, target_position(candidate_cv))
+            if problem:
+                logger.warning("CV summary rejected: %s", problem)
+                output_dict["resume_optimise"] = {"contenu": fallback_summary(candidate_cv, job_offer, state.get("language") or "en")}
         normalized_output = _normalize_optimized_output(output_dict, candidate_cv)
         optimized_result = OptimizedCVOutput(**normalized_output).model_dump()
     except Exception as e:
         logger.error("Erreur lors de l'optimisation du CV: %s", e)
         optimized_result = _build_fallback_result(candidate_cv)
+        used_fallback = True
+        problem = None
+    else:
+        used_fallback = False
 
     return {
         "optimized_cv": optimized_result,
+        "summary_problem": problem,
+        "used_fallback": used_fallback,
         "iteration_count": current_count + 1,
         "messages": [AIMessage(content=f"Optimisation terminee (Tentative {current_count + 1})", name="cv_optimizer")],
     }
 
 
+# At most this many LLM calls per CV: a retry only happens for problems the model can fix.
+MAX_ATTEMPTS = 2
+
+
+def _entry_checks(kind: str, entry: dict, source: dict | None) -> tuple[list[str], list[str]]:
+    """(blocking, advisory) problems of one optimized experience/project.
+
+    The normalization already guarantees real entries, real technologies, no placeholder
+    and at least the source tasks, so those are not re-checked here."""
+    title = entry.get("titre", "")
+    blocking, advisory = [], []
+    bullets = _split_structured_bullets(entry.get("taches_optimisees"))
+    source_bullets = {b.lstrip("- ").strip().lower() for b in _split_structured_bullets(_source_tasks(source or {}))}
+
+    # A giant bullet written by the model (not copied from the profile) can be rewritten.
+    if any(_looks_like_giant_paragraph(b) and b.lstrip("- ").strip().lower() not in source_bullets for b in bullets):
+        blocking.append(f"{kind} '{title}' contient une puce trop longue pour un CV : fais des puces courtes.")
+
+    if len(bullets) > 5:
+        advisory.append(f"{kind} '{title}' contient plus de 5 puces.")
+    if bullets and not any(_starts_with_action_verb(b) for b in bullets):
+        advisory.append(f"{kind} '{title}' : puces sans verbe d'action.")
+    if bullets and not any(_has_metric_impact_or_placeholder(b) for b in bullets):
+        advisory.append(f"{kind} '{title}' : aucun résultat ou impact visible.")
+    desc = str(entry.get("description_optimisee") or "").strip()
+    if desc and ("\n" in desc or len(re.findall(r"[.!?]", desc)) > 3):
+        advisory.append(f"{kind} '{title}' : description longue.")
+    return blocking, advisory
+
+
 def cv_validator_node(state: CVOptimizerState) -> dict:
+    """Checks the (normalized) optimized CV. Only "blocking" problems, which the model can
+    fix, trigger a new attempt; the others are logged."""
     logger.info("Validation algorithmique CV Optimizer - START")
     original_cv = state.get("candidate_cv", {})
     optimized_cv = state.get("optimized_cv", {})
     job_offer = state.get("job_offer", {})
     skill_gap_analysis = state.get("skill_gap_analysis") or state.get("match_result") or {}
-    current_errors = []
+    blocking: list[str] = []
+    advisory: list[str] = []
 
     if not optimized_cv:
-        return {"errors": ["Validator: Aucune donnee optimisee."]}
+        return {"validation_errors": ["Aucune donnee optimisee."]}
 
     orig_exps = original_cv.get("experiences", [])
     opt_exps = optimized_cv.get("experiences_optimisees", [])
-    orig_exp_titles = [_normalized_title(e.get("titre", "")) for e in orig_exps]
-    opt_exp_titles = [_normalized_title(e.get("titre", "")) for e in opt_exps]
-
-    if len(opt_exps) < len(orig_exps):
-        current_errors.append("Tu as supprime des experiences. Tu dois toutes les garder.")
-    for opt_title in opt_exp_titles:
-        if opt_title not in orig_exp_titles:
-            current_errors.append(
-                f"L'experience '{opt_title}' n'existe pas dans le profil original. Interdiction d'inventer ou de changer le titre original."
-            )
-
     orig_projs = original_cv.get("projets", [])
     opt_projs = optimized_cv.get("projets_optimises", [])
-    orig_proj_titles = [_normalized_title(p.get("titre", "")) for p in orig_projs]
-    opt_proj_titles = [_normalized_title(p.get("titre", "")) for p in opt_projs]
 
-    if len(opt_projs) < len(orig_projs):
-        current_errors.append("Tu as supprime des projets. Tu dois tous les garder.")
-    for opt_title in opt_proj_titles:
-        if opt_title not in orig_proj_titles:
-            current_errors.append(
-                f"Le projet '{opt_title}' n'existe pas dans le profil original. Interdiction d'inventer ou de changer le titre original."
-            )
+    for kind, entries, sources in (("L'experience", opt_exps, orig_exps), ("Le projet", opt_projs, orig_projs)):
+        for entry in entries:
+            source = next((s for s in sources if _normalized_title(s.get("titre", "")) == _normalized_title(entry.get("titre", ""))), None)
+            b, a = _entry_checks(kind, entry, source)
+            blocking += b
+            advisory += a
 
-    orig_forms = original_cv.get("formations", [])
-    opt_forms = optimized_cv.get("formations_optimisees", [])
-    if len(opt_forms) < len(orig_forms):
-        current_errors.append("Tu as supprime des formations. Tu dois toutes les garder.")
-
-    orig_certs = original_cv.get("certifications", [])
-    opt_certs = optimized_cv.get("certifications_optimisees", [])
-    if len(opt_certs) < len(orig_certs):
-        current_errors.append("Tu as supprime des certifications. Tu dois toutes les garder.")
-
-    for opt_exp in opt_exps:
-        matching_source = next(
-            (exp for exp in orig_exps if _normalized_title(exp.get("titre", "")) == _normalized_title(opt_exp.get("titre", ""))),
-            None,
+    if state.get("summary_problem"):
+        blocking.append(
+            f"Le resume (resume_optimise.contenu) est refuse : {state['summary_problem']}. "
+            "Reecris-le a la premiere personne sur le CANDIDAT, 45 a 70 mots : qui il est, "
+            "le poste qu'il recherche (le \"poste_vise\" du profil tel quel, sinon d'apres l'offre), "
+            "ses 2-3 atouts du profil."
         )
-        bullets = _split_structured_bullets(opt_exp.get("taches_optimisees"))
-        if matching_source and _has_meaningful_source_content(matching_source) and not bullets:
-            current_errors.append(f"L'experience '{opt_exp.get('titre', '')}' doit contenir des taches optimisees.")
-        if len(bullets) > 5:
-            current_errors.append(f"L'experience '{opt_exp.get('titre', '')}' contient trop de puces.")
-        for bullet in bullets:
-            if _looks_like_giant_paragraph(bullet):
-                current_errors.append(f"L'experience '{opt_exp.get('titre', '')}' contient une puce trop longue pour un CV.")
-                break
-        if bullets and not any(_starts_with_action_verb(bullet) for bullet in bullets):
-            current_errors.append(f"L'experience '{opt_exp.get('titre', '')}' doit commencer ses puces par des verbes d'action.")
-        if bullets and not any(_has_metric_impact_or_placeholder(bullet) for bullet in bullets):
-            current_errors.append(f"L'experience '{opt_exp.get('titre', '')}' devrait montrer au moins un resultat, impact ou chiffre.")
-        if _placeholder_heavy(bullets):
-            current_errors.append(f"L'experience '{opt_exp.get('titre', '')}' abuse des placeholders de metriques.")
-        desc = str(opt_exp.get("description_optimisee") or "").strip()
-        if desc and ("\n" in desc or len(re.findall(r"[.!?]", desc)) > 3):
-            current_errors.append(f"L'experience '{opt_exp.get('titre', '')}' doit garder une description courte et naturelle.")
-
-    for opt_proj in opt_projs:
-        matching_source = next(
-            (proj for proj in orig_projs if _normalized_title(proj.get("titre", "")) == _normalized_title(opt_proj.get("titre", ""))),
-            None,
-        )
-        bullets = _split_structured_bullets(opt_proj.get("taches_optimisees"))
-        if matching_source and _has_meaningful_source_content(matching_source) and not bullets:
-            current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' doit contenir des taches optimisees.")
-        if len(bullets) > 5:
-            current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' contient trop de puces.")
-        for bullet in bullets:
-            if _looks_like_giant_paragraph(bullet):
-                current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' contient une puce trop longue pour un CV.")
-                break
-        if bullets and not any(_starts_with_action_verb(bullet) for bullet in bullets):
-            current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' doit commencer ses puces par des verbes d'action.")
-        if bullets and not any(_has_metric_impact_or_placeholder(bullet) for bullet in bullets):
-            current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' devrait montrer au moins un resultat, impact ou chiffre.")
-        if _placeholder_heavy(bullets):
-            current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' abuse des placeholders de metriques.")
-        if matching_source and not _project_tech_subset_valid(opt_proj, matching_source):
-            current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' contient des technologies absentes de la source.")
-        desc = str(opt_proj.get("description_optimisee") or "").strip()
-        if desc and ("\n" in desc or len(re.findall(r"[.!?]", desc)) > 3):
-            current_errors.append(f"Le projet '{opt_proj.get('titre', '')}' doit garder une description courte et naturelle.")
 
     job_keywords = _extract_job_keywords(job_offer, skill_gap_analysis)
     combined_text_parts = []
@@ -591,16 +654,10 @@ def cv_validator_node(state: CVOptimizerState) -> dict:
     combined_text = " ".join(part.lower() for part in combined_text_parts if str(part).strip())
     matched_keywords = [keyword for keyword in job_keywords if keyword and keyword in combined_text]
     if job_keywords and not matched_keywords:
-        current_errors.append("Le CV optimise ne reprend aucun mot-cle significatif de l'offre.")
+        blocking.append("Le CV optimise ne reprend aucun mot-cle significatif de l'offre.")
 
     highlighted_skills = optimized_cv.get("competences_mises_en_avant", []) or []
     ordered_skills = optimized_cv.get("competences_reordonnees", []) or []
-    if highlighted_skills:
-        ordered_lower = {str(skill).strip().lower() for skill in ordered_skills}
-        for skill in highlighted_skills:
-            if str(skill).strip().lower() not in ordered_lower:
-                current_errors.append("Les competences mises en avant doivent provenir de competences_reordonnees.")
-                break
 
     gap_priorities = _collect_gap_priorities(skill_gap_analysis)
     if gap_priorities:
@@ -614,32 +671,34 @@ def cv_validator_node(state: CVOptimizerState) -> dict:
         )
         optimized_priority_text = " ".join([combined_text, highlighted_text, ordered_text, targeted_text])
         if not any(_contains_priority(optimized_priority_text, priority) for priority in gap_priorities[:10]):
-            current_errors.append(
-                "Le CV optimise ignore skill_gap_analysis: aucune priorite d'ecart n'apparait dans les competences ou contenus cibles."
-            )
-
+            advisory.append("Aucune priorite de skill_gap_analysis n'apparait dans le CV optimise.")
         if highlighted_skills and not any(_contains_priority(highlighted_text, priority) for priority in gap_priorities[:10]):
-            current_errors.append(
-                "Les competences mises en avant doivent chevaucher les priorites de skill_gap_analysis quand elles existent dans la source."
-            )
+            advisory.append("Les competences mises en avant ne recoupent pas les priorites de skill_gap_analysis.")
 
+    if advisory:
+        logger.info("CV Optimizer — remarques (sans nouvelle tentative) : %s", advisory[:5])
     return {
-        "errors": current_errors,
-        "messages": [AIMessage(content=f"Validation terminee. {len(current_errors)} erreurs.", name="validator")],
+        # Replaced at each validation: the router looks at the latest attempt only.
+        "validation_errors": blocking,
+        "messages": [AIMessage(
+            content=f"Validation terminee. {len(blocking)} probleme(s) bloquant(s), {len(advisory)} remarque(s).",
+            name="validator",
+        )],
     }
 
 
 def cv_optimizer_router(state: CVOptimizerState) -> str:
+    """New attempt only for problems of the latest attempt that the model can fix, at most
+    MAX_ATTEMPTS calls, and never after an LLM failure (the fallback CV is final)."""
     count = state.get("iteration_count", 0)
-    errors = state.get("errors", [])
+    problems = state.get("validation_errors") or []
 
-    if errors and count < 3:
-        logger.warning("Retry CV Optimizer (Tentative %s/3). Raison: %s", count, errors[-1:])
+    if problems and count < MAX_ATTEMPTS and not state.get("used_fallback"):
+        logger.warning("Retry CV Optimizer (tentative %s/%s). Raison: %s", count + 1, MAX_ATTEMPTS, problems[:2])
         return "retry"
 
-    if errors:
-        logger.warning("Max retries atteint. Fin avec erreurs.")
+    if problems:
+        logger.warning("CV Optimizer : fin avec %s probleme(s) non corrige(s).", len(problems))
     else:
         logger.info("CV optimise valide avec succes.")
-
     return "end"

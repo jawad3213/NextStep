@@ -31,6 +31,10 @@ export class ProfileApiService {
     return this.http.put<MessageResponse>(`${this.baseUrl}/personal-info`, data);
   }
 
+  updateLanguagePreference(language: 'en' | 'fr'): Observable<MessageResponse> {
+    return this.http.put<MessageResponse>(`${this.baseUrl}/language`, { language });
+  }
+
   // ── Experiences ────────────────────────────────────────────────────────────
   addExperience(data: ExperienceDto): Observable<MessageResponse> {
     return this.http.post<MessageResponse>(`${this.baseUrl}/experiences`, data);

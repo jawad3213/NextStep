@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, effect } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -7,11 +7,15 @@ import { ProfileApiService } from '@features/profile/data-access/profile-api.ser
 import { AuthService } from '@core/auth/auth.service';
 import { ProfileService } from '@features/profile/data-access/profile.service';
 import { EmailService } from '@features/applications/data-access/email.service';
+import { LanguageService, AppLang } from '@core/i18n/language.service';
+import { TranslatePipe } from '@core/i18n/translate.pipe';
+import { ToastService } from '@core/notifications/toast.service';
+import { extractApiError } from '@core/http/extract-api-error';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss'
 })
@@ -21,12 +25,18 @@ export class SettingsComponent implements OnInit {
   private router = inject(Router);
   private emailService = inject(EmailService);
   private profileService = inject(ProfileService);
+  private toast = inject(ToastService);
+  readonly langService = inject(LanguageService);
 
   gmailConnected = signal(false);
+  /** Connected, but Google access was lost (revoked, permission missing...): offer to reconnect. */
+  gmailNeedsReconnect = signal(false);
+  gmailBusy = signal(false);
   gmailEmailAddress = signal<string | null>(null);
   emailNotifs = signal(true);
   interviewReminders = signal(true);
-  language = signal('fr');
+  /** Two-way bound to the select — keep in sync with LanguageService */
+  language = computed(() => this.langService.lang());
   timezone = signal('Africa/Casablanca');
   linkedinUrl = signal('');
 
@@ -38,9 +48,7 @@ export class SettingsComponent implements OnInit {
     effect(() => {
       localStorage.setItem('ns_settings_interview_reminders', this.interviewReminders().toString());
     });
-    effect(() => {
-      localStorage.setItem('ns_settings_language', this.language());
-    });
+    // Language is persisted by LanguageService itself — no effect needed here.
     effect(() => {
       localStorage.setItem('ns_settings_timezone', this.timezone());
     });
@@ -63,10 +71,12 @@ export class SettingsComponent implements OnInit {
     this.emailService.getGmailStatus().subscribe({
       next: (status) => {
         this.gmailConnected.set(status.isConnected && status.isTokenValid);
+        this.gmailNeedsReconnect.set(status.isConnected && !status.isTokenValid && status.needsReconnect !== false);
         this.gmailEmailAddress.set(status.emailAddress);
       },
       error: () => {
         this.gmailConnected.set(false);
+        this.gmailNeedsReconnect.set(false);
         this.gmailEmailAddress.set(null);
       }
     });
@@ -79,8 +89,7 @@ export class SettingsComponent implements OnInit {
     const savedInterviewReminders = localStorage.getItem('ns_settings_interview_reminders');
     if (savedInterviewReminders !== null) this.interviewReminders.set(savedInterviewReminders === 'true');
 
-    const savedLanguage = localStorage.getItem('ns_settings_language');
-    if (savedLanguage !== null) this.language.set(savedLanguage);
+    // Language is restored by LanguageService on boot — no action needed.
 
     const savedTimezone = localStorage.getItem('ns_settings_timezone');
     if (savedTimezone !== null) this.timezone.set(savedTimezone);
@@ -96,35 +105,50 @@ export class SettingsComponent implements OnInit {
     this.profileService.downloadProfileJson();
   }
 
+  onLangChange(lang: string): void {
+    if (lang === 'en' || lang === 'fr') {
+      // Persists server-side (used for generated CVs/resumes) and updates the UI right away.
+      void this.profileService.setLanguagePreference(lang as AppLang);
+    }
+  }
+
   toggleGmail() {
+    if (this.gmailBusy()) return;
     if (this.gmailConnected()) {
-      if (confirm('Etes-vous sur de vouloir deconnecter votre compte Gmail ?')) {
-        this.emailService.disconnectGmail().subscribe({
-          next: () => {
-            this.gmailConnected.set(false);
-            this.gmailEmailAddress.set(null);
-          },
-          error: (err) => {
-            console.error('Erreur deconnexion Gmail:', err);
-            alert('Impossible de deconnecter le compte Gmail.');
-          }
-        });
-      }
-    } else {
-      this.emailService.getGmailLoginUrl().subscribe({
-        next: (res) => {
-          if (res?.url) {
-            window.location.href = res.url;
-          } else {
-            alert('Lien de connexion Gmail indisponible.');
-          }
+      if (!confirm('Disconnect your Gmail account? NextStep will stop sending emails and checking replies.')) return;
+      this.gmailBusy.set(true);
+      this.emailService.disconnectGmail().subscribe({
+        next: () => {
+          this.gmailConnected.set(false);
+          this.gmailNeedsReconnect.set(false);
+          this.gmailEmailAddress.set(null);
+          this.gmailBusy.set(false);
+          this.toast.success('Gmail disconnected.');
         },
         error: (err) => {
-          console.error('Erreur obtention lien Gmail:', err);
-          alert('Impossible d\'obtenir le lien de connexion Gmail. Veuillez verifier les credentials.');
+          this.gmailBusy.set(false);
+          this.toast.error(extractApiError(err).message || 'Unable to disconnect the Gmail account.');
         }
       });
+      return;
     }
+
+    // Connect or reconnect: Google sends the browser back to Settings > Gmail with the result.
+    this.gmailBusy.set(true);
+    this.emailService.getGmailLoginUrl().subscribe({
+      next: (res) => {
+        if (res?.url?.startsWith('https://accounts.google.com/')) {
+          window.location.href = res.url;
+        } else {
+          this.gmailBusy.set(false);
+          this.toast.error('The Gmail connection link is invalid. Please try again.');
+        }
+      },
+      error: (err) => {
+        this.gmailBusy.set(false);
+        this.toast.error(extractApiError(err).message || 'Unable to start the Gmail connection.');
+      }
+    });
   }
 
   manageGmailCredentials() {
@@ -142,22 +166,22 @@ export class SettingsComponent implements OnInit {
 
     try {
       await this.profileService.savePersonalInfo(updatedPersonal);
-      alert('URL du profil LinkedIn enregistree avec succes.');
+      alert('LinkedIn profile URL saved successfully.');
       await this.profileService.refreshProfile();
     } catch (err) {
-      console.error('Erreur lors de l\'enregistrement de l\'URL LinkedIn:', err);
-      alert('Erreur lors de l\'enregistrement de l\'URL.');
+      console.error('Error saving LinkedIn URL:', err);
+      alert('Error saving the URL.');
     }
   }
 
   async clearData() {
-    if (confirm('Etes-vous sur de vouloir effacer toutes vos donnees ? Cette action est irreversible.')) {
+    if (confirm('Are you sure you want to delete all your data? This action is irreversible.')) {
       try {
         await firstValueFrom(this.profileApi.clearProfile());
         window.location.reload();
       } catch (err) {
         console.error('Failed to clear profile data:', err);
-        alert('Echec de la suppression des donnees. Veuillez reessayer.');
+        alert('Failed to delete data. Please try again.');
       }
     }
   }

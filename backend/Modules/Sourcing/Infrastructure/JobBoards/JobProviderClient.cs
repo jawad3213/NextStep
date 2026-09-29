@@ -28,16 +28,25 @@ public class JobProviderClient(IAgentHttpClient agentHttpClient, ILogger<JobProv
                 },
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
+            // The exception text stays in the logs: it can hold internal URLs and is no use to the user.
             logger.LogWarning(ex, "Sourced offer search failed for provider {Provider}", provider);
             return new ProviderSearchResult
             {
                 Provider = provider,
-                Errors = [$"{provider}: {ex.Message}"],
+                Errors = [$"{DisplayName(provider)} is unavailable right now. Showing cached offers for this provider."],
             };
         }
     }
+
+    private static string DisplayName(string provider) => provider switch
+    {
+        "linkedin" => "LinkedIn",
+        "indeed" => "Indeed",
+        "glassdoor" => "Glassdoor",
+        _ => provider,
+    };
 
     private async Task<ProviderSearchResult> SearchLinkedInAsync(SourcedOfferSearchRequest request, CancellationToken ct)
     {

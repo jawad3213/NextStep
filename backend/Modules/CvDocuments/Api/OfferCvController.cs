@@ -31,7 +31,7 @@ public class OfferCvController(
     {
         var userId = await profile.EnsureUserIdAsync(User);
         return Ok(await cvDraftService.GetCvDraftAsync(userId, id, ct)
-                  ?? throw new NotFoundException("Brouillon de CV introuvable."));
+                  ?? throw new NotFoundException("CV draft not found."));
     }
 
     [HttpPatch("{id:guid}/cv-draft")]

@@ -8,7 +8,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace NextStep.Modules.Profile.Infrastructure.Persistence.Migrations {
+namespace NextStep.Modules.Profile.Infrastructure.Persistence.Migrations
+{
     [DbContext(typeof(ProfileDbContext))]
     partial class ProfileDbContextModelSnapshot : ModelSnapshot
     {
@@ -351,6 +352,12 @@ namespace NextStep.Modules.Profile.Infrastructure.Persistence.Migrations {
                     b.Property<string>("PhotoUrl")
                         .HasColumnType("text")
                         .HasColumnName("photo_url");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("preferred_language")
+                        .HasDefaultValue("en");
 
                     b.Property<string>("Prenom")
                         .HasColumnType("text")

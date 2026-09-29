@@ -300,17 +300,15 @@ class TestStartInterviewService:
     """Teste le démarrage d'une session mock interview."""
 
     @pytest.mark.asyncio
-    async def test_cree_session_en_db(self, mock_db, user_id, arena_config_schema):
+    async def test_utilise_la_session_du_backend_sans_ecrire_en_db(self, mock_db, user_id, arena_config_schema):
         """
-        Doit créer une ligne dans session_coaching avec status='in_progress'.
+        La session est créée par le backend (module Coaching) : l'agent reprend son id
+        et n'écrit rien en base.
         """
         opening_msg = "Hello! I'm the interviewer. Tell me about yourself."
         fake_result = {
             "messages": [MessageTurn(role="ai", content=opening_msg)]
         }
-
-        # Simuler db.execute pour get_candidature_id
-        mock_db.execute = AsyncMock(return_value=make_execute_result(None))
 
         session_id = "55555555-5555-5555-5555-555555555555"
         with patch(
@@ -328,17 +326,10 @@ class TestStartInterviewService:
 
         assert isinstance(result, StartInterviewResponse)
         assert result.opening_message == opening_msg
-        assert result.session_id      != ""
+        assert result.session_id      == session_id
 
-        # db.add appelé au moins 1 fois (session_coaching)
-        assert mock_db.add.call_count >= 1
-
-        # Vérifier que la session a bien été créée avec status in_progress
-        from app.domain.chatbot.models import SessionCoaching
-        session_obj = mock_db.add.call_args_list[0][0][0]
-        assert isinstance(session_obj, SessionCoaching)
-        assert session_obj.status == "started"
-        assert session_obj.mode   == "arena"
+        mock_db.add.assert_not_called()
+        mock_db.commit.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_retourne_message_ouverture(self, mock_db, user_id, arena_config_schema):
@@ -457,11 +448,11 @@ class TestEndInterviewService:
         assert len(result.feedback.coaching_tips) == 3
 
     @pytest.mark.asyncio
-    async def test_met_a_jour_session_en_db(
+    async def test_retourne_le_score_sans_ecrire_en_db(
         self, mock_db_with_session, session_id, user_id,
         arena_config_schema, message_history, mock_feedback_result
     ):
-        """La session doit être mise à jour avec status='completed' et le score."""
+        """L'agent évalue ; le backend (module Coaching) enregistre le score et le feedback."""
         mock_db, session_row = mock_db_with_session
 
         fake_result = {"feedback": mock_feedback_result}
@@ -470,7 +461,7 @@ class TestEndInterviewService:
             "app.domain.chatbot.graph.interview_graph.ainvoke",
             new=AsyncMock(return_value=fake_result)
         ):
-            await service.end_interview_service(
+            result = await service.end_interview_service(
                 session_id=session_id,
                 history=message_history,
                 mode="arena",
@@ -480,13 +471,10 @@ class TestEndInterviewService:
                 db=mock_db,
             )
 
-        # Vérifier les mises à jour sur la session
-        assert session_row.status          == "completed"
-        assert session_row.score_entretien == 74
-        assert session_row.completed_at    is not None
-        assert session_row.feedback_json   is not None
-
-        mock_db.commit.assert_called()
+        assert result.score == 74
+        assert result.feedback.global_score == 74
+        mock_db.get.assert_not_called()
+        mock_db.commit.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_score_zero_si_pas_de_feedback(

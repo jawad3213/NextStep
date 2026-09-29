@@ -19,8 +19,8 @@ public static class OfferAnalysisMapper
         // OR fallback to the root level (Manual Submission format)
         var source = root.TryGetProperty("analyzed_offer", out var ao) ? ao : root;
 
-        dto.Titre = source.GetStringOrDefault("titre") ?? "Poste non défini";
-        dto.Entreprise = source.GetStringOrDefault("entreprise") ?? "Entreprise non renseignée";
+        dto.Titre = source.GetStringOrDefault("titre") ?? "Position not defined";
+        dto.Entreprise = source.GetStringOrDefault("entreprise") ?? "Company not specified";
         dto.TypeContrat = source.GetStringOrDefault("type_contrat");
         dto.Localisation = source.GetStringOrDefault("localisation");
         dto.DescriptionPoste = source.GetStringOrDefault("description_poste");

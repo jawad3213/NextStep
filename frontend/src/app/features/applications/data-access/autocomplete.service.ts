@@ -12,15 +12,15 @@ export interface CompanySuggestion {
 }
 
 export type JobCategory =
-  | 'Ingénierie & Dev'
-  | 'Data & IA'
+  | 'Engineering & Dev'
+  | 'Data & AI'
   | 'Cloud & DevOps'
-  | 'Produit & Design'
-  | 'Cybersécurité'
+  | 'Product & Design'
+  | 'Cybersecurity'
   | 'Management'
-  | 'QA & Test'
+  | 'QA & Testing'
   | 'Business Tech'
-  | 'Autre';
+  | 'Other';
 
 export interface JobTitleSuggestion {
   title: string;
@@ -157,100 +157,100 @@ export class AutocompleteService {
 
   // ── Curated Job Taxonomy: 200+ Modern Tech & Corporate Roles ───────────────
   private readonly jobCatalog: Array<{ title: string; category: JobCategory; aliases?: string[] }> = [
-    // 1. Ingénierie Logicielle & Développement
-    { title: 'Développeur Full Stack', category: 'Ingénierie & Dev', aliases: ['fullstack', 'fs', 'swe', 'dev'] },
-    { title: 'Développeur Frontend', category: 'Ingénierie & Dev', aliases: ['front', 'ui dev', 'web'] },
-    { title: 'Développeur Backend', category: 'Ingénierie & Dev', aliases: ['back', 'api dev', 'server'] },
-    { title: 'Software Engineer', category: 'Ingénierie & Dev', aliases: ['swe', 'ingénieur logiciel', 'dev'] },
-    { title: 'Senior Software Engineer', category: 'Ingénierie & Dev', aliases: ['sr swe', 'senior dev'] },
-    { title: 'Lead Developer', category: 'Ingénierie & Dev', aliases: ['tech lead', 'lead dev', 'lead tech'] },
-    { title: 'Architecte Logiciel', category: 'Ingénierie & Dev', aliases: ['software architect', 'arch'] },
-    { title: 'Développeur Angular', category: 'Ingénierie & Dev', aliases: ['angular', 'front angular', 'typescript'] },
-    { title: 'Développeur React', category: 'Ingénierie & Dev', aliases: ['react', 'reactjs', 'nextjs'] },
-    { title: 'Développeur Vue.js', category: 'Ingénierie & Dev', aliases: ['vue', 'nuxtjs'] },
-    { title: 'Développeur .NET / C#', category: 'Ingénierie & Dev', aliases: ['dotnet', 'c#', 'csharp', 'asp.net'] },
-    { title: 'Développeur Java / Spring Boot', category: 'Ingénierie & Dev', aliases: ['java', 'spring', 'springboot'] },
-    { title: 'Développeur Python', category: 'Ingénierie & Dev', aliases: ['python', 'django', 'fastapi', 'flask'] },
-    { title: 'Développeur Node.js / TypeScript', category: 'Ingénierie & Dev', aliases: ['nodejs', 'express', 'nest', 'nestjs'] },
-    { title: 'Développeur Go (Golang)', category: 'Ingénierie & Dev', aliases: ['go', 'golang'] },
-    { title: 'Développeur PHP / Symfony', category: 'Ingénierie & Dev', aliases: ['php', 'symfony', 'laravel'] },
-    { title: 'Développeur C / C++', category: 'Ingénierie & Dev', aliases: ['c++', 'cpp', 'système'] },
-    { title: 'Développeur Rust', category: 'Ingénierie & Dev', aliases: ['rust'] },
-    { title: 'Développeur Mobile iOS (Swift)', category: 'Ingénierie & Dev', aliases: ['ios', 'swift', 'swiftui', 'mobile'] },
-    { title: 'Développeur Mobile Android (Kotlin)', category: 'Ingénierie & Dev', aliases: ['android', 'kotlin', 'mobile'] },
-    { title: 'Développeur Flutter', category: 'Ingénierie & Dev', aliases: ['flutter', 'dart', 'cross-platform'] },
-    { title: 'Développeur React Native', category: 'Ingénierie & Dev', aliases: ['react native', 'rn', 'mobile'] },
-    { title: 'Développeur Systèmes Embarqués', category: 'Ingénierie & Dev', aliases: ['embedded', 'iot', 'embarqué'] },
-    { title: 'Ingénieur Blockchain / Web3', category: 'Ingénierie & Dev', aliases: ['web3', 'solidity', 'crypto', 'smart contracts'] },
-    { title: 'Développeur No-Code / Low-Code', category: 'Ingénierie & Dev', aliases: ['bubble', 'make', 'zapier', 'nocode'] },
-    { title: 'Stage PFE - Ingénieur Logiciel', category: 'Ingénierie & Dev', aliases: ['stage', 'pfe', 'internship', 'stagiaire'] },
-    { title: 'Alternant Développeur Web', category: 'Ingénierie & Dev', aliases: ['alternance', 'apprenti', 'apprentice'] },
+    // 1. Software Engineering & Development
+    { title: 'Full Stack Developer', category: 'Engineering & Dev', aliases: ['fullstack', 'fs', 'swe', 'dev'] },
+    { title: 'Frontend Developer', category: 'Engineering & Dev', aliases: ['front', 'ui dev', 'web'] },
+    { title: 'Backend Developer', category: 'Engineering & Dev', aliases: ['back', 'api dev', 'server'] },
+    { title: 'Software Engineer', category: 'Engineering & Dev', aliases: ['swe', 'software dev', 'dev'] },
+    { title: 'Senior Software Engineer', category: 'Engineering & Dev', aliases: ['sr swe', 'senior dev'] },
+    { title: 'Lead Developer', category: 'Engineering & Dev', aliases: ['tech lead', 'lead dev', 'lead tech'] },
+    { title: 'Software Architect', category: 'Engineering & Dev', aliases: ['architect', 'arch'] },
+    { title: 'Angular Developer', category: 'Engineering & Dev', aliases: ['angular', 'front angular', 'typescript'] },
+    { title: 'React Developer', category: 'Engineering & Dev', aliases: ['react', 'reactjs', 'nextjs'] },
+    { title: 'Vue.js Developer', category: 'Engineering & Dev', aliases: ['vue', 'nuxtjs'] },
+    { title: '.NET / C# Developer', category: 'Engineering & Dev', aliases: ['dotnet', 'c#', 'csharp', 'asp.net'] },
+    { title: 'Java / Spring Boot Developer', category: 'Engineering & Dev', aliases: ['java', 'spring', 'springboot'] },
+    { title: 'Python Developer', category: 'Engineering & Dev', aliases: ['python', 'django', 'fastapi', 'flask'] },
+    { title: 'Node.js / TypeScript Developer', category: 'Engineering & Dev', aliases: ['nodejs', 'express', 'nest', 'nestjs'] },
+    { title: 'Go (Golang) Developer', category: 'Engineering & Dev', aliases: ['go', 'golang'] },
+    { title: 'PHP / Symfony Developer', category: 'Engineering & Dev', aliases: ['php', 'symfony', 'laravel'] },
+    { title: 'C / C++ Developer', category: 'Engineering & Dev', aliases: ['c++', 'cpp', 'systems'] },
+    { title: 'Rust Developer', category: 'Engineering & Dev', aliases: ['rust'] },
+    { title: 'Mobile iOS Developer (Swift)', category: 'Engineering & Dev', aliases: ['ios', 'swift', 'swiftui', 'mobile'] },
+    { title: 'Mobile Android Developer (Kotlin)', category: 'Engineering & Dev', aliases: ['android', 'kotlin', 'mobile'] },
+    { title: 'Flutter Developer', category: 'Engineering & Dev', aliases: ['flutter', 'dart', 'cross-platform'] },
+    { title: 'React Native Developer', category: 'Engineering & Dev', aliases: ['react native', 'rn', 'mobile'] },
+    { title: 'Embedded Systems Developer', category: 'Engineering & Dev', aliases: ['embedded', 'iot'] },
+    { title: 'Blockchain / Web3 Engineer', category: 'Engineering & Dev', aliases: ['web3', 'solidity', 'crypto', 'smart contracts'] },
+    { title: 'No-Code / Low-Code Developer', category: 'Engineering & Dev', aliases: ['bubble', 'make', 'zapier', 'nocode'] },
+    { title: 'Software Engineer Intern (Graduation)', category: 'Engineering & Dev', aliases: ['intern', 'internship', 'pfe', 'trainee'] },
+    { title: 'Web Developer Apprentice', category: 'Engineering & Dev', aliases: ['apprentice', 'co-op', 'alternance'] },
 
-    // 2. Data, IA & Analytics
-    { title: 'Data Scientist', category: 'Data & IA', aliases: ['data science', 'ds', 'machine learning'] },
-    { title: 'Data Engineer', category: 'Data & IA', aliases: ['de', 'pipeline', 'spark', 'sql', 'etl'] },
-    { title: 'Machine Learning Engineer', category: 'Data & IA', aliases: ['mle', 'ml engineer', 'ia', 'deep learning'] },
-    { title: 'AI Engineer / Ingénieur IA Générative', category: 'Data & IA', aliases: ['ai', 'ia', 'genai', 'llm', 'rag'] },
-    { title: 'Data Analyst', category: 'Data & IA', aliases: ['analytics', 'bi', 'sql', 'tableau', 'powerbi'] },
-    { title: 'Analytics Engineer', category: 'Data & IA', aliases: ['dbt', 'snowflake', 'bigquery', 'data'] },
-    { title: 'MLOps Engineer', category: 'Data & IA', aliases: ['mlops', 'ml infra', 'kubeflow'] },
-    { title: 'Computer Vision Engineer', category: 'Data & IA', aliases: ['vision', 'opencv', 'image'] },
-    { title: 'NLP Engineer', category: 'Data & IA', aliases: ['nlp', 'transformers', 'bert', 'huggingface'] },
-    { title: 'Data Architect', category: 'Data & IA', aliases: ['architecte data', 'lakehouse'] },
-    { title: 'Consultant Business Intelligence (BI)', category: 'Data & IA', aliases: ['bi', 'power bi', 'tableau'] },
-    { title: 'Stage Data Scientist / IA', category: 'Data & IA', aliases: ['stage data', 'pfe data'] },
-    { title: 'Alternant Data Engineer', category: 'Data & IA', aliases: ['alternance data'] },
+    // 2. Data, AI & Analytics
+    { title: 'Data Scientist', category: 'Data & AI', aliases: ['data science', 'ds', 'machine learning'] },
+    { title: 'Data Engineer', category: 'Data & AI', aliases: ['de', 'pipeline', 'spark', 'sql', 'etl'] },
+    { title: 'Machine Learning Engineer', category: 'Data & AI', aliases: ['mle', 'ml engineer', 'ai', 'deep learning'] },
+    { title: 'AI Engineer / Generative AI Engineer', category: 'Data & AI', aliases: ['ai', 'genai', 'llm', 'rag'] },
+    { title: 'Data Analyst', category: 'Data & AI', aliases: ['analytics', 'bi', 'sql', 'tableau', 'powerbi'] },
+    { title: 'Analytics Engineer', category: 'Data & AI', aliases: ['dbt', 'snowflake', 'bigquery', 'data'] },
+    { title: 'MLOps Engineer', category: 'Data & AI', aliases: ['mlops', 'ml infra', 'kubeflow'] },
+    { title: 'Computer Vision Engineer', category: 'Data & AI', aliases: ['vision', 'opencv', 'image'] },
+    { title: 'NLP Engineer', category: 'Data & AI', aliases: ['nlp', 'transformers', 'bert', 'huggingface'] },
+    { title: 'Data Architect', category: 'Data & AI', aliases: ['data architect', 'lakehouse'] },
+    { title: 'Business Intelligence (BI) Consultant', category: 'Data & AI', aliases: ['bi', 'power bi', 'tableau'] },
+    { title: 'Data Science / AI Intern', category: 'Data & AI', aliases: ['data intern', 'internship'] },
+    { title: 'Data Engineer Apprentice', category: 'Data & AI', aliases: ['apprentice', 'co-op'] },
 
     // 3. Cloud, DevOps & Infrastructure
     { title: 'DevOps Engineer', category: 'Cloud & DevOps', aliases: ['devops', 'ci/cd', 'docker', 'kubernetes', 'k8s'] },
     { title: 'Cloud Engineer', category: 'Cloud & DevOps', aliases: ['cloud', 'aws', 'azure', 'gcp', 'terraform'] },
-    { title: 'Site Reliability Engineer (SRE)', category: 'Cloud & DevOps', aliases: ['sre', 'fiabilité', 'incident'] },
-    { title: 'Architecte Cloud', category: 'Cloud & DevOps', aliases: ['cloud architect', 'aws architect', 'azure architect'] },
+    { title: 'Site Reliability Engineer (SRE)', category: 'Cloud & DevOps', aliases: ['sre', 'reliability', 'incident'] },
+    { title: 'Cloud Architect', category: 'Cloud & DevOps', aliases: ['cloud architect', 'aws architect', 'azure architect'] },
     { title: 'Platform Engineer', category: 'Cloud & DevOps', aliases: ['internal platform', 'developer experience'] },
-    { title: 'Ingénieur Systèmes & Réseaux', category: 'Cloud & DevOps', aliases: ['sysadmin', 'linux', 'infra', 'réseau'] },
-    { title: 'Administrateur Systèmes Linux', category: 'Cloud & DevOps', aliases: ['sysadmin linux', 'debian', 'redhat'] },
-    { title: 'Ingénieur Automatisation & Scripting', category: 'Cloud & DevOps', aliases: ['ansible', 'terraform', 'bash'] },
-    { title: 'Stage DevOps / Cloud', category: 'Cloud & DevOps', aliases: ['stage devops', 'pfe cloud'] },
+    { title: 'Systems & Network Engineer', category: 'Cloud & DevOps', aliases: ['sysadmin', 'linux', 'infra', 'network'] },
+    { title: 'Linux Systems Administrator', category: 'Cloud & DevOps', aliases: ['sysadmin linux', 'debian', 'redhat'] },
+    { title: 'Automation & Scripting Engineer', category: 'Cloud & DevOps', aliases: ['ansible', 'terraform', 'bash'] },
+    { title: 'DevOps / Cloud Intern', category: 'Cloud & DevOps', aliases: ['devops intern', 'cloud intern'] },
 
-    // 4. Produit, Design & Agilité
-    { title: 'Product Manager', category: 'Produit & Design', aliases: ['pm', 'product', 'roadmap'] },
-    { title: 'Senior Product Manager', category: 'Produit & Design', aliases: ['sr pm', 'lead pm'] },
-    { title: 'Product Owner', category: 'Produit & Design', aliases: ['po', 'backlog', 'user stories'] },
-    { title: 'UI/UX Designer', category: 'Produit & Design', aliases: ['ux', 'ui', 'figma', 'design', 'wireframe'] },
-    { title: 'Product Designer', category: 'Produit & Design', aliases: ['design produit', 'ux/ui'] },
-    { title: 'UX Researcher', category: 'Produit & Design', aliases: ['ux research', 'user research', 'recherche utilisateur'] },
-    { title: 'Design System Lead', category: 'Produit & Design', aliases: ['design tokens', 'composants'] },
-    { title: 'Scrum Master', category: 'Produit & Design', aliases: ['scrum', 'agile coach', 'kanban'] },
-    { title: 'Agile Coach', category: 'Produit & Design', aliases: ['coach agile', 'safe'] },
-    { title: 'Chef de Projet Digital / IT', category: 'Produit & Design', aliases: ['pmo', 'chef de projet', 'project manager'] },
-    { title: 'Technical Program Manager (TPM)', category: 'Produit & Design', aliases: ['tpm', 'delivery manager'] },
+    // 4. Product, Design & Agile
+    { title: 'Product Manager', category: 'Product & Design', aliases: ['pm', 'product', 'roadmap'] },
+    { title: 'Senior Product Manager', category: 'Product & Design', aliases: ['sr pm', 'lead pm'] },
+    { title: 'Product Owner', category: 'Product & Design', aliases: ['po', 'backlog', 'user stories'] },
+    { title: 'UI/UX Designer', category: 'Product & Design', aliases: ['ux', 'ui', 'figma', 'design', 'wireframe'] },
+    { title: 'Product Designer', category: 'Product & Design', aliases: ['product design', 'ux/ui'] },
+    { title: 'UX Researcher', category: 'Product & Design', aliases: ['ux research', 'user research'] },
+    { title: 'Design System Lead', category: 'Product & Design', aliases: ['design tokens', 'components'] },
+    { title: 'Scrum Master', category: 'Product & Design', aliases: ['scrum', 'agile coach', 'kanban'] },
+    { title: 'Agile Coach', category: 'Product & Design', aliases: ['coach agile', 'safe'] },
+    { title: 'Digital / IT Project Manager', category: 'Product & Design', aliases: ['pmo', 'project manager'] },
+    { title: 'Technical Program Manager (TPM)', category: 'Product & Design', aliases: ['tpm', 'delivery manager'] },
 
-    // 5. Cybersécurité
-    { title: 'Ingénieur Cybersécurité', category: 'Cybersécurité', aliases: ['cyber', 'sécurité', 'security engineer', 'secops'] },
-    { title: 'Analyste SOC (Security Operations Center)', category: 'Cybersécurité', aliases: ['soc', 'siem', 'incident response'] },
-    { title: 'Pentesteur / Ethical Hacker', category: 'Cybersécurité', aliases: ['pentest', 'audit intrusion', 'red team'] },
-    { title: 'Cloud Security Engineer', category: 'Cybersécurité', aliases: ['sécurité cloud', 'devsecops'] },
-    { title: 'DevSecOps Engineer', category: 'Cybersécurité', aliases: ['devsecops', 'security pipeline'] },
-    { title: 'Consultant GRC / Sécurité de l’Information', category: 'Cybersécurité', aliases: ['iso 27001', 'ebios', 'dpo'] },
-    { title: 'RSSI / CISO (Responsable Sécurité SI)', category: 'Cybersécurité', aliases: ['ciso', 'rssi', 'directeur sécurité'] },
+    // 5. Cybersecurity
+    { title: 'Cybersecurity Engineer', category: 'Cybersecurity', aliases: ['cyber', 'security', 'security engineer', 'secops'] },
+    { title: 'SOC Analyst (Security Operations Center)', category: 'Cybersecurity', aliases: ['soc', 'siem', 'incident response'] },
+    { title: 'Penetration Tester / Ethical Hacker', category: 'Cybersecurity', aliases: ['pentest', 'red team'] },
+    { title: 'Cloud Security Engineer', category: 'Cybersecurity', aliases: ['cloud security', 'devsecops'] },
+    { title: 'DevSecOps Engineer', category: 'Cybersecurity', aliases: ['devsecops', 'security pipeline'] },
+    { title: 'GRC / Information Security Consultant', category: 'Cybersecurity', aliases: ['iso 27001', 'ebios', 'dpo'] },
+    { title: 'CISO (Chief Information Security Officer)', category: 'Cybersecurity', aliases: ['ciso', 'security director'] },
 
-    // 6. Management & Direction Technique
+    // 6. Management & Technical Leadership
     { title: 'Engineering Manager', category: 'Management', aliases: ['em', 'head of engineering', 'manager tech'] },
     { title: 'Tech Lead / Lead Developer', category: 'Management', aliases: ['lead dev', 'lead tech'] },
-    { title: 'Chief Technology Officer (CTO)', category: 'Management', aliases: ['cto', 'directeur technique'] },
-    { title: 'VP of Engineering', category: 'Management', aliases: ['vp eng', 'directeur ingénierie'] },
-    { title: 'Directeur des Systèmes d’Information (DSI)', category: 'Management', aliases: ['dsi', 'cio'] },
+    { title: 'Chief Technology Officer (CTO)', category: 'Management', aliases: ['cto', 'technical director'] },
+    { title: 'VP of Engineering', category: 'Management', aliases: ['vp eng', 'engineering director'] },
+    { title: 'Chief Information Officer (CIO)', category: 'Management', aliases: ['cio'] },
 
-    // 7. QA, Test & Qualité
-    { title: 'QA Engineer / Test Automation', category: 'QA & Test', aliases: ['qa', 'test', 'cypress', 'playwright', 'selenium'] },
-    { title: 'Analyste Test & Recette', category: 'QA & Test', aliases: ['recetteur', 'istqb', 'qa analyst'] },
-    { title: 'QA Lead', category: 'QA & Test', aliases: ['lead qa', 'responsable test'] },
+    // 7. QA, Test & Quality
+    { title: 'QA Engineer / Test Automation', category: 'QA & Testing', aliases: ['qa', 'test', 'cypress', 'playwright', 'selenium'] },
+    { title: 'QA / Testing Analyst', category: 'QA & Testing', aliases: ['tester', 'istqb', 'qa analyst'] },
+    { title: 'QA Lead', category: 'QA & Testing', aliases: ['lead qa', 'test manager'] },
 
-    // 8. Business, Consulting & Sales Tech
-    { title: 'Solutions Architect / Avant-Vente', category: 'Business Tech', aliases: ['presales', 'solution architect'] },
-    { title: 'Customer Success Manager (CSM)', category: 'Business Tech', aliases: ['csm', 'relation client'] },
-    { title: 'Consultant ERP (SAP / Salesforce)', category: 'Business Tech', aliases: ['consultant sap', 'consultant salesforce'] },
-    { title: 'Account Executive Tech', category: 'Business Tech', aliases: ['sales', 'commercial tech'] },
+    // 8. Business, Consulting & Tech Sales
+    { title: 'Solutions Architect / Pre-Sales', category: 'Business Tech', aliases: ['presales', 'solution architect'] },
+    { title: 'Customer Success Manager (CSM)', category: 'Business Tech', aliases: ['csm', 'client relation'] },
+    { title: 'ERP Consultant (SAP / Salesforce)', category: 'Business Tech', aliases: ['sap consultant', 'salesforce consultant'] },
+    { title: 'Tech Account Executive', category: 'Business Tech', aliases: ['sales', 'tech sales'] },
     { title: 'Growth Hacker / Growth Marketer', category: 'Business Tech', aliases: ['growth', 'acquisition'] },
   ];
 
@@ -439,7 +439,7 @@ export class AutocompleteService {
         const matched = this.jobCatalog.find((j) => this.normalize(j.title) === this.normalize(r));
         addTitle({
           title: r,
-          category: matched?.category || 'Autre',
+          category: matched?.category || 'Other',
           alreadyApplied: true,
         });
       }

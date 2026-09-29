@@ -43,6 +43,8 @@ public class UserEmailConnectionRepository : IUserEmailConnectionRepository
             existing.AccessTokenEncrypted     = connection.AccessTokenEncrypted;
             existing.RefreshTokenEncrypted    = connection.RefreshTokenEncrypted;
             existing.AccessTokenExpiresAtUtc  = connection.AccessTokenExpiresAtUtc;
+            existing.ReconnectReason          = connection.ReconnectReason;
+            existing.ReconnectRequiredAtUtc   = connection.ReconnectRequiredAtUtc;
             existing.UpdatedAtUtc             = DateTime.UtcNow;
         }
 

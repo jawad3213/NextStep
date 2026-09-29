@@ -110,9 +110,9 @@ this.cvApi.getCvHistoryPage(offset, this.historyLimit)
       );
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
-      this.toast.success('Téléchargement du CV lancé.');
+      this.toast.success('CV download started.');
     } catch {
-      // Toast global affiché par l'intercepteur API
+      // Global toast displayed by the API interceptor
     }
   }
 
@@ -120,19 +120,19 @@ this.cvApi.getCvHistoryPage(offset, this.historyLimit)
     try {
       await firstValueFrom(this.cvApi.deleteCv(id));
       this.historyItems.update((items) => items.filter((i) => i.id !== id));
-      this.toast.success('CV supprimé.');
+      this.toast.success('CV deleted.');
     } catch {
-      // Toast global affiché par l'intercepteur API
+      // Global toast displayed by the API interceptor
     }
   }
 
   getDisplayTitle(item: CvHistoryRow): string {
     const raw = item.title?.trim();
-    if (!raw) return item.templateName || 'CV genere';
+    if (!raw) return item.templateName || 'Generated CV';
 
     if (this.extractLegacyOfferId(raw)) {
-      if (item.targetedOfferTitle) return `CV cible - ${item.targetedOfferTitle}`;
-      return 'CV cible';
+      if (item.targetedOfferTitle) return `Targeted CV - ${item.targetedOfferTitle}`;
+      return 'Targeted CV';
     }
 
     return raw;
@@ -164,7 +164,7 @@ this.cvApi.getCvHistoryPage(offset, this.historyLimit)
         try {
           const offer = await firstValueFrom(this.offerApi.getAnalysis(offerId));
           enriched[index].targetedOfferTitle = offer.titre;
-          enriched[index].targetedOfferCompany = offer.entreprise ?? 'Entreprise non precisee';
+          enriched[index].targetedOfferCompany = offer.entreprise ?? 'Company not specified';
         } catch {
           // keep fallback text
         }
@@ -189,7 +189,7 @@ this.cvApi.getCvHistoryPage(offset, this.historyLimit)
 
     return {
       offerTitle,
-      offerCompany: offerCompany || 'Entreprise non precisee',
+      offerCompany: offerCompany || 'Company not specified',
     };
   }
 

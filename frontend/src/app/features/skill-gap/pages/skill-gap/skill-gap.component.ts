@@ -169,7 +169,7 @@ export class SkillGapComponent {
     try {
       const res = await firstValueFrom(this.skillGapApi.match({ offerText: this.offerText() }));
       this.result.set(res);
-      this.toast.success('Analyse des écarts de compétences terminée.');
+      this.toast.success('Skill gap analysis complete.');
     } catch {
       this.result.set(null);
     } finally {

@@ -76,7 +76,12 @@
         </div>
 
         @if (sendError) {
-          <div class="status-banner error">{{ sendError }}</div>
+          <div class="status-banner error" role="alert">
+            {{ sendError }}
+            @if (sendNeedsGmailReconnect) {
+              <a routerLink="/email/settings" class="font-bold underline ml-1">Open Gmail settings</a>
+            }
+          </div>
         }
 
         @if (sendSuccessMessage) {

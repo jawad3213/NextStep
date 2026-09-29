@@ -68,7 +68,7 @@ async def researcher_node(state: CompanyState) -> dict:
     
     # 1. Smart Search (Focalisé uniquement sur la fiche générale / présentation d'entreprise)
     search_query = f"{company} présentation"
-    search_results = await smart_search(search_query)
+    search_results = await smart_search(search_query, must_mention=company)
     
     logger.info(f"📊 Researcher got {len(search_results)} general results from DDG")
     
@@ -154,6 +154,28 @@ def _has_substance(entry: dict) -> bool:
     if isinstance(data, dict):
         return any(v for k, v in data.items() if k not in _META_KEYS)
     return bool(data)
+
+
+_MIN_SUMMARY_CHARS = 80
+
+
+def report_has_content(intelligence: dict | None) -> bool:
+    """Whether a company report holds real facts from the sources: a real summary, sector,
+    headquarters, news, salaries, culture or pros/cons. A LinkedIn link and generic interview
+    questions alone are not a report."""
+    if not isinstance(intelligence, dict):
+        return False
+    culture = intelligence.get("culture") or {}
+    return any([
+        len(str(intelligence.get("summary") or "").strip()) >= _MIN_SUMMARY_CHARS,
+        str(intelligence.get("sector") or "").strip(),
+        str(intelligence.get("hq_location") or "").strip(),
+        intelligence.get("actualites"),
+        intelligence.get("salaries"),
+        intelligence.get("pros"),
+        intelligence.get("cons"),
+        isinstance(culture, dict) and (culture.get("glassdoor_rating") or culture.get("key_values") or culture.get("top_reviews")),
+    ])
 
 
 def _no_data_report(company: str, reason: str) -> dict:
@@ -261,8 +283,6 @@ async def analyst_node(state: CompanyState) -> dict:
         if "nom" not in intelligence_report or not intelligence_report["nom"]:
             intelligence_report["nom"] = company
             
-        intelligence_report["data_available"] = True
-
         # Ratings must be written in the sources; otherwise they are dropped (not invented).
         culture = intelligence_report.get("culture", {})
         if isinstance(culture, dict):
@@ -290,9 +310,12 @@ async def analyst_node(state: CompanyState) -> dict:
                 clean_news.append(str(act))
         intelligence_report["actualites"] = clean_news
             
+        # Only a report with real facts counts as data (interview questions alone are generic).
+        intelligence_report["data_available"] = report_has_content(intelligence_report)
+
         compatibility_score = synthesis.get("score") or synthesis.get("compatibility_score")
         recommendations = synthesis.get("recommendations") or []
-        
+
     except Exception as e:
         logger.error(f"❌ Erreur lors de la synthèse LLM par l'Analyste: {e}")
         return _no_data_report(company, "l'analyse a échoué")

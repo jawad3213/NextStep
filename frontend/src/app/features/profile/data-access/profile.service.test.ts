@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach,vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
@@ -13,7 +13,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
   let service: ProfileService;
   let httpMock: HttpTestingController;
   
-  // Création d'un mock pour AuthService car ProfileService en dépend
+  // Mock AuthService since ProfileService depends on it
   const mockAuthService = {
     user: signal({ firstName: 'Test', lastName: 'User', email: 'test@example.com' })
   };
@@ -48,17 +48,17 @@ describe('ProfileFeatureService (State & Signals)', () => {
     httpMock.verify();
   });
 
-  it('devrait être créé et initialiser les Signals', () => {
+  it('should be created and initialize Signals', () => {
     expect(service).toBeTruthy();
     expect(service.profile()).toBeDefined();
     expect(service.currentStep()).toBe('coordonnees');
   });
 
-  it('devrait calculer le bon pourcentage de complétion', () => {
-    // Par défaut, le profil est vide
+  it('should calculate the correct completion percentage', () => {
+    // Empty profile by default
     expect(service.completionPercentage()).toBe(0);
 
-    // Ajout d'informations personnelles (devrait ajouter 6 points: prenom + nom + email)
+    // Adding personal information (should add 6 points: firstName + lastName + email)
     service.updateProfile({
       personal: {
         ...service.profile().personal,
@@ -71,13 +71,13 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(service.completionPercentage()).toBe(6);
   });
 
-  it('devrait mettre à jour l\'étape courante via setStep', () => {
+  it('should update current step via setStep', () => {
     service.setStep('experience');
     expect(service.currentStep()).toBe('experience');
   });
 
-  it('devrait vérifier si une section est complète (isSectionComplete)', () => {
-    // Coordonnées incomplètes par défaut
+  it('should check if a section is complete (isSectionComplete)', () => {
+    // Incomplete contact details by default
     expect(service.isSectionComplete('coordonnees')).toBe(false);
 
     service.updateProfile({
@@ -89,13 +89,13 @@ describe('ProfileFeatureService (State & Signals)', () => {
       }
     });
     
-    // Devient complète après ajout des infos requises
+    // Becomes complete after adding required fields
     expect(service.isSectionComplete('coordonnees')).toBe(true);
   });
 
-  // --- Tests des opérations CRUD HTTP ---
+  // --- HTTP CRUD operation tests ---
 
-  it('devrait charger le profil depuis l\'API (loadProfile)', async () => {
+  it('should load profile from API (loadProfile)', async () => {
     const mockApiData = {
       personalInfo: { prenom: 'John', nom: 'Doe', email: 'john@test.com' },
       formations: [],
@@ -115,8 +115,8 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(service.profile().personal.firstName).toBe('John');
   });
 
-  it('devrait générer un CV via IA (generateResume)', async () => {
-    const mockAiResponse = { resume: 'Profil de développeur dynamique...' };
+  it('should generate resume via AI (generateResume)', async () => {
+    const mockAiResponse = { resume: 'Dynamic software engineer profile...' };
     
     const promise = service.generateResume({});
     
@@ -125,10 +125,20 @@ describe('ProfileFeatureService (State & Signals)', () => {
     req.flush(mockAiResponse);
 
     const result = await promise;
-    expect(result).toBe('Profil de développeur dynamique...');
+    expect(result).toBe('Dynamic software engineer profile...');
   });
 
-  it('devrait récupérer les mots-clés (getKeywords)', async () => {
+  it('generateResume fails with backend message when nothing is generated', async () => {
+    const promise = service.generateResume({});
+
+    httpMock
+      .expectOne('http://localhost:5000/api/profile/generate-resume')
+      .flush({ resume: '', errors: ['The AI CV generation service is currently unavailable.'] });
+
+    await expect(promise).rejects.toThrow('currently unavailable');
+  });
+
+  it('should retrieve keywords (getKeywords)', async () => {
     const mockKeywords = [{ mot: 'Angular', categorie: 'Technique' }];
     const promise = service.getKeywords();
     const req = httpMock.expectOne('http://localhost:5000/api/profile/keywords');
@@ -136,7 +146,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(await promise).toEqual(mockKeywords);
   });
 
-  it('devrait normaliser une reponse d import stringifiee sans dupliquer les langues', () => {
+  it('should normalize stringified import response without duplicating languages', () => {
     const normalized = normalizeImportedPayload(JSON.stringify({
       personal: {
         prenom: 'Jane',
@@ -185,9 +195,9 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(normalized.certifications[0].name).toBe('AWS Cloud Practitioner');
   });
 
-  // --- NOUVEAUX TESTS CRUD AJOUTÉS --- //
+  // --- CRUD Tests --- //
 
-  it('devrait mettre à jour les infos personnelles (savePersonalInfo)', async () => {
+  it('should update personal info (savePersonalInfo)', async () => {
     const info: PersonalInfo = { firstName: 'Jane', lastName: 'Doe', email: 'jane@test.com', phone: '', city: '', country: '', jobTitle: '', linkedinUrl: '', githubUrl: '', portfolioUrl: 'https://portfolio.test', photoUrl: null, useAsHeadline: true, address: '' };
     const promise = service.savePersonalInfo(info);
     const req = httpMock.expectOne('http://localhost:5000/api/profile/personal-info');
@@ -197,7 +207,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     await promise;
   });
 
-  it('devrait ajouter une expérience et recharger le profil (addExperience)', async () => {
+  it('should add experience and reload profile (addExperience)', async () => {
     const exp: Experience = { id: '', company: 'Tech', title: 'Dev', startDate: '2023-01', endDate: '', description: 'Code', city: 'Paris', type: 'CDI', current: true, taches: ['Built APIs'] };
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const promise = service.addExperience(exp);
@@ -209,7 +219,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait mettre à jour une expérience (updateExperience)', async () => {
+  it('should update experience (updateExperience)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const exp: Experience = { id: '1', company: 'X', title: 'Y', startDate: '', endDate: '', description: '', city: '', type: 'Stage', current: false, taches: ['Maintained UI'] };
     const promise = service.updateExperience(exp);
@@ -221,7 +231,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait supprimer une expérience (deleteExperience)', async () => {
+  it('should delete experience (deleteExperience)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const promise = service.deleteExperience('1');
     const req = httpMock.expectOne('http://localhost:5000/api/profile/experiences/1');
@@ -231,7 +241,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait ajouter une formation (addEducation)', async () => {
+  it('should add education (addEducation)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const edu: Education = { id: '', institution: 'Z', degree: 'W', startYear: '2020', endYear: '2023', city: '', specialization: '', mention: 'Passable', current: false };
     const promise = service.addEducation(edu);
@@ -242,7 +252,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait mettre à jour une formation (updateEducation)', async () => {
+  it('should update education (updateEducation)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const edu: Education = { id: '2', institution: 'Z', degree: 'W', startYear: '2020', endYear: '2023', city: '', specialization: '', mention: 'Passable', current: false };
     const promise = service.updateEducation(edu);
@@ -253,7 +263,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait ajouter une compétence (addSkill)', async () => {
+  it('should add skill (addSkill)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const skill: Skill = { id: '', name: 'Angular', category: 'Technique' };
     const promise = service.addSkill(skill);
@@ -264,7 +274,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait mettre à jour une compétence (updateSkill)', async () => {
+  it('should update skill (updateSkill)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const skill: Skill = { id: '3', name: 'Angular', category: 'Technique' };
     const promise = service.updateSkill(skill);
@@ -275,7 +285,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait supprimer une compétence (deleteSkill)', async () => {
+  it('should delete skill (deleteSkill)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const promise = service.deleteSkill('3');
     const req = httpMock.expectOne('http://localhost:5000/api/profile/competences/3');
@@ -285,7 +295,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait ajouter un projet (addProject)', async () => {
+  it('should add project (addProject)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const proj: Project = { id: '', title: 'A', description: 'B', stack: [], githubUrl: '', demoUrl: '', isUniversity: false, taches: ['Designed dashboard'] };
     const promise = service.addProject(proj);
@@ -297,7 +307,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait mettre à jour un projet (updateProject)', async () => {
+  it('should update project (updateProject)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const proj: Project = { id: '4', title: 'A', description: 'B', stack: [], githubUrl: '', demoUrl: '', isUniversity: false, taches: ['Improved CI'] };
     const promise = service.updateProject(proj);
@@ -309,7 +319,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait supprimer un projet (deleteProject)', async () => {
+  it('should delete project (deleteProject)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const promise = service.deleteProject('4');
     const req = httpMock.expectOne('http://localhost:5000/api/profile/projets/4');
@@ -319,7 +329,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait ajouter une certification (addCertification)', async () => {
+  it('should add certification (addCertification)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const cert: Certification = { id: '', name: 'C', issuer: 'D', date: '', verificationUrl: '' };
     const promise = service.addCertification(cert);
@@ -330,7 +340,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait mettre à jour une certification (updateCertification)', async () => {
+  it('should update certification (updateCertification)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const cert: Certification = { id: '5', name: 'C', issuer: 'D', date: '', verificationUrl: '' };
     const promise = service.updateCertification(cert);
@@ -341,7 +351,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait supprimer une certification (deleteCertification)', async () => {
+  it('should delete certification (deleteCertification)', async () => {
     const loadSpy = vi.spyOn(service, 'loadProfile').mockResolvedValue(undefined);
     const promise = service.deleteCertification('5');
     const req = httpMock.expectOne('http://localhost:5000/api/profile/certifications/5');
@@ -351,7 +361,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(loadSpy).toHaveBeenCalled();
   });
 
-  it('devrait exporter le profil au format JSON avec les métadonnées et sections', () => {
+  it('should export profile to JSON format with metadata and sections', () => {
     service.profile.set({
       personal: {
         firstName: 'Jane',
@@ -371,13 +381,13 @@ describe('ProfileFeatureService (State & Signals)', () => {
       education: [
         {
           id: 'edu-1',
-          degree: 'Master Informatique',
+          degree: 'Master Computer Science',
           institution: 'Sorbonne',
           city: 'Paris',
           startYear: '2020',
           endYear: '2022',
           current: false,
-          specialization: 'Génie Logiciel',
+          specialization: 'Software Engineering',
           mention: 'Très bien'
         }
       ],
@@ -391,7 +401,7 @@ describe('ProfileFeatureService (State & Signals)', () => {
           endDate: '2024-01',
           current: false,
           type: 'CDI',
-          description: 'Dev full stack',
+          description: 'Full stack development',
           taches: ['Feature A', 'Feature B']
         }
       ],
@@ -399,14 +409,14 @@ describe('ProfileFeatureService (State & Signals)', () => {
         { id: 'skill-1', name: 'Angular', category: 'Technical' }
       ],
       languages: [
-        { id: 'lang-1', name: 'Français', level: 'Native' }
+        { id: 'lang-1', name: 'French', level: 'Native' }
       ],
-      resume: 'Développeur passionné avec 2 ans d’expérience.',
+      resume: 'Passionate software engineer with 2 years of experience.',
       projets: [
         {
           id: 'proj-1',
-          title: 'Plateforme Web',
-          description: 'App web complète',
+          title: 'Web Platform',
+          description: 'Full web application',
           stack: ['Angular', '.NET'],
           githubUrl: 'https://github.com/proj',
           demoUrl: '',
@@ -440,10 +450,10 @@ describe('ProfileFeatureService (State & Signals)', () => {
     expect(parsed.profile.languages.length).toBe(1);
     expect(parsed.profile.projects.length).toBe(1);
     expect(parsed.profile.certifications.length).toBe(1);
-    expect(parsed.profile.summary).toBe('Développeur passionné avec 2 ans d’expérience.');
+    expect(parsed.profile.summary).toBe('Passionate software engineer with 2 years of experience.');
   });
 
-  it('devrait déclencher le téléchargement du fichier JSON (downloadProfileJson)', () => {
+  it('should trigger JSON file download (downloadProfileJson)', () => {
     const createObjectURLSpy = vi.fn().mockReturnValue('blob:http://localhost/dummy');
     const revokeObjectURLSpy = vi.fn();
     globalThis.URL.createObjectURL = createObjectURLSpy;

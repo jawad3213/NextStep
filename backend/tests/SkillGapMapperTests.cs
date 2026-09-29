@@ -16,7 +16,7 @@ public class SkillGapMapperTests
 
     private static readonly JsonElement Offer = Json("""
         {
-          "titre": "Développeur .NET",
+          "titre": ".NET Developer",
           "competences_requises": ["C#", "Docker", "PostgreSQL"],
           "competences_souhaitees": ["Kubernetes"],
           "annees_experience": "2+"
@@ -38,7 +38,7 @@ public class SkillGapMapperTests
               "missing_skills": ["Kubernetes", "Docker"],
               "partial_skills": ["Azure"],
               "keywords_manquants": ["CI/CD"],
-              "recommandations": ["Texte Kubernetes", "Texte Docker"],
+              "recommandations": ["Kubernetes Text", "Docker Text"],
               "required_certs": []
             }
             """);
@@ -47,12 +47,12 @@ public class SkillGapMapperTests
         var result = SkillGapMapper.ToResult(Offer, match, candidate, Today);
 
         result.CandidateName.Should().Be("Sara Alami");
-        result.JobTitle.Should().Be("Développeur .NET");
+        result.JobTitle.Should().Be(".NET Developer");
         result.RelevanceScore.Should().Be(72);
         result.MatchedSkills.Should().Equal(new SkillGapSkillDto("C#", "required"), new SkillGapSkillDto("PostgreSQL", "required"));
         // required skills first, and each recommendation keeps the agents' text for its skill
         result.MissingSkills.Select(s => (s.Name, s.Priority)).Should().Equal(("Docker", "high"), ("Kubernetes", "medium"));
-        result.Recommendations.Select(r => (r.Title, r.Description)).Should().Equal(("Docker", "Texte Docker"), ("Kubernetes", "Texte Kubernetes"));
+        result.Recommendations.Select(r => (r.Title, r.Description)).Should().Equal(("Docker", "Docker Text"), ("Kubernetes", "Kubernetes Text"));
         result.ExperienceYears.Should().Be(2.0);
         result.RequiredYears.Should().Be(2);
         result.ExperienceGapYears.Should().Be(0);

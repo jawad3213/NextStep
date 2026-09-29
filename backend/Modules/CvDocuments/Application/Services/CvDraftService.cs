@@ -15,7 +15,7 @@ public interface ICvDraftService
 
 public class CvDraftService(IApplicationsApi applications, ICvContentSanitizer sanitizer) : ICvDraftService
 {
-    private const string DraftNotFound = "Brouillon de CV introuvable.";
+    private const string DraftNotFound = "CV draft not found.";
 
     public async Task<CvDraftDto?> GetCvDraftAsync(Guid userId, Guid offerId, CancellationToken ct = default)
     {

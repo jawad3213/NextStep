@@ -1,1 +1,0 @@
-"""Glassdoor jobs scraping domain."""

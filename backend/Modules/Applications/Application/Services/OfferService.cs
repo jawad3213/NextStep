@@ -38,7 +38,7 @@ public class OfferService(
             UtilisateurId = userGuid,
         };
         offre = await repository.SaveAsync(offre, ct);
-        logger.LogInformation("OfferService — Offre sauvegardée {OfferId}", offre.Id);
+        logger.LogInformation("OfferService — Offer saved {OfferId}", offre.Id);
         return offre;
     }
 
@@ -122,12 +122,12 @@ public class OfferService(
             }
         }
 
-        logger.LogInformation("OfferService — Résultats pipeline sauvegardés pour offre {OfferId}", offerId);
+        logger.LogInformation("OfferService — Pipeline results saved for offer {OfferId}", offerId);
     }
 
     public async Task<OfferAnalysisDto?> GetAnalysisAsync(Guid userId, Guid offerId, CancellationToken ct = default)
     {
-        await EnsureOfferOwnedAsync(userId, offerId, ct, "Analyse introuvable.");
+        await EnsureOfferOwnedAsync(userId, offerId, ct, "Analysis not found.");
 
         var offre = await repository.GetByIdAsync(offerId, ct);
         if (offre is null) return null;
@@ -157,7 +157,7 @@ public class OfferService(
         var list = new List<OfferHistoryItemDto>(offers.Count);
         foreach (var offer in offers)
         {
-            string title = "Offre";
+            string title = "Offer";
             string company = "";
             string location = "";
             int? score = null;
@@ -180,7 +180,7 @@ public class OfferService(
                 catch (JsonException parseEx)
                 {
                     logger.LogWarning(parseEx,
-                        "OfferService — AnalyseJson corrompu pour l'offre {OfferId}, traitement dégradé.",
+                        "OfferService — Corrupted AnalyseJson for offer {OfferId}, degraded processing.",
                         offer.Id);
                     status = "analysee";
                     currentStep = 2;
@@ -262,7 +262,7 @@ public class OfferService(
         return await repository.GetByIdWithAnalysisAsync(offerId, ct);
     }
 
-    private async Task EnsureOfferOwnedAsync(Guid userId, Guid offerId, CancellationToken ct, string notFoundMessage = "Offre introuvable.")
+    private async Task EnsureOfferOwnedAsync(Guid userId, Guid offerId, CancellationToken ct, string notFoundMessage = "Offer not found.")
     {
         var exists = await db.OffresEmploi.AnyAsync(o => o.Id == offerId && o.UtilisateurId == userId, ct);
         if (!exists) throw new NotFoundException(notFoundMessage);

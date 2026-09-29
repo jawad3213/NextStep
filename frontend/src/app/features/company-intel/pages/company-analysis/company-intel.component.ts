@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyIntelApiService } from '../../data-access/company-intel-api.service';
@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
 import { PipelineStateService } from '@features/offers/data-access/pipeline-state.service';
 import { extractApiError } from '@core/http/extract-api-error';
+import { saveCompanyAnalysis } from '../../data-access/company-history';
 
 interface SalaryInfo {
   jobTitle: string;
@@ -25,7 +26,8 @@ interface CompanyIntel {
   hqLocation: string;
   linkedinUrl: string;
   logoUrl?: string;
-  culture: { cultureScore: number; turnoverRate: string; workLifeBalance: number; glassdoorRating: number; keyValues: string[]; topReviews: string[] };
+  /** null = not found in the sources (never shown as 0). */
+  culture: { cultureScore: number | null; turnoverRate: string; workLifeBalance: number | null; glassdoorRating: number | null; keyValues: string[]; topReviews: string[] };
   salaries: SalaryInfo[];
   actualites: { title: string; date: string; source: string; url: string }[];
   interviewDifficulty: string;
@@ -35,6 +37,17 @@ interface CompanyIntel {
   careerOpportunities: string[];
   compatibilityScore: number;
   recommendations: string[];
+  /** false when the agents found nothing reliable about the company. */
+  dataAvailable: boolean;
+}
+
+/** Same rule as the agents' report_has_content: interview questions and a LinkedIn link alone are not a report. */
+function hasRealContent(r: Omit<CompanyIntel, 'dataAvailable'>): boolean {
+  const c = r.culture;
+  return (r.summary ?? '').trim().length >= 80
+    || !!r.sector?.trim() || !!r.hqLocation?.trim()
+    || r.actualites.length > 0 || r.salaries.length > 0 || r.pros.length > 0 || r.cons.length > 0
+    || c.glassdoorRating != null || c.keyValues.length > 0 || c.topReviews.length > 0;
 }
 
 @Component({
@@ -54,6 +67,13 @@ export class CompanyIntelComponent implements OnInit {
   loading = signal(false);
   result = signal<CompanyIntel | null>(null);
   apiError = signal<string | null>(null);
+  /** Where "Back" goes: the Company Intelligence page or the offer that opened this report. */
+  private origin: 'company-intel' | 'offer' = 'offer';
+
+  readonly hasCulture = computed(() => {
+    const c = this.result()?.culture;
+    return !!c && (c.cultureScore != null || c.glassdoorRating != null || c.workLifeBalance != null || !!c.turnoverRate || c.keyValues.length > 0);
+  });
 
   getSeniorityLabel(s: SalaryInfo): string {
     if (s.seniority) return s.seniority;
@@ -86,7 +106,15 @@ export class CompanyIntelComponent implements OnInit {
     return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`;
   }
 
+  get backLabel(): string {
+    return this.origin === 'company-intel' ? 'Back to Company Intelligence' : 'Back to the offer';
+  }
+
   returnToOffer() {
+    if (this.origin === 'company-intel') {
+      this.router.navigate(['/company-intel']);
+      return;
+    }
     const offerId = this.pipeline.currentOfferId();
     if (offerId) {
       this.router.navigate(['/offers/analyze'], { queryParams: { offerId } });
@@ -101,6 +129,7 @@ export class CompanyIntelComponent implements OnInit {
     let payload = navState?.['companyIntelPayload'] ?? historyState?.['companyIntelPayload'];
     let companyName = navState?.['companyName'] ?? historyState?.['companyName'];
     let jobTitle = navState?.['jobTitle'] ?? historyState?.['jobTitle'];
+    if ((navState?.['origin'] ?? historyState?.['origin']) === 'company-intel') this.origin = 'company-intel';
 
     if (!payload) {
       try {
@@ -123,7 +152,8 @@ export class CompanyIntelComponent implements OnInit {
       localStorage.setItem('nextstep.company.interview_questions', JSON.stringify(mapped.interviewQuestions ?? []));
       localStorage.setItem('nextstep.company.interview_difficulty', mapped.interviewDifficulty);
 
-      if (!mapped.culture.cultureScore && !mapped.salaries.length && companyName && !this.loading()) {
+      // An empty report (e.g. researched while web search was failing) is refreshed once.
+      if (!mapped.dataAvailable && companyName && !this.loading()) {
         this.analyzeCompany();
       }
     }
@@ -139,7 +169,7 @@ export class CompanyIntelComponent implements OnInit {
         user_id: 0,
         profile_data: {},
         offer_data: {
-          titre: this.jobTitle() || 'Developpeur',
+          titre: this.jobTitle() || 'Unknown',
           entreprise: this.companyName(),
           competencesRequises: [],
           competencesSouhaitees: [],
@@ -150,6 +180,7 @@ export class CompanyIntelComponent implements OnInit {
       this.result.set(mapped);
       localStorage.setItem('nextstep.company.interview_questions', JSON.stringify(mapped.interviewQuestions ?? []));
       localStorage.setItem('nextstep.company.interview_difficulty', mapped.interviewDifficulty);
+      if (mapped.dataAvailable) saveCompanyAnalysis(res, this.companyName(), this.jobTitle());
     } catch (e) {
       this.apiError.set(extractApiError(e).message);
     } finally {
@@ -160,7 +191,7 @@ export class CompanyIntelComponent implements OnInit {
   private mapApiResponse(res: any): CompanyIntel {
     const intel = res?.intelligence ?? {};
     const culture = intel?.culture ?? {};
-    return {
+    const mapped: Omit<CompanyIntel, 'dataAvailable'> = {
       nom: intel?.nom ?? this.companyName() ?? '',
       summary: intel?.summary ?? res?.summary ?? '',
       sector: intel?.sector ?? '',
@@ -168,10 +199,10 @@ export class CompanyIntelComponent implements OnInit {
       linkedinUrl: intel?.linkedin_url ?? intel?.linkedinUrl ?? '',
       logoUrl: this.getLogoUrl(intel?.nom ?? this.companyName() ?? '', intel?.linkedin_url ?? intel?.linkedinUrl),
       culture: {
-        cultureScore: culture?.culture_score ?? culture?.cultureScore ?? 0,
+        cultureScore: culture?.culture_score ?? culture?.cultureScore ?? null,
         turnoverRate: culture?.turnover_rate ?? culture?.turnoverRate ?? '',
-        workLifeBalance: culture?.work_life_balance ?? culture?.workLifeBalance ?? 0,
-        glassdoorRating: culture?.glassdoor_rating ?? culture?.glassdoorRating ?? 0,
+        workLifeBalance: culture?.work_life_balance ?? culture?.workLifeBalance ?? null,
+        glassdoorRating: culture?.glassdoor_rating ?? culture?.glassdoorRating ?? null,
         keyValues: culture?.key_values ?? culture?.keyValues ?? [],
         topReviews: culture?.top_reviews ?? culture?.topReviews ?? []
       },
@@ -203,6 +234,7 @@ export class CompanyIntelComponent implements OnInit {
       compatibilityScore: res?.score ?? res?.compatibilityScore ?? 0,
       recommendations: res?.recommendations ?? []
     };
+    return { ...mapped, dataAvailable: intel?.data_available !== false && hasRealContent(mapped) };
   }
 
   getInitials(name: string): string {

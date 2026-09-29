@@ -42,11 +42,11 @@ public class SessionCoaching
     [MaxLength(20)]
     public string? Level { get; set; }
 
-    // JSONB — stocké comme string, ex: ["Python","SQL"]
+    // JSONB — stored as string, e.g.: ["Python","SQL"]
     [Column("focus_areas")]
     public string? FocusAreas { get; set; }
 
-    // Résultats post-session
+    // Post-session results
     [Column("score_entretien")]
     public int? ScoreEntretien { get; set; }
 

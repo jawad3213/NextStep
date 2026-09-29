@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Profile.Contracts;
@@ -17,24 +16,8 @@ public class SourcedOffersController(
     ISourcedOfferService sourcedOfferService,
     IProfileApi profile) : ControllerBase
 {
-    private async Task<Guid> GetUserIdAsync()
-    {
-        var keycloakId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                      ?? User.FindFirst("sub")?.Value;
-
-        if (!string.IsNullOrEmpty(keycloakId))
-        {
-            var userId = await profile.EnsureUserIdAsync(User);
-            return userId;
-        }
-
-        if (Request.Headers.TryGetValue("X-User-Id", out var uid) && Guid.TryParse(uid, out var parsedGuid))
-        {
-            return parsedGuid;
-        }
-
-        return Guid.Parse("00000000-0000-0000-0000-000000000001");
-    }
+    /// <summary>The caller, from the access token only (never from a header or a default user).</summary>
+    private Task<Guid> GetUserIdAsync() => profile.EnsureUserIdAsync(User);
 
     [HttpPost("search")]
     public async Task<ActionResult<SourcedOfferSearchResponse>> Search([FromBody] SourcedOfferSearchRequest request, CancellationToken ct)
@@ -75,7 +58,7 @@ public class SourcedOffersController(
     {
         var userId = await GetUserIdAsync();
         return Ok(await sourcedOfferService.GetByIdAsync(userId, id, ct)
-                  ?? throw new NotFoundException("Offre sourcée introuvable."));
+                  ?? throw new NotFoundException("Sourced offer not found."));
     }
 
     [HttpPatch("{id:guid}")]

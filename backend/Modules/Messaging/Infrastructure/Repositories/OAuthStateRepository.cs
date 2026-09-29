@@ -19,6 +19,15 @@ public class OAuthStateRepository : IOAuthStateRepository
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<int> DeleteExpiredAsync(DateTime olderThanUtc, CancellationToken cancellationToken = default)
+    {
+        var expired = await _db.OAuthStates.Where(s => s.ExpiresAtUtc < olderThanUtc).ToListAsync(cancellationToken);
+        if (expired.Count == 0) return 0;
+        _db.OAuthStates.RemoveRange(expired);
+        await _db.SaveChangesAsync(cancellationToken);
+        return expired.Count;
+    }
+
     public async Task<OAuthState?> FindValidAsync(
         string provider,
         string stateTokenHash,

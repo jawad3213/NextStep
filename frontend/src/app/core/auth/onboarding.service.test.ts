@@ -41,6 +41,28 @@ describe('OnboardingService', () => {
     req.flush(mockStatus);
   });
 
+  it('remembers the last status so pages can render in the right mode immediately', () => {
+    expect(service.lastStatus()).toBeNull();
+    const status = { onboardingCompleted: true, profileCompleted: true, profileScore: 95, completionPercent: 98 };
+
+    service.getStatus().subscribe();
+    httpMock.expectOne('http://localhost:5000/api/identity/onboarding-status').flush(status);
+
+    expect(service.lastStatus()).toEqual(status);
+  });
+
+  it('marks the remembered status completed after a successful Finish', () => {
+    service.getStatus().subscribe();
+    httpMock.expectOne('http://localhost:5000/api/identity/onboarding-status')
+      .flush({ onboardingCompleted: true, profileCompleted: false, profileScore: 80, completionPercent: 90 });
+
+    service.completeProfile().subscribe();
+    httpMock.expectOne('http://localhost:5000/api/identity/complete-profile')
+      .flush({ succeeded: true, message: 'ok', completionPercent: 90, requiredPercent: 85 });
+
+    expect(service.lastStatus()?.profileCompleted).toBe(true);
+  });
+
   it('devrait soumettre les données d\'onboarding (submitSoftOnboarding)', () => {
     const payload: SoftOnboardingPayload = { 
       objectif: 'CDI', 

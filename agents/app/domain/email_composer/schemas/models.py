@@ -3,7 +3,6 @@
 #
 # Pydantic request/response schemas for the Email Composer agent.
 #
-# Backward-compatible with email_engine/models.py.
 # All existing fields preserved. New optional enrichment fields
 # (skill_gap, company_intelligence) added to GenerateEmailRequest
 # without breaking existing .NET backend calls.
@@ -41,7 +40,7 @@ class JobOfferInput(BaseModel):
 
 
 class EmailOptions(BaseModel):
-    language: str = "fr"
+    language: str = "en"
     tone: str = "professionnel"
     include_motivation_letter: bool = False
 
@@ -106,7 +105,7 @@ class PreviousEmailInput(BaseModel):
 
 class FollowUpOptions(BaseModel):
     """Options for the follow-up email generation."""
-    language: str = "fr"
+    language: str = "en"
     tone: str = "professionnel"
     days_since_sent: Optional[int] = None
 
@@ -134,7 +133,7 @@ class ClassifyResponseRequest(BaseModel):
     reply_date_utc: Optional[str] = None
     reply_subject: Optional[str] = None
     reply_snippet: str
-    language: str = "fr"
+    language: str = "en"
 
 
 class ClassifyResponseResult(BaseModel):
@@ -243,6 +242,6 @@ class GenerateReplyEmailRequest(BaseModel):
     response_type: str
     response_summary: Optional[str] = None
     recommended_action: Optional[str] = None
-    language: str = "fr"
+    language: str = "en"
     tone: str = "professionnel"
     user_instructions: Optional[str] = None

@@ -9,13 +9,13 @@
         </div>
         <div>
           <div class="flex items-center gap-2.5">
-            <h2 class="text-base md:text-lg font-bold text-slate-900 tracking-tight leading-tight m-0">Export du profil</h2>
+            <h2 class="text-base md:text-lg font-bold text-slate-900 tracking-tight leading-tight m-0">Profile Export</h2>
             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-[#1A91F0] border border-blue-200/80">
               JSON v1.0
             </span>
           </div>
           <p class="text-xs text-slate-500 mt-0.5 m-0 leading-normal">
-            Téléchargez vos données complètes ou copiez le payload JSON directement.
+            Download your complete profile data or copy the JSON payload directly.
           </p>
         </div>
       </div>
@@ -27,21 +27,21 @@
             type="button"
             [class.active]="exportViewMode() === 'code'"
             (click)="exportViewMode.set('code')"
-            title="Aperçu du code JSON">
+            title="Preview JSON code">
             <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">code</mat-icon>
-            <span>Code JSON</span>
+            <span>JSON Code</span>
           </button>
           <button
             type="button"
             [class.active]="exportViewMode() === 'visual'"
             (click)="exportViewMode.set('visual')"
-            title="Aperçu visuel des rubriques">
+            title="Visual overview of sections">
             <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">view_quilt</mat-icon>
-            <span>Synthèse visuelle</span>
+            <span>Visual Overview</span>
           </button>
         </div>
 
-        <button (click)="closeExportModal()" class="export-close-btn" aria-label="Fermer la boîte de dialogue">
+        <button (click)="closeExportModal()" class="export-close-btn" aria-label="Close dialog">
           <mat-icon class="!text-[20px] !w-[20px] !h-[20px]">close</mat-icon>
         </button>
       </div>
@@ -62,14 +62,14 @@
           </div>
           <div class="min-w-0 flex-1">
             <h3 class="text-sm font-bold text-slate-900 truncate m-0">
-              {{ profile().personal.firstName || 'Prénom' }} {{ profile().personal.lastName || 'Nom' }}
+              {{ profile().personal.firstName || 'First name' }} {{ profile().personal.lastName || 'Last name' }}
             </h3>
             <p class="text-xs text-slate-500 truncate mt-0.5 m-0">
-              {{ profile().personal.jobTitle || 'Candidat NextStep' }}
+              {{ profile().personal.jobTitle || 'NextStep Candidate' }}
             </p>
             <div class="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
               <mat-icon class="!text-[13px] !w-[13px] !h-[13px] text-slate-400">mail</mat-icon>
-              <span class="truncate">{{ profile().personal.email || 'Email non renseigné' }}</span>
+              <span class="truncate">{{ profile().personal.email || 'Email not specified' }}</span>
             </div>
           </div>
         </div>
@@ -77,9 +77,9 @@
         <!-- Included Sections Overview -->
         <div class="export-sections-box">
           <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Données incluses</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Included Data</span>
             <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              {{ exportStats().totalItems }} éléments
+              {{ exportStats().totalItems }} items
             </span>
           </div>
 
@@ -89,10 +89,10 @@
                 <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">person</mat-icon>
               </div>
               <div class="export-row-info">
-                <span class="export-row-title">Informations de contact</span>
-                <span class="export-row-sub">Téléphone, ville, liens sociaux</span>
+                <span class="export-row-title">Contact Information</span>
+                <span class="export-row-sub">Phone, city, social links</span>
               </div>
-              <span class="export-row-badge success">Inclus</span>
+              <span class="export-row-badge success">Included</span>
             </div>
 
             <div class="export-item-row">
@@ -100,8 +100,8 @@
                 <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">work</mat-icon>
               </div>
               <div class="export-row-info">
-                <span class="export-row-title">Expériences professionnelles</span>
-                <span class="export-row-sub">{{ exportStats().experiences }} enregistrées</span>
+                <span class="export-row-title">Work Experience</span>
+                <span class="export-row-sub">{{ exportStats().experiences }} entries</span>
               </div>
               <span class="export-row-badge">{{ exportStats().experiences }}</span>
             </div>
@@ -111,8 +111,8 @@
                 <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">school</mat-icon>
               </div>
               <div class="export-row-info">
-                <span class="export-row-title">Formations & Diplômes</span>
-                <span class="export-row-sub">{{ exportStats().education }} parcours</span>
+                <span class="export-row-title">Education & Degrees</span>
+                <span class="export-row-sub">{{ exportStats().education }} entries</span>
               </div>
               <span class="export-row-badge">{{ exportStats().education }}</span>
             </div>
@@ -122,8 +122,8 @@
                 <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">psychology</mat-icon>
               </div>
               <div class="export-row-info">
-                <span class="export-row-title">Compétences techniques</span>
-                <span class="export-row-sub">{{ exportStats().skills }} compétences</span>
+                <span class="export-row-title">Technical Skills</span>
+                <span class="export-row-sub">{{ exportStats().skills }} skills</span>
               </div>
               <span class="export-row-badge">{{ exportStats().skills }}</span>
             </div>
@@ -133,8 +133,8 @@
                 <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">translate</mat-icon>
               </div>
               <div class="export-row-info">
-                <span class="export-row-title">Langues maîtrisées</span>
-                <span class="export-row-sub">{{ exportStats().languages }} langues</span>
+                <span class="export-row-title">Languages</span>
+                <span class="export-row-sub">{{ exportStats().languages }} languages</span>
               </div>
               <span class="export-row-badge">{{ exportStats().languages }}</span>
             </div>
@@ -144,8 +144,8 @@
                 <mat-icon class="!text-[15px] !w-[15px] !h-[15px]">rocket_launch</mat-icon>
               </div>
               <div class="export-row-info">
-                <span class="export-row-title">Projets & Réalisations</span>
-                <span class="export-row-sub">{{ exportStats().projects }} projets</span>
+                <span class="export-row-title">Projects & Achievements</span>
+                <span class="export-row-sub">{{ exportStats().projects }} projects</span>
               </div>
               <span class="export-row-badge">{{ exportStats().projects }}</span>
             </div>
@@ -166,16 +166,16 @@
         <!-- File technical specs -->
         <div class="export-meta-card">
           <div class="flex items-center justify-between text-xs py-1">
-            <span class="text-slate-500 font-medium">Nom du fichier :</span>
+            <span class="text-slate-500 font-medium">File name:</span>
             <span class="font-mono text-slate-800 text-[11px] truncate max-w-[170px] font-semibold">{{ exportFilename() }}</span>
           </div>
           <div class="flex items-center justify-between text-xs py-1 border-t border-slate-100">
-            <span class="text-slate-500 font-medium">Poids estimé :</span>
-            <span class="font-semibold text-slate-800">~{{ jsonSizeKb() }} Ko</span>
+            <span class="text-slate-500 font-medium">Estimated size:</span>
+            <span class="font-semibold text-slate-800">~{{ jsonSizeKb() }} KB</span>
           </div>
           <div class="flex items-center justify-between text-xs py-1 border-t border-slate-100">
-            <span class="text-slate-500 font-medium">Format standard :</span>
-            <span class="text-slate-800 font-medium">JSON UTF-8 (Indentation 2)</span>
+            <span class="text-slate-500 font-medium">Standard format:</span>
+            <span class="text-slate-800 font-medium">JSON UTF-8 (2 spaces)</span>
           </div>
         </div>
       </div>
@@ -199,7 +199,7 @@
               </div>
 
               <div class="flex items-center gap-2">
-                <span class="text-[11px] font-mono text-slate-400 mr-1">{{ jsonLines().length }} lignes</span>
+                <span class="text-[11px] font-mono text-slate-400 mr-1">{{ jsonLines().length }} lines</span>
                 <button
                   type="button"
                   (click)="copyExportJson()"
@@ -208,7 +208,7 @@
                   <mat-icon class="!text-[14px] !w-[14px] !h-[14px]">
                     {{ isExportCopied() ? 'check' : 'content_copy' }}
                   </mat-icon>
-                  <span>{{ isExportCopied() ? 'Copié !' : 'Copier' }}</span>
+                  <span>{{ isExportCopied() ? 'Copied!' : 'Copy' }}</span>
                 </button>
               </div>
             </div>
@@ -230,15 +230,15 @@
             <div class="export-vis-card">
               <div class="export-vis-header">
                 <mat-icon class="text-blue-500">account_circle</mat-icon>
-                <h4>Informations Personnelles</h4>
+                <h4>Personal Information</h4>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div><span class="text-slate-400 block">Nom complet :</span> <strong class="text-slate-800">{{ profile().personal.firstName }} {{ profile().personal.lastName }}</strong></div>
-                <div><span class="text-slate-400 block">Poste actuel :</span> <strong class="text-slate-800">{{ profile().personal.jobTitle || '—' }}</strong></div>
-                <div><span class="text-slate-400 block">Email :</span> <span class="text-slate-800">{{ profile().personal.email || '—' }}</span></div>
-                <div><span class="text-slate-400 block">Téléphone :</span> <span class="text-slate-800">{{ profile().personal.phone || '—' }}</span></div>
-                <div><span class="text-slate-400 block">Localisation :</span> <span class="text-slate-800">{{ profile().personal.city || '—' }}, {{ profile().personal.country || '—' }}</span></div>
-                <div><span class="text-slate-400 block">LinkedIn :</span> <span class="text-[#1A91F0] truncate block">{{ profile().personal.linkedinUrl || '—' }}</span></div>
+                <div><span class="text-slate-400 block">Full name:</span> <strong class="text-slate-800">{{ profile().personal.firstName }} {{ profile().personal.lastName }}</strong></div>
+                <div><span class="text-slate-400 block">Current title:</span> <strong class="text-slate-800">{{ profile().personal.jobTitle || '—' }}</strong></div>
+                <div><span class="text-slate-400 block">Email:</span> <span class="text-slate-800">{{ profile().personal.email || '—' }}</span></div>
+                <div><span class="text-slate-400 block">Phone:</span> <span class="text-slate-800">{{ profile().personal.phone || '—' }}</span></div>
+                <div><span class="text-slate-400 block">Location:</span> <span class="text-slate-800">{{ profile().personal.city || '—' }}, {{ profile().personal.country || '—' }}</span></div>
+                <div><span class="text-slate-400 block">LinkedIn:</span> <span class="text-[#1A91F0] truncate block">{{ profile().personal.linkedinUrl || '—' }}</span></div>
               </div>
             </div>
 
@@ -246,10 +246,10 @@
             <div class="export-vis-card">
               <div class="export-vis-header">
                 <mat-icon class="text-amber-500">business_center</mat-icon>
-                <h4>Expériences Professionnelles ({{ profile().experience.length }})</h4>
+                <h4>Work Experience ({{ profile().experience.length }})</h4>
               </div>
               @if (profile().experience.length === 0) {
-                <p class="text-xs text-slate-400 italic m-0">Aucune expérience renseignée.</p>
+                <p class="text-xs text-slate-400 italic m-0">No experience recorded.</p>
               } @else {
                 <div class="space-y-2">
                   @for (exp of profile().experience; track exp.id || $index) {
@@ -258,7 +258,7 @@
                         <strong class="text-slate-900 block">{{ exp.title }}</strong>
                         <span class="text-slate-500">{{ exp.company }} • {{ exp.city }}</span>
                       </div>
-                      <span class="text-[11px] font-mono text-slate-400">{{ exp.startDate }} - {{ exp.current ? 'Présent' : exp.endDate }}</span>
+                      <span class="text-[11px] font-mono text-slate-400">{{ exp.startDate }} - {{ exp.current ? 'Present' : exp.endDate }}</span>
                     </div>
                   }
                 </div>
@@ -269,7 +269,7 @@
             <div class="export-vis-card">
               <div class="export-vis-header">
                 <mat-icon class="text-purple-500">stars</mat-icon>
-                <h4>Compétences & Langues</h4>
+                <h4>Skills & Languages</h4>
               </div>
               <div class="flex flex-wrap gap-1.5">
                 @for (skill of profile().skills; track skill.id || $index) {
@@ -289,7 +289,7 @@
             <div class="export-vis-card">
               <div class="export-vis-header">
                 <mat-icon class="text-emerald-500">build</mat-icon>
-                <h4>Projets & Certifications ({{ profile().projets.length + profile().certifications.length }})</h4>
+                <h4>Projects & Certifications ({{ profile().projets.length + profile().certifications.length }})</h4>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 @for (proj of profile().projets; track proj.id || $index) {
@@ -315,7 +315,7 @@
     <div class="export-dialog-footer">
       <div class="flex items-center gap-2 text-xs text-slate-500">
         <mat-icon class="!text-[16px] !w-[16px] !h-[16px] text-emerald-600">shield</mat-icon>
-        <span class="hidden sm:inline">Export instantané et sécurisé généré localement.</span>
+        <span class="hidden sm:inline">Instant and secure export generated locally.</span>
       </div>
 
       <div class="flex items-center gap-2.5">
@@ -323,7 +323,7 @@
           type="button"
           (click)="closeExportModal()"
           class="export-btn-ghost">
-          Fermer
+          Close
         </button>
         <button
           type="button"
@@ -332,14 +332,14 @@
           <mat-icon class="!text-[17px] !w-[17px] !h-[17px]">
             {{ isExportCopied() ? 'check' : 'content_copy' }}
           </mat-icon>
-          <span>{{ isExportCopied() ? 'Copié !' : 'Copier JSON' }}</span>
+          <span>{{ isExportCopied() ? 'Copied!' : 'Copy JSON' }}</span>
         </button>
         <button
           type="button"
           (click)="downloadExportJson()"
           class="export-btn-primary">
           <mat-icon class="!text-[18px] !w-[18px] !h-[18px]">download</mat-icon>
-          <span>Télécharger le JSON</span>
+          <span>Download JSON</span>
         </button>
       </div>
     </div>

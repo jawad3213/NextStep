@@ -48,7 +48,15 @@ public class ProfileController(
     public async Task<ActionResult<MessageResponse>> UpdatePersonalInfo([FromBody] PersonalInfoDto dto)
     {
         await profileService.UpdatePersonalInfoAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Infos personnelles mises à jour."));
+        return Ok(new MessageResponse("Personal information updated successfully."));
+    }
+
+    /// <summary>UI and generated-document language ("en" or "fr"). Persisted server-side, not just in the browser.</summary>
+    [HttpPut("language")]
+    public async Task<ActionResult<MessageResponse>> UpdateLanguagePreference([FromBody] LanguagePreferenceDto dto)
+    {
+        await profileService.UpdateLanguagePreferenceAsync(await GetUserIdAsync(), dto.Language);
+        return Ok(new MessageResponse("Language preference updated successfully."));
     }
 
     // ── Photo ───────────────────────────────────────────────────────────────
@@ -75,119 +83,119 @@ public class ProfileController(
     public async Task<ActionResult<MessageResponse>> AddExperience([FromBody] ExperienceDto dto)
     {
         await profileService.AddExperienceAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Expérience ajoutée."));
+        return Ok(new MessageResponse("Experience added successfully."));
     }
 
     [HttpPut("experiences")]
     public async Task<ActionResult<MessageResponse>> UpdateExperience([FromBody] ExperienceDto dto)
     {
         await profileService.UpdateExperienceAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Expérience mise à jour."));
+        return Ok(new MessageResponse("Experience updated successfully."));
     }
 
     [HttpDelete("experiences/{id}")]
     public async Task<ActionResult<MessageResponse>> DeleteExperience(Guid id)
     {
         await profileService.DeleteExperienceAsync(await GetUserIdAsync(), id);
-        return Ok(new MessageResponse("Expérience supprimée."));
+        return Ok(new MessageResponse("Experience deleted successfully."));
     }
 
     [HttpPost("projets")]
     public async Task<ActionResult<MessageResponse>> AddProjet([FromBody] ProjetDto dto)
     {
         await profileService.AddProjetAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Projet ajouté."));
+        return Ok(new MessageResponse("Project added successfully."));
     }
 
     [HttpPut("projets")]
     public async Task<ActionResult<MessageResponse>> UpdateProjet([FromBody] ProjetDto dto)
     {
         await profileService.UpdateProjetAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Projet mis à jour."));
+        return Ok(new MessageResponse("Project updated successfully."));
     }
 
     [HttpDelete("projets/{id}")]
     public async Task<ActionResult<MessageResponse>> DeleteProjet(Guid id)
     {
         await profileService.DeleteProjetAsync(await GetUserIdAsync(), id);
-        return Ok(new MessageResponse("Projet supprimé."));
+        return Ok(new MessageResponse("Project deleted successfully."));
     }
 
     [HttpPost("competences")]
     public async Task<ActionResult<MessageResponse>> AddCompetence([FromBody] CompetenceDto dto)
     {
         await profileService.AddCompetenceAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Compétence ajoutée."));
+        return Ok(new MessageResponse("Skill added successfully."));
     }
 
     [HttpPut("competences")]
     public async Task<ActionResult<MessageResponse>> UpdateCompetence([FromBody] CompetenceDto dto)
     {
         await profileService.UpdateCompetenceAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Compétence mise à jour."));
+        return Ok(new MessageResponse("Skill updated successfully."));
     }
 
     [HttpDelete("competences/{id}")]
     public async Task<ActionResult<MessageResponse>> DeleteCompetence(Guid id)
     {
         await profileService.DeleteCompetenceAsync(await GetUserIdAsync(), id);
-        return Ok(new MessageResponse("Compétence supprimée."));
+        return Ok(new MessageResponse("Skill deleted successfully."));
     }
 
     [HttpPost("formations")]
     public async Task<ActionResult<MessageResponse>> AddFormation([FromBody] FormationDto dto)
     {
         await profileService.AddFormationAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Formation ajoutée."));
+        return Ok(new MessageResponse("Education added successfully."));
     }
 
     [HttpPut("formations")]
     public async Task<ActionResult<MessageResponse>> UpdateFormation([FromBody] FormationDto dto)
     {
         await profileService.UpdateFormationAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Formation mise à jour."));
+        return Ok(new MessageResponse("Education updated successfully."));
     }
 
     [HttpDelete("formations/{id}")]
     public async Task<ActionResult<MessageResponse>> DeleteFormation(Guid id)
     {
         await profileService.DeleteFormationAsync(await GetUserIdAsync(), id);
-        return Ok(new MessageResponse("Formation supprimée."));
+        return Ok(new MessageResponse("Education deleted successfully."));
     }
 
     [HttpPost("certifications")]
     public async Task<ActionResult<MessageResponse>> AddCertification([FromBody] CertificationDto dto)
     {
         await profileService.AddCertificationAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Certification ajoutée."));
+        return Ok(new MessageResponse("Certification added successfully."));
     }
 
     [HttpPut("certifications")]
     public async Task<ActionResult<MessageResponse>> UpdateCertification([FromBody] CertificationDto dto)
     {
         await profileService.UpdateCertificationAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Certification mise à jour."));
+        return Ok(new MessageResponse("Certification updated successfully."));
     }
 
     [HttpDelete("certifications/{id}")]
     public async Task<ActionResult<MessageResponse>> DeleteCertification(Guid id)
     {
         await profileService.DeleteCertificationAsync(await GetUserIdAsync(), id);
-        return Ok(new MessageResponse("Certification supprimée."));
+        return Ok(new MessageResponse("Certification deleted successfully."));
     }
 
     [HttpPost("complete-onboarding")]
     public async Task<ActionResult<MessageResponse>> CompleteOnboarding([FromBody] OnboardingDto dto)
     {
         await profileService.CompleteOnboardingAsync(await GetUserIdAsync(), dto);
-        return Ok(new MessageResponse("Onboarding terminé avec succès."));
+        return Ok(new MessageResponse("Onboarding completed successfully."));
     }
 
     [HttpDelete("clear")]
     public async Task<ActionResult<MessageResponse>> ClearProfile()
     {
         await profileService.ClearProfileAsync(await GetUserIdAsync());
-        return Ok(new MessageResponse("Profil réinitialisé avec succès."));
+        return Ok(new MessageResponse("Profile reset successfully."));
     }
 
     // ── Reference data & AI import ──────────────────────────────────────────
@@ -199,7 +207,7 @@ public class ProfileController(
 
     [HttpPost("generate-resume")]
     public async Task<ActionResult<GenerateResumeResponse>> GenerateResume([FromBody] object profileData) =>
-        Ok(await resumeImportService.GenerateResumeAsync(profileData));
+        Ok(await resumeImportService.GenerateResumeAsync(await GetUserIdAsync(), profileData));
 
     [HttpPost("parse-resume")]
     public async Task<IActionResult> ParseResume(IFormFile file) =>

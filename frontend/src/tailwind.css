@@ -4,11 +4,11 @@
 
 @layer components {
   .menu-item {
-    @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium;
+    @apply relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium;
   }
 
   .menu-item-active {
-    @apply bg-brand-50 text-brand-500;
+    @apply bg-brand-50 text-brand-500 font-semibold;
   }
 
   .menu-item-inactive {
@@ -23,8 +23,12 @@
     @apply text-gray-500 group-hover:text-gray-700;
   }
 
+  .menu-item-icon-size {
+    @apply flex h-[18px] w-[18px] items-center justify-center shrink-0;
+  }
+
   .menu-item-icon-size svg {
-    @apply h-6 w-6;
+    @apply h-[18px] w-[18px];
   }
 
   .menu-item-text {
@@ -32,11 +36,11 @@
   }
 
   .menu-dropdown-item {
-    @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium;
+    @apply relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium;
   }
 
   .menu-dropdown-item-active {
-    @apply bg-brand-50 text-brand-500;
+    @apply bg-brand-50 text-brand-500 font-semibold;
   }
 
   .menu-dropdown-item-inactive {

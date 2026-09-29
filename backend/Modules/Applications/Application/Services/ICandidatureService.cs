@@ -5,9 +5,11 @@ namespace NextStep.Modules.Applications.Application.Services;
 
 public interface ICandidatureService
 {
+    /// <param name="source">Who made the change, recorded in the status history ("user", "ai_sn").</param>
     Task<CandidatureDto> CreateAsync(
         Guid userId,
         CreateCandidatureDto dto,
+        string source = "user",
         CancellationToken cancellationToken = default);
 
     Task<CandidatureDto?> GetByIdAsync(
@@ -34,9 +36,11 @@ public interface ICandidatureService
         bool interviewOnly = false,
         CancellationToken cancellationToken = default);
 
+    /// <param name="source">Who made the change, recorded in the status history ("user", "ai_sn").</param>
     Task<CandidatureDto?> UpdateStatutAsync(
         Guid candidatureId,
         UpdateStatutDto dto,
+        string source = "user",
         CancellationToken cancellationToken = default);
 
     Task<CandidatureDto?> UpdateAsync(

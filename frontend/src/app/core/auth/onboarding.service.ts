@@ -1,6 +1,6 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import {
   ProfileStatus,
   SoftOnboardingPayload,
@@ -42,13 +42,26 @@ export class OnboardingService {
     localStorage.removeItem('nextstep_soft_onboarding_done');
   }
 
+  /**
+   * Latest status the server returned (set by every getStatus call, e.g. the route guard).
+   * Lets a page render in the right mode immediately instead of guessing until it re-asks.
+   */
+  readonly lastStatus = signal<OnboardingStatus | null>(null);
+
   getStatus(): Observable<OnboardingStatus> {
-    return this.http.get<OnboardingStatus>(`${this.baseUrl}/onboarding-status`);
+    return this.http.get<OnboardingStatus>(`${this.baseUrl}/onboarding-status`).pipe(
+      tap(status => this.lastStatus.set(status)),
+    );
   }
 
   /** Server-side "Finish": validates the profile (85% rule) and unlocks the application. */
   completeProfile(): Observable<CompleteProfileResult> {
-    return this.http.post<CompleteProfileResult>(`${this.baseUrl}/complete-profile`, {});
+    return this.http.post<CompleteProfileResult>(`${this.baseUrl}/complete-profile`, {}).pipe(
+      tap(result => {
+        const current = this.lastStatus();
+        if (result.succeeded && current) this.lastStatus.set({ ...current, profileCompleted: true });
+      }),
+    );
   }
 
   submitSoftOnboarding(data: SoftOnboardingPayload): Observable<SoftOnboardingResponse> {

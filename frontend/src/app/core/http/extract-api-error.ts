@@ -42,22 +42,22 @@ export function extractApiError(err: unknown): ExtractedApiError {
             .filter((m): m is string => typeof m === 'string');
           return {
             status,
-            message: msgs.length ? msgs.join(', ') : 'Erreur de validation',
+            message: msgs.length ? msgs.join(', ') : 'Validation error',
           };
         }
       }
     }
 
-    // Corps texte brut
+    // Plain text body
     if (typeof err.error === 'string' && err.error.length > 0) {
       return { status, message: err.error };
     }
 
-    // Statut seul ou erreur réseau
+    // Status code only or network failure
     if (status === 0) {
-      return { status, message: 'Impossible de joindre le serveur. Vérifiez votre connexion.' };
+      return { status, message: 'Unable to reach the server. Please check your connection.' };
     }
-    return { status, message: `Erreur HTTP ${status}` };
+    return { status, message: `HTTP Error ${status}` };
   }
 
   if (err instanceof Error) {
@@ -68,7 +68,7 @@ export function extractApiError(err: unknown): ExtractedApiError {
     return { status: null, message: err };
   }
 
-  return { status: null, message: 'Une erreur inattendue est survenue.' };
+  return { status: null, message: 'An unexpected error occurred.' };
 }
 
 function isDetailsDict(value: unknown): value is Record<string, string[]> {

@@ -2,46 +2,29 @@
 SERVICE — Logique métier du module chatbot.
 
 RESPONSABILITÉS :
-  1. Récupérer le contexte offre depuis la DB (outputs agents 2/3/4)
+  1. Récupérer le contexte de l'offre (tables agents + backend)
   2. Appeler le graphe LangGraph
-  3. Persister les résultats en DB
-  4. Retourner les schemas de réponse API
+  3. Retourner les schemas de réponse API
+
+Les sessions et questions sont enregistrées par le backend (module Coaching).
 
 Le router appelle le service.
-Le service appelle graph + DB.
+Le service appelle le graphe.
 Le service ne connaît pas HTTP.
 """
 
 from __future__ import annotations
 import uuid
 import logging
-from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.domain.chatbot.graph import interview_graph
-from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
-from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement,
-)
-from app.domain.chatbot.state import (
-    InterviewPrepState, ArenaConfig, MessageTurn,
-    OfferContext, OfferData, CompanyData, MatchData,
-    FeedbackResult, DimensionScore,
-)
-from app.domain.chatbot.schemas import (
-    ArenaConfigSchema, MessageSchema,
-    QuestionsResponse, QuestionOut,
-    FreeChatResponse,
-    StartInterviewResponse,
-    SendMessageResponse,
-    EndInterviewResponse, FeedbackOut, DimensionOut,
-    SalaryResponse, NegotiationStepOut,
-)
+from app.domain.chatbot.state import InterviewPrepState
+from app.domain.chatbot.schemas import ArenaConfigSchema, QuestionsResponse, QuestionOut
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
+from .context_service import get_offer_context_from_db, _to_arena_config
 
 # SERVICE 1 — QUESTIONS (Tab 1)
 async def generate_questions_service(
@@ -52,85 +35,9 @@ async def generate_questions_service(
     db: AsyncSession,
 ) -> QuestionsResponse:
     """
-    Génère les questions via LangGraph.
-    Sauvegarde chaque question dans question_entrainement.
+    Génère les questions via LangGraph. Rien n'est enregistré ici : le backend (module
+    Coaching) réutilise les questions existantes et sauvegarde les nouvelles.
     """
-
-    # 0. Check if questions already exist for this offer or domain/level
-    if mode == "offer" and offer_id:
-        cand_id = await get_candidature_id(offer_id, user_id, db)
-        if cand_id and isinstance(cand_id, uuid.UUID):
-            # Query existing questions for this candidature
-            stmt = (
-                select(QuestionEntrainement)
-                .join(SessionCoaching)
-                .where(SessionCoaching.id_candidature == cand_id)
-                .order_by(QuestionEntrainement.ordre.asc())
-            )
-            res = await db.execute(stmt)
-            existing_qs = res.scalars().all()
-            if existing_qs and isinstance(existing_qs, list):
-                logger.info(f"Reusing {len(existing_qs)} existing questions for candidature {cand_id}")
-                return QuestionsResponse(
-                    mode=mode,
-                    total=len(existing_qs),
-                    questions=[
-                        QuestionOut(
-                            id=str(q.id_question),
-                            question=q.texte_question,
-                            type=q.type_question,
-                            source=q.source,
-                            company_specific=q.company_specific,
-                            tip=q.conseil_reponse,
-                        )
-                        for q in existing_qs
-                    ],
-                )
-
-    elif mode == "arena" and arena_config:
-        internal_uid = await get_internal_user_id(user_id, db)
-        if internal_uid and isinstance(internal_uid, uuid.UUID):
-            # Query the most recent session with identical arena config
-            stmt = (
-                select(SessionCoaching)
-                .where(
-                    SessionCoaching.id_utilisateur == internal_uid,
-                    SessionCoaching.mode == "arena",
-                    SessionCoaching.domain == arena_config.domain,
-                    SessionCoaching.level == arena_config.level,
-                    SessionCoaching.language == arena_config.language
-                )
-                .order_by(SessionCoaching.date_session.desc())
-                .limit(1)
-            )
-            res = await db.execute(stmt)
-            last_session = res.scalar_one_or_none()
-            if last_session and not type(last_session).__name__.endswith("Mock"):
-                # Query questions of that session
-                stmt_q = (
-                    select(QuestionEntrainement)
-                    .where(QuestionEntrainement.id_session == last_session.id_session)
-                    .order_by(QuestionEntrainement.ordre.asc())
-                )
-                res_q = await db.execute(stmt_q)
-                existing_qs = res_q.scalars().all()
-                if existing_qs and isinstance(existing_qs, list):
-                    logger.info(f"Reusing {len(existing_qs)} existing questions for arena domain {arena_config.domain} level {arena_config.level}")
-                    return QuestionsResponse(
-                        mode=mode,
-                        total=len(existing_qs),
-                        questions=[
-                            QuestionOut(
-                                id=str(q.id_question),
-                                question=q.texte_question,
-                                type=q.type_question,
-                                source=q.source,
-                                company_specific=q.company_specific,
-                                tip=q.conseil_reponse,
-                            )
-                            for q in existing_qs
-                        ],
-                    )
 
     # 1. Récupérer le contexte offre si mode offer
     offer_ctx = None
@@ -154,43 +61,7 @@ async def generate_questions_service(
     if not questions_out:
         logger.warning("Graph returned 0 questions")
 
-    # 4. Sauvegarder en DB (session temporaire pour les questions générées)
-    try:
-        cand_id = await get_candidature_id(offer_id, user_id, db)
-        internal_uid = await get_internal_user_id(user_id, db)
-        session_db = SessionCoaching(
-            id_utilisateur=internal_uid,
-            id_candidature=cand_id,
-            mode=mode,
-            language=arena_config.language if arena_config else "en",
-            duration_minutes=arena_config.duration_minutes if arena_config else 20,
-            domain=arena_config.domain if arena_config else None,
-            level=arena_config.level if arena_config else None,
-            focus_areas=arena_config.focus_areas if arena_config else None,
-            status="pending",
-        )
-        db.add(session_db)
-        await db.flush()  # obtenir l'id_session sans commit
-
-        for i, q in enumerate(questions_out):
-            db.add(QuestionEntrainement(
-                id_session=session_db.id_session,
-                texte_question=q.question,
-                type_question=q.type,
-                source=q.source,
-                company_specific=q.company_specific,
-                conseil_reponse=q.tip,
-                ordre=i,
-            ))
-
-        await db.commit()
-        logger.info(f"Saved session {session_db.id_session} with {len(questions_out)} questions")
-
-    except Exception as e:
-        logger.error(f"DB save error in generate_questions: {e}")
-        await db.rollback()
-
-    # 5. Retourner le schema de réponse
+    # 4. Retourner le schema de réponse
     return QuestionsResponse(
         mode=mode,
         total=len(questions_out),

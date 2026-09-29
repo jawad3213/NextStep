@@ -141,7 +141,7 @@ public class ArenaControllerTests
         var request = new SendMessageRequest("session-1", "User text", new List<MessageTurnDto>());
         _mockArenaService
             .Setup(s => s.SendMessageAsync(It.IsAny<SendMessageRequest>()))
-            .ThrowsAsync(new OperationFailedException("Erreur lors de l'envoi du message. Veuillez réessayer."));
+            .ThrowsAsync(new OperationFailedException("Error sending message. Please try again."));
 
         // Act
         var act = () => _controller.SendMessage(request);
@@ -258,7 +258,7 @@ public class ArenaControllerTests
         // Arrange
         var expectedResponse = new SessionDetailDto("session-1", "arena", "Dev", "senior", 80, DateTime.UtcNow, new List<DimensionScoreDto>(), new List<string>(), new List<string>(), new List<string>(), new List<QuestionEvaluationDto>(), "best", "worst");
         _mockArenaService
-            .Setup(s => s.GetSessionDetailAsync("session-1"))
+            .Setup(s => s.GetSessionDetailAsync("session-1", "keycloak-user-123"))
             .ReturnsAsync(expectedResponse);
 
         // Act
@@ -267,6 +267,23 @@ public class ArenaControllerTests
         // Assert
         var okResult = Unwrap(result).Should().BeOfType<OkObjectResult>().Subject;
         okResult.Value.Should().Be(expectedResponse);
+    }
+
+    [Fact]
+    public async Task GetSessionDetail_Should_ReturnUnauthorized_When_NoUserId()
+    {
+        var anonymous = new ArenaController(_mockArenaService.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
+            }
+        };
+
+        var result = await anonymous.GetSessionDetail("session-1");
+
+        Unwrap(result).Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(401);
+        _mockArenaService.Verify(s => s.GetSessionDetailAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]

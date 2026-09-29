@@ -5,6 +5,8 @@ from typing import Any
 
 import requests
 
+from _agents_http import auth_headers
+
 
 def _pretty(data: Any) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False)
@@ -120,6 +122,7 @@ def main() -> int:
     parser.add_argument("--company", default="Lumina AI", help="Nom de l'entreprise")
     parser.add_argument("--job-title", default="Ingénieur Software - AI Systems & Data", help="Intitulé du poste")
     parser.add_argument("--timeout", type=int, default=180, help="Timeout HTTP en secondes")
+    parser.add_argument("--api-key", default=None, help="AGENTS_API_KEY (par défaut : environnement ou .env)")
     parser.add_argument("--raw", action="store_true", help="Afficher seulement le JSON brut")
     args = parser.parse_args()
 
@@ -130,7 +133,7 @@ def main() -> int:
     print(f"[INFO] company={args.company} job_title={args.job_title} user_id={args.user_id}")
 
     try:
-        resp = requests.post(url, json=payload, timeout=args.timeout)
+        resp = requests.post(url, json=payload, headers=auth_headers(args.api_key), timeout=args.timeout)
     except Exception as e:
         print(f"[ERROR] Request failed: {e}")
         return 2

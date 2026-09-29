@@ -37,7 +37,7 @@ public class SkillGapService(
         catch (Exception ex) when (ex is not AppException and not OperationCanceledException)
         {
             logger.LogError(ex, "Skill-gap analysis failed for user {UserId}", userId);
-            throw new OperationFailedException("L'analyse des écarts de compétences a échoué. Veuillez réessayer.", ex);
+            throw new OperationFailedException("Skill gap analysis failed. Please try again.", ex);
         }
     }
 }

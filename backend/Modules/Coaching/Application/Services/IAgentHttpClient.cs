@@ -3,9 +3,9 @@ using NextStep.Modules.Coaching.Application.Dtos;
 namespace NextStep.Modules.Coaching.Application.Services;
 
 /// <summary>
-/// Contrat HTTP vers Python FastAPI.
-/// Remplacer l'implémentation ici suffit pour migrer en microservice (gRPC, message broker...).
-/// Le reste du code (Service, Controller) ne change pas.
+/// HTTP contract to Python FastAPI.
+/// Replacing the implementation here is enough to migrate to a microservice (gRPC, message broker...).
+/// The rest of the code (Service, Controller) does not change.
 /// </summary>
 public interface IAgentHttpClient
 {

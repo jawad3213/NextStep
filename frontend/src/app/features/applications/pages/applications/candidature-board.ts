@@ -1,7 +1,12 @@
 /*
- * Rules of the applications board: status ↔ kanban column, contract type detection,
- * dates, channel/badge display and CSV export. Pure functions, no Angular.
+ * Rules of the applications board: contract type detection, dates, channel/badge display
+ * and CSV export. Pure functions, no Angular.
  */
+
+import { getDaysSince, isFollowUpDue } from '../../data-access/candidature-status';
+
+// The status rules live in data-access (shared with the dashboard); re-exported for the board.
+export { KANBAN_COLUMNS, getDaysSince, mapKanbanToStatus, mapStatusToKanban } from '../../data-access/candidature-status';
 
 export interface CandidatureCard {
   id: string;
@@ -22,51 +27,6 @@ export interface CandidatureCard {
   followUpNeeded?: boolean;
   lastFollowUpAtUtc?: string;
   notes?: string;
-}
-
-export const KANBAN_COLUMNS = [
-  { key: 'brouillon', label: 'Brouillon', color: '#9CA3AF' },
-  { key: 'envoye', label: 'Envoye', color: '#465fff' },
-  { key: 'en-attente', label: 'En attente', color: '#F59B00' },
-  { key: 'relance', label: 'Relance', color: '#F97316' },
-  { key: 'entretien', label: 'Entretien', color: '#7c3aed' },
-  { key: 'test-tech', label: 'Test Tech', color: '#757575' },
-  { key: 'accepte', label: 'Accepte', color: '#34A853' },
-  { key: 'refuse', label: 'Refuse', color: '#D93025' },
-];
-
-export function mapStatusToKanban(backendStatus: string): string {
-  switch (backendStatus) {
-    case 'BROUILLON': return 'brouillon';
-    case 'ENVOYE': return 'envoye';
-    case 'ACCUSE_RECEPTION': return 'envoye';
-    case 'EN_COURS_EXAMEN': return 'en-attente';
-    case 'RELANCE_NECESSAIRE': return 'relance';
-    case 'RELANCE_ENVOYEE': return 'relance';
-    case 'REPONSE_RECUE': return 'en-attente';
-    case 'TEST_TECHNIQUE': return 'test-tech';
-    case 'ENTRETIEN_PROPOSE': return 'entretien';
-    case 'ENTRETIEN_EFFECTUE': return 'entretien';
-    case 'OFFRE_RECUE': return 'accepte';
-    case 'ACCEPTE': return 'accepte';
-    case 'REFUSE': return 'refuse';
-    case 'ABANDONNE': return 'refuse';
-    default: return 'envoye';
-  }
-}
-
-export function mapKanbanToStatus(col: string): string {
-  switch (col) {
-    case 'brouillon': return 'BROUILLON';
-    case 'envoye': return 'ENVOYE';
-    case 'en-attente': return 'EN_COURS_EXAMEN';
-    case 'relance': return 'RELANCE_NECESSAIRE';
-    case 'entretien': return 'ENTRETIEN_PROPOSE';
-    case 'test-tech': return 'TEST_TECHNIQUE';
-    case 'accepte': return 'ACCEPTE';
-    case 'refuse': return 'REFUSE';
-    default: return 'ENVOYE';
-  }
 }
 
 export function resolveContractType(rawType?: string | null, role?: string | null, notes?: string | null): string {
@@ -122,29 +82,25 @@ export function resolveContractType(rawType?: string | null, role?: string | nul
   return rawType && rawType !== 'CDI' ? rawType : 'Stage PFE';
 }
 
-export function getDaysSince(dateStr?: string | null): number {
-  if (!dateStr) return 0;
-  const then = new Date(dateStr).getTime();
-  if (isNaN(then)) return 0;
-  const now = new Date().getTime();
-  const diffDays = Math.floor((now - then) / (1000 * 60 * 60 * 24));
-  return diffDays >= 0 ? diffDays : 0;
-}
-
 export function getJobCategoryBadgeClass(category: string): string {
   switch (category) {
+    case 'Engineering & Dev':
     case 'Ingénierie & Dev':
       return 'bg-blue-50 text-blue-700 border border-blue-200';
+    case 'Data & AI':
     case 'Data & IA':
       return 'bg-purple-50 text-purple-700 border border-purple-200';
     case 'Cloud & DevOps':
       return 'bg-cyan-50 text-cyan-700 border border-cyan-200';
+    case 'Product & Design':
     case 'Produit & Design':
       return 'bg-rose-50 text-rose-700 border border-rose-200';
+    case 'Cybersecurity':
     case 'Cybersécurité':
       return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
     case 'Management':
       return 'bg-amber-50 text-amber-700 border border-amber-200';
+    case 'QA & Testing':
     case 'QA & Test':
       return 'bg-orange-50 text-orange-700 border border-orange-200';
     default:
@@ -162,22 +118,20 @@ export function getCompanyInitials(name: string): string {
 export function formatRelativeDate(dateStr?: string | null): string {
   if (!dateStr) return '';
   const days = getDaysSince(dateStr);
-  if (days === 0) return "Aujourd'hui";
-  if (days === 1) return 'Hier';
-  return `J+${days}`;
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `D+${days}`;
 }
 
 export function formatDateShort(dateStr?: string | null): string {
-  if (!dateStr) return 'Date non précisée';
+  if (!dateStr) return 'No date specified';
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return 'Date invalide';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (isNaN(d.getTime())) return 'Invalid date';
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function isFollowUpSuggested(card: CandidatureCard): boolean {
-  if (card.statut !== 'en-attente' && card.statut !== 'envoye') return false;
-  if (card.hasResponse) return false;
-  return getDaysSince(card.applicationDate) >= 5;
+  return isFollowUpDue(card.statut, card.hasResponse, card.applicationDate);
 }
 
 export function getChannelLabel(channel: string): string {
@@ -186,8 +140,8 @@ export function getChannelLabel(channel: string): string {
     case 'LINKEDIN': return 'LinkedIn';
     case 'INDEED': return 'Indeed';
     case 'WHATSAPP': return 'WhatsApp';
-    case 'WEBSITE': return 'Site web';
-    case 'PHONE': return 'Téléphone';
+    case 'WEBSITE': return 'Website';
+    case 'PHONE': return 'Phone';
     default: return channel || 'Direct';
   }
 }
@@ -242,7 +196,7 @@ export function getCompanyColor(name: string): string {
 
 /** CSV of the visible candidatures (Excel-friendly: quoted cells; the BOM is added on download). */
 export function buildCandidaturesCsv(rows: CandidatureCard[]): string {
-  const headers = ['Entreprise', 'Poste', 'Canal', 'Statut', 'Date', 'Reponse', 'Relance'];
+  const headers = ['Company', 'Role', 'Channel', 'Status', 'Date', 'Response', 'FollowUp'];
   const csvRows = [headers.join(',')];
 
   for (const c of rows) {
@@ -252,8 +206,8 @@ export function buildCandidaturesCsv(rows: CandidatureCard[]): string {
       `"${c.channel}"`,
       `"${c.statut}"`,
       `"${c.applicationDate}"`,
-      `"${c.hasResponse ? 'Oui' : 'Non'}"`,
-      `"${c.followUpNeeded ? 'Oui' : 'Non'}"`,
+      `"${c.hasResponse ? 'Yes' : 'No'}"`,
+      `"${c.followUpNeeded ? 'Yes' : 'No'}"`,
     ];
     csvRows.push(row.join(','));
   }

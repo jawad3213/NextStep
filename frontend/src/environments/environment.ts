@@ -1,6 +1,6 @@
 /**
- * Configuration centralisée de l'environnement.
- * Toutes les URLs de l'API passent par ici pour éviter les chaînes en dur.
+ * Centralized environment configuration.
+ * All API URLs go through here to avoid hardcoded strings.
  */
 export const environment = {
   production: false,

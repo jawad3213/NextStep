@@ -45,7 +45,7 @@ export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
         SELF_MANAGED_HINTS.some((hint) => req.url.includes(hint));
 
       if (!suppressed) {
-        toast.error(normalized.message || 'Une erreur est survenue.');
+        toast.error(normalized.message || 'An unexpected error occurred.');
       }
 
       return throwError(() => err);

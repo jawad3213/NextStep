@@ -89,7 +89,8 @@ public class SourcedOfferService(
                 .Take(normalizedRequest.Limit)
                 .Select(o => o.ToListItemDto())
                 .ToList(),
-            Warnings = warnings.Distinct().ToList(),
+            // Provider failures are shown too: otherwise a failed provider just looks like "0 offers".
+            Warnings = errors.Concat(warnings).Distinct().ToList(),
         };
     }
 

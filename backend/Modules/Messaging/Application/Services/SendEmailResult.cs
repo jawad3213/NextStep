@@ -16,4 +16,7 @@ public class SendEmailResult
 
     /// <summary>Clear error description if sending failed. Null on success.</summary>
     public string? ErrorMessage { get; set; }
+
+    /// <summary>The user must reconnect Gmail before sending can work.</summary>
+    public bool NeedsReconnect { get; set; }
 }

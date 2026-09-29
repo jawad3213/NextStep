@@ -4,68 +4,34 @@ import { RouterModule } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from '@core/auth/auth.service';
-import { OnboardingService } from '@core/auth/onboarding.service';
 import { ProfileService } from '@features/profile/data-access/profile.service';
 import { CandidatureDto } from '@features/applications/data-access/candidature.models';
 import { CandidatureService } from '@features/applications/data-access/candidature.service';
 import { OfferApiService } from '@features/offers/data-access/offer-api.service';
-import { OfferAnalysisResponse, OfferHistoryItem } from '@features/offers/data-access/offers.models';
+import { OfferHistoryItem } from '@features/offers/data-access/offers.models';
 import { SourcedOffersApiService } from '@features/offers/data-access/sourced-offers-api.service';
 import { SourcedOfferListItemDto } from '@features/offers/data-access/sourced-offers.models';
+import {
+  DashboardApplication,
+  TodoKind,
+  buildKpis,
+  buildPipeline,
+  buildSummaryLine,
+  buildTodos,
+  companyInitials,
+  toDashboardApplications,
+} from './dashboard-summary';
 
-interface Application {
-  candidatureId: string;
-  company: string;
-  logo: string;
-  poste: string;
-  date: string;
-  status: string;
-  statusColor: 'success' | 'warning' | 'primary' | 'slate';
-}
-
-interface Activity {
-  icon: string;
-  iconBg: string;
-  iconColor: string;
-  text: string;
-  time: string;
-}
-
-interface Interview {
-  candidatureId: string;
-  dayLabel: string;
-  date: string;
-  title: string;
-  time: string;
-  location: string;
-  isToday: boolean;
-}
-
-interface MissingSection {
+interface Shortcut {
   icon: string;
   label: string;
-  description: string;
   route: string;
-  queryParams: Record<string, string>;
-  color: 'brand' | 'amber' | 'purple' | 'green';
 }
 
-interface QuickAction {
-  icon: string;
-  label: string;
-  description: string;
-  route: string;
-  color: 'brand' | 'amber' | 'purple' | 'green';
-}
-
-interface OfferOverview {
-  company: string;
-  poste: string;
-  matchScore: number;
-  atsScore: number;
-  date: string;
-  skills: string[];
-}
+const RECENT_APPLICATIONS = 5;
+const TODOS_SHOWN = 5;
+/** One row of cards on desktop. */
+const SOURCED_OFFERS_SHOWN = 3;
 
 @Component({
   selector: 'app-dashboard',
@@ -76,437 +42,102 @@ interface OfferOverview {
 })
 export class DashboardComponent {
   private readonly authService = inject(AuthService);
-  private readonly sourcedOffersApi = inject(SourcedOffersApiService);
-  private readonly onboardingService = inject(OnboardingService);
+  private readonly profileService = inject(ProfileService);
   private readonly candidatureService = inject(CandidatureService);
   private readonly offerApi = inject(OfferApiService);
-  private readonly profileService = inject(ProfileService);
+  private readonly sourcedOffersApi = inject(SourcedOffersApiService);
 
-  readonly loading = signal(false);
-  readonly refreshing = signal(false);
+  readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
+  /** Sources that failed on the last load (message + retry). */
+  readonly failedSections = signal<string[]>([]);
 
   readonly currentDateLabel = signal(this.formatHeaderDate(new Date()));
-  readonly profileCompletion = this.profileService.completionPercentage;
+  readonly applications = signal<DashboardApplication[]>([]);
   readonly sourcedOffers = signal<SourcedOfferListItemDto[]>([]);
 
   readonly userName = computed(() => {
-    const profile = this.profileService.profile();
-    const profileName = `${profile?.personal?.firstName ?? ''} ${profile?.personal?.lastName ?? ''}`.trim();
+    const profileName = this.profileService.profile()?.personal?.firstName?.trim();
     if (profileName) return profileName;
-
     const user = this.authService.user();
-    const full = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
-    return full || user?.email || 'there';
+    return user?.firstName?.trim() || user?.email || '';
   });
 
-  private readonly candidaturesData = signal<CandidatureDto[]>([]);
-  private readonly offerHistoryData = signal<OfferHistoryItem[]>([]);
-  private readonly offerMapSignal = signal<Map<string, OfferHistoryItem>>(new Map());
+  readonly kpis = computed(() => buildKpis(this.applications()));
+  readonly pipeline = computed(() => buildPipeline(this.applications()));
+  readonly todos = computed(() => buildTodos(this.applications()));
+  readonly visibleTodos = computed(() => this.todos().slice(0, TODOS_SHOWN));
+  readonly hiddenTodoCount = computed(() => Math.max(0, this.todos().length - TODOS_SHOWN));
+  readonly recentApplications = computed(() => this.applications().slice(0, RECENT_APPLICATIONS));
+  readonly summaryLine = computed(() => buildSummaryLine(this.applications(), this.todos().length));
 
-  /** Sources du dashboard qui ont échoué au dernier chargement (message + réessayer). */
-  readonly failedSections = signal<string[]>([]);
-
-  readonly recentApplications = signal<Application[]>([]);
-  readonly activities = signal<Activity[]>([]);
-  readonly interviews = signal<Interview[]>([]);
-  readonly loadingMoreInterviews = signal(false);
-  readonly hasMoreInterviews = signal(false);
-  private interviewOffset = 0;
-  private readonly interviewPageSize = 10;
-  readonly applications = signal<Application[]>([]);
-  readonly offers = signal<OfferOverview[]>([]);
-
-  readonly missingSections: MissingSection[] = [
-    { icon: 'work_history', label: 'Expériences', description: 'Ajoutez votre parcours professionnel', route: '/profile', queryParams: { step: 'experience' }, color: 'brand' },
-    { icon: 'school', label: 'Formations', description: 'Complétez votre niveau d\'études', route: '/profile', queryParams: { step: 'formation' }, color: 'amber' },
-    { icon: 'psychology', label: 'Compétences', description: 'Listez vos savoir-faire techniques', route: '/profile', queryParams: { step: 'competences' }, color: 'purple' },
-    { icon: 'verified', label: 'Certifications', description: 'Ajoutez vos certifications', route: '/profile', queryParams: { step: 'certifications' }, color: 'green' },
+  readonly shortcuts: Shortcut[] = [
+    { icon: 'description', label: 'Generate a CV', route: '/cv' },
+    { icon: 'travel_explore', label: 'Search jobs', route: '/offers-recent' },
+    { icon: 'mail', label: 'Write an email', route: '/letters' },
+    { icon: 'insights', label: 'Analyze a company', route: '/company-intel' },
   ];
 
-  readonly quickActions: QuickAction[] = [
-    { icon: 'description', label: 'Générer un CV', description: 'Créez un CV personnalisé', route: '/cv', color: 'brand' },
-    { icon: 'travel_explore', label: 'Scraper des Offres', description: 'Trouvez de nouvelles offres', route: '/offers-recent', color: 'purple' },
-    { icon: 'mail', label: 'Rédiger Email', description: 'Préparez vos candidatures', route: '/letters', color: 'amber' },
-    { icon: 'insights', label: 'Analyse Entreprise', description: 'Étudiez vos employeurs', route: '/company-intel', color: 'green' },
-  ];
+  readonly todoStyle: Record<TodoKind, { icon: string; classes: string }> = {
+    interview: { icon: 'event', classes: 'bg-purple-50 text-purple-600' },
+    reply: { icon: 'mark_email_unread', classes: 'bg-green-50 text-green-600' },
+    'follow-up': { icon: 'forward_to_inbox', classes: 'bg-orange-50 text-orange-600' },
+    draft: { icon: 'edit_note', classes: 'bg-gray-100 text-gray-500' },
+  };
 
-  readonly totalApplications = computed(() => this.candidaturesData().length);
-  readonly totalAccepted = computed(() => this.candidaturesData().filter(c => this.isAccepted(c)).length);
-  readonly totalPending = computed(() => this.candidaturesData().filter(c => this.isPending(c)).length);
-  readonly totalSent = computed(() =>
-    this.candidaturesData().filter(c => !this.isAccepted(c) && !this.isPending(c)).length
-  );
-  readonly totalCvs = computed(() =>
-    this.offerHistoryData().filter(o => Number(o.currentStep ?? 0) >= 4).length
-  );
-
-  readonly successRate = computed(() => {
-    const total = this.totalApplications();
-    if (total === 0) return 0;
-    return Math.round((this.totalAccepted() / total) * 100);
-  });
-  readonly successTrend = computed(() => `${this.totalAccepted()} valides`);
-  readonly avgTime = computed(() => {
-    const withResponses = this.candidaturesData().filter(c => !!c.lastResponseAtUtc);
-    if (!withResponses.length) return '--';
-
-    const days = withResponses
-      .map(c => {
-        const start = new Date(c.dateCreation).getTime();
-        const end = c.lastResponseAtUtc ? new Date(c.lastResponseAtUtc).getTime() : start;
-        return Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
-      })
-      .filter(v => Number.isFinite(v));
-
-    if (!days.length) return '--';
-    const avg = Math.round(days.reduce((a, b) => a + b, 0) / days.length);
-    return `${avg} j.`;
-  });
-
-  readonly sentPct = computed(() => this.toPercent(this.totalSent(), this.totalApplications()));
-  readonly pendingPct = computed(() => this.toPercent(this.totalPending(), this.totalApplications()));
-  readonly acceptedPct = computed(() => this.toPercent(this.totalAccepted(), this.totalApplications()));
-
-  readonly sentOffset = computed(() => 251.2 * (1 - this.sentPct() / 100));
-  readonly pendingOffset = computed(() => 251.2 * (1 - this.pendingPct() / 100));
-  readonly acceptedOffset = computed(() => 251.2 * (1 - this.acceptedPct() / 100));
-
-  readonly sentAngle = 0;
-  readonly pendingAngle = computed(() => (this.sentPct() / 100) * 360);
-  readonly acceptedAngle = computed(() => ((this.sentPct() + this.pendingPct()) / 100) * 360);
-
-  readonly responsesCount = computed(() => this.candidaturesData().filter(c => !!c.hasResponse).length);
-  readonly noResponseCount = computed(() => Math.max(0, this.totalApplications() - this.responsesCount()));
-  readonly responsesPct = computed(() => this.toPercent(this.responsesCount(), this.totalApplications()));
+  readonly companyInitials = companyInitials;
 
   constructor() {
     this.loadDashboard();
   }
 
-  get statusClassMap(): Record<string, string> {
-    return {
-      success: 'bg-green-50 text-green-700',
-      warning: 'bg-amber-50 text-amber-700',
-      primary: 'bg-brand-50 text-brand-600',
-      slate: 'bg-slate-100 text-slate-500',
-    };
-  }
-
-  get missingColorMap(): Record<string, string> {
-    return {
-      brand: 'border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-700',
-      amber: 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700',
-      purple: 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700',
-      green: 'border-green-200 bg-green-50 hover:bg-green-100 text-green-700',
-    };
-  }
-
-  get missingIconColorMap(): Record<string, string> {
-    return {
-      brand: 'text-brand-500',
-      amber: 'text-amber-500',
-      purple: 'text-purple-500',
-      green: 'text-green-600',
-    };
-  }
-
-  getScoreColor(score: number): string {
-    if (score >= 70) return 'text-green-600';
-    if (score >= 50) return 'text-amber-500';
-    return 'text-red-500';
-  }
-
-  getScoreBg(score: number): string {
-    if (score >= 70) return 'bg-green-50';
-    if (score >= 50) return 'bg-amber-50';
-    return 'bg-red-50';
-  }
-
   refresh(): void {
-    this.loadDashboard(true);
+    this.loadDashboard();
   }
 
-  private loadDashboard(manualRefresh = false): void {
+  private loadDashboard(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.failedSections.set([]);
-    if (manualRefresh) this.refreshing.set(true);
     this.currentDateLabel.set(this.formatHeaderDate(new Date()));
 
     const failures: string[] = [];
     const markFailed = (section: string) => failures.push(section);
 
     forkJoin({
-      onboarding: this.onboardingService.getStatus().pipe(catchError(() => { markFailed('onboarding'); return of(null); })),
       candidatures: this.candidatureService.getMyCandidatures().pipe(catchError(() => { markFailed('candidatures'); return of([] as CandidatureDto[]); })),
-      history: this.offerApi.getOffersHistory().pipe(catchError(() => { markFailed('historique'); return of([] as OfferHistoryItem[]); })),
-      scrapedOffers: this.sourcedOffersApi.getSourcedOffers({ limit: 6, postedWindow: '24h', location: 'Casablanca' }).pipe(catchError(() => { markFailed('offres'); return of([] as SourcedOfferListItemDto[]); })),
+      history: this.offerApi.getOffersHistory().pipe(catchError(() => { markFailed('offres analysées'); return of([] as OfferHistoryItem[]); })),
+      sourced: this.sourcedOffersApi
+        .getSourcedOffers({ limit: SOURCED_OFFERS_SHOWN, postedWindow: '24h', location: 'Casablanca' })
+        .pipe(catchError(() => { markFailed('recent offers'); return of([] as SourcedOfferListItemDto[]); })),
     }).subscribe({
-      next: ({ candidatures, history, scrapedOffers }) => {
-        if (failures.length) this.failedSections.set(failures);
-        this.candidaturesData.set(candidatures);
-        this.offerHistoryData.set(history);
-        this.sourcedOffers.set(scrapedOffers);
-
-        const offerMap = new Map(history.map(h => [h.offerId, h]));
-        this.offerMapSignal.set(offerMap);
-        const sortedCandidatures = [...candidatures].sort((a, b) =>
-          this.toTimestamp(b.dateCreation) - this.toTimestamp(a.dateCreation)
-        );
-
-        const recent = sortedCandidatures.slice(0, 8).map(c => this.toApplication(c, offerMap));
-        this.recentApplications.set(recent);
-        this.applications.set(recent.slice(0, 3));
-        this.interviews.set(this.buildInterviews(sortedCandidatures, offerMap));
-        this.loadMoreInterviews(true);
-        this.activities.set(this.buildActivities(sortedCandidatures, history, offerMap));
-
-        const topOffers = [...history]
-          .sort((a, b) => this.toTimestamp(b.dateCreation) - this.toTimestamp(a.dateCreation))
-          .slice(0, 3);
-
-        if (topOffers.length === 0) {
-          this.offers.set([]);
-          this.finishLoading();
-          return;
-        }
-
-        forkJoin(
-          topOffers.map(h =>
-            this.offerApi.getAnalysis(h.offerId).pipe(catchError(() => of(null)))
-          )
-        ).subscribe({
-          next: (details) => {
-            const overview = topOffers.map((h, i) => this.toOfferOverview(h, details[i]));
-            this.offers.set(overview);
-            this.finishLoading();
-          },
-          error: () => {
-            this.offers.set(topOffers.map(h => this.toOfferOverview(h, null)));
-            this.finishLoading();
-          }
-        });
+      next: ({ candidatures, history, sourced }) => {
+        this.failedSections.set(failures);
+        this.applications.set(toDashboardApplications(candidatures, history));
+        this.sourcedOffers.set(sourced.slice(0, SOURCED_OFFERS_SHOWN));
+        this.loading.set(false);
       },
       error: () => {
-        this.errorMessage.set('Impossible de charger le dashboard depuis le backend.');
-        if (failures.length) this.failedSections.set(failures);
-        this.finishLoading();
-      }
+        this.errorMessage.set('Unable to load dashboard. Please retry in a moment.');
+        this.failedSections.set(failures);
+        this.loading.set(false);
+      },
     });
   }
 
-  private finishLoading(): void {
-    this.loading.set(false);
-    this.refreshing.set(false);
-  }
-
-  private toOfferOverview(history: OfferHistoryItem, detail: OfferAnalysisResponse | null): OfferOverview {
-    return {
-      company: detail?.entreprise || history.entreprise || 'Entreprise',
-      poste: detail?.titre || history.titre || 'Poste',
-      matchScore: Number(detail?.scoreMatching ?? history.scoreMatching ?? 0),
-      atsScore: Number(detail?.scoreAts ?? 0),
-      date: this.formatShortDate(history.dateCreation),
-      skills: (detail?.competencesRequises ?? []).slice(0, 3),
-    };
-  }
-
-  private toApplication(candidature: CandidatureDto, offerMap: Map<string, OfferHistoryItem>): Application {
-    const offer = offerMap.get(candidature.idOffre ?? '');
-    const meta = this.getStatusMeta(candidature);
-    return {
-      candidatureId: candidature.idCandidature,
-      company: offer?.entreprise || 'Entreprise',
-      logo: 'business',
-      poste: offer?.titre || 'Poste',
-      date: this.formatLongDate(candidature.dateCreation),
-      status: meta.label,
-      statusColor: meta.color,
-    };
-  }
-
-  private buildInterviews(
-    candidatures: CandidatureDto[],
-    offerMap: Map<string, OfferHistoryItem>
-  ): Interview[] {
-    return candidatures
-      .filter(c => this.statusString(c).includes('ENTRETIEN'))
-      .sort((a, b) => this.toTimestamp(b.lastResponseAtUtc ?? b.dateCreation) - this.toTimestamp(a.lastResponseAtUtc ?? a.dateCreation))
-      .slice(0, 2)
-      .map(c => {
-        const baseDate = new Date(c.lastResponseAtUtc ?? c.dateCreation);
-        const offer = offerMap.get(c.idOffre ?? '');
-        return {
-          candidatureId: c.idCandidature,
-          dayLabel: new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(baseDate).replace('.', '').toUpperCase(),
-          date: new Intl.DateTimeFormat('fr-FR', { day: '2-digit' }).format(baseDate),
-          title: `Entretien - ${offer?.entreprise || 'Entreprise'}`,
-          time: new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(baseDate),
-          location: 'A confirmer',
-          isToday: this.isSameDay(baseDate, new Date()),
-        };
-      });
-  }
-
-  loadMoreInterviews(reset = false): void {
-    if (!reset && (this.loadingMoreInterviews() || !this.hasMoreInterviews())) return;
-    if (reset) {
-      this.interviewOffset = 0;
-      this.interviews.set([]);
-    }
-
-    this.loadingMoreInterviews.set(true);
-    this.candidatureService
-      .getMyCandidaturesPaged(this.interviewOffset, this.interviewPageSize, true)
-      .subscribe({
-        next: (page) => {
-          const offerMap = this.offerMapSignal();
-          const mapped = page.items.map((c) => {
-            const baseDate = new Date(c.lastResponseAtUtc ?? c.dateCreation);
-            const offer = offerMap.get(c.idOffre ?? '');
-            return {
-              candidatureId: c.idCandidature,
-              dayLabel: new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(baseDate).replace('.', '').toUpperCase(),
-              date: new Intl.DateTimeFormat('fr-FR', { day: '2-digit' }).format(baseDate),
-              title: `Entretien - ${offer?.entreprise || 'Entreprise'}`,
-              time: new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(baseDate),
-              location: 'A confirmer',
-              isToday: this.isSameDay(baseDate, new Date()),
-            } as Interview;
-          });
-
-          this.interviews.update((existing) => {
-            const map = new Map(existing.map((i) => [i.candidatureId, i]));
-            for (const m of mapped) map.set(m.candidatureId, m);
-            return Array.from(map.values());
-          });
-
-          this.interviewOffset += mapped.length;
-          this.hasMoreInterviews.set(page.hasMore);
-          this.loadingMoreInterviews.set(false);
-        },
-        error: () => {
-          this.loadingMoreInterviews.set(false);
-          this.hasMoreInterviews.set(false);
-          this.failedSections.update(f => f.includes('entretiens') ? f : [...f, 'entretiens']);
-        }
-      });
-  }
-
-  private buildActivities(
-    candidatures: CandidatureDto[],
-    offers: OfferHistoryItem[],
-    offerMap: Map<string, OfferHistoryItem>
-  ): Activity[] {
-    const activityFromCandidatures: Activity[] = candidatures.slice(0, 3).map(c => {
-      const meta = this.getStatusMeta(c);
-      const company = offerMap.get(c.idOffre ?? '')?.entreprise || 'Entreprise';
-      return {
-        icon: meta.color === 'success' ? 'check_circle' : meta.color === 'warning' ? 'schedule' : 'send',
-        iconBg: meta.color === 'success' ? 'bg-green-50' : meta.color === 'warning' ? 'bg-amber-50' : 'bg-brand-50',
-        iconColor: meta.color === 'success' ? 'text-green-600' : meta.color === 'warning' ? 'text-amber-600' : 'text-brand-500',
-        text: `Candidature ${meta.label.toLowerCase()} - ${company}`,
-        time: this.timeAgo(c.dateCreation),
-      };
-    });
-
-    const activityFromOffers: Activity[] = offers.slice(0, 2).map(o => ({
-      icon: 'work',
-      iconBg: 'bg-purple-50',
-      iconColor: 'text-purple-600',
-      text: `Offre analysee - ${o.titre || 'Offre'}`,
-      time: this.timeAgo(o.dateCreation),
-    }));
-
-    return [...activityFromCandidatures, ...activityFromOffers].slice(0, 5);
-  }
-
-  private getStatusMeta(candidature: CandidatureDto): { label: string; color: 'success' | 'warning' | 'primary' | 'slate' } {
-    const normalized = this.statusString(candidature);
-    if (normalized.includes('ACCEPTE')) return { label: 'Acceptee', color: 'success' };
-    if (normalized.includes('ENTRETIEN')) return { label: 'Entretien', color: 'success' };
-    if (normalized.includes('REFUSE')) return { label: 'Refusee', color: 'slate' };
-    if (normalized.includes('ATTENTE') || normalized.includes('RELANCE')) return { label: 'En attente', color: 'warning' };
-    return { label: 'Envoyee', color: 'primary' };
-  }
-
-  private statusString(candidature: CandidatureDto): string {
-    return `${candidature.responseStatus ?? ''} ${candidature.statut ?? ''}`.toUpperCase();
-  }
-
-  private isAccepted(candidature: CandidatureDto): boolean {
-    return this.statusString(candidature).includes('ACCEPTE');
-  }
-
-  private isPending(candidature: CandidatureDto): boolean {
-    const status = this.statusString(candidature);
-    return (
-      !candidature.hasResponse ||
-      status.includes('ATTENTE') ||
-      status.includes('RELANCE') ||
-      status.includes('REPONSE_GENERALE') ||
-      status.includes('REPONSE_AUTOMATIQUE')
-    );
-  }
-
-  private toPercent(value: number, total: number): number {
-    if (total <= 0) return 0;
-    return Math.round((value / total) * 100);
-  }
-
-  private toTimestamp(dateLike?: string): number {
-    if (!dateLike) return 0;
-    const ts = new Date(dateLike).getTime();
-    return Number.isFinite(ts) ? ts : 0;
+  formatShortDate(dateLike?: string): string {
+    if (!dateLike) return '';
+    const d = new Date(dateLike);
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short' }).format(d);
   }
 
   private formatHeaderDate(date: Date): string {
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat('en-US', {
       weekday: 'long',
-      day: '2-digit',
+      day: 'numeric',
       month: 'long',
       year: 'numeric',
-    }).format(date).toUpperCase();
-  }
-
-  private formatLongDate(dateLike?: string): string {
-    if (!dateLike) return '--';
-    const d = new Date(dateLike);
-    if (Number.isNaN(d.getTime())) return '--';
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    }).format(d);
-  }
-
-  private formatShortDate(dateLike?: string): string {
-    if (!dateLike) return '--';
-    const d = new Date(dateLike);
-    if (Number.isNaN(d.getTime())) return '--';
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-    }).format(d);
-  }
-
-  private timeAgo(dateLike?: string): string {
-    if (!dateLike) return '--';
-    const now = Date.now();
-    const ts = this.toTimestamp(dateLike);
-    if (ts <= 0) return '--';
-    const diffMs = now - ts;
-    const diffHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
-    if (diffHours < 1) return 'Il y a quelques minutes';
-    if (diffHours < 24) return `Il y a ${diffHours}h`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `Il y a ${diffDays}j`;
-  }
-
-  private isSameDay(a: Date, b: Date): boolean {
-    return a.getFullYear() === b.getFullYear()
-      && a.getMonth() === b.getMonth()
-      && a.getDate() === b.getDate();
+    }).format(date);
   }
 }

@@ -62,7 +62,7 @@ export class ApplicationsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
-  filterStatut = signal('Tous');
+  filterStatut = signal('All');
   searchQuery = signal('');
   viewMode = signal<'kanban' | 'liste'>('kanban');
   showNewForm = signal(false);
@@ -373,7 +373,7 @@ export class ApplicationsComponent implements OnInit {
     const filter = this.filterStatut();
     const query = this.searchQuery().toLowerCase();
     return all.filter((c) => {
-      if (filter !== 'Tous' && c.statut !== filter) return false;
+      if (filter !== 'All' && c.statut !== filter) return false;
       if (query && !c.entreprise.toLowerCase().includes(query) && !c.role.toLowerCase().includes(query)) return false;
       return true;
     });

@@ -24,6 +24,7 @@ public class CandidatureService : ICandidatureService
     public async Task<CandidatureDto> CreateAsync(
         Guid userId,
         CreateCandidatureDto dto,
+        string source = "user",
         CancellationToken cancellationToken = default)
     {
         if (dto.IdOffre.HasValue)
@@ -63,8 +64,8 @@ public class CandidatureService : ICandidatureService
             CandidatureId = entity.IdCandidature,
             AncienStatut = null,
             NouveauStatut = entity.Statut,
-            Source = "user",
-            Details = "Candidature créée",
+            Source = source,
+            Details = "Application created",
             CreatedAt = DateTime.UtcNow
         }, cancellationToken);
 
@@ -130,6 +131,7 @@ public class CandidatureService : ICandidatureService
     public async Task<CandidatureDto?> UpdateStatutAsync(
         Guid candidatureId,
         UpdateStatutDto dto,
+        string source = "user",
         CancellationToken cancellationToken = default)
     {
         var entity = await _candidatureRepository.GetByIdAsync(candidatureId, cancellationToken);
@@ -144,7 +146,7 @@ public class CandidatureService : ICandidatureService
             CandidatureId = candidatureId,
             AncienStatut = ancienStatut,
             NouveauStatut = dto.NouveauStatut,
-            Source = "user",
+            Source = source,
             Details = dto.Details,
             CreatedAt = DateTime.UtcNow
         }, cancellationToken);
@@ -193,10 +195,10 @@ public class CandidatureService : ICandidatureService
         CancellationToken cancellationToken = default)
     {
         var candidature = await GetByIdAsync(candidatureId, cancellationToken)
-            ?? throw new NotFoundException("Candidature introuvable.");
+            ?? throw new NotFoundException("Application not found.");
 
         if (candidature.IdUtilisateur != userId)
-            throw new ForbiddenException("Accès refusé à cette candidature.");
+            throw new ForbiddenException("Access denied to this application.");
 
         return candidature;
     }

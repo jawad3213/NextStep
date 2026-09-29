@@ -15,7 +15,7 @@ public class CandidatureController(ICandidatureService candidatureService, IProf
 {
     private async Task<Guid> RequireUserIdAsync() =>
         await profile.TryResolveUserIdAsync(User)
-        ?? throw new ForbiddenException("Utilisateur introuvable.");
+        ?? throw new ForbiddenException("User not found.");
 
     // ── POST /api/candidatures — Create ─────────────────────────────────────────
 
@@ -25,7 +25,7 @@ public class CandidatureController(ICandidatureService candidatureService, IProf
         CancellationToken cancellationToken)
     {
         var userId = await RequireUserIdAsync();
-        var result = await candidatureService.CreateAsync(userId, dto, cancellationToken);
+        var result = await candidatureService.CreateAsync(userId, dto, cancellationToken: cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.IdCandidature }, result);
     }
 
@@ -67,8 +67,8 @@ public class CandidatureController(ICandidatureService candidatureService, IProf
         CancellationToken cancellationToken)
     {
         await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
-        return Ok(await candidatureService.UpdateStatutAsync(id, dto, cancellationToken)
-                  ?? throw new NotFoundException("Candidature introuvable."));
+        return Ok(await candidatureService.UpdateStatutAsync(id, dto, cancellationToken: cancellationToken)
+                  ?? throw new NotFoundException("Application not found."));
     }
 
     // ── PUT /api/candidatures/{id} — Update candidature fields ──────────────────
@@ -81,7 +81,7 @@ public class CandidatureController(ICandidatureService candidatureService, IProf
     {
         await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
         return Ok(await candidatureService.UpdateAsync(id, dto, cancellationToken)
-                  ?? throw new NotFoundException("Candidature introuvable."));
+                  ?? throw new NotFoundException("Application not found."));
     }
 
     // ── DELETE /api/candidatures/{id} — Delete candidature ──────────────────────
@@ -91,7 +91,7 @@ public class CandidatureController(ICandidatureService candidatureService, IProf
     {
         await candidatureService.GetOwnedAsync(await RequireUserIdAsync(), id, cancellationToken);
         if (!await candidatureService.DeleteAsync(id, cancellationToken))
-            throw new NotFoundException("Candidature introuvable.");
+            throw new NotFoundException("Application not found.");
 
         return NoContent();
     }

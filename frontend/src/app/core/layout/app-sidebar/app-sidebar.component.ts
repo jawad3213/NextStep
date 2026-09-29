@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
@@ -8,24 +8,31 @@ import { ProfileService } from '@features/profile/data-access/profile.service';
 import { PipelineStateService } from '@features/offers/data-access/pipeline-state.service';
 import { SafeHtmlPipe } from '@shared/pipes/safe-html.pipe';
 import { SidebarService } from '../sidebar.service';
-import { SidebarWidgetComponent } from './app-sidebar-widget.component';
+import { LanguageService } from '@core/i18n/language.service';
+import { TranslatePipe } from '@core/i18n/translate.pipe';
 
-type NavSubItem = {
+export type NavSubItem = {
   name: string;
   path: string;
 };
 
-type NavItem = {
+export type NavItem = {
   name: string;
   icon: string;
   path?: string;
   subItems?: NavSubItem[];
 };
 
+export type NavGroup = {
+  id: string;
+  title?: string;
+  items: NavItem[];
+};
+
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule, SafeHtmlPipe, SidebarWidgetComponent],
+  imports: [CommonModule, RouterModule, SafeHtmlPipe, TranslatePipe],
   templateUrl: './app-sidebar.component.html'
 })
 export class AppSidebarComponent {
@@ -37,6 +44,7 @@ export class AppSidebarComponent {
   readonly sidebarService = inject(SidebarService);
   readonly profileService = inject(ProfileService);
   readonly pipelineState = inject(PipelineStateService);
+  readonly langService = inject(LanguageService);
 
   readonly profile = this.profileService.profile;
   readonly isExpanded$ = this.sidebarService.isExpanded$;
@@ -46,53 +54,91 @@ export class AppSidebarComponent {
   openSubmenu: string | null = null;
   subMenuHeights: Record<string, number> = {};
 
-  readonly navItems: NavItem[] = [
+  readonly navGroups: NavGroup[] = [
+    // 1. CORE / OVERVIEW
     {
-      name: 'Dashboard',
-      path: '/dashboard',
-      icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M4.75 9.75L12 4L19.25 9.75V18C19.25 19.2426 18.2426 20.25 17 20.25H7C5.75736 20.25 4.75 19.2426 4.75 18V9.75Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.25 20.25V13.75H14.75V20.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-    },
-    {
-      name: 'Profile',
-      path: '/profile',
-      icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M12 12.25C14.3472 12.25 16.25 10.3472 16.25 8C16.25 5.65279 14.3472 3.75 12 3.75C9.65279 3.75 7.75 5.65279 7.75 8C7.75 10.3472 9.65279 12.25 12 12.25Z" stroke="currentColor" stroke-width="1.8"/><path d="M5 19.25C5.91875 16.4393 8.67639 14.5 12 14.5C15.3236 14.5 18.0813 16.4393 19 19.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.4"/></svg>`
-    },
-    {
-      name: 'Jobs',
-      icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M8 6.25H16C17.5188 6.25 18.75 7.48122 18.75 9V17C18.75 18.5188 17.5188 19.75 16 19.75H8C6.48122 19.75 5.25 18.5188 5.25 17V9C5.25 7.48122 6.48122 6.25 8 6.25Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 6.25V5.5C9 4.25736 10.0074 3.25 11.25 3.25H12.75C13.9926 3.25 15 4.25736 15 5.5V6.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5.25 11.25H18.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
-      subItems: [
-        { name: 'Offers', path: '/offers' },
-        { name: 'Offres récentes', path: '/offers-recent' },
-        { name: 'Applications', path: '/applications' }
+      id: 'core',
+      title: 'nav.core',
+      items: [
+        {
+          name: 'nav.dashboard',
+          path: '/dashboard',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`
+        },
+        {
+          name: 'nav.profile',
+          path: '/profile',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
+        }
       ]
     },
+
+    // 2. JOB DISCOVERY & ANALYSIS
     {
-      name: 'Career Tools',
-      icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M7.25 4.75H16.75C18.1307 4.75 19.25 5.86929 19.25 7.25V16.75C19.25 18.1307 18.1307 19.25 16.75 19.25H7.25C5.86929 19.25 4.75 18.1307 4.75 16.75V7.25C4.75 5.86929 5.86929 4.75 7.25 4.75Z" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 9H15.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12H15.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 15H12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
-      subItems: [
-        { name: 'CV Builder', path: '/cv' },
-        { name: 'Email & Letter', path: '/letters' }
+      id: 'discovery',
+      title: 'nav.discovery',
+      items: [
+        {
+          name: 'nav.jobScraper',
+          path: '/offers-recent',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`
+        },
+        {
+          name: 'nav.jobPipeline',
+          path: '/offers',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>`
+        },
+        {
+          name: 'nav.companyAnalyzer',
+          path: '/company-intel',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="6" x2="9.01" y2="6"></line><line x1="15" y1="6" x2="15.01" y2="6"></line><line x1="9" y1="10" x2="9.01" y2="10"></line><line x1="15" y1="10" x2="15.01" y2="10"></line><line x1="9" y1="14" x2="9.01" y2="14"></line><line x1="15" y1="14" x2="15.01" y2="14"></line><line x1="9" y1="18" x2="15" y2="18"></line></svg>`
+        }
+      ]
+    },
+
+    // 3. APPLICATION & TRACKING
+    {
+      id: 'tracking',
+      title: 'nav.tracking',
+      items: [
+        {
+          name: 'nav.applicationTracking',
+          path: '/applications',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"></rect><rect x="10" y="3" width="5" height="12" rx="1"></rect><rect x="17" y="3" width="5" height="15" rx="1"></rect></svg>`
+        },
+        {
+          name: 'nav.emailTracking',
+          path: '/letters',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`
+        }
+      ]
+    },
+
+    // 4. AI PREPARATION & DOCUMENTS
+    {
+      id: 'preparation',
+      title: 'nav.preparation',
+      items: [
+        {
+          name: 'nav.aiChatbot',
+          path: '/chatbot',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`
+        },
+        {
+          name: 'nav.cvHistory',
+          path: '/cv',
+          icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><circle cx="12" cy="14" r="3"></circle><polyline points="12 12 12 14 13.5 14"></polyline></svg>`
+        }
       ]
     }
   ];
 
-  readonly othersItems: NavItem[] = [
-    {
-      name: 'AI Insights',
-      icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M12 3L14.4 8.1L20 8.9L16 12.8L17 18.5L12 15.7L7 18.5L8 12.8L4 8.9L9.6 8.1L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
-      subItems: [
-        { name: 'Company Intel', path: '/company-intel' },
-        { name: 'AI Chatbot', path: '/chatbot' }
-      ]
-    },
-    {
-      name: 'System',
-      icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M12 15.25C13.7949 15.25 15.25 13.7949 15.25 12C15.25 10.2051 13.7949 8.75 12 8.75C10.2051 8.75 8.75 10.2051 8.75 12C8.75 13.7949 10.2051 15.25 12 15.25Z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5L20.75 12L19.4 10.5L19.56 8.49L17.6 7.89L16.5 6.2L14.5 6.6L12.75 5.5L11 6.6L9 6.2L7.9 7.89L5.94 8.49L6.1 10.5L4.75 12L6.1 13.5L5.94 15.51L7.9 16.11L9 17.8L11 17.4L12.75 18.5L14.5 17.4L16.5 17.8L17.6 16.11L19.56 15.51L19.4 13.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      subItems: [
-        { name: 'Settings', path: '/settings' }
-      ]
-    }
-  ];
+  // 5. SYSTEM (Pinned to the bottom)
+  readonly settingsItem: NavItem = {
+    name: 'nav.settings',
+    path: '/settings',
+    icon: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`
+  };
 
   constructor() {
     this.router.events
@@ -108,18 +154,50 @@ export class AppSidebarComponent {
     this.setActiveMenuFromRoute(this.router.url);
   }
 
-  isActive(path: string): boolean {
-    return this.router.url === path;
+  isActive(path: string | undefined): boolean {
+    if (!path) {
+      return false;
+    }
+    if (path === '/dashboard') {
+      return this.router.url === '/dashboard';
+    }
+    if (path === '/settings') {
+      return this.router.url.startsWith('/settings') || this.router.url.startsWith('/email/settings');
+    }
+    if (path === '/offers') {
+      return (
+        (this.router.url === '/offers' || this.router.url.startsWith('/offers/')) &&
+        !this.router.url.startsWith('/offers-recent') &&
+        !this.router.url.startsWith('/offers/company-analysis')
+      );
+    }
+    if (path === '/offers-recent') {
+      return this.router.url.startsWith('/offers-recent');
+    }
+    if (path === '/company-intel') {
+      return this.router.url.startsWith('/company-intel') || this.router.url.startsWith('/offers/company-analysis');
+    }
+    return this.router.url === path || this.router.url.startsWith(path + '/');
   }
 
-  getBadge(path: string) {
+  isSubmenuActive(nav: NavItem): boolean {
+    return !!nav.subItems?.some(subItem => this.isActive(subItem.path));
+  }
+
+  getBadge(path: string | undefined) {
+    if (!path) {
+      return null;
+    }
     const route = path.replace('/', '');
     const idMap: Record<string, string> = {
       cv: 'cv-builder',
       letters: 'email',
       'company-intel': 'company-intel',
       'skill-gap': 'skill-gap',
-      notifications: 'notifications'
+      notifications: 'notifications',
+      applications: 'applications',
+      offers: 'offers',
+      'offers-recent': 'offers'
     };
     const badgeId = idMap[route];
     if (!badgeId) {
@@ -153,16 +231,11 @@ export class AppSidebarComponent {
   }
 
   private setActiveMenuFromRoute(currentUrl: string): void {
-    const menuGroups = [
-      { items: this.navItems, prefix: 'main' },
-      { items: this.othersItems, prefix: 'others' }
-    ];
-
-    for (const group of menuGroups) {
+    for (const group of this.navGroups) {
       for (let index = 0; index < group.items.length; index += 1) {
         const nav = group.items[index];
-        if (nav.subItems?.some((subItem) => currentUrl === subItem.path)) {
-          const key = `${group.prefix}-${index}`;
+        if (nav.subItems?.some((subItem) => currentUrl === subItem.path || currentUrl.startsWith(subItem.path + '/'))) {
+          const key = `${group.id}-${index}`;
           this.openSubmenu = key;
           this.measureSubmenuHeight(key);
           return;

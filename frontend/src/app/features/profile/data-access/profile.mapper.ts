@@ -27,7 +27,7 @@ export function toProfile(data: FullProfileDto, account: AccountIdentity | null,
     try {
       sectionTitles = JSON.parse(info.titresSections);
     } catch {
-      console.warn('Erreur lors du parsing des titres de sections, utilisation des titres par défaut');
+      console.warn('Failed to parse section titles, using default titles');
     }
   }
 

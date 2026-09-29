@@ -20,7 +20,7 @@ public class GlobalExceptionHandlerTests
     [InlineData("OperationFailed", 500, "InternalServerError")]
     public async Task App_exceptions_become_their_status_with_the_service_message(string kind, int status, string type)
     {
-        const string message = "Candidature introuvable.";
+        const string message = "Application not found.";
         AppException exception = kind switch
         {
             "NotFound" => new NotFoundException(message),

@@ -6,6 +6,14 @@ namespace NextStep.Modules.CvDocuments.Infrastructure.Rendering;
 public interface ITemplateThumbnailService
 {
     Task GenerateAllThumbnailsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Generates the thumbnails when <paramref name="slug"/> is a real template whose thumbnail
+    /// is missing. One generation at a time and at most one lazy attempt per 5 minutes, so a
+    /// public URL cannot keep the server rendering. Returns whether the thumbnail now exists.
+    /// </summary>
+    Task<bool> TryGenerateMissingAsync(string slug, CancellationToken ct = default);
+
     byte[]? GetThumbnailPdf(string slug);
     byte[]? GetThumbnailPng(string slug);
     string[] GetTemplateSlugs();
@@ -14,6 +22,9 @@ public interface ITemplateThumbnailService
 public class TemplateThumbnailService : ITemplateThumbnailService
 {
     private static readonly string[] Slugs = [.. CvHtmlTemplateRenderer.TemplateSlugs];
+    private static readonly TimeSpan LazyRetryDelay = TimeSpan.FromMinutes(5);
+    private static readonly SemaphoreSlim GenerationLock = new(1, 1);
+    private static DateTime _lastLazyAttemptUtc = DateTime.MinValue;
     private readonly string _storageDir;
     private readonly ICvHtmlTemplateRenderer _htmlRenderer;
     private readonly ILogger<TemplateThumbnailService> _logger;
@@ -32,6 +43,39 @@ public class TemplateThumbnailService : ITemplateThumbnailService
     public string[] GetTemplateSlugs() => Slugs;
 
     public async Task GenerateAllThumbnailsAsync(CancellationToken ct = default)
+    {
+        await GenerationLock.WaitAsync(ct);
+        try
+        {
+            await GenerateAllCoreAsync(ct);
+        }
+        finally
+        {
+            GenerationLock.Release();
+        }
+    }
+
+    public async Task<bool> TryGenerateMissingAsync(string slug, CancellationToken ct = default)
+    {
+        if (!Slugs.Contains(slug)) return false;
+        if (GetThumbnailPng(slug) is not null) return true;
+
+        await GenerationLock.WaitAsync(ct);
+        try
+        {
+            if (GetThumbnailPng(slug) is not null) return true; // generated while waiting
+            if (DateTime.UtcNow - _lastLazyAttemptUtc < LazyRetryDelay) return false;
+            _lastLazyAttemptUtc = DateTime.UtcNow;
+            await GenerateAllCoreAsync(ct);
+        }
+        finally
+        {
+            GenerationLock.Release();
+        }
+        return GetThumbnailPng(slug) is not null;
+    }
+
+    private async Task GenerateAllCoreAsync(CancellationToken ct)
     {
         var data = SampleCvData.Create();
 

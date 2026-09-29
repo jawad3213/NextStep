@@ -4,7 +4,8 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { PipelineStateService } from '../../data-access/pipeline-state.service';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { LanguageService } from '@core/i18n/language.service';
 import { extractApiError } from '@core/http/extract-api-error';
 import { CandidatureService } from '@features/applications/data-access/candidature.service';
 import { EmailService } from '@features/applications/data-access/email.service';
@@ -15,7 +16,7 @@ import { EmailDraftDto, SendApplicationEmailRequest } from '@features/applicatio
 @Component({
   selector: 'app-step-results',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './step-results.component.html',
   styleUrl: './step-results.component.scss'
 })
@@ -26,6 +27,9 @@ export class StepResultsComponent implements OnInit, OnDestroy {
   private readonly candidatureService = inject(CandidatureService);
   private readonly emailService = inject(EmailService);
   private readonly router = inject(Router);
+  private readonly languageService = inject(LanguageService);
+  /** Sending failed because Gmail must be reconnected: the error banner links to Gmail settings. */
+  sendNeedsGmailReconnect = false;
   private previewBlobUrl: string | null = null;
 
   cvPreviewUrl: SafeResourceUrl | null = null;
@@ -106,6 +110,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
 
     this.isSendingEmail = true;
     this.sendError = null;
+    this.sendNeedsGmailReconnect = false;
     this.sendSuccessMessage = null;
 
     const payload: SendApplicationEmailRequest = {
@@ -115,13 +120,13 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       subject: this.emailSubject.trim(),
       body: this.emailBody.trim(),
       emailType: 'application',
-      language: 'fr',
+      language: this.languageService.lang(),
     };
 
     try {
       const sent = await firstValueFrom(this.emailService.sendApplicationEmail(payload));
       this.lastSentDraft = sent;
-      this.sendSuccessMessage = `Email envoye a ${sent.recipientEmail} avec le CV en piece jointe.`;
+      this.sendSuccessMessage = `Email sent to ${sent.recipientEmail} with your CV attached.`;
       this.pipeline.markStepDone(4);
       this.pipeline.showSidebarBadge('email', 'Envoye', 'green');
 
@@ -134,7 +139,9 @@ export class StepResultsComponent implements OnInit, OnDestroy {
         });
       }
     } catch (err: any) {
-      this.sendError = extractApiError(err).message || 'Envoi de l email impossible.';
+      const apiError = extractApiError(err);
+      this.sendNeedsGmailReconnect = apiError.type === 'EmailReconnectRequired';
+      this.sendError = apiError.message || 'The email could not be sent. Please try again.';
     } finally {
       this.isSendingEmail = false;
     }
@@ -184,7 +191,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
               this.emailService.generateDraft({
                 candidatureId: candidature.idCandidature,
                 emailType: 'application',
-                language: 'fr',
+                language: this.languageService.lang(),
                 cvHistoryId: this.pipeline.finalCvHistoryId()
               }).subscribe({
                 next: (newDraft) => {
@@ -293,7 +300,7 @@ export class StepResultsComponent implements OnInit, OnDestroy {
       domain: 'software',
       level: 'senior',
       duration_minutes: 20,
-      language: 'fr',
+      language: this.languageService.lang(),
       focus_areas: result.requiredSkills || []
     };
     this.pipeline.closeFlow();

@@ -8,7 +8,7 @@ import { StepResultsComponent } from '../../components/step-results/step-results
 import { StepSubmitComponent } from '../../components/step-submit/step-submit.component';
 import { StepTemplateComponent } from '../../components/step-template/step-template.component';
 import { OfferStepId } from '../../data-access/offers.models';
-import { timeout } from 'rxjs';
+import { Subscription, timeout } from 'rxjs';
 import { extractApiError } from '@core/http/extract-api-error';
 import { OfferApiService } from '../../data-access/offer-api.service';
 
@@ -55,6 +55,13 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     4: 'generation',
     5: 'results',
   };
+
+  // Navigating away must stop the auto-analyze animation/HTTP call in flight, otherwise it
+  // keeps running in the background and mutates the (root-scoped) PipelineStateService or
+  // even navigates the router after the user has already left this page.
+  private autoAnalyzeTimers: Array<ReturnType<typeof setTimeout>> = [];
+  private autoAnalyzeSub: Subscription | null = null;
+  private restoreAnalysisSub: Subscription | null = null;
 
   readonly currentStepId = computed<OfferStepId>(() =>
     this.pipelineToStep[this.pipeline.currentStep()] || 'submit'
@@ -120,6 +127,10 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.autoAnalyzeTimers.forEach((timer) => clearTimeout(timer));
+    this.autoAnalyzeTimers = [];
+    this.autoAnalyzeSub?.unsubscribe();
+    this.restoreAnalysisSub?.unsubscribe();
     this.pipeline.closeFlow();
   }
 
@@ -175,7 +186,6 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
       { agentName: 'skill_gap', label: 'Analyse du skill gap...', progressPercent: 84 },
       { agentName: 'skill_gap', label: 'Finalisation des resultats...', progressPercent: 95 },
     ] as const;
-    const timers: Array<ReturnType<typeof setTimeout>> = [];
 
     const setStage = (stageIndex: number) => {
       const stage = progressStages[Math.max(0, Math.min(stageIndex, progressStages.length - 1))];
@@ -189,23 +199,25 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
     };
 
     setStage(0);
-    timers.push(setTimeout(() => setStage(1), 1200));
-    timers.push(setTimeout(() => setStage(2), 2500));
-    timers.push(setTimeout(() => setStage(3), 3900));
-    timers.push(setTimeout(() => setStage(4), 5200));
+    this.autoAnalyzeTimers.push(setTimeout(() => setStage(1), 1200));
+    this.autoAnalyzeTimers.push(setTimeout(() => setStage(2), 2500));
+    this.autoAnalyzeTimers.push(setTimeout(() => setStage(3), 3900));
+    this.autoAnalyzeTimers.push(setTimeout(() => setStage(4), 5200));
 
-    this.offerApi.analyzeSync(offerId, 1).subscribe({
+    this.autoAnalyzeSub = this.offerApi.analyzeSync(offerId, 1).subscribe({
       next: () => {
         const elapsedMs = Date.now() - analysisStartTs;
         const waitMs = Math.max(0, minAnalysisUxMs - elapsedMs);
-        setTimeout(() => {
-          timers.forEach((timer) => clearTimeout(timer));
+        this.autoAnalyzeTimers.push(setTimeout(() => {
+          this.autoAnalyzeTimers.forEach((timer) => clearTimeout(timer));
+          this.autoAnalyzeTimers = [];
           this.clearAutoAnalyzeQueryFlag();
           this.restoreAnalysis(offerId, requestedStep, true);
-        }, waitMs);
+        }, waitMs));
       },
       error: (err) => {
-        timers.forEach((timer) => clearTimeout(timer));
+        this.autoAnalyzeTimers.forEach((timer) => clearTimeout(timer));
+        this.autoAnalyzeTimers = [];
         const message = extractApiError(err).message || 'Erreur lors de l analyse de l offre.';
         this.pipeline.pipelineError.set(message);
         this.clearAutoAnalyzeQueryFlag();
@@ -217,7 +229,7 @@ export class OfferPipelineComponent implements OnInit, OnDestroy {
 
   private restoreAnalysis(offerId: string, requestedStep: OfferStepId | null, keepLoader = false): void {
     this.pipeline.setLoading(true, keepLoader ? 'Restauration des resultats...' : 'Restauration de votre analyse...');
-    this.offerApi.getAnalysis(offerId).pipe(
+    this.restoreAnalysisSub = this.offerApi.getAnalysis(offerId).pipe(
       timeout(15000)
     ).subscribe({
       next: (analysis) => {

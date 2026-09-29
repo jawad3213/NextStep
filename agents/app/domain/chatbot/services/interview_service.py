@@ -2,46 +2,37 @@
 SERVICE — Logique métier du module chatbot.
 
 RESPONSABILITÉS :
-  1. Récupérer le contexte offre depuis la DB (outputs agents 2/3/4)
+  1. Récupérer le contexte de l'offre (tables agents + backend)
   2. Appeler le graphe LangGraph
-  3. Persister les résultats en DB
-  4. Retourner les schemas de réponse API
+  3. Retourner les schemas de réponse API
+
+Les sessions et questions sont enregistrées par le backend (module Coaching).
 
 Le router appelle le service.
-Le service appelle graph + DB.
+Le service appelle le graphe.
 Le service ne connaît pas HTTP.
 """
 
 from __future__ import annotations
 import uuid
 import logging
-from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.domain.chatbot.graph import interview_graph
-from app.core.models import OffreAnalysee, IntelEntreprise, ResultatMatching
-from app.domain.chatbot.models import (
-    SessionCoaching, QuestionEntrainement,
-)
-from app.domain.chatbot.state import (
-    InterviewPrepState, ArenaConfig, MessageTurn,
-    OfferContext, OfferData, CompanyData, MatchData,
-    FeedbackResult, DimensionScore,
-)
+from app.domain.chatbot.state import InterviewPrepState, FeedbackResult
 from app.domain.chatbot.schemas import (
-    ArenaConfigSchema, MessageSchema,
-    QuestionsResponse, QuestionOut,
-    FreeChatResponse,
+    ArenaConfigSchema,
+    MessageSchema,
     StartInterviewResponse,
     SendMessageResponse,
-    EndInterviewResponse, FeedbackOut, DimensionOut,
-    SalaryResponse, NegotiationStepOut,
+    EndInterviewResponse,
+    FeedbackOut,
+    DimensionOut,
 )
 
 logger = logging.getLogger(__name__)
-from .context_service import get_offer_context_from_db, get_candidature_id, _to_arena_config, _to_message_turns, get_internal_user_id
+from .context_service import get_offer_context_from_db, _to_arena_config, _to_message_turns
 
 # SERVICE 3 — START INTERVIEW (Tab 2)
 async def start_interview_service(
@@ -52,42 +43,14 @@ async def start_interview_service(
     db: AsyncSession,
     session_id: str | None = None,
 ) -> StartInterviewResponse:
-    """Démarre la session. Crée la ligne en DB. Retourne le message d'ouverture."""
+    """Message d'ouverture de l'entretien (la session est créée par le backend)."""
 
     offer_ctx = None
     if mode == "offer" and offer_id:
         offer_ctx = await get_offer_context_from_db(offer_id, user_id, db)
 
-    # Créer la session en DB d'abord
-    cfg = arena_config
-    try:
-        cand_id = await get_candidature_id(offer_id, user_id, db)
-        internal_uid = await get_internal_user_id(user_id, db)
-        session_uuid = uuid.UUID(session_id) if session_id else uuid.uuid4()
-        session_db = SessionCoaching(
-            id_session=session_uuid,
-            id_utilisateur=internal_uid,
-            id_candidature=cand_id,
-            mode=mode,
-            language=cfg.language if cfg else "en",
-            duration_minutes=cfg.duration_minutes if cfg else 20,
-            domain=cfg.domain if cfg else None,
-            level=cfg.level if cfg else None,
-            focus_areas=cfg.focus_areas if cfg else None,
-            status="started",
-        )
-        db.add(session_db)
-        await db.commit()
-        session_id = str(session_db.id_session)
-        # Vérifier que la session a bien un ID avant de l'utiliser
-        if not session_id:
-            raise ValueError("Session ID is None")
-        logger.info(f"Session created in DB: {session_id}")
-
-    except Exception as e:
-        logger.error(f"DB create session error: {e}")
-        await db.rollback()
-        session_id = str(uuid.uuid4())
+    # The backend (Coaching module) creates the session and sends its id.
+    session_id = session_id or str(uuid.uuid4())
 
     # Appeler le graphe pour le message d'ouverture
     state = InterviewPrepState(
@@ -156,7 +119,7 @@ async def end_interview_service(
     user_id: str,
     db: AsyncSession,
 ) -> EndInterviewResponse:
-    """Termine la session, évalue, sauvegarde le score et le feedback en DB."""
+    """Évalue l'entretien (le backend enregistre le score et le feedback)."""
 
     offer_ctx = None
     if mode == "offer" and offer_id:
@@ -176,24 +139,6 @@ async def end_interview_service(
     result = await interview_graph.ainvoke(state)
     feedback: FeedbackResult | None = result.get("feedback")
     score = feedback.global_score if feedback else 0
-
-    # Mettre à jour la session en DB
-    try:
-        session_uuid = uuid.UUID(session_id)
-        row = await db.get(SessionCoaching, session_uuid)
-        if row:
-            row.status          = "completed"
-            row.score_entretien = score
-            row.completed_at    = datetime.utcnow()
-            row.feedback_json   = feedback.model_dump() if feedback else {}
-            await db.commit()
-            logger.info(f"Session {session_id} completed with score {score}")
-        else:
-            logger.warning(f"Session {session_id} not found in DB")
-
-    except Exception as e:
-        logger.error(f"DB update session error: {e}")
-        await db.rollback()
 
     # Construire la réponse
     feedback_out = FeedbackOut(

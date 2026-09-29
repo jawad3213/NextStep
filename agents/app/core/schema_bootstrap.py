@@ -111,6 +111,7 @@ _SCHEMA_STATEMENTS = [
     "ALTER TABLE IF EXISTS agents.intel_entreprise ADD COLUMN IF NOT EXISTS difficulte_entretien VARCHAR(20) DEFAULT 'medium'",
     "ALTER TABLE IF EXISTS agents.intel_entreprise ADD COLUMN IF NOT EXISTS questions_connues JSONB",
     "ALTER TABLE IF EXISTS agents.intel_entreprise ADD COLUMN IF NOT EXISTS date_collecte TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    "ALTER TABLE IF EXISTS agents.intel_entreprise ADD COLUMN IF NOT EXISTS rapport_complet JSONB",
     "ALTER TABLE IF EXISTS agents.resultat_matching ADD COLUMN IF NOT EXISTS id_offre UUID",
     "ALTER TABLE IF EXISTS agents.resultat_matching ADD COLUMN IF NOT EXISTS id_utilisateur UUID",
     "ALTER TABLE IF EXISTS agents.resultat_matching ADD COLUMN IF NOT EXISTS score_global INTEGER",

@@ -92,10 +92,25 @@ and marks the first migration as applied. The Python agents move their own table
 
 ## Python agents and the database
 
-The agents still read some backend tables directly (`profile.*`, `applications.*`) and write the coaching
-sessions. They use schema-qualified names, so any change to those tables must be checked against
-`agents/app` (search for the table name). The next step toward independent services is for the agents to
-receive this data in their requests, or to call the backend API, instead of reading the tables.
+The agents own the `agents` schema only. They reach profiles and applications through internal
+backend endpoints, never through the tables (`agents/app/core/backend_client.py`):
+
+| Endpoint | Module | Used by |
+|---|---|---|
+| `GET /internal/agents/users/{userRef}` | Profile | chatbot (user id) |
+| `GET /internal/agents/profiles/{userRef}` | Profile | profile retriever (CV pipeline, match), SN Copilot |
+| `GET /internal/agents/users/{userRef}/candidatures` | Applications | SN Copilot, chatbot |
+| `POST …/candidatures`, `…/candidatures/{id}/status`, `…/candidatures/{id}/notes` | Applications | SN Copilot (history source `ai_sn`) |
+| `GET …/offers/{offerId}/analysis` | Applications | chatbot (offer context) |
+
+`userRef` is the local user id or the Keycloak subject. These endpoints take no user token: they require
+the shared secret `AGENTS_API_KEY` in `X-Internal-Api-Key` (`[InternalApiKey]`), the same secret the
+backend sends to the agents.
+
+The interview coach's sessions and questions are saved by the Coaching module (`ArenaService`):
+it reuses questions already generated for the same application or Arena configuration, creates
+the interview session before calling the agents, and stores the score and feedback they return.
+The agents only compute; they no longer write any backend table.
 
 ## Adding a module
 

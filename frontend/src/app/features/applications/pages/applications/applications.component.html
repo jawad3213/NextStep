@@ -1,4 +1,3 @@
-
 <div class="min-h-0 flex-1 overflow-y-auto">
   <div class="p-3 md:p-4 lg:p-5 pt-1 md:pt-2 lg:pt-3">
 
@@ -12,28 +11,28 @@
         </div>
       </div>
       <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Envoyees</p>
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Sent</p>
         <div class="flex items-center justify-between">
           <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().envoyees }}</h3>
           <span class="material-symbols-outlined text-lg text-brand-500 opacity-40">send</span>
         </div>
       </div>
       <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">En attente</p>
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Pending</p>
         <div class="flex items-center justify-between">
           <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().enAttente }}</h3>
           <span class="material-symbols-outlined text-lg text-amber-500 opacity-40">schedule</span>
         </div>
       </div>
       <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Acceptees</p>
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Accepted</p>
         <div class="flex items-center justify-between">
           <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().acceptees }}</h3>
           <span class="material-symbols-outlined text-lg text-green-600 opacity-40">verified</span>
         </div>
       </div>
       <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Reponses</p>
+        <p class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Responses</p>
         <div class="flex items-center justify-between">
           <h3 class="font-mono text-xl font-bold text-gray-900">{{ stats().avecReponse }}</h3>
           <span class="material-symbols-outlined text-lg text-purple-500 opacity-40">forum</span>
@@ -47,7 +46,7 @@
         <div class="relative">
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base text-gray-400">search</span>
           <input type="text" class="h-9 w-56 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-xs font-medium text-gray-900 placeholder-gray-400 outline-none transition-all focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10"
-            placeholder="Rechercher une entreprise..."
+            placeholder="Search company or role..."
             [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
         </div>
         <div class="flex overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-0.5">
@@ -59,13 +58,13 @@
           <button class="flex items-center gap-1 rounded-md px-3 py-1.5 text-[11px] font-bold transition-all"
             [class]="viewMode() === 'liste' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
             (click)="setView('liste')">
-            <span class="material-symbols-outlined text-sm">format_list_bulleted</span> Liste
+            <span class="material-symbols-outlined text-sm">format_list_bulleted</span> List
           </button>
         </div>
       </div>
       <button (click)="openNewApplicationModal()"
         class="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600">
-        <span class="material-symbols-outlined text-sm">add</span> Nouvelle candidature
+        <span class="material-symbols-outlined text-sm">add</span> New application
       </button>
       <button (click)="exportCsv()"
         class="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-all hover:border-brand-300 hover:text-brand-600">
@@ -76,8 +75,8 @@
     <!-- Filter Pills -->
     <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
       <button class="flex-shrink-0 rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all"
-        [class]="filterStatut() === 'Tous' ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-500 hover:border-brand-300 hover:text-brand-500'"
-        (click)="setFilter('Tous')">Tous</button>
+        [class]="filterStatut() === 'All' ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-500 hover:border-brand-300 hover:text-brand-500'"
+        (click)="setFilter('All')">All</button>
       @for (col of columns; track col.key) {
         <button class="flex-shrink-0 rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all"
           [class]="filterStatut() === col.key ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-500 hover:border-brand-300 hover:text-brand-500'"
@@ -90,7 +89,7 @@
       <div class="flex items-center justify-center py-16">
         <div class="flex flex-col items-center gap-3">
           <div class="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500"></div>
-          <p class="text-xs font-medium text-gray-400">Chargement...</p>
+          <p class="text-xs font-medium text-gray-400">Loading...</p>
         </div>
       </div>
     }
@@ -143,18 +142,18 @@
                       @if (card.hasResponse) {
                         <span class="flex items-center gap-0.5 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 border border-purple-200/80">
                           <span class="material-symbols-outlined text-[10px]">mark_email_read</span>
-                          Réponse
+                          Reply
                         </span>
                       }
                       @if (!card.hasResponse && card.followUpNeeded) {
                         <span class="flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200/80">
                           <span class="material-symbols-outlined text-[10px]">notification_important</span>
-                          Relance
+                          Follow-up
                         </span>
                       }
                       <!-- Quick status change button -->
                       <button class="flex h-5 w-5 items-center justify-center rounded text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-600"
-                        (click)="toggleStatusMenu(card.id, $event)" title="Changer le statut">
+                        (click)="toggleStatusMenu(card.id, $event)" title="Change status">
                         <span class="material-symbols-outlined text-[11px]">more_vert</span>
                       </button>
                       @if (activeStatusMenu() === card.id) {
@@ -180,7 +179,7 @@
                   <div class="mb-2.5 flex items-center justify-between rounded-lg bg-gray-50/90 px-2.5 py-1.5 border border-gray-100 text-gray-600">
                     <div class="flex items-center gap-1.5 min-w-0">
                       <span class="material-symbols-outlined text-[13px] text-gray-400 shrink-0">calendar_today</span>
-                      <span class="truncate text-[10px] font-medium text-gray-700">Postulé le {{ formatDateShort(card.applicationDate) }}</span>
+                      <span class="truncate text-[10px] font-medium text-gray-700">Applied on {{ formatDateShort(card.applicationDate) }}</span>
                     </div>
                     <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-gray-600 border border-gray-200 shadow-2xs">
                       {{ formatRelativeDate(card.applicationDate) }}
@@ -192,7 +191,7 @@
                     <div class="mb-2.5 flex items-center justify-between rounded-lg bg-amber-50/90 border border-amber-200/90 px-2.5 py-1.5 text-amber-900">
                       <div class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[13px] text-amber-600 shrink-0">alarm</span>
-                        <span class="text-[9px] font-bold">Relance suggérée ({{ getDaysSince(card.applicationDate) }}j sans réponse)</span>
+                        <span class="text-[9px] font-bold">Follow-up suggested ({{ getDaysSince(card.applicationDate) }}d without reply)</span>
                       </div>
                     </div>
                   }
@@ -200,7 +199,7 @@
                   <!-- AI response summary -->
                   @if (card.hasResponse && card.responseSummary) {
                     <p class="mb-2 line-clamp-2 rounded-lg bg-purple-50 px-2.5 py-1.5 text-[10px] font-medium text-purple-700 border border-purple-100">
-                      <span class="font-bold">IA :</span> {{ card.responseSummary }}
+                      <span class="font-bold">AI:</span> {{ card.responseSummary }}
                     </p>
                   }
 
@@ -219,14 +218,14 @@
                         class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-[10px] font-bold text-white transition-all hover:bg-purple-700 shadow-2xs"
                         (click)="openEmailWorkspace(card.id); $event.stopPropagation()">
                         <span class="material-symbols-outlined text-xs">reply</span>
-                        Répondre
+                        Reply
                       </button>
                       @if (card.responseStatus === 'ENTRETIEN_PROPOSE') {
                         <button
                           class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-[10px] font-bold text-white transition-all hover:bg-brand-600 shadow-2xs"
                           (click)="prepareForInterview(card); $event.stopPropagation()">
                           <span class="material-symbols-outlined text-xs">smart_toy</span>
-                          Entretien
+                          Interview prep
                         </button>
                       }
                     } @else {
@@ -238,14 +237,14 @@
                       </button>
                       <button
                         class="flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[10px] font-bold text-gray-600 transition-all hover:border-gray-300 hover:bg-gray-50"
-                        (click)="openDetails(card.id); $event.stopPropagation()" title="Voir les détails">
+                        (click)="openDetails(card.id); $event.stopPropagation()" title="View details">
                         <span class="material-symbols-outlined text-xs">visibility</span>
                       </button>
                     }
                     <button
                       class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 transition-all hover:bg-red-50 hover:text-red-500"
                       (click)="deleteCandidature(card); $event.stopPropagation()"
-                      title="Supprimer">
+                      title="Delete">
                       <span class="material-symbols-outlined text-sm">delete</span>
                     </button>
                   </div>
@@ -254,7 +253,7 @@
               }
               @if (getColumnCards(col.key).length === 0) {
                 <div class="py-6 text-center">
-                  <p class="text-[11px] font-medium text-gray-400">Aucune candidature</p>
+                  <p class="text-[11px] font-medium text-gray-400">No applications</p>
                 </div>
               }
             </div>
@@ -269,11 +268,11 @@
         <table class="w-full text-left">
           <thead class="border-b border-gray-100 bg-gray-50">
             <tr>
-              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Entreprise</th>
-              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Poste & Contrat</th>
-              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Canal</th>
-              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Statut</th>
-              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Postulé le</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Company</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Role & Contract</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Channel</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Status</th>
+              <th class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Applied on</th>
               <th class="px-5 py-2.5 text-right text-[9px] font-bold uppercase tracking-wider text-gray-400">Actions</th>
             </tr>
           </thead>
@@ -322,11 +321,11 @@
                       <span class="material-symbols-outlined text-sm">mail</span>
                     </button>
                     <button class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-                      (click)="openDetails(card.id)" title="Détails">
+                      (click)="openDetails(card.id)" title="Details">
                       <span class="material-symbols-outlined text-sm">visibility</span>
                     </button>
                     <button class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                      (click)="deleteCandidature(card)" title="Supprimer">
+                      (click)="deleteCandidature(card)" title="Delete">
                       <span class="material-symbols-outlined text-sm">delete</span>
                     </button>
                   </div>
@@ -335,7 +334,7 @@
             }
             @if (filteredCards().length === 0) {
               <tr>
-                <td colspan="6" class="px-5 py-8 text-center text-sm font-medium text-gray-400">Aucune candidature</td>
+                <td colspan="6" class="px-5 py-8 text-center text-sm font-medium text-gray-400">No applications found</td>
               </tr>
             }
           </tbody>
@@ -349,7 +348,7 @@
           class="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-xs font-bold text-brand-600 transition-all hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
           (click)="loadMore()"
           [disabled]="loadingMore()">
-          @if (loadingMore()) { Chargement... } @else { Voir plus }
+          @if (loadingMore()) { Loading... } @else { Load more }
         </button>
       </div>
     }
@@ -359,35 +358,35 @@
       <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" (click)="closeNewApplicationModal()">
         <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
           <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-            <h3 class="text-lg font-bold text-gray-900">Nouvelle candidature</h3>
+            <h3 class="text-lg font-bold text-gray-900">New application</h3>
             <button (click)="closeNewApplicationModal()" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
               <span class="material-symbols-outlined text-lg">close</span>
             </button>
           </div>
           <div class="flex flex-col gap-4 p-6">
-            <!-- Row 1: Entreprise + Poste (avec autocomplete intelligent) -->
+            <!-- Row 1: Company + Role (with smart autocomplete) -->
             <div class="grid grid-cols-2 gap-3">
-              <!-- Champ Entreprise -->
+              <!-- Company Field -->
               <div class="flex flex-col gap-1.5 relative">
                 <div class="flex items-center justify-between">
                   <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
-                    <span>Entreprise *</span>
+                    <span>Company *</span>
                     @if (selectedCompanyMeta()?.domain) {
                       <span class="rounded bg-blue-50 px-1 py-0.2 text-[8px] font-bold text-blue-600 border border-blue-100">
-                        Vérifiée
+                        Verified
                       </span>
                     }
                   </label>
                   @if (isSearchingCompany()) {
                     <span class="text-[9px] font-medium text-brand-600 flex items-center gap-1">
                       <span class="h-1.5 w-1.5 animate-ping rounded-full bg-brand-500"></span>
-                      Recherche...
+                      Searching...
                     </span>
                   }
                 </div>
 
                 <div class="relative flex items-center">
-                  <!-- Logo ou icône à gauche -->
+                  <!-- Logo or icon on the left -->
                   <div class="absolute left-2.5 flex h-5 w-5 items-center justify-center shrink-0 pointer-events-none">
                     @if (selectedCompanyMeta()?.logo) {
                       <img [src]="selectedCompanyMeta()!.logo" (error)="selectedCompanyMeta()!.logo = undefined"
@@ -403,33 +402,33 @@
 
                   <input type="text"
                     class="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-8 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/10 placeholder:text-gray-400"
-                    placeholder="Ex: Doctolib, Google, Capgemini..."
+                    placeholder="e.g. Google, Stripe, Microsoft..."
                     [ngModel]="newForm().entreprise"
                     (ngModelChange)="onEntrepriseInput($event)"
                     (keydown)="onCompanyKeydown($event)"
                     autocomplete="off" />
 
-                  <!-- Spinner de recherche ou bouton clear -->
+                  <!-- Search spinner or clear button -->
                   <div class="absolute right-2.5 flex items-center">
                     @if (isSearchingCompany()) {
                       <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"></div>
                     } @else if (newForm().entreprise) {
-                      <button type="button" (click)="clearCompany()" class="text-gray-300 hover:text-gray-500 transition-colors" title="Effacer">
+                      <button type="button" (click)="clearCompany()" class="text-gray-300 hover:text-gray-500 transition-colors" title="Clear">
                         <span class="material-symbols-outlined text-sm">close</span>
                       </button>
                     }
                   </div>
                 </div>
 
-                <!-- Dropdown suggestions Entreprise -->
+                <!-- Dropdown suggestions Company -->
                 @if (companySuggestions().length > 0) {
                   <div class="absolute left-0 top-full z-40 mt-1.5 w-full rounded-xl border border-gray-200 bg-white shadow-2xl py-1 overflow-hidden divide-y divide-gray-50 max-h-60 overflow-y-auto">
                     <div class="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between bg-gray-50/70">
                       <span class="flex items-center gap-1">
                         <span class="material-symbols-outlined text-[11px] text-brand-500">travel_explore</span>
-                        Suggestions entreprises
+                        Company suggestions
                       </span>
-                      <span class="text-[8px] font-normal text-gray-400">↑↓ naviguer · ↵ valider</span>
+                      <span class="text-[8px] font-normal text-gray-400">↑↓ navigate · ↵ select</span>
                     </div>
                     @for (comp of companySuggestions(); track comp.name; let idx = $index) {
                       <button type="button"
@@ -456,16 +455,16 @@
                         <div class="shrink-0 flex items-center">
                           @if (comp.alreadyApplied) {
                             <span class="rounded bg-amber-50 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 border border-amber-200">
-                              Déjà postulé
+                              Already applied
                             </span>
                           } @else if (comp.source === 'clearbit') {
                             <span class="rounded bg-blue-50 px-1.5 py-0.5 text-[8px] font-bold text-blue-600 border border-blue-100 flex items-center gap-0.5">
                               <span class="material-symbols-outlined text-[10px]">verified</span>
-                              Vérifiée
+                              Verified
                             </span>
                           } @else {
                             <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[8px] font-medium text-gray-500">
-                              Annuaire
+                              Directory
                             </span>
                           }
                         </div>
@@ -475,10 +474,10 @@
                 }
               </div>
 
-              <!-- Champ Poste -->
+              <!-- Role Field -->
               <div class="flex flex-col gap-1.5 relative">
                 <div class="flex items-center justify-between">
-                  <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Poste *</label>
+                  <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Role / Job Title *</label>
                   @if (jobSuggestions().length > 0) {
                     <span class="text-[9px] font-medium text-gray-400">
                       {{ jobSuggestions().length }} suggestion{{ jobSuggestions().length > 1 ? 's' : '' }}
@@ -487,38 +486,38 @@
                 </div>
 
                 <div class="relative flex items-center">
-                  <!-- Icône à gauche -->
+                  <!-- Icon on the left -->
                   <div class="absolute left-2.5 flex h-5 w-5 items-center justify-center shrink-0 pointer-events-none">
                     <span class="material-symbols-outlined text-[15px] text-gray-400">work</span>
                   </div>
 
                   <input type="text"
                     class="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-8 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/10 placeholder:text-gray-400"
-                    placeholder="Ex: Développeur Full Stack, DevOps..."
+                    placeholder="e.g. Full Stack Engineer, DevOps..."
                     [ngModel]="newForm().poste"
                     (ngModelChange)="onPosteInput($event)"
                     (keydown)="onJobKeydown($event)"
                     autocomplete="off" />
 
-                  <!-- Bouton clear -->
+                  <!-- Clear button -->
                   @if (newForm().poste) {
                     <div class="absolute right-2.5 flex items-center">
-                      <button type="button" (click)="clearPoste()" class="text-gray-300 hover:text-gray-500 transition-colors" title="Effacer">
+                      <button type="button" (click)="clearPoste()" class="text-gray-300 hover:text-gray-500 transition-colors" title="Clear">
                         <span class="material-symbols-outlined text-sm">close</span>
                       </button>
                     </div>
                   }
                 </div>
 
-                <!-- Dropdown suggestions Poste -->
+                <!-- Dropdown suggestions Role -->
                 @if (jobSuggestions().length > 0) {
                   <div class="absolute left-0 top-full z-40 mt-1.5 w-full rounded-xl border border-gray-200 bg-white shadow-2xl py-1 overflow-hidden divide-y divide-gray-50 max-h-60 overflow-y-auto">
                     <div class="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between bg-gray-50/70">
                       <span class="flex items-center gap-1">
                         <span class="material-symbols-outlined text-[11px] text-brand-500">lightbulb</span>
-                        Métiers tech recommandés
+                        Recommended roles
                       </span>
-                      <span class="text-[8px] font-normal text-gray-400">↑↓ naviguer · ↵ valider</span>
+                      <span class="text-[8px] font-normal text-gray-400">↑↓ navigate · ↵ select</span>
                     </div>
                     @for (job of jobSuggestions(); track job.title; let idx = $index) {
                       <button type="button"
@@ -537,7 +536,7 @@
                           </span>
                           @if (job.alreadyApplied) {
                             <span class="rounded bg-amber-50 px-1 py-0.2 text-[8px] font-bold text-amber-700 border border-amber-200">
-                              Déjà postulé
+                              Already applied
                             </span>
                           }
                         </div>
@@ -548,50 +547,50 @@
               </div>
             </div>
 
-            <!-- Row 2: Type + Canal -->
+            <!-- Row 2: Type + Channel -->
             <div class="grid grid-cols-2 gap-3">
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Type de contrat</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Contract type</label>
                 <select class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
                   [ngModel]="newForm().type" (ngModelChange)="updateForm('type', $event)">
-                  <option value="CDI">CDI</option>
-                  <option value="CDD">CDD</option>
-                  <option value="Stage">Stage</option>
-                  <option value="Alternance">Alternance</option>
+                  <option value="CDI">Full-time (CDI)</option>
+                  <option value="CDD">Fixed-term (CDD)</option>
+                  <option value="Stage">Internship</option>
+                  <option value="Alternance">Apprenticeship</option>
                   <option value="Freelance">Freelance</option>
-                  <option value="Stage PFA">Stage PFA</option>
-                  <option value="Stage PFE">Stage PFE</option>
+                  <option value="Stage PFA">Mid-term Internship</option>
+                  <option value="Stage PFE">Graduation Internship</option>
                 </select>
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Canal de candidature</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Application channel</label>
                 <select class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
                   [ngModel]="newForm().channel" (ngModelChange)="updateForm('channel', $event)">
                   <option value="EMAIL">Email</option>
                   <option value="LINKEDIN">LinkedIn</option>
                   <option value="INDEED">Indeed</option>
                   <option value="WHATSAPP">WhatsApp</option>
-                  <option value="WEBSITE">Site carriere</option>
-                  <option value="PHONE">Telephone</option>
-                  <option value="AUTRE">Autre</option>
+                  <option value="WEBSITE">Careers site</option>
+                  <option value="PHONE">Phone</option>
+                  <option value="AUTRE">Other</option>
                 </select>
               </div>
             </div>
 
-            <!-- Row 3: Date + Deja postule -->
+            <!-- Row 3: Date + Already applied -->
             <div class="grid grid-cols-2 gap-3">
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Date de candidature</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Application date</label>
                 <input type="date" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
                   [ngModel]="newForm().applicationDate" (ngModelChange)="updateForm('applicationDate', $event)" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Deja postule ?</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Already applied?</label>
                 <div class="flex h-10 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3">
                   <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                       [ngModel]="newForm().appliedManually" (ngModelChange)="updateForm('appliedManually', $event)" />
-                    <span class="text-xs font-medium text-gray-700">Oui, deja postule</span>
+                    <span class="text-xs font-medium text-gray-700">Yes, already sent</span>
                   </label>
                 </div>
               </div>
@@ -600,43 +599,43 @@
             <!-- Row 4: URL + Contact -->
             <div class="grid grid-cols-2 gap-3">
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">URL de l'offre</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Job offer URL</label>
                 <input type="url" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
                   placeholder="https://..."
                   [ngModel]="newForm().channelUrl" (ngModelChange)="updateForm('channelUrl', $event)" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Contact recruteur</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Recruiter contact</label>
                 <input type="text" class="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10"
-                  placeholder="Email ou profil"
+                  placeholder="Email or profile"
                   [ngModel]="newForm().channelContact" (ngModelChange)="updateForm('channelContact', $event)" />
               </div>
             </div>
 
             <!-- Row 5: Notes -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Notes personnelles</label>
+              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Personal notes</label>
               <textarea class="h-20 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/10 resize-none"
-                placeholder="Informations complementaires..."
+                placeholder="Additional notes, interviewer names, compensation..."
                 [ngModel]="newForm().notes" (ngModelChange)="updateForm('notes', $event)"></textarea>
             </div>
 
-            <!-- Row 6: Lettre -->
+            <!-- Row 6: Cover letter -->
             <div class="flex items-center gap-2">
               <input type="checkbox" id="inclure-lettre" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                 [ngModel]="newForm().inclureLettreMotivation" (ngModelChange)="updateForm('inclureLettreMotivation', $event)" />
-              <label for="inclure-lettre" class="text-xs font-medium text-gray-700">Inclure une lettre de motivation</label>
+              <label for="inclure-lettre" class="text-xs font-medium text-gray-700">Include a cover letter</label>
             </div>
 
             <div class="mt-2 flex justify-end gap-3">
               <button (click)="closeNewApplicationModal()"
                 class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-500 transition-all hover:bg-gray-50">
-                Annuler
+                Cancel
               </button>
               <button (click)="createCandidature()"
                 [disabled]="!newForm().entreprise || !newForm().poste"
                 class="rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60">
-                Creer la candidature
+                Create application
               </button>
             </div>
           </div>

@@ -75,6 +75,12 @@ namespace NextStep.Modules.Profile.Application.Dtos {
         public string? TitresSections { get; set; }
     }
 
+    public class LanguagePreferenceDto
+    {
+        /// <summary>"en" or "fr".</summary>
+        public string Language { get; set; } = "en";
+    }
+
     public class OnboardingDto
     {
         public string Objectif { get; set; } = string.Empty;
@@ -89,6 +95,10 @@ namespace NextStep.Modules.Profile.Application.Dtos {
         public string? Niveau { get; set; }
         public string? Secteur { get; set; }
         public bool OnboardingCompleted { get; set; }
+
+        /// <summary>UI and generated-document language ("en" or "fr"). Defaults to English.</summary>
+        public string PreferredLanguage { get; set; } = "en";
+
         public List<ExperienceDto> Experiences { get; set; } = new();
         public List<FormationDto> Formations { get; set; } = new();
         public List<ProjetDto> Projets { get; set; } = new();

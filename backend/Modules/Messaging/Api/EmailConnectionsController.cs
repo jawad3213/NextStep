@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NextStep.Modules.Messaging.Application.Dtos;
@@ -39,7 +39,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
+            return ApiResult.Forbidden("User not found.");
 
         await _connectionService.SaveGoogleClientCredentialsAsync(localUserId.Value, dto, cancellationToken);
         return NoContent();
@@ -52,7 +52,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
+            return ApiResult.Forbidden("User not found.");
 
         var summary = await _connectionService.GetGoogleClientCredentialsSummaryAsync(localUserId.Value, cancellationToken);
         return Ok(summary);
@@ -64,7 +64,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
+            return ApiResult.Forbidden("User not found.");
 
         await _connectionService.DeleteGoogleClientCredentialsAsync(localUserId.Value, cancellationToken);
         return NoContent();
@@ -82,7 +82,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur authentifié introuvable. Veuillez compléter l'onboarding.");
+            return ApiResult.Forbidden("Authenticated user not found. Please complete onboarding.");
 
         var loginUrl = await _connectionService.GetGoogleLoginUrlAsync(localUserId.Value, cancellationToken);
         return Redirect(loginUrl);
@@ -99,7 +99,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur authentifié introuvable. Veuillez compléter l'onboarding.");
+            return ApiResult.Forbidden("Authenticated user not found. Please complete onboarding.");
 
         var loginUrl = await _connectionService.GetGoogleLoginUrlAsync(localUserId.Value, cancellationToken);
         return Ok(new GoogleLoginUrlDto(loginUrl));
@@ -115,32 +115,42 @@ public class EmailConnectionsController : ControllerBase
     [HttpGet("google/callback")]
     [AllowAnonymous]
     public async Task<IActionResult> GoogleCallback(
-        [FromQuery] string code,
-        [FromQuery] string state,
+        [FromQuery] string? code,
+        [FromQuery] string? state,
+        [FromQuery] string? error,
         CancellationToken cancellationToken)
     {
+        // The browser always goes back to the app: never leave the user on a raw API response.
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            _logger.LogInformation("EmailConnections — Google returned OAuth error {Error}", error);
+            return Redirect(BuildFrontendOAuthRedirectUrl(success: false, error: error == "access_denied"
+                ? "Gmail connection cancelled: access was not granted on Google's screen."
+                : "Google could not complete the Gmail connection. Please try again."));
+        }
+
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state))
         {
-            return ApiResult.BadRequest("Paramètres 'code' ou 'state' manquants.");
+            return Redirect(BuildFrontendOAuthRedirectUrl(success: false,
+                error: "The Gmail connection link is incomplete. Please click \"Connect Gmail\" again."));
         }
 
         try
         {
             await _connectionService.HandleGoogleCallbackAsync(code, state, cancellationToken);
-
             return Redirect(BuildFrontendOAuthRedirectUrl(success: true));
         }
-        catch (InvalidOperationException ex)
+        catch (GmailConnectionException ex)
         {
             _logger.LogWarning(ex, "EmailConnections — OAuth callback failed");
             return Redirect(BuildFrontendOAuthRedirectUrl(success: false, error: ex.Message));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "EmailConnections — unexpected error in OAuth callback");
             return Redirect(BuildFrontendOAuthRedirectUrl(
                 success: false,
-                error: "An unexpected error occurred during Gmail connection."));
+                error: "An unexpected error occurred during the Gmail connection. Please try again."));
         }
     }
 
@@ -156,7 +166,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
+            return ApiResult.Forbidden("User not found.");
 
         var status = await _connectionService.GetStatusAsync(localUserId.Value, cancellationToken);
         return Ok(status);
@@ -173,7 +183,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
+            return ApiResult.Forbidden("User not found.");
 
         await _connectionService.DisconnectAsync(localUserId.Value, cancellationToken);
         return NoContent();
@@ -190,7 +200,7 @@ public class EmailConnectionsController : ControllerBase
     {
         var localUserId = await ResolveLocalUserIdAsync();
         if (localUserId is null)
-            return ApiResult.Forbidden("Utilisateur introuvable.");
+            return ApiResult.Forbidden("User not found.");
 
         var status = await _connectionService.VerifyConnectionAsync(localUserId.Value, cancellationToken);
         return Ok(status);
@@ -233,7 +243,8 @@ public class EmailConnectionsController : ControllerBase
             ? string.Empty
             : $"&gmailError={Uri.EscapeDataString(error)}";
 
-        return $"{normalizedBase}/settings?section=gmail&gmailOAuth={status}{encodedError}";
+        // The Gmail settings page shows the result (success banner, or the error with a retry).
+        return $"{normalizedBase}/email/settings?gmailOAuth={status}{encodedError}";
     }
 }
 

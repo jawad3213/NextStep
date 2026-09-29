@@ -82,13 +82,13 @@ public class EmailContextBuilder(IApplicationsApi applications, IProfileApi prof
             CurrentTitle:    profile.CurrentTitle,
             Skills:          profile.Skills.ToList(),
             Experiences:     profile.Experiences.Select(e =>
-                $"{e.Title} chez {e.Company}" +
-                $" ({e.StartDate?.Year}\u2013{(e.EndDate.HasValue ? e.EndDate.Value.Year.ToString() : "présent")})").ToList(),
+                $"{e.Title} at {e.Company}" +
+                $" ({e.StartDate?.Year}\u2013{(e.EndDate.HasValue ? e.EndDate.Value.Year.ToString() : "present")})").ToList(),
             Education:       profile.Education.Select(f =>
                 $"{f.Degree} \u2013 {f.School} ({f.Year})").ToList(),
             Projects:        profile.Projects.ToList(),
             Certifications:  profile.Certifications.ToList(),
-            JobTitle:        jobTitle ?? "Poste non spécifié",
+            JobTitle:        jobTitle ?? "Position not specified",
             CompanyName:     companyName,
             Location:        location,
             RequiredSkills:  requiredSkills,

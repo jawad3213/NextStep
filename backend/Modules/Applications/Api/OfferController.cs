@@ -95,7 +95,7 @@ public class OfferController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OfferAnalysisDto>> GetAnalysis(Guid id, CancellationToken ct) =>
         Ok(await offerService.GetAnalysisAsync(await GetUserIdAsync(), id, ct)
-           ?? throw new NotFoundException("Analyse introuvable."));
+           ?? throw new NotFoundException("Analysis not found."));
 
     private async Task<ActionResult<DeleteOffersResponseDto>> DeleteOffersAsync(BulkDeleteOffersDto dto, CancellationToken ct)
     {

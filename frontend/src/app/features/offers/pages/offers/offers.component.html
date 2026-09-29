@@ -3,8 +3,8 @@
 
   <!-- Header -->
   <div class="mb-6">
-    <h1 class="text-xl font-bold text-gray-900">Historique des analyses</h1>
-    <p class="mt-0.5 text-xs text-slate-500">Suivez l'avancement de toutes vos analyses d'offres d'emploi</p>
+    <h1 class="text-xl font-bold text-gray-900">Analysis History</h1>
+    <p class="mt-0.5 text-xs text-slate-500">Track the progress of all your job offer analyses</p>
   </div>
 
   <!-- Start New Analysis -->
@@ -12,13 +12,13 @@
     <div class="rounded-2xl border border-slate-200 bg-gray-50 p-5 shadow-sm">
       <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-lg font-bold text-gray-900">Démarrer une nouvelle analyse</h2>
-          <p class="mt-0.5 text-xs text-slate-500">Analysez une nouvelle opportunité en quelques secondes</p>
+          <h2 class="text-lg font-bold text-gray-900">Start a new analysis</h2>
+          <p class="mt-0.5 text-xs text-slate-500">Analyze a new opportunity in seconds</p>
         </div>
         <a routerLink="/offers/analyze" [queryParams]="{ new: 1 }"
           class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 no-underline transition-colors hover:bg-slate-50">
           <span class="material-symbols-outlined text-sm">add</span>
-          Nouvelle analyse
+          New analysis
         </a>
       </div>
     </div>
@@ -30,7 +30,7 @@
       <!-- Search Input -->
       <div class="relative flex-1 sm:max-w-md">
         <input (input)="onSearchInput($any($event.target).value)"
-          placeholder="Rechercher une offre, une entreprise..."
+          placeholder="Search by job title, company..."
           class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium text-slate-700 transition-all focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 outline-none"
         />
         <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px] text-slate-400">search</span>
@@ -41,10 +41,10 @@
         <div class="relative">
           <select (change)="onSortChange($any($event.target).value)"
             class="appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 outline-none">
-            <option value="date">Plus récentes</option>
-            <option value="score">Score</option>
-            <option value="company">Entreprise A-Z</option>
-            <option value="step">Avancement</option>
+            <option value="date">Most recent</option>
+             <option value="score">Score</option>
+             <option value="company">Company A-Z</option>
+             <option value="step">Progress</option>
           </select>
           <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[18px]">expand_more</span>
         </div>
@@ -52,10 +52,10 @@
         <div class="relative">
           <select (change)="onFilterStatusChange($any($event.target).value)"
             class="appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 outline-none">
-            <option value="">Tous les statuts</option>
-            <option value="non_traitee">Non traitée</option>
-            <option value="analysee">Analysée</option>
-            <option value="cv_genere">CV Généré</option>
+            <option value="">All statuses</option>
+             <option value="non_traitee">Unprocessed</option>
+             <option value="analysee">Analyzed</option>
+             <option value="cv_genere">CV Generated</option>
           </select>
           <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[18px]">expand_more</span>
         </div>
@@ -71,7 +71,7 @@
           (change)="toggleSelectAllVisible($any($event.target).checked)"
           class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
         />
-        Tout sélectionner
+        Select all
       </label>
       
       <button
@@ -81,7 +81,7 @@
         class="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-[13px] font-bold text-red-600 transition-all hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 border border-red-100"
       >
         <span class="material-symbols-outlined text-[18px]">delete</span>
-        {{ isDeleting() ? 'Suppression...' : 'Supprimer (' + selectedCount + ')' }}
+        {{ isDeleting() ? 'Deleting...' : 'Delete (' + selectedCount + ')' }}
       </button>
     </div>
   </div>
@@ -185,7 +185,7 @@
               <span class="material-symbols-outlined text-[14px]">schedule</span>
               {{ getRecencyLabel(offer.createdAt) }}
               @if (offer.daysLeft !== undefined && !offer.expired) {
-                <span class="font-mono" [class]="offer.urgent ? 'font-bold text-amber-600' : ''">{{ offer.daysLeft }}j restants</span>
+                <span class="font-mono" [class]="offer.urgent ? 'font-bold text-amber-600' : ''">{{ offer.daysLeft }}d left</span>
               }
             </div>
 
@@ -194,7 +194,7 @@
                 <button (click)="prepareInterview($event, offer)"
                   class="flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-[0_4px_12px_rgba(16,185,129,0.3)] no-underline border-none">
                   <span class="material-symbols-outlined text-[14px]">psychology</span>
-                  Préparer l'entretien
+                  Prepare interview
                 </button>
               }
               @if (getNextAction(offer); as action) {
@@ -220,7 +220,7 @@
       <div class="mt-6 text-center">
         <button (click)="loadMore()"
           class="cursor-pointer rounded-xl border border-slate-200 bg-white px-8 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:border-brand-300 hover:text-brand-500">
-          Charger plus ({{ filteredOffers.length - paginatedOffers.length }} restantes)
+          Load more ({{ filteredOffers.length - paginatedOffers.length }} remaining)
         </button>
       </div>
     }
@@ -228,14 +228,14 @@
     <!-- Empty State -->
     <div class="flex flex-col items-center justify-center py-20 text-center">
       <span class="material-symbols-outlined text-6xl text-slate-200">analytics</span>
-      <h3 class="mt-4 text-lg font-bold text-slate-500">Aucune analyse</h3>
+      <h3 class="mt-4 text-lg font-bold text-slate-500">No analyses yet</h3>
       <p class="mt-1 max-w-xs text-sm text-slate-400">
-        Vous n'avez encore lancé aucune analyse. Soumettez une offre pour commencer.
+        You haven't launched any analysis yet. Submit a job offer to get started.
       </p>
       <a routerLink="/offers/analyze" [queryParams]="{ new: 1 }"
         class="mt-6 flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 px-6 py-3 font-bold text-white shadow-sm shadow-brand-500/20 transition-all hover:bg-brand-600 no-underline">
         <span class="material-symbols-outlined text-sm">add</span>
-        Nouvelle analyse
+        New analysis
       </a>
     </div>
   }
@@ -244,9 +244,9 @@
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div class="border-b border-slate-100 px-5 py-4">
-          <h3 class="text-base font-bold text-slate-900">Confirmer la suppression</h3>
+          <h3 class="text-base font-bold text-slate-900">Confirm deletion</h3>
           <p class="mt-1 text-sm text-slate-500">
-            Vous allez supprimer {{ selectedCount }} offre(s). Cette action est irréversible.
+            You are about to delete {{ selectedCount }} offer(s). This action is irreversible.
           </p>
         </div>
         <div class="flex items-center justify-end gap-2 px-5 py-4">
@@ -256,7 +256,7 @@
             [disabled]="isDeleting()"
             class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50"
           >
-            Annuler
+            Cancel
           </button>
           <button
             type="button"
@@ -264,7 +264,7 @@
             [disabled]="isDeleting()"
             class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {{ isDeleting() ? 'Suppression...' : 'Supprimer définitivement' }}
+            {{ isDeleting() ? 'Deleting...' : 'Delete permanently' }}
           </button>
         </div>
       </div>

@@ -16,7 +16,12 @@ public class ApplicationsApi(ApplicationsDbContext db, IOfferService offerServic
         return analysis is null
             ? null
             : new OfferSummary(offerId, analysis.Titre, analysis.Entreprise, analysis.DescriptionPoste,
-                analysis.CompetencesRequises, analysis.KeywordsAts);
+                analysis.CompetencesRequises, analysis.KeywordsAts,
+                Location: analysis.Localisation,
+                ContractType: analysis.TypeContrat,
+                YearsExperience: analysis.AnneesExperience,
+                MatchingScore: analysis.MatchResult is null && analysis.SkillGapAnalysis is null ? null : analysis.ScoreMatching,
+                AnalysedAt: analysis.DateAnalyse);
     }
 
     public async Task EnsureOfferOwnedAsync(Guid userId, Guid offerId, CancellationToken ct = default)

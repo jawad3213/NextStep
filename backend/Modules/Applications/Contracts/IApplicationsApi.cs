@@ -89,7 +89,12 @@ public sealed record OfferSummary(
     string? Company,
     string? Description,
     IReadOnlyList<string> RequiredSkills,
-    IReadOnlyList<string> AtsKeywords);
+    IReadOnlyList<string> AtsKeywords,
+    string? Location = null,
+    string? ContractType = null,
+    int? YearsExperience = null,
+    int? MatchingScore = null,   // 0–100, null when the offer was not matched yet
+    DateTime? AnalysedAt = null);
 
 public sealed record StoredCvDocument(string CvJson, int Version, DateTime UpdatedAtUtc);
 

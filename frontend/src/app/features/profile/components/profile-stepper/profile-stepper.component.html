@@ -2,7 +2,7 @@
   <div class="w-full px-4 md:px-6 flex items-center justify-center gap-4">
     
     <!-- Connected Node Stepper -->
-    <nav class="node-stepper-wrapper">
+    <nav class="node-stepper-wrapper" [class.transitions-enabled]="transitionsEnabled()">
       <div class="stepper-progress-bar">
         <!-- Background bar -->
         <div class="stepper-track"></div>

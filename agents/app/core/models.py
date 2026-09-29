@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.core.database import AGENTS_SCHEMA, Base
+from app.core.time_utils import utc_now
 
 class OffreAnalysee(Base):
     """Output Agent 2."""
@@ -21,7 +21,7 @@ class OffreAnalysee(Base):
     type_contrat         = Column(String(50), nullable=True)
     localisation         = Column(String(150), nullable=True)
     texte_brut           = Column(Text, nullable=True)
-    date_analyse         = Column(DateTime, default=datetime.utcnow)
+    date_analyse         = Column(DateTime, default=utc_now)
 
 
 class IntelEntreprise(Base):
@@ -40,7 +40,8 @@ class IntelEntreprise(Base):
     actualites            = Column(JSONB,   nullable=True)
     difficulte_entretien  = Column(String(20), default="medium")
     questions_connues     = Column(JSONB,   nullable=True)
-    date_collecte         = Column(DateTime, default=datetime.utcnow)
+    rapport_complet       = Column(JSONB,   nullable=True)  # full /analyze-company result (cache)
+    date_collecte         = Column(DateTime, default=utc_now)
 
 
 class ResultatMatching(Base):
@@ -54,4 +55,4 @@ class ResultatMatching(Base):
     score_global             = Column(Integer, nullable=True)
     competences_manquantes   = Column(JSONB,   nullable=True)
     points_forts             = Column(JSONB,   nullable=True)
-    date_matching            = Column(DateTime, default=datetime.utcnow)
+    date_matching            = Column(DateTime, default=utc_now)

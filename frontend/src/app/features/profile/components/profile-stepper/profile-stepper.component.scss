@@ -65,7 +65,6 @@
     left: 0;
     bottom: 0;
     background: #465fff;
-    transition: width 0.4s ease-in-out;
   }
 }
 
@@ -99,7 +98,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
 
     @media (max-width: 768px) {
       width: 32px;
@@ -132,7 +130,6 @@
     font-size: 13px;
     font-weight: 600;
     color: #94A3B8;
-    transition: all 0.3s ease;
     white-space: nowrap;
 
     @media (max-width: 768px) {
@@ -182,6 +179,18 @@
     .node-label {
       color: #64748B;
     }
+  }
+}
+
+// Animate step state changes only once the profile has loaded and painted its real state:
+// otherwise every already-completed section flashes/transitions into view together on open.
+.transitions-enabled {
+  .stepper-fill {
+    transition: width 0.4s ease-in-out;
+  }
+  .stepper-node .node-circle,
+  .stepper-node .node-label {
+    transition: all 0.3s ease;
   }
 }
 

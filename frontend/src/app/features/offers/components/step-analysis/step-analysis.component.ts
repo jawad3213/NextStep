@@ -7,6 +7,7 @@ import { PipelineResult, PipelineStateService } from '../../data-access/pipeline
 import { ProfileApiService } from '@features/profile/data-access/profile-api.service';
 import { extractApiError } from '@core/http/extract-api-error';
 import { CompanyIntelApiService } from '@features/company-intel/data-access/company-intel-api.service';
+import { saveCompanyAnalysis } from '@features/company-intel/data-access/company-history';
 
 type SkillStatus = 'matched' | 'partial' | 'missing';
 type SkillCategory = 'technical' | 'soft';
@@ -64,18 +65,18 @@ export class StepAnalysisComponent {
   readonly companyIntelStages = [
     {
       key: 'collect',
-      title: 'C1 - Collecte de données',
-      detail: 'Recherche web, actualités récentes, données publiques de l\'entreprise.'
+      title: 'C1 - Data Collection',
+      detail: 'Web search, recent news, public company information.'
     },
     {
       key: 'culture',
-      title: 'C2 - Analyse culturelle & RH',
-      detail: 'Évaluation des valeurs de l\'entreprise, environnement de travail et salaires.'
+      title: 'C2 - Cultural & HR Analysis',
+      detail: 'Assessment of company values, work environment, and compensation.'
     },
     {
       key: 'prep',
-      title: 'C3 - Préparation d\'entretien',
-      detail: 'Génération des questions types (techniques et RH) pour le poste.'
+      title: 'C3 - Interview Preparation',
+      detail: 'Generation of typical interview questions (technical and behavioral) for the role.'
     }
   ];
 
@@ -98,26 +99,26 @@ export class StepAnalysisComponent {
 
   get companyIntelProgressLabel(): string {
     const percent = this.companyIntelProgressPercent;
-    if (percent < 35) return "Recherche d'informations publiques sur l'entreprise...";
-    if (percent < 70) return "Analyse de la culture d'entreprise et des salaires...";
-    return "Génération des questions d'entretien...";
+    if (percent < 35) return "Searching public company information...";
+    if (percent < 70) return "Analyzing company culture and compensation...";
+    return "Generating interview questions...";
   }
 
   readonly agentStages: AgentStage[] = [
     {
       key: 'offer_analyzer',
-      title: 'A1 - Analyse de l offre',
-      detail: 'Lecture de l annonce, extraction du poste, de l entreprise et des attentes.'
+      title: 'A1 - Job Offer Analysis',
+      detail: 'Parsing job posting, extracting role, company and requirements.'
     },
     {
       key: 'profile_retriever',
-      title: 'A2 - Recuperation du profil',
-      detail: 'Lecture de votre profil pour rapprocher les competences et les experiences.'
+      title: 'A2 - Profile Retrieval',
+      detail: 'Reading your profile to match skills and experiences.'
     },
     {
       key: 'skill_gap',
-      title: 'A3 - Analyse du skill gap',
-      detail: 'Calcul du matching, des manques prioritaires et des recommandations.'
+      title: 'A3 - Skill Gap Analysis',
+      detail: 'Calculating match score, missing skills and recommendations.'
     }
   ];
 
@@ -148,9 +149,9 @@ export class StepAnalysisComponent {
 
   get scoreLabel(): string {
     if (this.score >= 80) return 'Excellent';
-    if (this.score >= 65) return 'Solide';
-    if (this.score >= 45) return 'A renforcer';
-    return 'Critique';
+    if (this.score >= 65) return 'Strong';
+    if (this.score >= 45) return 'Needs Focus';
+    return 'Critical';
   }
 
   get scoreAccent(): 'green' | 'amber' | 'red' {
@@ -166,27 +167,27 @@ export class StepAnalysisComponent {
   }
 
   get headlineTitle(): string {
-    return this.result?.offerTitle || 'Poste analyse';
+    return this.result?.offerTitle || 'Analyzed Role';
   }
 
   get headlineCompany(): string {
     const val = this.result?.companyName;
-    return (val && val !== 'null') ? val : 'Non spécifié';
+    return (val && val !== 'null') ? val : 'Not specified';
   }
 
   get headlineLocation(): string {
     const val = this.result?.location;
-    return (val && val !== 'null') ? val : 'Non spécifié';
+    return (val && val !== 'null') ? val : 'Not specified';
   }
 
   get contractType(): string {
-    return this.result?.contractType || 'Non spécifié';
+    return this.result?.contractType || 'Not specified';
   }
 
   get experienceLabel(): string {
     const years = this.result?.experienceYears;
-    if (years == null) return 'Non spécifié';
-    return `${years} an${years > 1 ? 's' : ''}`;
+    if (years == null) return 'Not specified';
+    return `${years} year${years > 1 ? 's' : ''}`;
   }
 
   get educationLabel(): string {
@@ -197,15 +198,15 @@ export class StepAnalysisComponent {
     const data = this.result as unknown as Record<string, unknown> | null;
     const camel = typeof data?.['modeTravail'] === 'string' ? data['modeTravail'] as string : '';
     const snake = typeof data?.['mode_travail'] === 'string' ? data['mode_travail'] as string : '';
-    return camel || snake || 'Non specifie';
+    return camel || snake || 'Not specified';
   }
 
   get salaryLabel(): string {
     const min = this.result?.companySalaryMin;
     const max = this.result?.companySalaryMax;
     if (!min && !max) return '';
-    if (min && max) return `${min}k€ - ${max}k€`;
-    return `${min || max}k€`;
+    if (min && max) return `$${min}k - $${max}k`;
+    return `$${min || max}k`;
   }
 
   get profileStrengthsList(): string[] {
@@ -412,7 +413,7 @@ export class StepAnalysisComponent {
 
     if (data?.recommendationsWithPriority && data.recommendationsWithPriority.length > 0) {
       return data.recommendationsWithPriority.map(r => ({
-        title: r.priority === 'haute' ? 'Prioritaire' : r.priority === 'moyenne' ? 'Recommandé' : 'Optionnel',
+        title: r.priority === 'haute' ? 'High Priority' : r.priority === 'moyenne' ? 'Recommended' : 'Optional',
         accent: r.priority === 'haute' ? 'red' as const : r.priority === 'moyenne' ? 'amber' as const : 'blue' as const,
         text: r.text
       }));
@@ -423,9 +424,9 @@ export class StepAnalysisComponent {
       : this.buildFallbackRecommendations();
 
     const titles = [
-      { title: 'Valoriser', accent: 'amber' as const },
-      { title: 'Ajouter', accent: 'red' as const },
-      { title: 'Adapter', accent: 'blue' as const }
+      { title: 'Highlight', accent: 'amber' as const },
+      { title: 'Add', accent: 'red' as const },
+      { title: 'Tailor', accent: 'blue' as const }
     ];
 
     return recs.slice(0, 3).map((text, index) => ({
@@ -443,27 +444,27 @@ export class StepAnalysisComponent {
     const topMissing = this.missingSkills.slice(0, 2);
 
     const fragments = [
-      `Cette offre cible un profil ${this.headlineTitle.toLowerCase()}`,
-      data.companyName ? `chez ${data.companyName}` : '',
-      data.location ? `base a ${data.location}` : '',
-      topMatches.length ? `avec deja un bon alignement sur ${topMatches.join(', ')}` : '',
-      topMissing.length ? `et des points a renforcer sur ${topMissing.join(', ')}` : ''
+      `This offer targets a ${this.headlineTitle.toLowerCase()} role`,
+      data.companyName ? `at ${data.companyName}` : '',
+      data.location ? `based in ${data.location}` : '',
+      topMatches.length ? `with strong alignment on ${topMatches.join(', ')}` : '',
+      topMissing.length ? `and growth opportunities in ${topMissing.join(', ')}` : ''
     ].filter(Boolean);
 
-    return `${fragments.join(' ')}. Le score actuel est de ${this.score}% avec un ATS a ${this.atsScore}%.`;
+    return `${fragments.join(' ')}. The current match score is ${this.score}% with an ATS compatibility of ${this.atsScore}%.`;
   }
 
   get companySupportTitle(): string {
-    if (this.result?.companyName) return `A propos de ${this.result.companyName}`;
-    return 'Etape suivante';
+    if (this.result?.companyName) return `About ${this.result.companyName}`;
+    return 'Next Step';
   }
 
   get companySupportText(): string {
     if ((this.result?.companyNews?.length ?? 0) > 0) {
-      return 'Les premiers signaux de l entreprise ont ete recuperes. Vous pourrez les exploiter lors de la generation finale.';
+      return 'Initial company insights collected. You will be able to leverage them during final generation.';
     }
 
-    return 'Cette etape se concentre uniquement sur les 3 premiers agents: analyse de l offre, recuperation du profil et skill gap. Les donnees entreprise detaillees arrivent ensuite.';
+    return 'This stage focuses on the first 3 agents: offer analysis, profile retrieval, and skill gap assessment. Detailed company intel follows.';
   }
 
   get companyNews() {
@@ -526,12 +527,12 @@ export class StepAnalysisComponent {
 
   async searchCompanyDetailed(): Promise<void> {
     const res = this.result;
-    const company = (res?.companyName && res?.companyName !== 'Non spécifié')
+    const company = (res?.companyName && res?.companyName !== 'Non spécifié' && res?.companyName !== 'Not specified')
       ? res?.companyName
       : this.customCompanyName;
 
-    if (!company || company === '' || company === 'Non spécifié') {
-      this.companyIntelError = "Nom d'entreprise manquant pour lancer l'analyse detaillee.";
+    if (!company || company === '' || company === 'Non spécifié' || company === 'Not specified') {
+      this.companyIntelError = "Company name is required to start detailed analysis.";
       return;
     }
 
@@ -551,7 +552,7 @@ export class StepAnalysisComponent {
       }
     }, 200);
 
-    this.pipeline.setLoading(true, "Recherche detaillee de l'entreprise en cours...");
+    this.pipeline.setLoading(true, "Detailed company search in progress...");
 
     try {
       const fullProfile = await firstValueFrom(this.profileApi.getFullProfile());
@@ -560,7 +561,7 @@ export class StepAnalysisComponent {
         user_id: 0,
         profile_data: fullProfile ?? {},
         offer_data: {
-          titre: this.headlineTitle || 'Poste',
+          titre: this.headlineTitle || 'Role',
           entreprise: company,
           typeContrat: this.result?.contractType || '',
           localisation: this.result?.location || '',
@@ -591,19 +592,19 @@ export class StepAnalysisComponent {
       sessionStorage.setItem('nextstep.company.last_payload', JSON.stringify({
         companyIntelPayload: apiRes,
         companyName: company,
-        jobTitle: this.headlineTitle || 'Poste'
+        jobTitle: this.headlineTitle || 'Role'
       }));
-      this.persistCompanyHistory(apiRes, company, this.headlineTitle || 'Poste');
+      this.persistCompanyHistory(apiRes, company, this.headlineTitle || 'Role');
 
       await this.router.navigate(['/offers/company-analysis'], {
         state: {
           companyIntelPayload: apiRes,
           companyName: company,
-          jobTitle: this.headlineTitle || 'Poste'
+          jobTitle: this.headlineTitle || 'Role'
         }
       });
     } catch (e: any) {
-      this.companyIntelError = extractApiError(e).message || "Echec de l'analyse entreprise.";
+      this.companyIntelError = extractApiError(e).message || "Company analysis failed.";
     } finally {
       if (this.companyIntelProgressInterval) {
         clearInterval(this.companyIntelProgressInterval);
@@ -639,54 +640,23 @@ export class StepAnalysisComponent {
   }
 
   private persistCompanyHistory(apiRes: any, companyName: string, jobTitle: string): void {
-    try {
-      const raw = localStorage.getItem('nextstep.company.history');
-      const current = raw ? JSON.parse(raw) : [];
-      const normalized = Array.isArray(current) ? current : [];
-      const company = (companyName || '').trim();
-      const title = (jobTitle || '').trim();
-      if (!company) return;
-
-      const entry = {
-        id: `${Date.now()}`,
-        companyName: company,
-        jobTitle: title,
-        analyzedAt: new Date().toISOString(),
-        data: {
-          nom: apiRes?.intelligence?.nom ?? company,
-          summary: apiRes?.intelligence?.summary ?? '',
-          compatibilityScore: apiRes?.score ?? 0
-        },
-        rawPayload: apiRes
-      };
-
-      const deduped = normalized.filter((h: any) =>
-        !(
-          String(h?.companyName || '').toLowerCase() === company.toLowerCase() &&
-          String(h?.jobTitle || '').toLowerCase() === title.toLowerCase()
-        )
-      );
-
-      localStorage.setItem('nextstep.company.history', JSON.stringify([entry, ...deduped].slice(0, 20)));
-    } catch (err) {
-      console.warn('[StepAnalysis] Failed to persist company history:', err);
-    }
+    saveCompanyAnalysis(apiRes, companyName, jobTitle);
   }
 
   private buildFallbackRecommendations(): string[] {
     if (this.missingSkills.length > 0) {
       return this.missingSkills.slice(0, 3).map((skill) =>
-        `Mettez en avant une experience, un projet ou une formation liee a ${skill}.`
+        `Highlight an experience, project, or training related to ${skill}.`
       );
     }
 
     if (this.matchingSkills.length > 0) {
       return this.matchingSkills.slice(0, 3).map((skill) =>
-        `Valorisez concretement ${skill} dans le CV avec un resultat ou un projet associe.`
+        `Showcase ${skill} in your resume with tangible results or an associated project.`
       );
     }
 
-    return ['Ajoutez des exemples concrets de vos competences principales pour renforcer la candidature.'];
+    return ['Add concrete examples of your core competencies to strengthen your application.'];
   }
 
   keywordChipSizeClass(size: KeywordSize): string {

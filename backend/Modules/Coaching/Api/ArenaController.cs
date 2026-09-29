@@ -8,7 +8,7 @@ namespace NextStep.Modules.Coaching.Api;
 
 [ApiController]
 [Route("api/arena")]
-[Authorize] // JWT validé par .NET avant tout appel Python
+[Authorize] // JWT validated by .NET before any Python call
 public class ArenaController : ControllerBase
 {
     private readonly IArenaService _arenaService;
@@ -20,7 +20,7 @@ public class ArenaController : ControllerBase
 
     private string GetUserId()
     {
-        // On essaie tous les claims standards pour récupérer l'ID Keycloak (sub)
+        // Try all standard claims to get the Keycloak ID (sub)
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
                      ?? User.FindFirst("sub")?.Value 
                      ?? User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
@@ -57,7 +57,7 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// POST /api/arena/chat
-    /// Chat libre de préparation (tab Questions).
+    /// Free-form preparation chat (Questions tab).
     /// </summary>
     [HttpPost("chat")]
     public async Task<ActionResult<FreeChatResponse>> FreeChat([FromBody] FreeChatRequest request)
@@ -73,7 +73,7 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// POST /api/arena/session/start
-    /// Crée la session en DB + retourne le message d'ouverture du recruteur IA.
+    /// Creates the session in DB + returns the AI recruiter's opening message.
     /// </summary>
     [HttpPost("session/start")]
     public async Task<ActionResult<StartSessionResponse>> StartSession([FromBody] StartSessionRequest request)
@@ -85,7 +85,7 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// POST /api/arena/session/message
-    /// Envoie un message et retourne la réponse du recruteur IA.
+    /// Sends a message and returns the AI recruiter's response.
     /// </summary>
     [HttpPost("session/message")]
     public async Task<ActionResult<SendMessageResponse>> SendMessage([FromBody] SendMessageRequest request)
@@ -96,7 +96,7 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// POST /api/arena/session/end
-    /// Termine l'interview et retourne l'évaluation complète (score + 5 dimensions).
+    /// Ends the interview and returns the full evaluation (score + 5 dimensions).
     /// </summary>
     [HttpPost("session/end")]
     public async Task<ActionResult<EndSessionResponse>> EndSession([FromBody] EndSessionRequest request)
@@ -111,7 +111,7 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// POST /api/arena/salary
-    /// Analyse salariale + script de négociation.
+    /// Salary analysis + negotiation script.
     /// </summary>
     [HttpPost("salary")]
     public async Task<ActionResult<SalaryResponse>> GetSalary([FromBody] SalaryRequest request)
@@ -123,7 +123,7 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// POST /api/arena/salary-coach
-    /// Chat interactif pour la négociation salariale.
+    /// Interactive chat for salary negotiation.
     /// </summary>
     [HttpPost("salary-coach")]
     public async Task<ActionResult<SalaryCoachResponse>> SalaryCoach([FromBody] SalaryCoachRequest request)
@@ -139,14 +139,14 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// GET /api/arena/sessions
-    /// Retourne l'historique des sessions de l'utilisateur authentifié.
-    /// Sécurité : L'ID est extrait du token JWT pour éviter l'usurpation.
+    /// Returns the session history of the authenticated user.
+    /// Security: The ID is extracted from the JWT token to prevent impersonation.
     /// </summary>
     [HttpGet("sessions")]
     public async Task<ActionResult<List<SessionSummaryDto>>> GetSessions()
     {
         var userId = GetUserId();
-        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("Utilisateur non authentifié.");
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("User not authenticated.");
         
         var result = await _arenaService.GetSessionsAsync(userId);
         return Ok(result);
@@ -156,22 +156,24 @@ public class ArenaController : ControllerBase
     [HttpGet("sessions/{sessionId}")]
     public async Task<ActionResult<SessionDetailDto>> GetSessionDetail([FromRoute] string sessionId)
     {
-        if (string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Identifiant de session invalide.");
-        var result = await _arenaService.GetSessionDetailAsync(sessionId);
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("User not authenticated.");
+        if (string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Invalid session identifier.");
+        var result = await _arenaService.GetSessionDetailAsync(sessionId, userId);
         return Ok(result);
     }
 
     // DELETE /api/arena/sessions/{sessionId}
-    // Note: On garde HttpDelete mais on ajoute HttpPost comme fallback car certains serveurs bloquent DELETE
+    // Note: We keep HttpDelete but add HttpPost as a fallback since some servers block DELETE
     [HttpDelete("sessions/{sessionId}")]
     [HttpPost("sessions/{sessionId}/delete")]
     public async Task<IActionResult> DeleteSession([FromRoute] string sessionId)
     {
         var userId = GetUserId();
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Utilisateur ou session invalide.");
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(sessionId)) return ApiResult.BadRequest("Invalid user or session.");
         
         var success = await _arenaService.DeleteSessionAsync(sessionId, userId);
-        return success ? Ok() : ApiResult.NotFound("Session introuvable.");
+        return success ? Ok() : ApiResult.NotFound("Session not found.");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -180,13 +182,13 @@ public class ArenaController : ControllerBase
 
     /// <summary>
     /// GET /api/arena/my-offers
-    /// Retourne les offres analysées de l'utilisateur courant pour la page Offers.
+    /// Returns the analyzed offers of the current user for the Offers page.
     /// </summary>
     [HttpGet("my-offers")]
     public async Task<ActionResult<List<UserOfferSummaryDto>>> GetMyOffers()
     {
         var userId = GetUserId();
-        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("Utilisateur non authentifié.");
+        if (string.IsNullOrEmpty(userId)) return ApiResult.Unauthorized("User not authenticated.");
 
         var result = await _arenaService.GetUserOffersAsync(userId);
         return Ok(result);

@@ -1,6 +1,6 @@
 // ============================================================
 // Modules/Applications/DTOs/OfferSubmitDto.cs
-// Payload reçu d'Angular pour soumettre une offre
+// Payload received from Angular to submit an offer
 // ============================================================
 using System.ComponentModel.DataAnnotations;
 
@@ -8,14 +8,14 @@ namespace NextStep.Modules.Applications.Application.Dtos;
 
 public class OfferSubmitDto
 {
-    /// <summary>Texte brut de l'offre collé par l'utilisateur dans l'interface Angular.</summary>
+    /// <summary>Raw text of the job offer pasted by the user in the Angular interface.</summary>
     [Required]
-    [MinLength(50, ErrorMessage = "Le texte de l'offre doit contenir au moins 50 caractères.")]
+    [MinLength(50, ErrorMessage = "The offer text must contain at least 50 characters.")]
     public string RawText { get; set; } = string.Empty;
     
     public string? Titre { get; set; }
     public string? Entreprise { get; set; }
 
-    /// <summary>ID du template CV choisi.</summary>
+    /// <summary>ID of the chosen CV template.</summary>
     public int TemplateId { get; set; } = 1;
 }

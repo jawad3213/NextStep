@@ -174,6 +174,7 @@ public class EmailSendingService : IEmailSendingService
             ProviderMessageId = result.ProviderMessageId,
             ProviderThreadId  = result.ProviderThreadId,
             ErrorMessage      = result.ErrorMessage,
+            NeedsReconnect    = result.NeedsReconnect,
             SentAtUtc         = draft.SentAtUtc
         };
     }
@@ -269,22 +270,25 @@ public class EmailSendingService : IEmailSendingService
                         userId,
                         gmailError);
 
+                    if (gmailResult.NeedsReconnect)
+                        throw new EmailReconnectRequiredException(gmailError);
                     throw new ConflictException(gmailError);
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             draft.IsSent = false;
             draft.UpdatedAtUtc = DateTime.UtcNow;
-            draft.ErrorMessage = ex.Message;
+            // Our own exceptions carry user-safe messages; anything else (SMTP, I/O...) stays in the logs.
+            draft.ErrorMessage = ex is AppException ? ex.Message : "The email could not be sent. Please try again.";
             _logger.LogError(ex, "EmailSendingService - failed to send application email for offer {OfferId}", dto.OfferId);
+            await _emailDraftRepository.AddAsync(draft, cancellationToken);
+            if (ex is EmailReconnectRequiredException) throw;
+            throw new ConflictException(draft.ErrorMessage, ex);
         }
 
         await _emailDraftRepository.AddAsync(draft, cancellationToken);
-
-        if (!draft.IsSent)
-            throw new ConflictException(draft.ErrorMessage ?? "Email sending failed.");
 
         return draft.ToDto();
     }

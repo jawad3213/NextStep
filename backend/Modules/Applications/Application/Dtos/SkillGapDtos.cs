@@ -6,7 +6,7 @@ namespace NextStep.Modules.Applications.Application.Dtos;
 public class SkillGapRequestDto
 {
     [Required]
-    [MinLength(50, ErrorMessage = "Le texte de l'offre doit contenir au moins 50 caractères.")]
+    [MinLength(50, ErrorMessage = "The offer text must contain at least 50 characters.")]
     public string OfferText { get; set; } = string.Empty;
 }
 

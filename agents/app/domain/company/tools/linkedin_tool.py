@@ -12,7 +12,7 @@ async def linkedin_company_search(company_name: str) -> dict:
     """
     logger.info(f"🔗 LinkedIn Tool — Recherche du lien LinkedIn pour {company_name}")
     try:
-        results = await smart_search(f"{company_name} LinkedIn company")
+        results = await smart_search(f"{company_name} LinkedIn company", must_mention=company_name)
         for r in results:
             url = r.get("url", "")
             if "linkedin.com/company/" in url:

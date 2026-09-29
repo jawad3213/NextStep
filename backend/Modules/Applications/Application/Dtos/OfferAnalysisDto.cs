@@ -1,18 +1,18 @@
 // ============================================================
 // Modules/Applications/DTOs/OfferAnalysisDto.cs
-// Résultat de l'analyse IA retourné à Angular
+// AI analysis result returned to Angular
 // ============================================================
 namespace NextStep.Modules.Applications.Application.Dtos;
 
 /// <summary>
-/// Résultat complet retourné après le lancement du pipeline IA.
-/// Reflète le JSON produit par les Agents 1-4 (Python).
+/// Complete result returned after running the AI pipeline.
+/// Reflects the JSON produced by Agents 1-4 (Python).
 /// </summary>
 public class OfferAnalysisDto
 {
     public Guid OfferId { get; set; }
 
-    // ─── Agent 1 : Analyse offre ───
+    // ─── Agent 1 : Offer Analysis ───
     public string Titre { get; set; } = string.Empty;
     public string? Entreprise { get; set; }
     public string? TypeContrat { get; set; }
@@ -42,7 +42,7 @@ public class OfferAnalysisDto
     public string CompanySize { get; set; } = string.Empty;
     public List<CompanyNewsItem> CompanyNews { get; set; } = [];
 
-    // ─── Métadonnées ───
+    // ─── Metadata ───
     public DateTime DateAnalyse { get; set; } = DateTime.UtcNow;
     public List<string> Erreurs { get; set; } = [];
 

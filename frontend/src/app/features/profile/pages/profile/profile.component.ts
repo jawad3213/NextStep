@@ -200,8 +200,8 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     return nextIdx < this.steps.length ? this.steps[nextIdx].label : 'Finish';
   });
 
-  // Section Avancement (Progress in active section)
-  // sectionProgress supprimé car non utilisé
+  // Section Progress (Progress in active section)
+  // sectionProgress removed — not used
 
   // Step Logic
   goToStep(id: ProfileStepId) {
@@ -574,7 +574,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     } catch (error) {
-      console.error('Erreur expérience:', error);
+      console.error('Experience error:', error);
     } finally {
       this.isSaving.set(false);
     }
@@ -601,7 +601,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     } catch (error) {
-      console.error('Erreur projet:', error);
+      console.error('Project error:', error);
     } finally {
       this.isSaving.set(false);
     }
@@ -633,7 +633,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     } catch (error) {
-      console.error('Erreur activité parascolaire:', error);
+      console.error('Extracurricular error:', error);
     } finally {
       this.isSaving.set(false);
     }
@@ -702,7 +702,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   async duplicateItem(item: any, type: 'formation' | 'experience' | 'project' | 'certification') {
     this.isSaving.set(true);
     try {
-      const clonedItem = { ...item, id: undefined }; // Retirer l'ID pour forcer la création
+      const clonedItem = { ...item, id: undefined }; // Remove ID to force creation
       switch(type) {
         case 'formation':
           await this.profileService.addEducation(clonedItem);
@@ -720,7 +720,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     } catch(err) {
-      console.error('Erreur lors de la duplication', err);
+      console.error('Duplication error', err);
     } finally {
       this.isSaving.set(false);
     }
@@ -744,7 +744,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
         case 'certifications': await this.profileService.deleteCertification(id); break;
       }
     } catch (error) {
-      console.error(`Erreur suppression ${type}:`, error);
+      console.error(`Delete error ${type}:`, error);
     }
   }
 
@@ -765,7 +765,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     } catch (error) {
-      console.error('Erreur langue:', error);
+      console.error('Language error:', error);
     } finally {
       this.isSaving.set(false);
     }
@@ -787,13 +787,13 @@ export class UserProfileComponent implements OnInit, OnDestroy {
     this.isGeneratingAI.set(true);
     
     try {
-      // Appel au vrai endpoint backend qui proxifie vers l'agent Python
       const generatedText = await this.profileService.generateResume(this.profile());
       this.updateResume(generatedText);
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     } catch (e) {
-      console.error(e);
+      // The current summary is kept as it is.
+      this.toast.error(e instanceof Error ? e.message : 'The summary could not be generated.');
     } finally {
       this.isGeneratingAI.set(false);
     }
@@ -809,7 +809,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
 
   async loadKeywords() {
     const keywords = await this.profileService.getKeywords();
-    // Grouper les mots clés par catégorie
+    // Group keywords by category
     const groups: { [key: string]: string[] } = {};
     for (const kw of keywords) {
       if (!groups[kw.categorie]) groups[kw.categorie] = [];
@@ -832,7 +832,7 @@ export class UserProfileComponent implements OnInit, OnDestroy {
       this.showToast.set(true);
       setTimeout(() => this.showToast.set(false), 3000);
     } catch (error) {
-      console.error('Erreur compétence:', error);
+      console.error('Skill error:', error);
     }
   }
 
@@ -939,9 +939,13 @@ export class UserProfileComponent implements OnInit, OnDestroy {
   }
 
   private refreshOnboardingStatus() {
-    // Until the server marks the profile as completed, the page is a mandatory stepper.
-    this.isForcedOnboarding.set(true);
-    this.profileService.isOnboarding.set(true);
+    // Start from the status the route guard just fetched: a completed profile must open on the
+    // normal profile view, not flash the onboarding stepper while the status is re-fetched.
+    // Only without any known status (should not happen behind the guard) assume onboarding.
+    const known = this.onboardingService.lastStatus();
+    const initiallyForced = known ? !known.profileCompleted : true;
+    this.isForcedOnboarding.set(initiallyForced);
+    this.profileService.isOnboarding.set(initiallyForced);
     this.onboardingService.getStatus().pipe(takeUntil(this.destroy$)).subscribe({
       next: (status) => {
         const forced = !status.profileCompleted;

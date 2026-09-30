@@ -440,13 +440,28 @@ class _LLMProvider(Runnable):
             if not llm: continue
             try:
                 logger.info(f"[LLM] {provider} -> {self._agent_name or 'default'}")
-                return await asyncio.wait_for(
-                    llm.ainvoke(input, config=config, **kwargs),
-                    timeout=settings.LLM_PROVIDER_ATTEMPT_TIMEOUT,
-                )
-            except asyncio.TimeoutError as e:
-                _on_provider_stuck(provider, self._agent_name)
-                last_error = e
+                # asyncio.wait_for is not an abandon: when the budget expires it cancels the
+                # call and then *waits for the cancellation to land*. A provider SDK retrying a
+                # rate-limit error internally catches that cancellation and keeps going, so
+                # wait_for returns only when the stuck call finally stops: the caller waited
+                # seconds for a deadline of 0.05s, which is the delay this loop exists to
+                # avoid. asyncio.wait returns at the deadline whether the task is done or not,
+                # so the provider is cancelled and left behind instead of waited on. The sync
+                # path above already abandons its future the same way.
+                task = asyncio.ensure_future(llm.ainvoke(input, config=config, **kwargs))
+                done, _ = await asyncio.wait({task}, timeout=settings.LLM_PROVIDER_ATTEMPT_TIMEOUT)
+
+                if not done:
+                    task.cancel()
+                    # Nothing awaits this task again, so its result is dropped. An eventual
+                    # exception is still retrieved, otherwise Python reports it as a task
+                    # exception that was never consumed.
+                    task.add_done_callback(lambda abandoned: abandoned.cancelled() or abandoned.exception())
+                    _on_provider_stuck(provider, self._agent_name)
+                    last_error = asyncio.TimeoutError()
+                    continue
+
+                return task.result()
             except Exception as e:
                 if _is_rate_limit_error(e):
                     _mark_provider_cooldown(provider, self._agent_name, e)

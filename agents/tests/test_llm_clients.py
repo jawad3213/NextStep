@@ -126,6 +126,43 @@ async def test_a_provider_stuck_past_the_attempt_timeout_is_abandoned_for_the_ne
 
 
 @pytest.mark.asyncio
+async def test_a_provider_that_ignores_cancellation_is_still_abandoned(monkeypatch):
+    """A provider SDK retrying a rate-limit error internally does not stop when cancelled: it
+    catches the CancelledError and keeps going. asyncio.wait_for waits for that cancellation to
+    land before giving up, so a provider left like this used to hold the caller for the whole
+    internal retry instead of the attempt timeout. The loop has to move on at the deadline
+    without waiting for the abandoned call, which is the case this covers."""
+    monkeypatch.setattr(config.settings, "OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(config.settings, "LLM_PROVIDER_PRIORITY", "groq,openai")
+    monkeypatch.setattr(config.settings, "LLM_PROVIDER_ATTEMPT_TIMEOUT", 0.05)
+
+    async def stubborn_ainvoke(self, *args, **kwargs):
+        try:
+            await asyncio.sleep(2)
+        except asyncio.CancelledError:
+            await asyncio.sleep(1.5)
+            raise
+        return _FakeAnswer("groq-too-late")
+
+    async def fast_ainvoke(self, *args, **kwargs):
+        return _FakeAnswer("openai-ok")
+
+    monkeypatch.setattr("langchain_groq.ChatGroq.ainvoke", stubborn_ainvoke)
+    monkeypatch.setattr("langchain_openai.ChatOpenAI.ainvoke", fast_ainvoke)
+
+    config._get_provider_llm("openai", "offer_analyzer", 0.0, None, None, None)
+
+    llm = config.get_llm(agent_name="offer_analyzer", temperature=0.0)
+    started = time.perf_counter()
+    result = await llm.ainvoke("hi")
+    elapsed = time.perf_counter() - started
+
+    assert result.content == "openai-ok"
+    assert elapsed < 1.0, f"took {elapsed}s: a provider that ignores cancellation was not abandoned"
+    assert config._provider_on_cooldown("groq", "offer_analyzer") is True
+
+
+@pytest.mark.asyncio
 async def test_every_provider_stuck_fails_fast_instead_of_hanging(monkeypatch):
     monkeypatch.setattr(config.settings, "LLM_PROVIDER_PRIORITY", "groq")
     monkeypatch.setattr(config.settings, "LLM_PROVIDER_ATTEMPT_TIMEOUT", 0.05)

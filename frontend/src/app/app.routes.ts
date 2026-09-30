@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '@core/guards/auth.guard';
+import { publicOnlyGuard } from '@core/guards/public-only.guard';
 import { onboardingGuard, alreadyOnboardedGuard } from '@core/guards/onboarding.guard';
 import { MainLayoutComponent } from '@core/layout/main-layout/main-layout.component';
 
@@ -9,17 +10,21 @@ import { MainLayoutComponent } from '@core/layout/main-layout/main-layout.compon
  */
 export const routes: Routes = [
   // ── Public ────────────────────────────────────────────────────────────────
+  // Marketing: visitors only. An authenticated user is forwarded to the application.
   {
     path: '',
     pathMatch: 'full',
+    canActivate: [publicOnlyGuard],
     loadComponent: () => import('@features/landing/pages/landing/landing.component').then(m => m.LandingComponent),
   },
   {
     path: 'landing',
+    canActivate: [publicOnlyGuard],
     loadComponent: () => import('@features/landing/pages/landing/landing.component').then(m => m.LandingComponent),
   },
   {
     path: 'signup',
+    canActivate: [publicOnlyGuard],
     loadComponent: () => import('@features/signup/pages/signup/signup.component').then(m => m.SignupComponent),
   },
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using NextStep.Modules.Applications.Contracts;
 using NextStep.Modules.Applications.Application.Dtos;
@@ -19,6 +20,13 @@ public interface IOfferService
     Task<int> DeleteOffersAsync(Guid userId, List<Guid> offerIds, CancellationToken ct = default);
     Task SavePipelineResultAsync(Guid offerId, JsonDocument pipelineResult, Guid userId, CancellationToken ct = default);
     Task<OffreEmploi?> GetOfferWithAnalysisAsync(Guid userId, Guid offerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Existence + ownership check without loading the offer payload. Used by the
+    /// fire-and-forget endpoints, which must still reject unknown or foreign offers
+    /// before acknowledging the request.
+    /// </summary>
+    Task<bool> OfferBelongsToUserAsync(Guid userId, Guid offerId, CancellationToken ct = default);
 }
 
 public class OfferService(
@@ -53,6 +61,22 @@ public class OfferService(
         if (offer is null)
         {
             throw new InvalidOperationException($"Offer {offerId} not found before pipeline persistence.");
+        }
+
+        // A generation run re-saves the whole payload, but the agent answer does not know which
+        // analysis run produced it. Without carrying the marker over, a CV generation would erase
+        // the run id, and a client still waiting on a background analysis could then accept a
+        // result it had already seen.
+        if (!root.TryGetProperty("analysis_run_id", out _) && !string.IsNullOrEmpty(offer.AnalyseJson))
+        {
+            var previousRunId = (JsonNode.Parse(offer.AnalyseJson) as JsonObject)?["analysis_run_id"]?.ToString();
+
+            if (!string.IsNullOrEmpty(previousRunId))
+            {
+                var merged = JsonNode.Parse(fullJson)!.AsObject();
+                merged["analysis_run_id"] = previousRunId;
+                fullJson = merged.ToJsonString();
+            }
         }
 
         // Save the latest pipeline payload first so the frontend can reload the
@@ -261,6 +285,9 @@ public class OfferService(
         await EnsureOfferOwnedAsync(userId, offerId, ct);
         return await repository.GetByIdWithAnalysisAsync(offerId, ct);
     }
+
+    public Task<bool> OfferBelongsToUserAsync(Guid userId, Guid offerId, CancellationToken ct = default)
+        => db.OffresEmploi.AnyAsync(o => o.Id == offerId && o.UtilisateurId == userId, ct);
 
     private async Task EnsureOfferOwnedAsync(Guid userId, Guid offerId, CancellationToken ct, string notFoundMessage = "Offer not found.")
     {

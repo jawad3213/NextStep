@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Hangfire;
 using NextStep.Modules.Applications.Application.Dtos;
+using NextStep.Modules.Applications.Application.Jobs;
 using NextStep.Shared.ErrorHandling;
 using NextStep.Shared.Http;
 
@@ -13,14 +15,24 @@ public interface IOfferAnalysisService
     /// </summary>
     Task<OfferAnalysisDto> AnalyzeAsync(Guid userId, Guid offerId, CancellationToken ct = default);
 
-    /// <summary>Starts CV generation for the offer in the background (progress goes through SignalR).</summary>
+    /// <summary>
+    /// Queues CV generation as a durable background job and returns immediately
+    /// (progress goes through SignalR).
+    /// </summary>
     void StartGenerationInBackground(Guid userId, Guid offerId, int templateId);
+
+    /// <summary>
+    /// Queues the three agents as a durable background job and reports the outcome
+    /// through SignalR. Used by the HTTP entry point so the browser is never left holding
+    /// an idle connection while the LLM runs.
+    /// </summary>
+    void StartAnalysisInBackground(Guid userId, Guid offerId);
 }
 
 public class OfferAnalysisService(
     IOfferService offerService,
     IAgentHttpClient agents,
-    IServiceScopeFactory scopeFactory,
+    IBackgroundJobClient backgroundJobs,
     ILogger<OfferAnalysisService> logger) : IOfferAnalysisService
 {
     public async Task<OfferAnalysisDto> AnalyzeAsync(Guid userId, Guid offerId, CancellationToken ct = default)
@@ -42,6 +54,9 @@ public class OfferAnalysisService(
             // Merge the results into the stored pipeline format
             var combined = new Dictionary<string, object>
             {
+                // Marks which run produced this payload, so a client waiting on a
+                // background run can tell the new result from the previous one.
+                { "analysis_run_id", Guid.NewGuid().ToString() },
                 { "analyzed_offer", JsonSerializer.Deserialize<object>(analyzedOffer.GetRawText())! },
                 { "skill_gap_analysis", JsonSerializer.Deserialize<object>(matchDoc.RootElement.GetRawText())! },
                 { "match_result", JsonSerializer.Deserialize<object>(matchDoc.RootElement.GetRawText())! }
@@ -64,18 +79,26 @@ public class OfferAnalysisService(
 
     public void StartGenerationInBackground(Guid userId, Guid offerId, int templateId)
     {
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                using var scope = scopeFactory.CreateScope();
-                var runner = scope.ServiceProvider.GetRequiredService<IPipelineRunnerService>();
-                await runner.StartGenerationAsync(offerId, userId.ToString(), templateId, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Pipeline [GENERATION] task failed for offer {OfferId}", offerId);
-            }
-        });
+        backgroundJobs.Enqueue<OfferGenerationJob>(job => job.ExecuteAsync(offerId, userId.ToString(), templateId));
+    }
+
+    /// <summary>
+    /// Queues the analysis off the request path and pushes progress/outcome to the browser
+    /// over SignalR, the same channel the generation step already uses.
+    /// </summary>
+    /// <remarks>
+    /// The three agents run in sequence and can take minutes, which is longer than the idle
+    /// timeout of any reverse proxy in front of the API (Cloudflare, an ALB, a corporate
+    /// proxy). Holding the HTTP request open for that long means the connection is dropped
+    /// while the work is still running, and the user is shown a failure for a run that
+    /// actually succeeded. Returning 202 immediately removes that failure mode entirely.
+    /// The browser only joins the offer's SignalR group from the generation step onwards, so
+    /// these events are best-effort: the client detects completion by polling the stored
+    /// analysis, and uses these events for live feedback when it is already connected.
+    /// The run itself is owned by Hangfire, so a restart no longer discards it.
+    /// </remarks>
+    public void StartAnalysisInBackground(Guid userId, Guid offerId)
+    {
+        backgroundJobs.Enqueue<OfferAnalysisJob>(job => job.ExecuteAsync(userId, offerId));
     }
 }

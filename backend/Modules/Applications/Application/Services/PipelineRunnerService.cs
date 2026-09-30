@@ -97,6 +97,10 @@ public class PipelineRunnerService : IPipelineRunnerService
         {
             _logger.LogError(ex, "PipelineRunner [GENERATION] — ❌ Error for {OfferId}", offerId);
             await _hubContext.Clients.Group(offerId.ToString()).SendAsync("PipelineCompleted", new PipelineCompletedDto { OfferId = offerId, Status = "error" });
+
+            // The client has been told, but the failure must still reach Hangfire: swallowing it
+            // here would make the dashboard report a successful run that produced no document.
+            throw;
         }
     }
 

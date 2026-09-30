@@ -36,7 +36,7 @@ export const appConfig: ApplicationConfig = {
         clientId: 'nextstep-frontend',
       },
       initOptions: {
-        onLoad: 'login-required',
+        onLoad: 'check-sso',
         checkLoginIframe: false,
         pkceMethod: false,
         silentCheckSsoRedirectUri: globalThis.location.origin + '/silent-check-sso.html',
